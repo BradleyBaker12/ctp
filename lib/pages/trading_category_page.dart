@@ -1,0 +1,115 @@
+import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/custom_back_button.dart';
+
+class TradingCategoryPage extends StatelessWidget {
+  const TradingCategoryPage({super.key});
+
+  Future<void> _updateUserRole(BuildContext context, String role) async {
+    final String userId =
+        Provider.of<UserProvider>(context, listen: false).userId!;
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    await firestore.collection('users').doc(userId).update({
+      'userRole': role,
+    });
+
+    if (role == 'dealer') {
+      Navigator.pushReplacementNamed(context, '/preferedBrands');
+    } else if (role == 'transporter') {
+      Navigator.pushReplacementNamed(context, '/addProfilePhoto');
+    } else {
+      Navigator.pushReplacementNamed(context, '/addProfilePhoto');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var screenSize = MediaQuery.of(context).size;
+    var blue = const Color(0xFF2F7FFF);
+    var orange = const Color(0xFFFF4E00);
+
+    return Scaffold(
+      body: GradientBackground(
+        child: Column(
+          children: [
+            const BlurryAppBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Stack(
+                  children: [
+                    Container(
+                      width: screenSize.width,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          Image.asset('lib/assets/CTPLogo.png',
+                              height: 200), // Adjust the height as needed
+                          const SizedBox(height: 50),
+                          const Text(
+                            'Welcome to CTP where trading trucks and trailers is made easy!',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Please select your trading category:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(
+                              height: 20), // Adjust the spacing as needed
+                          const Text(
+                            'Transporters are users who sell trucks.\nDealers are users who buy trucks.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(
+                              height: 50), // Adjust the spacing as needed
+                          CustomButton(
+                            text: 'TRANSPORTER',
+                            borderColor: blue,
+                            onPressed: () =>
+                                _updateUserRole(context, 'transporter'),
+                          ),
+                          CustomButton(
+                            text: 'DEALER',
+                            borderColor: orange,
+                            onPressed: () => _updateUserRole(context, 'dealer'),
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                      ),
+                    ),
+                    const Positioned(
+                      top: 40,
+                      left: 16,
+                      child: CustomBackButton(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

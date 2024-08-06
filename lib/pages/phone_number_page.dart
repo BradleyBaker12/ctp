@@ -1,0 +1,340 @@
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_back_button.dart';
+import 'package:ctp/components/loading_screen.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:provider/provider.dart';
+
+class PhoneNumberPage extends StatefulWidget {
+  const PhoneNumberPage({super.key});
+
+  @override
+  _PhoneNumberPageState createState() => _PhoneNumberPageState();
+}
+
+class _PhoneNumberPageState extends State<PhoneNumberPage> {
+  final TextEditingController _phoneController = TextEditingController();
+  String _selectedCountryCode = 'ZA +27';
+  List<Map<String, dynamic>> _countryCodes = [];
+  String _errorMessage = '';
+  bool _isLoading = false;
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCountryCodes();
+  }
+
+  Future<void> _loadCountryCodes() async {
+    final String response =
+        await rootBundle.loadString('lib/assets/CountryCodes.json');
+    final List<dynamic> data = json.decode(response);
+    setState(() {
+      _countryCodes = data
+          .map((e) => {
+                'name': e['name'] as String,
+                'dial_code': e['dial_code'] as String,
+                'code': e['code'] as String
+              })
+          .toList();
+    });
+  }
+
+  bool _validatePhoneNumber(String phoneNumber) {
+    final RegExp regex = RegExp(r'^\d+$');
+    if (!regex.hasMatch(phoneNumber)) {
+      setState(() {
+        _errorMessage = 'Number format is incorrect. Only digits are allowed.';
+      });
+      return false;
+    }
+    if (phoneNumber.length == 10 && phoneNumber.startsWith('0')) {
+      setState(() {
+        _errorMessage = '';
+      });
+      return true;
+    }
+    if (phoneNumber.length == 9) {
+      setState(() {
+        _errorMessage = '';
+      });
+      return true;
+    }
+    setState(() {
+      _errorMessage =
+          'Number format is incorrect. Please enter a valid number.';
+    });
+    return false;
+  }
+
+  Future<void> _savePhoneNumber(String userId, String formattedNumber) async {
+    if (userId.isNotEmpty) {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .update({'phoneNumber': formattedNumber});
+      print(
+          'PhoneNumberPage: Phone number saved for UID: $userId'); // Debugging
+    }
+  }
+
+  void _continue() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final String userId =
+        Provider.of<UserProvider>(context, listen: false).userId!;
+    print('PhoneNumberPage: Current User UID: $userId'); // Debugging
+
+    final String phoneNumber = _phoneController.text;
+    if (!_validatePhoneNumber(phoneNumber)) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    String formattedNumber = phoneNumber;
+    String dialCode = _selectedCountryCode.split(' ').last;
+
+    if (phoneNumber.length == 10 && phoneNumber.startsWith('0')) {
+      formattedNumber = phoneNumber.substring(1);
+    }
+
+    formattedNumber = '$dialCode$formattedNumber';
+    await _savePhoneNumber(userId, formattedNumber);
+
+    await _auth.verifyPhoneNumber(
+        phoneNumber: formattedNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-retrieval or instant verification
+          await _auth.currentUser!.linkWithCredential(credential);
+          print(
+              'PhoneNumberPage: Auto verified and linked UID: ${_auth.currentUser!.uid}'); // Debugging
+          Navigator.pushReplacementNamed(context, '/firstName');
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = "Verification failed. Please try again.";
+          });
+          print(e);
+        },
+        codeSent: (String verificationId, int? forceResendingToken) {
+          setState(() {
+            _isLoading = false;
+          });
+          Navigator.pushNamed(context, '/otp', arguments: {
+            'verificationId': verificationId,
+            'phoneNumber': formattedNumber,
+            'userId': userId
+          });
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          setState(() {
+            _isLoading = false;
+          });
+        });
+    setState(() {
+      _isLoading = false;
+    });
+    print('Phone Number: $formattedNumber');
+  }
+
+  void _skip() {
+    Navigator.pushNamed(context, "/firstName");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var screenSize = MediaQuery.of(context).size;
+    var orange = const Color(0xFFFF4E00);
+    var blue = const Color(0xFF2F7FFF);
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          GradientBackground(
+            child: Column(
+              children: [
+                const BlurryAppBar(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: screenSize.width,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 8.0),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 20),
+                              Image.asset('lib/assets/CTPLogo.png',
+                                  height: 200), // Adjust the height as needed
+                              const SizedBox(height: 50),
+                              const Text(
+                                'MY NUMBER IS',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 100, // Adjust width as needed
+                                    child: Column(
+                                      children: [
+                                        DropdownButtonFormField<String>(
+                                          value: _selectedCountryCode,
+                                          icon: const Icon(
+                                              Icons.arrow_drop_down,
+                                              color: Colors.white),
+                                          iconSize: 24,
+                                          elevation: 16,
+                                          style: const TextStyle(
+                                              color: Colors.white),
+                                          dropdownColor: Colors.black,
+                                          decoration: InputDecoration(
+                                            enabledBorder: UnderlineInputBorder(
+                                              borderSide:
+                                                  BorderSide(color: blue),
+                                            ),
+                                            focusedBorder: UnderlineInputBorder(
+                                              borderSide:
+                                                  BorderSide(color: blue),
+                                            ),
+                                          ),
+                                          onChanged: (String? newValue) {
+                                            setState(() {
+                                              _selectedCountryCode = newValue!;
+                                            });
+                                          },
+                                          items: _countryCodes
+                                              .map<DropdownMenuItem<String>>(
+                                                  (Map<String, dynamic> value) {
+                                            return DropdownMenuItem<String>(
+                                              value:
+                                                  '${value['code']} ${value['dial_code']}',
+                                              child: Text(
+                                                  '${value['code']} ${value['dial_code']}',
+                                                  style: const TextStyle(
+                                                      color: Colors.white)),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Container(
+                                      child: Column(
+                                        children: [
+                                          TextField(
+                                            controller: _phoneController,
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter
+                                                  .digitsOnly
+                                            ],
+                                            decoration: InputDecoration(
+                                              hintText: '00 000 0000',
+                                              hintStyle: TextStyle(
+                                                  color: Colors.white
+                                                      .withOpacity(0.7)),
+                                              filled: true,
+                                              fillColor: Colors
+                                                  .transparent, // Keep the fillColor transparent
+                                              enabledBorder:
+                                                  UnderlineInputBorder(
+                                                borderSide:
+                                                    BorderSide(color: blue),
+                                              ),
+                                              focusedBorder:
+                                                  UnderlineInputBorder(
+                                                borderSide:
+                                                    BorderSide(color: blue),
+                                              ),
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 16.0,
+                                                      horizontal: 16.0),
+                                            ),
+                                            style: const TextStyle(
+                                                color: Colors.white),
+                                            onChanged: (value) {
+                                              if (_errorMessage.isNotEmpty) {
+                                                setState(() {
+                                                  _errorMessage = '';
+                                                });
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              if (_errorMessage.isNotEmpty)
+                                Text(
+                                  _errorMessage,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.red,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'We will send you a text with a verification code. Message and data rates may apply. Learn what happens when your number changes.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 150),
+                              CustomButton(
+                                text: 'CONTINUE',
+                                borderColor: blue,
+                                onPressed: _continue,
+                              ),
+                              CustomButton(
+                                text: 'SKIP',
+                                borderColor: orange,
+                                onPressed: _skip,
+                              ),
+                              const SizedBox(height: 30),
+                            ],
+                          ),
+                        ),
+                        const Positioned(
+                            top: 40, left: 16, child: CustomBackButton()),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isLoading) const LoadingScreen()
+        ],
+      ),
+    );
+  }
+}
