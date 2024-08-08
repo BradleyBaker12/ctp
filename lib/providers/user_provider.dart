@@ -1,8 +1,9 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
@@ -11,6 +12,8 @@ class UserProvider extends ChangeNotifier {
   String? _profileImageUrl;
   List<String> _offers = [];
   List<String> _offersMade = [];
+  List<String> _likedVehicles = []; // Add liked vehicles list
+  List<String> _dislikedVehicles = []; // Add disliked vehicles list
   String _userName = 'Guest'; // default name
   String _userEmail = 'user@example.com';
   bool _isLoading = true; // Add loading state
@@ -58,6 +61,22 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  Map<String, dynamic> getUserData() {
+    return {
+      'firstName': _firstName,
+      'middleName': _middleName,
+      'lastName': _lastName,
+      'tradingName': _tradingName,
+      'registrationNumber': _registrationNumber,
+      'vatNumber': _vatNumber,
+      'addressLine1': _addressLine1,
+      'addressLine2': _addressLine2,
+      'city': _city,
+      'state': _state,
+      'postalCode': _postalCode,
+    };
+  }
+
   Future<void> fetchUserData() async {
     try {
       if (_user != null) {
@@ -72,6 +91,8 @@ class UserProvider extends ChangeNotifier {
           _profileImageUrl = data['profileImageUrl'];
           _offers = List<String>.from(data['offers'] ?? []);
           _offersMade = List<String>.from(data['offersMade'] ?? []);
+          _likedVehicles = List<String>.from(data['likedVehicles'] ?? []);
+          _dislikedVehicles = List<String>.from(data['dislikedVehicles'] ?? []);
           _userName = data['firstName'] ?? 'Guest'; // Ensure name is not null
           _userEmail = data['email'] ?? 'user@example.com';
           _companyName = data['companyName'];
@@ -127,6 +148,8 @@ class UserProvider extends ChangeNotifier {
     _profileImageUrl = null;
     _offers = [];
     _offersMade = [];
+    _likedVehicles = [];
+    _dislikedVehicles = [];
     _userName = 'Guest';
     _companyName = null;
     _tradingName = null;
@@ -148,6 +171,118 @@ class UserProvider extends ChangeNotifier {
     _proxyUrl = null;
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> likeVehicle(String vehicleId) async {
+    if (_user != null) {
+      if (!_likedVehicles.contains(vehicleId)) {
+        _likedVehicles.add(vehicleId);
+        print(
+            'Adding vehicleId: $vehicleId to likedVehicles list'); // Debugging statement
+
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user!.uid)
+              .update({'likedVehicles': _likedVehicles});
+          print(
+              'Updated likedVehicles in Firestore successfully'); // Debugging statement
+          notifyListeners();
+        } catch (e) {
+          print(
+              'Error updating likedVehicles in Firestore: $e'); // Debugging statement
+        }
+      } else {
+        print(
+            'VehicleId: $vehicleId already in likedVehicles list'); // Debugging statement
+      }
+    } else {
+      print('User is not authenticated'); // Debugging statement
+    }
+  }
+
+  Future<void> dislikeVehicle(String vehicleId) async {
+    if (_user != null) {
+      if (!_dislikedVehicles.contains(vehicleId)) {
+        _dislikedVehicles.add(vehicleId);
+        print(
+            'Adding vehicleId: $vehicleId to dislikedVehicles list'); // Debugging statement
+
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user!.uid)
+              .update({'dislikedVehicles': _dislikedVehicles});
+          print(
+              'Updated dislikedVehicles in Firestore successfully'); // Debugging statement
+          notifyListeners();
+        } catch (e) {
+          print(
+              'Error updating dislikedVehicles in Firestore: $e'); // Debugging statement
+        }
+      } else {
+        print(
+            'VehicleId: $vehicleId already in dislikedVehicles list'); // Debugging statement
+      }
+    } else {
+      print('User is not authenticated'); // Debugging statement
+    }
+  }
+
+  Future<void> removeLikedVehicle(String vehicleId) async {
+    if (_user != null) {
+      if (_likedVehicles.contains(vehicleId)) {
+        _likedVehicles.remove(vehicleId);
+        print(
+            'Removing vehicleId: $vehicleId from likedVehicles list'); // Debugging statement
+
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user!.uid)
+              .update({'likedVehicles': _likedVehicles});
+          print(
+              'Updated likedVehicles in Firestore successfully'); // Debugging statement
+          notifyListeners();
+        } catch (e) {
+          print(
+              'Error updating likedVehicles in Firestore: $e'); // Debugging statement
+        }
+      } else {
+        print(
+            'VehicleId: $vehicleId not found in likedVehicles list'); // Debugging statement
+      }
+    } else {
+      print('User is not authenticated'); // Debugging statement
+    }
+  }
+
+  Future<void> removeDislikedVehicle(String vehicleId) async {
+    if (_user != null) {
+      if (_dislikedVehicles.contains(vehicleId)) {
+        _dislikedVehicles.remove(vehicleId);
+        print(
+            'Removing vehicleId: $vehicleId from dislikedVehicles list'); // Debugging statement
+
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user!.uid)
+              .update({'dislikedVehicles': _dislikedVehicles});
+          print(
+              'Updated dislikedVehicles in Firestore successfully'); // Debugging statement
+          notifyListeners();
+        } catch (e) {
+          print(
+              'Error updating dislikedVehicles in Firestore: $e'); // Debugging statement
+        }
+      } else {
+        print(
+            'VehicleId: $vehicleId not found in dislikedVehicles list'); // Debugging statement
+      }
+    } else {
+      print('User is not authenticated'); // Debugging statement
+    }
   }
 
   void addPreferredBrand(String brand) {
@@ -285,4 +420,8 @@ class UserProvider extends ChangeNotifier {
     _user = user;
     notifyListeners();
   }
+
+  // Add methods to get liked and disliked vehicles lists
+  List<String> get getLikedVehicles => _likedVehicles;
+  List<String> get getDislikedVehicles => _dislikedVehicles;
 }

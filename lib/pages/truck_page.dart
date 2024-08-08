@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
@@ -18,6 +19,7 @@ class _TruckPageState extends State<TruckPage> {
   int _selectedIndex = 1; // Set initial selected index to the trucks tab
   List<Vehicle> swipedVehicles = []; // Track swiped vehicles
   List<Vehicle> displayedVehicles = []; // Vehicles currently displayed
+  List<String> swipedDirections = []; // Track swipe directions for undo
   int loadedVehicleIndex = 0; // Index to track loaded vehicles
   bool _hasReachedEnd = false; // Track if all cards are swiped
 
@@ -33,8 +35,14 @@ class _TruckPageState extends State<TruckPage> {
   void _loadInitialVehicles() {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
     setState(() {
-      displayedVehicles = vehicleProvider.vehicles.take(5).toList();
+      displayedVehicles = vehicleProvider.vehicles
+          .where((vehicle) =>
+              !userProvider.getLikedVehicles.contains(vehicle.id) &&
+              !userProvider.getDislikedVehicles.contains(vehicle.id))
+          .take(5)
+          .toList();
       loadedVehicleIndex = displayedVehicles.length;
       print('Initial vehicles loaded: ${displayedVehicles.length}');
       for (var vehicle in displayedVehicles) {
@@ -47,21 +55,26 @@ class _TruckPageState extends State<TruckPage> {
   void _loadNextVehicle() {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
     print(
         'Loading next vehicle. Current loaded index: $loadedVehicleIndex, Total vehicles: ${vehicleProvider.vehicles.length}');
-    if (loadedVehicleIndex < vehicleProvider.vehicles.length) {
-      setState(() {
-        displayedVehicles.add(vehicleProvider.vehicles[loadedVehicleIndex]);
-        loadedVehicleIndex++;
-        print(
-            'Next vehicle loaded: ${vehicleProvider.vehicles[loadedVehicleIndex - 1].id}');
-      });
-    } else {
-      setState(() {
-        _hasReachedEnd = true;
-        print('No more vehicles to load.');
-      });
+    while (loadedVehicleIndex < vehicleProvider.vehicles.length) {
+      final nextVehicle = vehicleProvider.vehicles[loadedVehicleIndex];
+      if (!userProvider.getLikedVehicles.contains(nextVehicle.id) &&
+          !userProvider.getDislikedVehicles.contains(nextVehicle.id)) {
+        setState(() {
+          displayedVehicles.add(nextVehicle);
+          loadedVehicleIndex++;
+          print('Next vehicle loaded: ${nextVehicle.id}');
+        });
+        return;
+      }
+      loadedVehicleIndex++;
     }
+    setState(() {
+      _hasReachedEnd = true;
+      print('No more vehicles to load.');
+    });
   }
 
   void _onItemTapped(int index) {
@@ -154,15 +167,29 @@ class _TruckPageState extends State<TruckPage> {
                         'Swiped card at index: $previousIndex in direction: $direction');
                     if (direction == AxisDirection.left ||
                         direction == AxisDirection.right) {
+                      final vehicle = displayedVehicles[previousIndex];
                       setState(() {
                         print('Adding vehicle to swiped list');
-                        swipedVehicles.add(displayedVehicles[previousIndex]);
+                        swipedVehicles.add(vehicle);
+                        swipedDirections.add(direction == AxisDirection.right
+                            ? 'right'
+                            : 'left');
                         print('Removing vehicle from displayed list');
                         displayedVehicles.removeAt(previousIndex);
                       });
                       print(
-                          'Displayed vehicles after removal: ${displayedVehicles.length}');
+                          'Displayed vehicles after removal: ${displayedVehicles.map((v) => v.id).toList()}');
+                      print(
+                          'Swiped vehicles: ${swipedVehicles.map((v) => v.id).toList()}');
                       _loadNextVehicle();
+
+                      final userProvider =
+                          Provider.of<UserProvider>(context, listen: false);
+                      if (direction == AxisDirection.right) {
+                        await userProvider.likeVehicle(vehicle.id);
+                      } else if (direction == AxisDirection.left) {
+                        await userProvider.dislikeVehicle(vehicle.id);
+                      }
                     }
                     if (targetIndex == null) {
                       setState(() {
@@ -309,11 +336,11 @@ class _TruckPageState extends State<TruckPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildIconButton(
-                      Icons.close, const Color(0xFF2F7FFF), controller, 'left'),
+                  _buildIconButton(Icons.close, const Color(0xFF2F7FFF),
+                      controller, 'left', vehicle),
                   _buildCenterButton(controller),
                   _buildIconButton(Icons.favorite, const Color(0xFFFF4E00),
-                      controller, 'right'),
+                      controller, 'right', vehicle),
                 ],
               ),
             ),
@@ -386,15 +413,29 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   Widget _buildIconButton(IconData icon, Color color,
-      AppinioSwiperController controller, String direction) {
+      AppinioSwiperController controller, String direction, Vehicle vehicle) {
     return Expanded(
       child: GestureDetector(
-        onTap: () {
+        onTap: () async {
           print('${icon == Icons.close ? "DISLIKE" : "LIKE"} button pressed');
           if (direction == 'left') {
+            final userProvider =
+                Provider.of<UserProvider>(context, listen: false);
+            await userProvider.dislikeVehicle(vehicle.id);
+
+            print(
+                'Disliked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
+
             controller.swipeLeft();
             print('Swiping left');
           } else if (direction == 'right') {
+            final userProvider =
+                Provider.of<UserProvider>(context, listen: false);
+            await userProvider.likeVehicle(vehicle.id);
+
+            print(
+                'Liked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
+
             controller.swipeRight();
             print('Swiping right');
           }
@@ -421,16 +462,32 @@ class _TruckPageState extends State<TruckPage> {
   Widget _buildCenterButton(AppinioSwiperController controller) {
     return Expanded(
       child: GestureDetector(
-        onTap: () {
+        onTap: () async {
           print("Undo button pressed");
+          print(
+              'Swiped vehicles before undo: ${swipedVehicles.map((v) => v.id).toList()}');
+          print(
+              'Displayed vehicles before undo: ${displayedVehicles.map((v) => v.id).toList()}');
+
           if (swipedVehicles.isNotEmpty) {
-            setState(() {
-              final lastVehicle = swipedVehicles.removeLast();
-              displayedVehicles.insert(0, lastVehicle);
-              if (_hasReachedEnd) {
-                _hasReachedEnd = false;
-              }
-            });
+            final lastVehicle = swipedVehicles.removeLast();
+            final lastDirection = swipedDirections.removeLast();
+            final userProvider =
+                Provider.of<UserProvider>(context, listen: false);
+
+            // Remove the vehicle from liked or disliked list in the database
+            if (lastDirection == 'right') {
+              await userProvider.removeLikedVehicle(lastVehicle.id);
+            } else if (lastDirection == 'left') {
+              await userProvider.removeDislikedVehicle(lastVehicle.id);
+            }
+
+            controller.unswipe();
+
+            print(
+                'Swiped vehicles after undo: ${swipedVehicles.map((v) => v.id).toList()}');
+            print(
+                'Displayed vehicles after undo: ${displayedVehicles.map((v) => v.id).toList()}');
           }
         },
         child: Container(

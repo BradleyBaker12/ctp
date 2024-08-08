@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/build_sign_in_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -49,14 +48,15 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       GradientBackground(
-                        child: Container(
-                          width: screenSize.width,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 8.0),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenSize.width * 0.05,
+                            vertical: screenSize.height * 0.02,
+                          ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const SizedBox(height: 20),
+                              SizedBox(height: screenSize.height * 0.02),
                               const Text(
                                 'COMMERCIAL TRADER PORTAL',
                                 style: TextStyle(
@@ -65,7 +65,7 @@ class _LoginPageState extends State<LoginPage> {
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: screenSize.height * 0.01),
                               const Text(
                                 'Navigate with Confidence, Drive with Ease.\nYour trusted partner on the road.',
                                 textAlign: TextAlign.center,
@@ -74,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 20),
+                              SizedBox(height: screenSize.height * 0.02),
                               SignInButton(
                                 text: 'Sign In with Apple',
                                 onPressed: () {
@@ -103,10 +103,10 @@ class _LoginPageState extends State<LoginPage> {
                                 },
                                 borderColor: orange,
                               ),
-                              const SizedBox(height: 20),
+                              SizedBox(height: screenSize.height * 0.02),
                               Row(
                                 mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   const Text(
                                     'Trouble Signing In?',
@@ -127,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 60),
+                              SizedBox(height: screenSize.height * 0.08),
                             ],
                           ),
                         ),

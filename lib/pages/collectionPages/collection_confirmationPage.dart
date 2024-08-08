@@ -2,35 +2,36 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
+import 'package:ctp/pages/payment_options_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geocoding/geocoding.dart';
 
-class LocationConfirmationPage extends StatefulWidget {
-  final String offerId;
+class CollectionConfirmationPage extends StatefulWidget {
   final String location;
   final String address;
   final DateTime date;
   final String time;
+  final String offerId; // Add offerId parameter
 
-  const LocationConfirmationPage({
+  const CollectionConfirmationPage({
     super.key,
-    required this.offerId,
     required this.location,
     required this.address,
     required this.date,
     required this.time,
+    required this.offerId, // Add offerId parameter
   });
 
   @override
-  _LocationConfirmationPageState createState() =>
-      _LocationConfirmationPageState();
+  _CollectionConfirmationPageState createState() =>
+      _CollectionConfirmationPageState();
 }
 
-class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
+class _CollectionConfirmationPageState
+    extends State<CollectionConfirmationPage> {
   bool _isLoading = false;
   LatLng? _latLng;
 
@@ -46,63 +47,18 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
     });
 
     try {
-      print('Getting coordinates for address: ${widget.address}');
       List<Location> locations = await locationFromAddress(widget.address);
       if (locations.isNotEmpty) {
         final location = locations.first;
         setState(() {
           _latLng = LatLng(location.latitude, location.longitude);
-          print('Coordinates found: $_latLng');
         });
       } else {
         throw 'No locations found for the provided address';
       }
     } catch (e) {
-      print('Error getting coordinates: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to get coordinates: $e')),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveInspectionDetails() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final DocumentReference offerRef =
-          FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
-
-      await offerRef.set({
-        'dealerSelectedInspectionDate': widget.date,
-        'dealerSelectedInspectionTime': widget.time,
-        'dealerSelectedInspectionLocation': widget.address,
-        'latLng': _latLng != null
-            ? GeoPoint(_latLng!.latitude, _latLng!.longitude)
-            : null,
-      }, SetOptions(merge: true));
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => ConfirmationPage(
-            offerId: widget.offerId,
-            location: widget.location,
-            address: widget.address,
-            date: widget.date,
-            time: widget.time,
-            latLng: _latLng!,
-          ),
-        ),
-      );
-    } catch (e) {
-      print('Error saving inspection details: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save inspection details: $e')),
       );
     } finally {
       setState(() {
@@ -118,11 +74,9 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
       if (await canLaunch(googleMapsUrl)) {
         await launch(googleMapsUrl);
       } else {
-        print('Could not open Google Maps');
         throw 'Could not open Google Maps';
       }
     } else {
-      print('LatLng is not available');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('LatLng is not available')),
       );
@@ -131,11 +85,6 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
 
   @override
   Widget build(BuildContext context) {
-    print(
-        'Navigated to LocationConfirmationPage with offerId: ${widget.offerId}');
-    print('Location: ${widget.location}, Address: ${widget.address}');
-    print('Date: ${widget.date}, Time: ${widget.time}');
-
     return Scaffold(
       body: GradientBackground(
         child: Stack(
@@ -248,7 +197,16 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
                     CustomButton(
                       text: 'DONE',
                       borderColor: Colors.orange,
-                      onPressed: _saveInspectionDetails,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PaymentOptionsPage(
+                              offerId: widget.offerId,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                   ],

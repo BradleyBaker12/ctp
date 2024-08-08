@@ -37,12 +37,19 @@ dependencies:
   firebase_storage: ^12.1.2
   flutter:
     sdk: flutter
+  flutter_pdfview: ^1.3.2
+  geocoding: ^3.0.0
   google_fonts: ^6.2.1
   google_maps_flutter: ^2.8.0
   image_cropper: ^8.0.1
   image_picker: ^1.1.2
+  intl: ^0.19.0
+  path_provider: ^2.1.4
+  pdf: ^3.11.0
   pinput: ^5.0.0
+  printing: ^5.13.1
   provider: ^6.1.2
+  share_plus: ^10.0.0
   table_calendar: ^3.1.2
   url_launcher: ^6.3.0
 
@@ -86,6 +93,11 @@ flutter:
     - lib/assets/western_star_logo.png
     - lib/assets/verified_Icon.png
     - lib/assets/shaking_hands.png
+    - lib/assets/Offer_SummaryImage.png
+    - lib/assets/WishListImage.png
+    - lib/assets/HeartVector.png
+    - lib/assets/fonts/Roboto-Bold.ttf
+    - lib/assets/fonts/Roboto-Regular.ttf
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
   # For details regarding adding assets from package dependencies, see
@@ -96,16 +108,10 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   # fonts:
-  #   - family: Schyler
+  #   - family: Roboto
   #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
+  #       - asset: lib/assets/fonts/Roboto-Bold.ttf
+  #       - asset: lib/assets/fonts/Roboto-Regular.ttf
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages

@@ -90,6 +90,7 @@ class _SignUpPageState extends State<SignUpPage> {
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           GradientBackground(
@@ -97,59 +98,63 @@ class _SignUpPageState extends State<SignUpPage> {
               children: [
                 const BlurryAppBar(),
                 Expanded(
-                  child: Container(
-                    width: screenSize.width,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Spacer(),
-                        Text(
-                          'WELCOME TO',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: orange,
+                  child: SingleChildScrollView(
+                    child: Container(
+                      width: screenSize.width,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenSize.width * 0.05,
+                        vertical: screenSize.height * 0.02,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: screenSize.height * 0.05),
+                          Text(
+                            'WELCOME TO',
+                            style: TextStyle(
+                              fontSize: screenSize.height * 0.03,
+                              fontWeight: FontWeight.w900,
+                              color: orange,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        Image.asset('lib/assets/CTPLogo.png',
-                            height: 100), // Adjust the height as needed
-                        const Spacer(),
-                        const Text(
-                          'SIGN-UP',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                          SizedBox(height: screenSize.height * 0.02),
+                          Image.asset('lib/assets/CTPLogo.png',
+                              height: screenSize.height * 0.15),
+                          SizedBox(height: screenSize.height * 0.05),
+                          const Text(
+                            'SIGN-UP',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        const Spacer(),
-                        CustomTextField(
-                          hintText: 'USERNAME OR EMAIL',
-                          controller: _emailController,
-                        ),
-                        const SizedBox(height: 20),
-                        CustomTextField(
-                          hintText: 'PASSWORD',
-                          obscureText: true,
-                          controller: _passwordController,
-                        ),
-                        const SizedBox(height: 20),
-                        CustomTextField(
-                          hintText: 'CONFIRM PASSWORD',
-                          obscureText: true,
-                          controller: _confirmPasswordController,
-                        ),
-                        const Spacer(),
-                        CustomButton(
-                          text: 'SIGN-UP',
-                          borderColor: const Color(0xFF2F7FFF),
-                          onPressed: _signUp,
-                        ),
-                        const SizedBox(height: 50),
-                      ],
+                          SizedBox(height: screenSize.height * 0.02),
+                          CustomTextField(
+                            hintText: 'USERNAME OR EMAIL',
+                            controller: _emailController,
+                          ),
+                          SizedBox(height: screenSize.height * 0.02),
+                          CustomTextField(
+                            hintText: 'PASSWORD',
+                            obscureText: true,
+                            controller: _passwordController,
+                          ),
+                          SizedBox(height: screenSize.height * 0.02),
+                          CustomTextField(
+                            hintText: 'CONFIRM PASSWORD',
+                            obscureText: true,
+                            controller: _confirmPasswordController,
+                          ),
+                          SizedBox(height: screenSize.height * 0.05),
+                          CustomButton(
+                            text: 'SIGN-UP',
+                            borderColor: const Color(0xFF2F7FFF),
+                            onPressed: _signUp,
+                          ),
+                          SizedBox(height: screenSize.height * 0.02),
+                        ],
+                      ),
                     ),
                   ),
                 ),

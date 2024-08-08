@@ -22,16 +22,12 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
   DateTime? _selectedDay;
   int _selectedTimeSlot = 0;
 
-  final List<String> _locations = [
-    'LOCATION 1, AREA, PROVINCE',
-    'LOCATION 2, AREA, PROVINCE',
-    'LOCATION 3, AREA PROVINCE'
-  ];
+  final List<String> _locations = ['LOCATION 1', 'LOCATION 2', 'LOCATION 3'];
 
   final List<String> _addresses = [
-    '123 Example street, Area name\nCity, Province\nPostal Code',
-    '456 Another street, Area name\nCity, Province\nPostal Code',
-    '789 Different street, Area name\nCity, Province\nPostal Code'
+    '56 Iffley Road, Henley On Klip, Meyerton, 1962',
+    '119 Blackwood Street, Three Rivers, Vereeniging, 1929',
+    'Sandton'
   ];
 
   final List<LatLng> _latLngs = [
@@ -260,7 +256,6 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                               .subtract(const Duration(days: 1))) &&
                           isDateAvailable(day);
                       // Debugging: print the day and whether it's enabled
-                      print('Debug: Day: $day, Enabled: $isEnabled');
                       return isEnabled;
                     },
                     calendarStyle: CalendarStyle(
@@ -396,7 +391,6 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           address: _addresses[_selectedLocation],
                           date: _selectedDay!,
                           time: _availableTimes[_selectedTimeSlot],
-                          latLng: _latLngs[_selectedLocation],
                         ),
                       ),
                     );

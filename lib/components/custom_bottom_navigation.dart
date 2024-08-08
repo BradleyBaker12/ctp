@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/truck_page.dart'; // Import the truck page
+import 'package:ctp/pages/wishlist_offers_page.dart'; // Import the wishlist offers page
 
 class CustomBottomNavigation extends StatelessWidget {
   final int selectedIndex;
@@ -30,7 +31,10 @@ class CustomBottomNavigation extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const TruckPage()),
           );
         } else if (index == 2) {
-          // Add logic for the third tab if needed
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const WishlistOffersPage()),
+          );
         } else if (index == 3) {
           Navigator.pushReplacement(
             context,
