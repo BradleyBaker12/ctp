@@ -18,6 +18,14 @@ class HouseRulesPage extends StatefulWidget {
 class _HouseRulesPageState extends State<HouseRulesPage> {
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus(); // Hide the keyboard when the page loads
+    });
+  }
+
   Future<void> _handleAgree(BuildContext context) async {
     setState(() {
       _isLoading = true;
