@@ -8,6 +8,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/wishlist_offers_page.dart';
+
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
 class LocationConfirmationPage extends StatefulWidget {
   final String offerId;
@@ -15,6 +21,8 @@ class LocationConfirmationPage extends StatefulWidget {
   final String address;
   final DateTime date;
   final String time;
+  final String makeModel;
+  final String offerAmount;
 
   const LocationConfirmationPage({
     super.key,
@@ -23,6 +31,8 @@ class LocationConfirmationPage extends StatefulWidget {
     required this.address,
     required this.date,
     required this.time,
+    required this.makeModel,
+    required this.offerAmount,
   });
 
   @override
@@ -33,6 +43,8 @@ class LocationConfirmationPage extends StatefulWidget {
 class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
   bool _isLoading = false;
   LatLng? _latLng;
+  int _selectedIndex =
+      0; // Variable to keep track of the selected bottom nav item
 
   @override
   void initState() {
@@ -96,6 +108,8 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
             date: widget.date,
             time: widget.time,
             latLng: _latLng!,
+            makeModel: widget.makeModel,
+            offerAmount: widget.offerAmount,
           ),
         ),
       );
@@ -124,9 +138,15 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
     } else {
       print('LatLng is not available');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('LatLng is not available')),
+        const SnackBar(content: Text('LatLng is not available')),
       );
     }
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -222,9 +242,9 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
                         ),
                       )
                     else if (_isLoading)
-                      Center(child: CircularProgressIndicator())
+                      const Center(child: CircularProgressIndicator())
                     else
-                      Text(
+                      const Text(
                         'No location available',
                         style: TextStyle(color: Colors.red),
                       ),
@@ -266,6 +286,10 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
               ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

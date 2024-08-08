@@ -90,7 +90,7 @@ class _LoginPageState extends State<LoginPage> {
                                 borderColor: Colors.white,
                               ),
                               SignInButton(
-                                text: 'Sign In with Google',
+                                text: 'Sig n In with Google',
                                 onPressed: () {
                                   // Handle sign-in with Google
                                 },

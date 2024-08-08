@@ -1,4 +1,7 @@
 import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/wish_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,7 +11,6 @@ import 'package:ctp/components/wish_card.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/components/offer_card.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/pages/pending_offers_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart'; // Ensure this import
@@ -74,8 +76,8 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
+      appBar: const PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
         child: BlurryAppBar(),
       ),
       body: SingleChildScrollView(
@@ -85,7 +87,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
             Container(
               width: double.infinity,
               height: 300, // Increased height for larger image
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 image: DecorationImage(
                   image: AssetImage(
                       'lib/assets/WishListImage.png'), // Add your header image path here
@@ -201,8 +203,31 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
         ),
       ),
       bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: 2,
-        onItemTapped: (index) {},
+        selectedIndex: 2, // Ensure the heart icon is selected
+        onItemTapped: (index) {
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+            );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const TruckPage()),
+            );
+          } else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const WishlistOffersPage()),
+            );
+          } else if (index == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfilePage()),
+            );
+          }
+        },
       ),
     );
   }
@@ -232,10 +257,10 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
   Widget _buildViewAllLink(VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Row(
+      child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
+          Text(
             'View all',
             style: TextStyle(
               color: Colors.white,
@@ -243,8 +268,8 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
               decoration: TextDecoration.underline,
             ),
           ),
-          const SizedBox(width: 4),
-          const Icon(
+          SizedBox(width: 4),
+          Icon(
             Icons.arrow_forward,
             color: Colors.white,
             size: 16,

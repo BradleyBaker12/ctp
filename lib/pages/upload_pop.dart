@@ -11,8 +11,7 @@ import 'package:ctp/pages/payment_pending_page.dart';
 class UploadProofOfPaymentPage extends StatefulWidget {
   final String offerId;
 
-  const UploadProofOfPaymentPage({Key? key, required this.offerId})
-      : super(key: key);
+  const UploadProofOfPaymentPage({super.key, required this.offerId});
 
   @override
   _UploadProofOfPaymentPageState createState() =>
@@ -77,10 +76,10 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Proof of payment uploaded successfully')));
+          const SnackBar(content: Text('Proof of payment uploaded successfully')));
 
       // Navigate back to the PaymentPendingPage after 2 seconds
-      Future.delayed(Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 2), () {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -94,7 +93,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
       });
       print('Error uploading file: $e');
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error uploading file')));
+          .showSnackBar(const SnackBar(content: Text('Error uploading file')));
     }
   }
 
@@ -107,24 +106,24 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(Icons.photo_library),
-                title: Text('Gallery'),
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
                 onTap: () {
                   _pickImage(ImageSource.gallery);
                   Navigator.of(context).pop();
                 },
               ),
               ListTile(
-                leading: Icon(Icons.photo_camera),
-                title: Text('Camera'),
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Camera'),
                 onTap: () {
                   _pickImage(ImageSource.camera);
                   Navigator.of(context).pop();
                 },
               ),
               ListTile(
-                leading: Icon(Icons.folder),
-                title: Text('Files'),
+                leading: const Icon(Icons.folder),
+                title: const Text('Files'),
                 onTap: () {
                   _pickFile();
                   Navigator.of(context).pop();
@@ -163,13 +162,13 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                   if (_isUploaded)
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 20),
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.green),
                         borderRadius: BorderRadius.circular(10),
                         color: Colors.green.withOpacity(0.1),
                       ),
-                      child: Column(
+                      child: const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.check, color: Colors.white, size: 60),
@@ -181,13 +180,13 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                       onTap: _showPickerDialog,
                       child: Container(
                         width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 20),
+                        padding: const EdgeInsets.symmetric(vertical: 20),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.blue),
                           borderRadius: BorderRadius.circular(10),
                           color: Colors.blue.withOpacity(0.1),
                         ),
-                        child: Column(
+                        child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.folder_open,
@@ -205,8 +204,8 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                       ),
                     ),
                   if (_isLoading)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
                       child: CircularProgressIndicator(),
                     ),
                 ],

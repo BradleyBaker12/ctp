@@ -16,9 +16,9 @@ class OfferSummaryPage extends StatelessWidget {
   final String offerId;
 
   const OfferSummaryPage({
-    Key? key,
+    super.key,
     required this.offerId,
-  }) : super(key: key);
+  });
 
   Future<File> _generatePdf(
       BuildContext context,
@@ -49,7 +49,7 @@ class OfferSummaryPage extends StatelessWidget {
 
     pdf.addPage(
       pw.Page(
-        margin: pw.EdgeInsets.all(20), // Adding margin to the page
+        margin: const pw.EdgeInsets.all(20), // Adding margin to the page
         build: (pw.Context context) => pw.Stack(
           children: [
             pw.Positioned.fill(
@@ -417,10 +417,10 @@ class OfferSummaryPage extends StatelessWidget {
                         filename: 'offer_summary.pdf',
                       );
                     },
-                    child: Icon(Icons.share),
                     tooltip: 'Share PDF',
+                    child: Icon(Icons.share),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   FloatingActionButton(
                     onPressed: () async {
                       final file = await _generatePdf(
@@ -435,8 +435,8 @@ class OfferSummaryPage extends StatelessWidget {
                             file.readAsBytes(),
                       );
                     },
-                    child: Icon(Icons.print),
                     tooltip: 'Print PDF',
+                    child: Icon(Icons.print),
                   ),
                 ],
               ),

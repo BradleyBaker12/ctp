@@ -135,8 +135,6 @@ class _DealerRegPageState extends State<DealerRegPage> {
 
   @override
   Widget build(BuildContext context) {
-    var screenSize = MediaQuery.of(context).size;
-    var blue = const Color(0xFF2F7FFF);
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(

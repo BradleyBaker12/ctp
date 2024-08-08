@@ -8,13 +8,17 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'final_inspection_approval_page.dart';
 
-class ConfirmationPage extends StatelessWidget {
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+
+class ConfirmationPage extends StatefulWidget {
   final String offerId;
   final String location;
   final String address;
   final DateTime date;
   final String time;
   final LatLng latLng;
+  final String makeModel;
+  final String offerAmount;
 
   const ConfirmationPage({
     super.key,
@@ -24,13 +28,29 @@ class ConfirmationPage extends StatelessWidget {
     required this.date,
     required this.time,
     required this.latLng,
+    required this.makeModel,
+    required this.offerAmount,
   });
+
+  @override
+  _ConfirmationPageState createState() => _ConfirmationPageState();
+}
+
+class _ConfirmationPageState extends State<ConfirmationPage> {
+  int _selectedIndex =
+      1; // Variable to keep track of the selected bottom nav item
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     FirebaseFirestore.instance
         .collection('offers')
-        .doc(offerId)
+        .doc(widget.offerId)
         .update({'offerStatus': '1/4'});
     final userProvider = Provider.of<UserProvider>(context);
     final profilePictureUrl = userProvider.getProfileImageUrl.isNotEmpty
@@ -81,9 +101,9 @@ class ConfirmationPage extends StatelessWidget {
                             const Icon(Icons.star, color: Colors.orange)),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'TOYOTA DYNA 7-145',
-                    style: TextStyle(
+                  Text(
+                    widget.makeModel,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -100,9 +120,9 @@ class ConfirmationPage extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'R 1 000 000',
-                    style: TextStyle(
+                  Text(
+                    widget.offerAmount,
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -111,7 +131,7 @@ class ConfirmationPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'TIME: $time',
+                    'DATE: ${widget.date.toLocal().toString().split(' ')[0]}', // Format date as YYYY-MM-DD
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.white,
@@ -120,7 +140,16 @@ class ConfirmationPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    address,
+                    'TIME: ${widget.time}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.address,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -139,8 +168,11 @@ class ConfirmationPage extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              InspectionDetailsPage(offerId: offerId),
+                          builder: (context) => InspectionDetailsPage(
+                            offerId: widget.offerId,
+                            makeModel: widget.makeModel,
+                            offerAmount: widget.offerAmount,
+                          ),
                         ),
                       );
                     },
@@ -153,7 +185,8 @@ class ConfirmationPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => FinalInspectionApprovalPage(
-                              offerId: offerId), // Pass the offerId
+                            offerId: widget.offerId,
+                          ), // Pass the offerId
                         ),
                       );
                     },
@@ -163,6 +196,10 @@ class ConfirmationPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

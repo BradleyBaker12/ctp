@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'thank_you_page.dart'; // Import the ThankYouPage
 
 class ReportIssuePage extends StatefulWidget {
+  const ReportIssuePage({super.key});
+
   @override
   _ReportIssuePageState createState() => _ReportIssuePageState();
 }

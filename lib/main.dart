@@ -93,9 +93,13 @@ class MyApp extends StatelessWidget {
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
-          final offerId = settings.arguments as String;
+          final args = settings.arguments as Map<String, dynamic>;
           return MaterialPageRoute(
-            builder: (context) => InspectionDetailsPage(offerId: offerId),
+            builder: (context) => InspectionDetailsPage(
+              offerId: args['offerId'] as String,
+              makeModel: args['makeModel'] as String,
+              offerAmount: args['offerAmount'] as String,
+            ),
           );
         }
         // Handle other routes if necessary

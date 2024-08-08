@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/profile_page.dart';
-import 'package:ctp/pages/truck_page.dart'; // Import the truck page
-import 'package:ctp/pages/wishlist_offers_page.dart'; // Import the wishlist offers page
+import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/wishlist_offers_page.dart';
 
 class CustomBottomNavigation extends StatelessWidget {
   final int selectedIndex;
@@ -13,7 +13,7 @@ class CustomBottomNavigation extends StatelessWidget {
     super.key,
     required this.selectedIndex,
     required this.onItemTapped,
-    this.iconSize = 30.0, // Adjusted icon size
+    this.iconSize = 30.0,
   });
 
   Widget _buildNavBarItem(
@@ -56,7 +56,7 @@ class CustomBottomNavigation extends StatelessWidget {
               Icons.arrow_drop_up,
               size: 30,
               color: Colors.white,
-            ), // Pointer icon with adjusted size
+            ),
         ],
       ),
     );
@@ -72,7 +72,7 @@ class CustomBottomNavigation extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavBarItem(context, Icons.home, selectedIndex == 0, 0),
-          _buildNavBarItem(
+          _buildNavBarItem( 
               context, Icons.local_shipping, selectedIndex == 1, 1),
           _buildNavBarItem(context, Icons.favorite, selectedIndex == 2, 2),
           _buildNavBarItem(context, Icons.person, selectedIndex == 3, 3),

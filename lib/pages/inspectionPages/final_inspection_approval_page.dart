@@ -1,19 +1,34 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
 import 'package:ctp/pages/report_issue.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 
-class FinalInspectionApprovalPage extends StatelessWidget {
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+
+class FinalInspectionApprovalPage extends StatefulWidget {
   final String offerId; // Add offerId parameter
 
-  const FinalInspectionApprovalPage({Key? key, required this.offerId})
-      : super(key: key);
+  const FinalInspectionApprovalPage({super.key, required this.offerId});
+
+  @override
+  _FinalInspectionApprovalPageState createState() =>
+      _FinalInspectionApprovalPageState();
+}
+
+class _FinalInspectionApprovalPageState
+    extends State<FinalInspectionApprovalPage> {
+  int _selectedIndex =
+      1; // Variable to keep track of the selected bottom nav item
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       body: GradientBackground(
         child: Container(
@@ -74,7 +89,7 @@ class FinalInspectionApprovalPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => RateTransporterPage(
-                            offerId: offerId,
+                            offerId: widget.offerId,
                             fromCollectionPage: false,
                           ), // Pass the offerId
                         ),
@@ -105,6 +120,10 @@ class FinalInspectionApprovalPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

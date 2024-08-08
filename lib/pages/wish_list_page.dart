@@ -73,7 +73,7 @@ class _WishlistPageState extends State<WishlistPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: BlurryAppBar(), // Use BlurryAppBar as background
+      appBar: const BlurryAppBar(), // Use BlurryAppBar as background
       body: Column(
         children: [
           // Custom AppBar content
@@ -88,7 +88,7 @@ class _WishlistPageState extends State<WishlistPage> {
                 CircleAvatar(
                   backgroundImage: profileImageUrl.isNotEmpty
                       ? NetworkImage(profileImageUrl)
-                      : AssetImage('lib/assets/default_profile_image.png')
+                      : const AssetImage('lib/assets/default_profile_image.png')
                           as ImageProvider,
                 ),
               ],
@@ -168,6 +168,14 @@ class _WishlistPageState extends State<WishlistPage> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: 2, // Set the wishlist icon as selected
+        onItemTapped: (index) {
+          setState(() {
+            // This callback is handled inside _buildNavBarItem method
+          });
+        },
       ),
     );
   }

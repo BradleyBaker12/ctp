@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -8,6 +7,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geocoding/geocoding.dart';
+
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
 class CollectionConfirmationPage extends StatefulWidget {
   final String location;
@@ -34,6 +35,8 @@ class _CollectionConfirmationPageState
     extends State<CollectionConfirmationPage> {
   bool _isLoading = false;
   LatLng? _latLng;
+  int _selectedIndex =
+      0; // Variable to keep track of the selected bottom nav item
 
   @override
   void initState() {
@@ -78,9 +81,15 @@ class _CollectionConfirmationPageState
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('LatLng is not available')),
+        const SnackBar(content: Text('LatLng is not available')),
       );
     }
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -171,9 +180,9 @@ class _CollectionConfirmationPageState
                         ),
                       )
                     else if (_isLoading)
-                      Center(child: CircularProgressIndicator())
+                      const Center(child: CircularProgressIndicator())
                     else
-                      Text(
+                      const Text(
                         'No location available',
                         style: TextStyle(color: Colors.red),
                       ),
@@ -224,6 +233,10 @@ class _CollectionConfirmationPageState
               ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

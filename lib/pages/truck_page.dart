@@ -4,7 +4,6 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 
 class TruckPage extends StatefulWidget {

@@ -8,7 +8,7 @@ import 'package:ctp/components/custom_button.dart';
 class CollectVehiclePage extends StatefulWidget {
   final String offerId;
 
-  const CollectVehiclePage({Key? key, required this.offerId}) : super(key: key);
+  const CollectVehiclePage({super.key, required this.offerId});
 
   @override
   _CollectVehiclePageState createState() => _CollectVehiclePageState();
@@ -60,9 +60,9 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
         _isMatched = true;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('License plate matched successfully')),
+        const SnackBar(content: Text('License plate matched successfully')),
       );
-      Future.delayed(Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 3), () {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -78,7 +78,7 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
         _isMatched = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('License plate does not match')),
+        const SnackBar(content: Text('License plate does not match')),
       );
     }
   }
@@ -122,13 +122,13 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                         radius: 50,
                         backgroundImage: _truckMainImageUrl != null
                             ? NetworkImage(_truckMainImageUrl!)
-                            : AssetImage('lib/assets/truck_image.png')
+                            : const AssetImage('lib/assets/truck_image.png')
                                 as ImageProvider,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         _truckName,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -151,14 +151,14 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                       ),
                       const SizedBox(height: 16),
                       if (_isMatched)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
                           child: Column(
                             children: [
-                              const Icon(Icons.check_circle,
+                              Icon(Icons.check_circle,
                                   color: Colors.green, size: 60),
-                              const SizedBox(height: 8),
-                              const Text(
+                              SizedBox(height: 8),
+                              Text(
                                 'License plate matched successfully.',
                                 style: TextStyle(
                                     color: Colors.green,

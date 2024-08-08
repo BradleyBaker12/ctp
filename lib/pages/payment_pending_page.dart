@@ -1,19 +1,39 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/pages/report_issue.dart';
 import 'package:ctp/pages/upload_pop.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/wishlist_offers_page.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
-class PaymentPendingPage extends StatelessWidget {
+class PaymentPendingPage extends StatefulWidget {
   final String offerId;
 
   const PaymentPendingPage({super.key, required this.offerId});
 
   @override
+  _PaymentPendingPageState createState() => _PaymentPendingPageState();
+}
+
+class _PaymentPendingPageState extends State<PaymentPendingPage> {
+  int _selectedIndex =
+      0; // Variable to keep track of the selected bottom nav item
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     FirebaseFirestore.instance
         .collection('offers')
-        .doc(offerId)
+        .doc(widget.offerId)
         .update({'offerStatus': '3/4'});
     return Scaffold(
       body: GradientBackground(
@@ -75,7 +95,7 @@ class PaymentPendingPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              UploadProofOfPaymentPage(offerId: offerId),
+                              UploadProofOfPaymentPage(offerId: widget.offerId),
                         ),
                       );
                     },
@@ -84,7 +104,12 @@ class PaymentPendingPage extends StatelessWidget {
                     text: 'REPORT AN ISSUE',
                     borderColor: Colors.brown,
                     onPressed: () {
-                      // Handle report an issue action
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ReportIssuePage(),
+                        ),
+                      );
                     },
                   ),
                 ],
@@ -92,6 +117,10 @@ class PaymentPendingPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

@@ -108,7 +108,6 @@ class _OfferCardState extends State<OfferCard> {
   @override
   Widget build(BuildContext context) {
     Color statusColor = getStatusColor(widget.offer.offerStatus);
-    Color semiTransparentStatusColor = statusColor.withOpacity(0.8);
 
     return GestureDetector(
       onTap: () => navigateBasedOnStatus(context),
@@ -234,6 +233,10 @@ class _OfferCardState extends State<OfferCard> {
                             MaterialPageRoute(
                               builder: (context) => InspectionDetailsPage(
                                 offerId: widget.offer.offerId,
+                                makeModel:
+                                    widget.offer.vehicleMakeModel ?? 'Unknown',
+                                offerAmount:
+                                    formatOfferAmount(widget.offer.offerAmount),
                               ),
                             ),
                           );

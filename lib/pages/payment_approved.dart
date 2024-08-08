@@ -1,14 +1,28 @@
 import 'package:ctp/pages/collect_vehcile.dart';
+import 'package:ctp/pages/report_issue.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/wishlist_offers_page.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
-class PaymentApprovedPage extends StatelessWidget {
+class PaymentApprovedPage extends StatefulWidget {
   final String offerId;
 
   const PaymentApprovedPage({super.key, required this.offerId});
+
+  @override
+  _PaymentApprovedPageState createState() => _PaymentApprovedPageState();
+}
+
+class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
+  int _selectedIndex =
+      0; // Variable to keep track of the selected bottom nav item
 
   Future<Map<String, dynamic>> _fetchOfferData(String offerId) async {
     final offerSnapshot = await FirebaseFirestore.instance
@@ -26,23 +40,29 @@ class PaymentApprovedPage extends StatelessWidget {
     return vehicleSnapshot.data() ?? {};
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     FirebaseFirestore.instance
         .collection('offers')
-        .doc(offerId)
+        .doc(widget.offerId)
         .update({'offerStatus': '4/4'});
     return Scaffold(
       body: GradientBackground(
         child: FutureBuilder<Map<String, dynamic>>(
-          future: _fetchOfferData(offerId),
+          future: _fetchOfferData(widget.offerId),
           builder: (context, offerSnapshot) {
             if (offerSnapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (offerSnapshot.hasError) {
-              return Center(child: Text('Error loading offer data'));
+              return const Center(child: Text('Error loading offer data'));
             }
 
             final offerData = offerSnapshot.data!;
@@ -53,11 +73,12 @@ class PaymentApprovedPage extends StatelessWidget {
               builder: (context, vehicleSnapshot) {
                 if (vehicleSnapshot.connectionState ==
                     ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 if (vehicleSnapshot.hasError) {
-                  return Center(child: Text('Error loading vehicle data'));
+                  return const Center(
+                      child: Text('Error loading vehicle data'));
                 }
 
                 final vehicleData = vehicleSnapshot.data!;
@@ -109,13 +130,14 @@ class PaymentApprovedPage extends StatelessWidget {
                               radius: 50,
                               backgroundImage: mainImageUrl.isNotEmpty
                                   ? NetworkImage(mainImageUrl)
-                                  : AssetImage('lib/assets/truck_image.png')
+                                  : const AssetImage(
+                                          'lib/assets/truck_image.png')
                                       as ImageProvider,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               truckName,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -141,7 +163,7 @@ class PaymentApprovedPage extends StatelessWidget {
                               ),
                               child: Text(
                                 readyDate,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.white,
                                 ),
@@ -158,7 +180,7 @@ class PaymentApprovedPage extends StatelessWidget {
                               ),
                               child: Text(
                                 'TIME : $readyTime',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.white,
                                 ),
@@ -175,7 +197,7 @@ class PaymentApprovedPage extends StatelessWidget {
                               ),
                               child: Text(
                                 location,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.white,
                                 ),
@@ -193,8 +215,8 @@ class PaymentApprovedPage extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        CollectVehiclePage(offerId: offerId),
+                                    builder: (context) => CollectVehiclePage(
+                                        offerId: widget.offerId),
                                   ),
                                 );
                               },
@@ -203,7 +225,12 @@ class PaymentApprovedPage extends StatelessWidget {
                               text: 'REPORT AN ISSUE',
                               borderColor: Colors.brown,
                               onPressed: () {
-                                // Handle report an issue action
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ReportIssuePage(),
+                                  ),
+                                );
                               },
                             ),
                           ],
@@ -216,6 +243,10 @@ class PaymentApprovedPage extends StatelessWidget {
             );
           },
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

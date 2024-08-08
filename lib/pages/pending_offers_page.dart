@@ -16,7 +16,7 @@ class PendingOffersPage extends StatefulWidget {
 
 class _PendingOffersPageState extends State<PendingOffersPage> {
   String _selectedTab = 'View All';
-  int _selectedIndex = 0;
+  int _selectedIndex = 2; // Set the heart icon as the initial selected index
 
   @override
   void initState() {

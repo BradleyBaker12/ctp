@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+
 class CollectionDetailsPage extends StatefulWidget {
   final String offerId; // Add offerId parameter
 
@@ -22,6 +24,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   int _selectedTimeSlot = 0;
+  int _selectedIndex =
+      0; // Variable to keep track of the selected bottom nav item
 
   final List<String> _locations = ['LOCATION 1', 'LOCATION 2', 'LOCATION 3'];
 
@@ -142,213 +146,98 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
 
   bool _isLoading = false;
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GradientBackground(
-      child: Material(
-        color: Colors.transparent,
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: CustomBackButton(
-                          onPressed: () => Navigator.of(context).pop()),
-                    ),
-                    const SizedBox(height: 16),
-                    Image.asset('lib/assets/CTPLogo.png'),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'CONFIRM YOUR COLLECTION DETAILS',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+    return Scaffold(
+      body: GradientBackground(
+        child: Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: CustomBackButton(
+                            onPressed: () => Navigator.of(context).pop()),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Great news! You have a potential buyer.',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Now, let\'s set up a meeting with the potential seller to collect the vehicle. Your careful selection ensures a smooth process ahead.',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'SELECT LOCATION',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Column(
-                      children: _locations.asMap().entries.map((entry) {
-                        int idx = entry.key;
-                        String location = entry.value;
-                        return RadioListTile(
-                          title: Text(
-                            location,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          value: idx,
-                          groupValue: _selectedLocation,
-                          activeColor:
-                              const Color(0xFFFF4E00), // Active color set here
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedLocation = value!;
-                              _selectedDay = null;
-                              _selectedTimeSlot = 0;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'SELECT FROM AVAILABLE DATES AND TIMES FOR YOUR SELECTED LOCATION',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: TableCalendar(
-                        firstDay: DateTime.utc(2020, 1, 1),
-                        lastDay: DateTime.utc(2100, 1, 1),
-                        focusedDay: _focusedDay,
-                        selectedDayPredicate: (day) {
-                          return isSameDay(_selectedDay, day);
-                        },
-                        onDaySelected: (selectedDay, focusedDay) {
-                          setState(() {
-                            _selectedDay = selectedDay;
-                            _focusedDay =
-                                focusedDay; // update focused day as well
-                          });
-                        },
-                        enabledDayPredicate: (day) {
-                          bool isEnabled = day.isAfter(DateTime.now()
-                                  .subtract(const Duration(days: 1))) &&
-                              isDateAvailable(day);
-                          return isEnabled;
-                        },
-                        calendarStyle: CalendarStyle(
-                          selectedDecoration: BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          todayDecoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          todayTextStyle: const TextStyle(color: Colors.black),
-                          defaultDecoration: BoxDecoration(
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(8.0),
-                            border: Border.all(color: Colors.white),
-                          ),
-                          weekendDecoration: BoxDecoration(
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(8.0),
-                            border: Border.all(color: Colors.white),
-                          ),
-                          defaultTextStyle:
-                              const TextStyle(color: Colors.white),
-                          weekendTextStyle:
-                              const TextStyle(color: Colors.white),
-                          outsideDaysVisible: false,
-                          disabledDecoration: BoxDecoration(
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(8.0),
-                            color: Colors.black.withOpacity(0.5),
-                          ),
-                          disabledTextStyle:
-                              const TextStyle(color: Colors.white),
-                          markerDecoration: const BoxDecoration(
-                            color: Colors.transparent,
-                          ),
-                        ),
-                        calendarBuilders: CalendarBuilders(
-                          disabledBuilder: (context, day, focusedDay) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.rectangle,
-                                borderRadius: BorderRadius.circular(8.0),
-                                color: Colors.black.withOpacity(0.5),
-                              ),
-                              child: Center(
-                                child: CustomPaint(
-                                  painter: SingleDiagonalLinePainter(),
-                                  child: Center(
-                                    child: Text(
-                                      '${day.day}',
-                                      style:
-                                          const TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        headerStyle: const HeaderStyle(
-                          titleCentered: true,
-                          formatButtonVisible: false,
-                          titleTextStyle: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
-                          leftChevronIcon: Icon(
-                            Icons.chevron_left,
-                            color: Colors.white,
-                          ),
-                          rightChevronIcon: Icon(
-                            Icons.chevron_right,
-                            color: Colors.white,
-                          ),
-                        ),
-                        daysOfWeekStyle: const DaysOfWeekStyle(
-                          weekdayStyle: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold),
-                          weekendStyle: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_selectedDay != null && _availableTimes.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Image.asset('lib/assets/CTPLogo.png'),
+                      const SizedBox(height: 16),
                       const Text(
-                        'SELECT TIME SLOT',
+                        'CONFIRM YOUR COLLECTION DETAILS',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Great news! You have a potential buyer.',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Now, let\'s set up a meeting with the potential seller to collect the vehicle. Your careful selection ensures a smooth process ahead.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'SELECT LOCATION',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Column(
+                        children: _locations.asMap().entries.map((entry) {
+                          int idx = entry.key;
+                          String location = entry.value;
+                          return RadioListTile(
+                            title: Text(
+                              location,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            value: idx,
+                            groupValue: _selectedLocation,
+                            activeColor: const Color(
+                                0xFFFF4E00), // Active color set here
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedLocation = value!;
+                                _selectedDay = null;
+                                _selectedTimeSlot = 0;
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'SELECT FROM AVAILABLE DATES AND TIMES FOR YOUR SELECTED LOCATION',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -357,49 +246,181 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
-                      Column(
-                        children: _availableTimes.asMap().entries.map((entry) {
-                          int idx = entry.key;
-                          String timeSlot = entry.value;
-                          return RadioListTile(
-                            title: Text(
-                              timeSlot,
-                              style: const TextStyle(color: Colors.white),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: TableCalendar(
+                          firstDay: DateTime.utc(2020, 1, 1),
+                          lastDay: DateTime.utc(2100, 1, 1),
+                          focusedDay: _focusedDay,
+                          selectedDayPredicate: (day) {
+                            return isSameDay(_selectedDay, day);
+                          },
+                          onDaySelected: (selectedDay, focusedDay) {
+                            setState(() {
+                              _selectedDay = selectedDay;
+                              _focusedDay =
+                                  focusedDay; // update focused day as well
+                            });
+                          },
+                          enabledDayPredicate: (day) {
+                            bool isEnabled = day.isAfter(DateTime.now()
+                                    .subtract(const Duration(days: 1))) &&
+                                isDateAvailable(day);
+                            return isEnabled;
+                          },
+                          calendarStyle: CalendarStyle(
+                            selectedDecoration: BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.rectangle,
+                              borderRadius: BorderRadius.circular(8.0),
                             ),
-                            value: idx,
-                            groupValue: _selectedTimeSlot,
-                            activeColor: const Color(
-                                0xFFFF4E00), // Active color set here
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedTimeSlot = value!;
-                              });
+                            todayDecoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.rectangle,
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            todayTextStyle:
+                                const TextStyle(color: Colors.black),
+                            defaultDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                              borderRadius: BorderRadius.circular(8.0),
+                              border: Border.all(color: Colors.white),
+                            ),
+                            weekendDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                              borderRadius: BorderRadius.circular(8.0),
+                              border: Border.all(color: Colors.white),
+                            ),
+                            defaultTextStyle:
+                                const TextStyle(color: Colors.white),
+                            weekendTextStyle:
+                                const TextStyle(color: Colors.white),
+                            outsideDaysVisible: false,
+                            disabledDecoration: BoxDecoration(
+                              shape: BoxShape.rectangle,
+                              borderRadius: BorderRadius.circular(8.0),
+                              color: Colors.black.withOpacity(0.5),
+                            ),
+                            disabledTextStyle:
+                                const TextStyle(color: Colors.white),
+                            markerDecoration: const BoxDecoration(
+                              color: Colors.transparent,
+                            ),
+                          ),
+                          calendarBuilders: CalendarBuilders(
+                            disabledBuilder: (context, day, focusedDay) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.rectangle,
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  color: Colors.black.withOpacity(0.5),
+                                ),
+                                child: Center(
+                                  child: CustomPaint(
+                                    painter: SingleDiagonalLinePainter(),
+                                    child: Center(
+                                      child: Text(
+                                        '${day.day}',
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
                             },
-                          );
-                        }).toList(),
+                          ),
+                          headerStyle: const HeaderStyle(
+                            titleCentered: true,
+                            formatButtonVisible: false,
+                            titleTextStyle: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
+                            leftChevronIcon: Icon(
+                              Icons.chevron_left,
+                              color: Colors.white,
+                            ),
+                            rightChevronIcon: Icon(
+                              Icons.chevron_right,
+                              color: Colors.white,
+                            ),
+                          ),
+                          daysOfWeekStyle: const DaysOfWeekStyle(
+                            weekdayStyle: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                            weekendStyle: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_selectedDay != null &&
+                          _availableTimes.isNotEmpty) ...[
+                        const Text(
+                          'SELECT TIME SLOT',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Column(
+                          children:
+                              _availableTimes.asMap().entries.map((entry) {
+                            int idx = entry.key;
+                            String timeSlot = entry.value;
+                            return RadioListTile(
+                              title: Text(
+                                timeSlot,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              value: idx,
+                              groupValue: _selectedTimeSlot,
+                              activeColor: const Color(
+                                  0xFFFF4E00), // Active color set here
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedTimeSlot = value!;
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      CustomButton(
+                        text: 'CONFIRM PICKUP',
+                        borderColor: Colors.blue,
+                        onPressed: _saveCollectionDetails,
                       ),
                     ],
-                    const SizedBox(height: 16),
-                    CustomButton(
-                      text: 'CONFIRM PICKUP',
-                      borderColor: Colors.blue,
-                      onPressed: _saveCollectionDetails,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (_isLoading)
-              Container(
-                color: Colors.black54,
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
               ),
-          ],
+              if (_isLoading)
+                Container(
+                  color: Colors.black54,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

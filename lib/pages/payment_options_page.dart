@@ -5,17 +5,30 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'offer_summary_page.dart';
 import 'payment_pending_page.dart';
+import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/wishlist_offers_page.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
-class PaymentOptionsPage extends StatelessWidget {
+class PaymentOptionsPage extends StatefulWidget {
   final String offerId;
 
-  const PaymentOptionsPage({Key? key, required this.offerId}) : super(key: key);
+  const PaymentOptionsPage({super.key, required this.offerId});
+
+  @override
+  _PaymentOptionsPageState createState() => _PaymentOptionsPageState();
+}
+
+class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
+  int _selectedIndex =
+      0; // Variable to keep track of the selected bottom nav item
 
   Future<void> _navigateBasedOnStatus(BuildContext context) async {
     try {
       DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
           .collection('offers')
-          .doc(offerId)
+          .doc(widget.offerId)
           .get();
       if (offerSnapshot.exists) {
         String paymentStatus = offerSnapshot['paymentStatus'];
@@ -23,14 +36,15 @@ class PaymentOptionsPage extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PaymentApprovedPage(offerId: offerId),
+              builder: (context) =>
+                  PaymentApprovedPage(offerId: widget.offerId),
             ),
           );
         } else {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PaymentPendingPage(offerId: offerId),
+              builder: (context) => PaymentPendingPage(offerId: widget.offerId),
             ),
           );
         }
@@ -44,11 +58,17 @@ class PaymentOptionsPage extends StatelessWidget {
     }
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     FirebaseFirestore.instance
         .collection('offers')
-        .doc(offerId)
+        .doc(widget.offerId)
         .update({'offerStatus': '2/4'});
     return Scaffold(
       body: GradientBackground(
@@ -124,7 +144,7 @@ class PaymentOptionsPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              OfferSummaryPage(offerId: offerId),
+                              OfferSummaryPage(offerId: widget.offerId),
                         ),
                       );
                     },
@@ -141,6 +161,10 @@ class PaymentOptionsPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 
 class ThankYouPage extends StatelessWidget {
+  const ThankYouPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,7 +74,7 @@ class ThankYouPage extends StatelessWidget {
         backgroundColor: Colors.blue,
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white,
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: '',
