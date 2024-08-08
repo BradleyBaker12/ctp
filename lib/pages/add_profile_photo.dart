@@ -2,10 +2,10 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/pages/crop_photo_page.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'crop_photo_page.dart'; // Import the CropPhotoPage
 
 class AddProfilePhotoPage extends StatefulWidget {
   const AddProfilePhotoPage({super.key});
@@ -62,7 +62,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                             children: [
                               const SizedBox(height: 20),
                               Image.asset('lib/assets/CTPLogo.png',
-                                  height: 200), // Adjust the height as needed
+                                  height: 200),
                               const SizedBox(height: 50),
                               const Text(
                                 'ADD A PROFILE PHOTO',
