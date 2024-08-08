@@ -31,31 +31,41 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
   }
 
   Future<void> _cropImage() async {
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: widget.imageFile.path,
-      aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Crop and Fit',
-          toolbarColor: Colors.blue,
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: true,
-        ),
-        IOSUiSettings(
-          title: 'Crop and Fit',
-        ),
-      ],
-    );
+    try {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: widget.imageFile.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop and Fit',
+            toolbarColor: Colors.blue,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop and Fit',
+          ),
+        ],
+      );
 
-    if (croppedFile != null) {
+      if (croppedFile != null) {
+        setState(() {
+          _croppedFile = File(croppedFile.path);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _croppedFile = widget.imageFile;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("Error cropping image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error cropping image: $e')),
+      );
       setState(() {
-        _croppedFile = File(croppedFile.path);
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _croppedFile = widget.imageFile;
         _isLoading = false;
       });
     }
@@ -100,9 +110,9 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
             context, '/home'); // Fallback or home page
       }
     } catch (e) {
-      print("Error: ${e.toString()}");
+      print("Error uploading image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(content: Text('Error uploading image: $e')),
       );
     } finally {
       setState(() {

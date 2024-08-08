@@ -29,6 +29,8 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                 CropPhotoPage(imageFile: File(pickedFile.path)),
           ),
         );
+      } else {
+        print("No image selected.");
       }
     } catch (e) {
       print("Error picking image: $e");

@@ -1,15 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/pages/pending_offers_page.dart';
+import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/pages/wish_list_page.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/offer_card.dart';
-import 'package:ctp/components/wish_card.dart';
-import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/providers/user_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:ui';
+import 'package:provider/provider.dart';
+import 'package:ctp/components/wish_card.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/components/offer_card.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/pages/pending_offers_page.dart';
+import 'package:ctp/providers/vehicles_provider.dart'; // Ensure this import
 
 class WishlistOffersPage extends StatefulWidget {
   const WishlistOffersPage({super.key});
@@ -67,34 +69,14 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final userProvider = Provider.of<UserProvider>(context);
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context); // Access VehicleProvider
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: BlurryAppBar(
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Image.asset('lib/assets/CTPLogo.png'),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: CircleAvatar(
-                  backgroundImage: userProvider.getProfileImageUrl.isNotEmpty
-                      ? NetworkImage(userProvider.getProfileImageUrl)
-                      : const AssetImage('lib/assets/default_profile_photo.jpg')
-                          as ImageProvider,
-                  onBackgroundImageError: (_, __) =>
-                      Image.asset('lib/assets/default_profile_photo.jpg'),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: BlurryAppBar(),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -190,13 +172,25 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                     itemCount: _wishlistVehicles.length,
                     itemBuilder: (context, index) {
                       DocumentSnapshot vehicleDoc = _wishlistVehicles[index];
+                      Map<String, dynamic> vehicleData =
+                          vehicleDoc.data() as Map<String, dynamic>;
+                      String mainImageUrl = vehicleData['mainImageUrl'] ??
+                          'lib/assets/default_vehicle_image.png';
+                      Vehicle vehicle = Vehicle.fromDocument(vehicleDoc);
                       return WishCard(
-                        vehicleMakeModel:
-                            vehicleDoc.get('makeModel') ?? 'Unknown',
-                        vehicleImageUrl: vehicleDoc.get('mainImageUrl') ??
-                            'lib/assets/default_vehicle_image.png',
+                        vehicleMakeModel: vehicleData['makeModel'] ?? 'Unknown',
+                        vehicleImageUrl: mainImageUrl,
                         size: size,
                         customFont: _customFont,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  VehicleDetailsPage(vehicle: vehicle),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -268,35 +262,4 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
       fontFamily: 'Montserrat',
     );
   }
-}
-
-class BlurryAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final Widget? child;
-  final double height;
-
-  const BlurryAppBar({super.key, this.height = kToolbarHeight, this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    var screenSize = MediaQuery.of(context).size;
-
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-        child: Container(
-          color: Colors.black.withOpacity(0.2),
-          child: SafeArea(
-            child: SizedBox(
-              height: height,
-              width: screenSize.width,
-              child: child ?? const SizedBox.shrink(),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Size get preferredSize => Size.fromHeight(height);
 }

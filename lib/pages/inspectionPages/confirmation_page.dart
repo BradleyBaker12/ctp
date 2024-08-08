@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -27,6 +28,10 @@ class ConfirmationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    FirebaseFirestore.instance
+        .collection('offers')
+        .doc(offerId)
+        .update({'offerStatus': '1/4'});
     final userProvider = Provider.of<UserProvider>(context);
     final profilePictureUrl = userProvider.getProfileImageUrl.isNotEmpty
         ? userProvider.getProfileImageUrl

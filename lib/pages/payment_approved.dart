@@ -8,8 +8,7 @@ import 'package:intl/intl.dart';
 class PaymentApprovedPage extends StatelessWidget {
   final String offerId;
 
-  const PaymentApprovedPage({Key? key, required this.offerId})
-      : super(key: key);
+  const PaymentApprovedPage({super.key, required this.offerId});
 
   Future<Map<String, dynamic>> _fetchOfferData(String offerId) async {
     final offerSnapshot = await FirebaseFirestore.instance
@@ -29,6 +28,10 @@ class PaymentApprovedPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    FirebaseFirestore.instance
+        .collection('offers')
+        .doc(offerId)
+        .update({'offerStatus': '4/4'});
     return Scaffold(
       body: GradientBackground(
         child: FutureBuilder<Map<String, dynamic>>(

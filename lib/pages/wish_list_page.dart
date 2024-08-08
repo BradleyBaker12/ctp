@@ -1,7 +1,11 @@
+import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ctp/components/wish_card.dart';
+import 'vehicle_details_page.dart'; // Import the VehicleDetailsPage
+import 'package:ctp/providers/vehicles_provider.dart'; // Import the VehicleProvider
+import 'package:provider/provider.dart'; // Import Provider
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
@@ -12,11 +16,29 @@ class WishlistPage extends StatefulWidget {
 
 class _WishlistPageState extends State<WishlistPage> {
   final List<DocumentSnapshot> _wishlistVehicles = [];
+  String profileImageUrl = ''; // Profile image URL
 
   @override
   void initState() {
     super.initState();
+    _fetchUserProfile();
     _fetchWishlist();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (userDoc.exists && userDoc.data() != null) {
+        setState(() {
+          profileImageUrl =
+              userDoc.get('profileImageUrl') ?? ''; // Fetch profile image URL
+        });
+      }
+    }
   }
 
   Future<void> _fetchWishlist() async {
@@ -46,75 +68,106 @@ class _WishlistPageState extends State<WishlistPage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context); // Access VehicleProvider
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Image.asset('lib/assets/CTPLogo.png'),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center, // Center the content
-          children: [
-            Container(
-              width: double.infinity,
-              height: 300, // Increased height for larger image
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(
-                      'lib/assets/WishListImage.png'), // Add your header image path here
-                  fit: BoxFit.cover,
+      appBar: BlurryAppBar(), // Use BlurryAppBar as background
+      body: Column(
+        children: [
+          // Custom AppBar content
+          Container(
+            color: Colors.black.withOpacity(0.2),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Image.asset('lib/assets/CTPLogo.png', height: 40),
+                CircleAvatar(
+                  backgroundImage: profileImageUrl.isNotEmpty
+                      ? NetworkImage(profileImageUrl)
+                      : AssetImage('lib/assets/default_profile_image.png')
+                          as ImageProvider,
                 ),
-              ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Wishlist',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Wishlist',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _wishlistVehicles.length,
+                          itemBuilder: (context, index) {
+                            DocumentSnapshot vehicleDoc =
+                                _wishlistVehicles[index];
+                            Map<String, dynamic>? data =
+                                vehicleDoc.data() as Map<String, dynamic>?;
+                            Vehicle vehicle = vehicleProvider.vehicles
+                                .firstWhere((v) =>
+                                    v.id ==
+                                    vehicleDoc
+                                        .id); // Find the vehicle from provider
+                            String imageUrl = data != null &&
+                                    data.containsKey('mainImageUrl') &&
+                                    data['mainImageUrl'] != null
+                                ? data['mainImageUrl']
+                                : 'lib/assets/default_vehicle_image.png';
+                            return WishCard(
+                              vehicleMakeModel:
+                                  data != null && data.containsKey('makeModel')
+                                      ? data['makeModel']
+                                      : 'Unknown',
+                              vehicleImageUrl: imageUrl,
+                              size: size,
+                              customFont: (double fontSize,
+                                  FontWeight fontWeight, Color color) {
+                                return TextStyle(
+                                  fontSize: fontSize,
+                                  fontWeight: fontWeight,
+                                  color: color,
+                                  fontFamily: 'Montserrat',
+                                );
+                              },
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        VehicleDetailsPage(vehicle: vehicle),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _wishlistVehicles.length,
-                    itemBuilder: (context, index) {
-                      DocumentSnapshot vehicleDoc = _wishlistVehicles[index];
-                      return WishCard(
-                        vehicleMakeModel:
-                            vehicleDoc.get('makeModel') ?? 'Unknown',
-                        vehicleImageUrl: vehicleDoc.get('mainImageUrl') ??
-                            'lib/assets/default_vehicle_image.png',
-                        size: size,
-                        customFont: (double fontSize, FontWeight fontWeight,
-                            Color color) {
-                          return TextStyle(
-                            fontSize: fontSize,
-                            fontWeight: fontWeight,
-                            color: color,
-                            fontFamily: 'Montserrat',
-                          );
-                        },
-                      );
-                    },
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

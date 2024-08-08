@@ -46,6 +46,10 @@ class PaymentOptionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    FirebaseFirestore.instance
+        .collection('offers')
+        .doc(offerId)
+        .update({'offerStatus': '2/4'});
     return Scaffold(
       body: GradientBackground(
         child: Container(

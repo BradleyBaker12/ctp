@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/upload_pop.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -6,10 +7,14 @@ import 'package:ctp/components/custom_button.dart';
 class PaymentPendingPage extends StatelessWidget {
   final String offerId;
 
-  const PaymentPendingPage({Key? key, required this.offerId}) : super(key: key);
+  const PaymentPendingPage({super.key, required this.offerId});
 
   @override
   Widget build(BuildContext context) {
+    FirebaseFirestore.instance
+        .collection('offers')
+        .doc(offerId)
+        .update({'offerStatus': '3/4'});
     return Scaffold(
       body: GradientBackground(
         child: Container(

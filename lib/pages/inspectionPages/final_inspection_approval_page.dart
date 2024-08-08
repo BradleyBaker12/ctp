@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
+import 'package:ctp/pages/report_issue.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -11,6 +13,7 @@ class FinalInspectionApprovalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       body: GradientBackground(
         child: Container(
@@ -89,7 +92,12 @@ class FinalInspectionApprovalPage extends StatelessWidget {
                     text: 'REPORT AN ISSUE',
                     borderColor: Colors.orange,
                     onPressed: () {
-                      // Handle report an issue action
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ReportIssuePage(),
+                        ),
+                      );
                     },
                   ),
                 ],

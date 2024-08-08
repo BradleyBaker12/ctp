@@ -170,4 +170,11 @@ class Vehicle {
       year: data['year'] ?? 'N/A',
     );
   }
+
+  factory Vehicle.fromDocument(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    data['id'] = doc.id;
+    return Vehicle.fromFirestore(data);
+  }
 }
+
