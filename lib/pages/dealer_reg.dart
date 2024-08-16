@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
@@ -6,10 +7,14 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-// Import the HouseRulesPage
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:path/path.dart' as path;
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 
 class DealerRegPage extends StatefulWidget {
   const DealerRegPage({super.key});
@@ -20,6 +25,8 @@ class DealerRegPage extends StatefulWidget {
 
 class _DealerRegPageState extends State<DealerRegPage> {
   final _formKey = GlobalKey<FormState>();
+  final ScrollController _scrollController = ScrollController();
+
   final TextEditingController _companyNameController = TextEditingController();
   final TextEditingController _tradingNameController = TextEditingController();
   final TextEditingController _registrationNumberController =
@@ -34,11 +41,43 @@ class _DealerRegPageState extends State<DealerRegPage> {
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _postalCodeController = TextEditingController();
 
+  final FocusNode _companyNameFocusNode = FocusNode();
+  final FocusNode _tradingNameFocusNode = FocusNode();
+  final FocusNode _registrationNumberFocusNode = FocusNode();
+  final FocusNode _vatNumberFocusNode = FocusNode();
+  final FocusNode _firstNameFocusNode = FocusNode();
+  final FocusNode _middleNameFocusNode = FocusNode();
+  final FocusNode _lastNameFocusNode = FocusNode();
+  final FocusNode _addressLine1FocusNode = FocusNode();
+  final FocusNode _addressLine2FocusNode = FocusNode();
+  final FocusNode _cityFocusNode = FocusNode();
+  final FocusNode _stateFocusNode = FocusNode();
+  final FocusNode _postalCodeFocusNode = FocusNode();
+  final FocusNode _countryFocusNode = FocusNode();
+
+  String? _selectedCountry;
+  List<String> _countries = [];
+
   String? _bankConfirmationFile;
   String? _cipcCertificateFile;
   String? _proxyFile;
   String? _brncFile;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCountries();
+  }
+
+  Future<void> _loadCountries() async {
+    final String response =
+        await rootBundle.loadString('lib/assets/country-by-name.json');
+    final List<dynamic> data = await json.decode(response);
+    setState(() {
+      _countries = data.map((item) => item['country'].toString()).toList();
+    });
+  }
 
   Future<void> _pickFile(String fieldName) async {
     try {
@@ -64,8 +103,39 @@ class _DealerRegPageState extends State<DealerRegPage> {
     }
   }
 
+  IconData _getIconForFileType(String fileName) {
+    final extension = path.extension(fileName).toLowerCase();
+    switch (extension) {
+      case '.pdf':
+        return Icons.picture_as_pdf;
+      case '.doc':
+      case '.docx':
+        return Icons.description;
+      case '.xls':
+      case '.xlsx':
+        return Icons.table_chart;
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+        return Icons.image;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Check if all required files are uploaded
+    if (_bankConfirmationFile == null ||
+        _cipcCertificateFile == null ||
+        _proxyFile == null ||
+        _brncFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload all required documents.')),
+      );
       return;
     }
 
@@ -85,17 +155,12 @@ class _DealerRegPageState extends State<DealerRegPage> {
         return await snapshot.ref.getDownloadURL();
       }
 
-      final bankConfirmationUrl = _bankConfirmationFile != null
-          ? await uploadFile(_bankConfirmationFile!, 'bank_confirmation.pdf')
-          : null;
-      final cipcCertificateUrl = _cipcCertificateFile != null
-          ? await uploadFile(_cipcCertificateFile!, 'cipc_certificate.pdf')
-          : null;
-      final proxyUrl = _proxyFile != null
-          ? await uploadFile(_proxyFile!, 'proxy.pdf')
-          : null;
-      final brncUrl =
-          _brncFile != null ? await uploadFile(_brncFile!, 'brnc.pdf') : null;
+      final bankConfirmationUrl =
+          await uploadFile(_bankConfirmationFile!, 'bank_confirmation.pdf');
+      final cipcCertificateUrl =
+          await uploadFile(_cipcCertificateFile!, 'cipc_certificate.pdf');
+      final proxyUrl = await uploadFile(_proxyFile!, 'proxy.pdf');
+      final brncUrl = await uploadFile(_brncFile!, 'brnc.pdf');
 
       await firestore.collection('users').doc(userId).update({
         'companyName': _companyNameController.text,
@@ -110,6 +175,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
         'city': _cityController.text,
         'state': _stateController.text,
         'postalCode': _postalCodeController.text,
+        'country': _selectedCountry, // Save the selected country
         'bankConfirmationUrl': bankConfirmationUrl,
         'cipcCertificateUrl': cipcCertificateUrl,
         'proxyUrl': proxyUrl,
@@ -146,6 +212,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
                 const BlurryAppBar(),
                 Expanded(
                   child: SingleChildScrollView(
+                    controller: _scrollController,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16.0, vertical: 8.0),
@@ -158,10 +225,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
                                 height: 100), // Adjust the height as needed
                           ),
                           const SizedBox(height: 20),
-                          const Center(
+                          Center(
                             child: Text(
                               'DEALER REGISTRATION',
-                              style: TextStyle(
+                              style: GoogleFonts.montserrat(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -170,10 +237,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          const Center(
+                          Center(
                             child: Text(
                               'Fill out the form carefully to register.',
-                              style: TextStyle(
+                              style: GoogleFonts.montserrat(
                                 fontSize: 16,
                                 color: Colors.white,
                               ),
@@ -181,10 +248,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          const Center(
+                          Center(
                             child: Text(
                               'CTP Offers a way for you to sell your vehicle to multiple dealers in SA.\nCTP\'s fees are R12500,00 flat fee.',
-                              style: TextStyle(
+                              style: GoogleFonts.montserrat(
                                 fontSize: 14,
                                 color: Colors.white70,
                               ),
@@ -197,115 +264,108 @@ class _DealerRegPageState extends State<DealerRegPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'COMPANY NAME *',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
                                 _buildTextField(
                                     controller: _companyNameController,
+                                    focusNode: _companyNameFocusNode,
                                     hintText: 'Company Name'),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'TRADING NAME *',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
                                 _buildTextField(
                                     controller: _tradingNameController,
+                                    focusNode: _tradingNameFocusNode,
                                     hintText: 'Trading Name'),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'REGISTRATION NUMBER *',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
                                 _buildTextField(
                                     controller: _registrationNumberController,
-                                    hintText: 'Registration Number'),
+                                    focusNode: _registrationNumberFocusNode,
+                                    hintText: 'Registration Number',
+                                    validator: _validateRegistrationNumber),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'VAT NUMBER *',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
                                 _buildTextField(
                                     controller: _vatNumberController,
-                                    hintText: 'VAT Number'),
+                                    focusNode: _vatNumberFocusNode,
+                                    hintText: 'VAT Number',
+                                    validator: _validateVATNumber),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'DEALER PERSONAL DETAILS *',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
                                 _buildTextField(
                                     controller: _firstNameController,
+                                    focusNode: _firstNameFocusNode,
                                     hintText: 'First'),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _middleNameController,
-                                    hintText: 'Middle (Optional)'),
+                                    focusNode: _middleNameFocusNode,
+                                    hintText: 'Middle',
+                                    isOptional: true),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _lastNameController,
+                                    focusNode: _lastNameFocusNode,
                                     hintText: 'Last'),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'ADDRESS',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
+                                _buildDropdownField(),
+                                const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _addressLine1Controller,
+                                    focusNode: _addressLine1FocusNode,
                                     hintText: 'Address Line 1'),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _addressLine2Controller,
-                                    hintText: 'Address Line 2'),
+                                    focusNode: _addressLine2FocusNode,
+                                    hintText: 'Address Line 2',
+                                    isOptional: true),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _cityController,
+                                    focusNode: _cityFocusNode,
                                     hintText: 'City'),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _stateController,
+                                    focusNode: _stateFocusNode,
                                     hintText: 'State/Province/Region'),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _postalCodeController,
+                                    focusNode: _postalCodeFocusNode,
                                     hintText: 'Postal Code'),
                                 const SizedBox(height: 30),
-                                const Text(
+                                Text(
                                   'DOCUMENT UPLOADS',
-                                  style: TextStyle(color: Colors.white),
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
                                 ),
                                 const SizedBox(height: 10),
-                                const Text(
-                                  'BANK CONFIRMATION',
-                                  style: TextStyle(color: Colors.white),
+                                Text(
+                                  'BANK CONFIRMATION *',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
                                 ),
                                 const SizedBox(height: 5),
                                 _buildUploadButton(
                                     'bankConfirmation', _bankConfirmationFile),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'CIPC CERTIFICATE',
-                                  style: TextStyle(color: Colors.white),
+                                Text(
+                                  'CIPC CERTIFICATE *',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
                                 ),
                                 const SizedBox(height: 5),
                                 _buildUploadButton(
                                     'cipcCertificate', _cipcCertificateFile),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'PROXY',
-                                  style: TextStyle(color: Colors.white),
+                                Text(
+                                  'PROXY *',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
                                 ),
                                 const SizedBox(height: 5),
                                 _buildUploadButton('proxy', _proxyFile),
                                 const SizedBox(height: 15),
-                                const Text(
-                                  'BRNC',
-                                  style: TextStyle(color: Colors.white),
+                                Text(
+                                  'BRNC *',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
                                 ),
                                 const SizedBox(height: 5),
                                 _buildUploadButton('brnc', _brncFile),
@@ -331,7 +391,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
             ),
           ),
           const Positioned(
-            top: 40,
+            top: 120,
             left: 16,
             child: CustomBackButton(),
           ),
@@ -347,23 +407,92 @@ class _DealerRegPageState extends State<DealerRegPage> {
     );
   }
 
-  Widget _buildTextField(
-      {required TextEditingController controller, required String hintText}) {
+  Widget _buildDropdownField() {
+    return Container(
+        width: double.infinity,
+        child: DropdownButtonFormField<String>(
+          value: _selectedCountry,
+          focusNode: _countryFocusNode,
+          hint: Text(
+            'Select Country',
+            style: GoogleFonts.montserrat(color: Colors.white70),
+          ),
+          dropdownColor: Colors.black,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.black.withOpacity(0.3),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10.0),
+              borderSide: const BorderSide(color: Colors.white, width: 2),
+            ),
+          ),
+          items: _countries.map<DropdownMenuItem<String>>((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(
+                value,
+                style: GoogleFonts.montserrat(color: Colors.white),
+                overflow: TextOverflow.ellipsis, // Add this to handle overflow
+              ),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedCountry = newValue;
+            });
+          },
+          validator: (value) {
+            if (value == null) {
+              _scrollToFocusNode(_countryFocusNode);
+              return 'Please select a country';
+            }
+            return null;
+          },
+        ));
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required FocusNode focusNode,
+    bool isOptional = false,
+    String? Function(String?)?
+        validator, // Add this parameter for custom validation
+  }) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: const TextStyle(color: Colors.white70),
+        hintStyle: GoogleFonts.montserrat(color: Colors.white70),
         filled: true,
         fillColor: Colors.black.withOpacity(0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide.none,
+          borderSide:
+              BorderSide(color: Colors.white.withOpacity(0.2), width: 2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide:
+              BorderSide(color: Colors.white.withOpacity(0.5), width: 2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: const BorderSide(color: Colors.white, width: 2),
         ),
       ),
-      style: const TextStyle(color: Colors.white),
+      style: GoogleFonts.montserrat(color: Colors.white),
       validator: (value) {
-        if (value == null || value.isEmpty) {
+        if (validator != null) {
+          final validationError = validator(value);
+          if (validationError != null) {
+            _scrollToFocusNode(focusNode);
+            return validationError;
+          }
+        }
+        if (!isOptional && (value == null || value.isEmpty)) {
+          _scrollToFocusNode(focusNode);
           return 'Please enter $hintText';
         }
         return null;
@@ -372,24 +501,143 @@ class _DealerRegPageState extends State<DealerRegPage> {
   }
 
   Widget _buildUploadButton(String fieldName, String? fileName) {
-    return GestureDetector(
-      onTap: () => _pickFile(fieldName),
-      child: Container(
-        height: 100,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(10.0),
-          border: Border.all(color: Colors.white70, width: 1),
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () async {
+            if (fileName != null) {
+              final extension = path.extension(fileName).toLowerCase();
+              if (extension == '.pdf') {
+                // Open the PDF file using flutter_pdfview
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PDFViewerScreen(filePath: fileName),
+                  ),
+                );
+              } else {
+                // Open the file using the default file viewer
+                final Uri fileUri = Uri.file(fileName);
+                if (await canLaunch(fileUri.toString())) {
+                  await launch(fileUri.toString());
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not open the file')),
+                  );
+                }
+              }
+            } else {
+              _pickFile(fieldName);
+            }
+          },
+          child: Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: Colors.white70, width: 1),
+            ),
+            child: Center(
+              child: fileName == null
+                  ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_getIconForFileType(fileName),
+                            color: Colors.white, size: 40),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            path.basename(fileName),
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
         ),
-        child: Center(
-          child: fileName == null
-              ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
-              : Text(
-                  fileName,
-                  style: const TextStyle(color: Colors.white),
-                ),
-        ),
+        if (fileName != null)
+          Positioned(
+            top: 5,
+            right: 5,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (fieldName == 'bankConfirmation') {
+                    _bankConfirmationFile = null;
+                  } else if (fieldName == 'cipcCertificate') {
+                    _cipcCertificateFile = null;
+                  } else if (fieldName == 'proxy') {
+                    _proxyFile = null;
+                  } else if (fieldName == 'brnc') {
+                    _brncFile = null;
+                  }
+                });
+              },
+              child: const Icon(
+                Icons.close,
+                color: Colors.red,
+                size: 24,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  String? _validateRegistrationNumber(String? value) {
+    // Regex for South African Company Registration Number YYYY/NNNNNN/NN
+    final regExp = RegExp(r'^\d{4}/\d{6}/\d{2}$');
+    if (value == null || value.isEmpty) {
+      _scrollToFocusNode(_registrationNumberFocusNode);
+      return 'Please enter Registration Number';
+    } else if (!regExp.hasMatch(value)) {
+      _scrollToFocusNode(_registrationNumberFocusNode);
+      return 'Please enter a valid Registration Number in the format YYYY/NNNNNN/NN';
+    }
+    return null;
+  }
+
+  String? _validateVATNumber(String? value) {
+    // VAT number should be exactly 10 digits and start with 4
+    final regExp = RegExp(r'^4\d{9}$');
+    if (value == null || value.isEmpty) {
+      _scrollToFocusNode(_vatNumberFocusNode);
+      return 'Please enter VAT Number';
+    } else if (!regExp.hasMatch(value)) {
+      _scrollToFocusNode(_vatNumberFocusNode);
+      return 'Please enter a valid VAT Number starting with 4 and having 10 digits';
+    }
+    return null;
+  }
+
+  void _scrollToFocusNode(FocusNode focusNode) {
+    _scrollController.animateTo(
+      _scrollController.position.minScrollExtent +
+          _scrollController.position.maxScrollExtent * 0.2,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    focusNode.requestFocus();
+  }
+}
+
+class PDFViewerScreen extends StatelessWidget {
+  final String filePath;
+
+  PDFViewerScreen({required this.filePath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('View PDF'),
+      ),
+      body: PDFView(
+        filePath: filePath,
       ),
     );
   }

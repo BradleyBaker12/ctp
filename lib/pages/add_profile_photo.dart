@@ -2,10 +2,16 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/crop_photo_page.dart';
+import 'package:ctp/pages/dealer_reg.dart';
+import 'package:ctp/pages/transporter_reg.dart'; // Import the transporter registration page
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AddProfilePhotoPage extends StatefulWidget {
   const AddProfilePhotoPage({super.key});
@@ -16,6 +22,7 @@ class AddProfilePhotoPage extends StatefulWidget {
 
 class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
   final ImagePicker _picker = ImagePicker();
+  String? _selectedProfileImage;
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -26,7 +33,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
           context,
           MaterialPageRoute(
             builder: (context) =>
-                CropPhotoPage(imageFile: File(pickedFile.path)),
+                CropPhotoPage(imageFile: pickedFile), // Pass XFile directly
           ),
         );
       } else {
@@ -40,10 +47,61 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
     }
   }
 
+  Future<void> _useDefaultImage() async {
+    setState(() {
+      _selectedProfileImage =
+          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/profile_images%2Fdefault-profile-photo.jpg?alt=media&token=4684aad7-dd48-413c-9661-5fc2de11bec9';
+    });
+
+    try {
+      final userId = Provider.of<UserProvider>(context, listen: false).userId!;
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+      // Update the user's profile image to the default image in Firestore
+      await firestore.collection('users').doc(userId).update({
+        'profileImageUrl': _selectedProfileImage,
+      });
+
+      // Fetch the user's role from Firestore
+      DocumentSnapshot userDoc =
+          await firestore.collection('users').doc(userId).get();
+      String userRole = userDoc['role'];
+
+      // Navigate to the appropriate registration page based on the user's role
+      if (userRole == 'dealer') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DealerRegPage()),
+        );
+      } else if (userRole == 'transporter') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  const TransporterRegistrationPage()), // Ensure this page exists
+        );
+      } else {
+        // Handle other roles if necessary
+        print("Unknown user role: $userRole");
+      }
+    } catch (e) {
+      print("Error setting default profile image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error setting default profile image: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     var blue = const Color(0xFF2F7FFF);
+
+    double paddingValue = screenSize.width * 0.04;
+    double imageHeight = screenSize.height * 0.25;
+    double iconSize = screenSize.width * 0.1;
+    double fontSizeTitle = screenSize.width * 0.05;
+    double fontSizeButton = screenSize.width * 0.04;
 
     return Scaffold(
       body: Stack(
@@ -58,24 +116,26 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                       children: [
                         Container(
                           width: screenSize.width,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 8.0),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: paddingValue, vertical: 8.0),
                           child: Column(
                             children: [
-                              const SizedBox(height: 20),
+                              SizedBox(height: screenSize.height * 0.03),
                               Image.asset('lib/assets/CTPLogo.png',
-                                  height: 200),
-                              const SizedBox(height: 50),
-                              const Text(
+                                  height: imageHeight),
+                              SizedBox(height: screenSize.height * 0.05),
+                              const ProgressBar(progress: 0.90),
+                              SizedBox(height: screenSize.height * 0.05),
+                              Text(
                                 'ADD A PROFILE PHOTO',
-                                style: TextStyle(
-                                  fontSize: 18,
+                                style: GoogleFonts.montserrat(
+                                  fontSize: fontSizeTitle,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              const SizedBox(height: 50),
+                              SizedBox(height: screenSize.height * 0.06),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -90,26 +150,29 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                               BorderRadius.circular(8.0),
                                         ),
                                         child: IconButton(
-                                          icon: const Padding(
-                                            padding: EdgeInsets.all(16.0),
+                                          icon: Padding(
+                                            padding:
+                                                EdgeInsets.all(iconSize * 0.32),
                                             child: Icon(Icons.camera_alt,
-                                                size: 50, color: Colors.white),
+                                                size: iconSize,
+                                                color: Colors.white),
                                           ),
                                           onPressed: () =>
                                               _pickImage(ImageSource.camera),
                                         ),
                                       ),
-                                      const SizedBox(height: 10),
-                                      const Text(
+                                      SizedBox(
+                                          height: screenSize.height * 0.02),
+                                      Text(
                                         'CAMERA',
-                                        style: TextStyle(
-                                          fontSize: 16,
+                                        style: GoogleFonts.montserrat(
+                                          fontSize: fontSizeButton,
                                           color: Colors.white,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(width: 50),
+                                  SizedBox(width: screenSize.width * 0.1),
                                   Column(
                                     children: [
                                       Container(
@@ -121,20 +184,23 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                               BorderRadius.circular(8.0),
                                         ),
                                         child: IconButton(
-                                          icon: const Padding(
-                                            padding: EdgeInsets.all(16.0),
+                                          icon: Padding(
+                                            padding:
+                                                EdgeInsets.all(iconSize * 0.32),
                                             child: Icon(Icons.photo_library,
-                                                size: 50, color: Colors.white),
+                                                size: iconSize,
+                                                color: Colors.white),
                                           ),
                                           onPressed: () =>
                                               _pickImage(ImageSource.gallery),
                                         ),
                                       ),
-                                      const SizedBox(height: 10),
-                                      const Text(
+                                      SizedBox(
+                                          height: screenSize.height * 0.02),
+                                      Text(
                                         'GALLERY',
-                                        style: TextStyle(
-                                          fontSize: 16,
+                                        style: GoogleFonts.montserrat(
+                                          fontSize: fontSizeButton,
                                           color: Colors.white,
                                         ),
                                       ),
@@ -142,13 +208,25 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 200),
+                              SizedBox(height: screenSize.height * 0.04),
+                              TextButton(
+                                onPressed: _useDefaultImage,
+                                child: Text(
+                                  'UPLOAD LATER',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: fontSizeButton,
+                                    color: Colors.white,
+                                    decoration: TextDecoration.underline,
+                                    letterSpacing: 2.0,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: screenSize.height * 0.04),
                               CustomButton(
                                 text: 'CONTINUE',
                                 borderColor: blue,
                                 onPressed: () {}, // No action needed
                               ),
-                              const SizedBox(height: 30),
                             ],
                           ),
                         ),

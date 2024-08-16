@@ -146,17 +146,6 @@ class _EighthFormPageState extends State<EighthFormPage> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(7, (index) {
-                                return const Icon(
-                                  Icons.star,
-                                  color: Colors.white,
-                                  size: 30,
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 20),
                             const Center(
                               child: Text(
                                 'Form Complete!',

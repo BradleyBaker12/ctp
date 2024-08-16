@@ -54,18 +54,40 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
       }
 
       // Upload images and get URLs
-      List<String?> photoUrls = await Future.wait(_photoPaths.map((file) async {
-        if (file != null) {
-          return await uploadFile(
-              file.path, 'photo_${_photoPaths.indexOf(file)}.jpg');
-        }
-        return null;
-      }).toList());
+      Map<String, String?> photoUrls = {};
+      List<String> photoLabels = [
+        'front_view',
+        'right_side_view',
+        'left_side_view',
+        'rear_view',
+        'left_front_45',
+        'right_front_45',
+        'left_rear_45',
+        'right_rear_45',
+        'front_tyres_tread',
+        'rear_tyres_tread',
+        'spare_wheel',
+        'license_disk',
+        'seats',
+        'bed_bunk',
+        'roof',
+        'mileageImage',
+        'dashboard',
+        'door_panels',
+      ];
 
-      // Update Firestore with URLs
-      await firestore.collection('vehicles').doc(docId).update({
-        'photos': photoUrls,
-      });
+      for (int i = 0; i < _photoPaths.length; i++) {
+        if (_photoPaths[i] != null) {
+          photoUrls[photoLabels[i]] =
+              await uploadFile(_photoPaths[i]!.path, '${photoLabels[i]}.jpg');
+        }
+      }
+
+      // Filter out any null values from the photoUrls map
+      photoUrls.removeWhere((key, value) => value == null);
+
+      // Update Firestore with non-null URLs
+      await firestore.collection('vehicles').doc(docId).update(photoUrls);
 
       print("Form submitted successfully!");
 
@@ -111,10 +133,6 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
         ),
       );
     }
-
-    var screenSize = MediaQuery.of(context).size;
-    var blue = const Color(0xFF2F7FFF);
-    var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
       body: Stack(
@@ -182,29 +200,6 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'Form Progress',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(7, (index) {
-                                return Icon(
-                                  Icons.star,
-                                  color:
-                                      index < 6 ? Colors.white : Colors.white70,
-                                  size: 30,
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
                                 'Photos of Truck',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -259,7 +254,7 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
                             Center(
                               child: CustomButton(
                                 text: 'CONTINUE',
-                                borderColor: orange,
+                                borderColor: const Color(0xFFFF4E00),
                                 onPressed: _isLoading
                                     ? () {}
                                     : () => _submitForm(docId, imageFile),

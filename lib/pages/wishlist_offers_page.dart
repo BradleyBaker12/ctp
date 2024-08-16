@@ -1,19 +1,20 @@
 import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/pending_offers_page.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/wish_list_page.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 import 'package:ctp/components/wish_card.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/components/offer_card.dart';
-import 'package:ctp/pages/vehicle_details_page.dart';
-import 'package:ctp/pages/pending_offers_page.dart';
-import 'package:ctp/providers/vehicles_provider.dart'; // Ensure this import
+import 'vehicle_details_page.dart'; // Import the VehicleDetailsPage
+import 'package:ctp/providers/vehicles_provider.dart'; // Import the VehicleProvider
+import 'package:provider/provider.dart'; // Import Provider
+import 'package:ctp/providers/offer_provider.dart'; // Import OfferProvider
 
 class WishlistOffersPage extends StatefulWidget {
   const WishlistOffersPage({super.key});
@@ -38,7 +39,10 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
   Future<void> _fetchOffers() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await _offerProvider.fetchOffers(user.uid);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userRole = userProvider.getUserRole;
+
+      await _offerProvider.fetchOffers(user.uid, userRole);
       setState(() {});
     }
   }
@@ -70,16 +74,12 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final userProvider = Provider.of<UserProvider>(context);
     final vehicleProvider =
         Provider.of<VehicleProvider>(context); // Access VehicleProvider
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: const PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight),
-        child: BlurryAppBar(),
-      ),
+      appBar: const BlurryAppBar(), // Use BlurryAppBar as background
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center, // Center the content
@@ -142,12 +142,15 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                               _customFont(16, FontWeight.normal, Colors.black),
                         );
                       } else {
+                        // Limit the offers to the 3 most recent
+                        final latestOffers =
+                            _offerProvider.offers.take(3).toList();
                         return ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _offerProvider.offers.length,
+                          itemCount: latestOffers.length,
                           itemBuilder: (context, index) {
-                            Offer offer = _offerProvider.offers[index];
+                            Offer offer = latestOffers[index];
                             return OfferCard(
                               offer: offer,
                               size: size,
@@ -174,16 +177,72 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                     itemCount: _wishlistVehicles.length,
                     itemBuilder: (context, index) {
                       DocumentSnapshot vehicleDoc = _wishlistVehicles[index];
-                      Map<String, dynamic> vehicleData =
-                          vehicleDoc.data() as Map<String, dynamic>;
-                      String mainImageUrl = vehicleData['mainImageUrl'] ??
-                          'lib/assets/default_vehicle_image.png';
-                      Vehicle vehicle = Vehicle.fromDocument(vehicleDoc);
+                      Map<String, dynamic>? data =
+                          vehicleDoc.data() as Map<String, dynamic>?;
+                      Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
+                          (v) => v.id == vehicleDoc.id,
+                          orElse: () => Vehicle(
+                              id: 'default',
+                              accidentFree: 'N/A',
+                              application: 'N/A',
+                              bookValue: 'N/A',
+                              damageDescription: '',
+                              damagePhotos: [],
+                              engineNumber: 'N/A',
+                              expectedSellingPrice: 'N/A',
+                              firstOwner: 'N/A',
+                              hydraulics: 'N/A',
+                              listDamages: 'N/A',
+                              maintenance: 'N/A',
+                              makeModel: 'Unknown',
+                              mileage: 'N/A',
+                              oemInspection: 'N/A',
+                              photos: [],
+                              registrationNumber: 'N/A',
+                              roadWorthy: 'N/A',
+                              settleBeforeSelling: 'N/A',
+                              settlementAmount: 'N/A',
+                              spareTyre: 'N/A',
+                              suspension: 'N/A',
+                              transmission: 'N/A',
+                              tyreType: 'N/A',
+                              userId: 'N/A',
+                              vehicleType: 'N/A',
+                              vinNumber: 'N/A',
+                              warranty: 'N/A',
+                              warrantyType: 'N/A',
+                              weightClass: 'N/A',
+                              year: 'N/A',
+                              createdAt: (vehicleDoc['createdAt'] as Timestamp)
+                                  .toDate())); // Default if not found
+
+                      String imageUrl = data != null &&
+                              data.containsKey('mainImageUrl') &&
+                              data['mainImageUrl'] != null
+                          ? data['mainImageUrl']
+                          : 'lib/assets/default_vehicle_image.png';
+
+                      // Check if an offer exists for this vehicle
+                      bool hasOffer = _offerProvider.offers
+                          .any((offer) => offer.vehicleId == vehicle.id);
+
                       return WishCard(
-                        vehicleMakeModel: vehicleData['makeModel'] ?? 'Unknown',
-                        vehicleImageUrl: mainImageUrl,
+                        vehicleMakeModel:
+                            data != null && data.containsKey('makeModel')
+                                ? data['makeModel']
+                                : 'Unknown',
+                        vehicleImageUrl: imageUrl,
                         size: size,
-                        customFont: _customFont,
+                        customFont: (double fontSize, FontWeight fontWeight,
+                            Color color) {
+                          return TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: fontWeight,
+                            color: color,
+                            fontFamily: 'Montserrat',
+                          );
+                        },
+                        hasOffer: hasOffer, // Pass the hasOffer value
                         onTap: () {
                           Navigator.push(
                             context,

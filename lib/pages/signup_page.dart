@@ -8,6 +8,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -26,10 +27,46 @@ class _SignUpPageState extends State<SignUpPage> {
       TextEditingController();
   bool _isLoading = false;
 
+  bool _isEmailValid(String email) {
+    final RegExp emailRegExp = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    return emailRegExp.hasMatch(email);
+  }
+
+  bool _isPasswordValid(String password) {
+    // Regular expression to check the password
+    final RegExp passwordRegExp = RegExp(
+      r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&\-])[A-Za-z\d@$!%*?&\-]{8,}$',
+    );
+
+    return passwordRegExp.hasMatch(password);
+  }
+
   Future<void> _signUp() async {
+    // Hide the keyboard
+    FocusScope.of(context).unfocus();
+
+    if (!_isEmailValid(_emailController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Passwords do not match')),
+      );
+      return;
+    }
+
+    if (!_isPasswordValid(_passwordController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Password must be at least 8 characters long, include a number, and a special character.'),
+        ),
       );
       return;
     }
@@ -106,45 +143,49 @@ class _SignUpPageState extends State<SignUpPage> {
                         vertical: screenSize.height * 0.02,
                       ),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          SizedBox(height: screenSize.height * 0.05),
-                          Text(
-                            'WELCOME TO',
-                            style: TextStyle(
-                              fontSize: screenSize.height * 0.03,
-                              fontWeight: FontWeight.w900,
-                              color: orange,
-                            ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.02),
-                          Image.asset('lib/assets/CTPLogo.png',
-                              height: screenSize.height * 0.15),
-                          SizedBox(height: screenSize.height * 0.05),
-                          const Text(
-                            'SIGN-UP',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.02),
-                          CustomTextField(
-                            hintText: 'USERNAME OR EMAIL',
-                            controller: _emailController,
-                          ),
-                          SizedBox(height: screenSize.height * 0.02),
-                          CustomTextField(
-                            hintText: 'PASSWORD',
-                            obscureText: true,
-                            controller: _passwordController,
-                          ),
-                          SizedBox(height: screenSize.height * 0.02),
-                          CustomTextField(
-                            hintText: 'CONFIRM PASSWORD',
-                            obscureText: true,
-                            controller: _confirmPasswordController,
+                          Column(
+                            children: [
+                              SizedBox(height: screenSize.height * 0.05),
+                              Text(
+                                'WELCOME TO',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: screenSize.height * 0.03,
+                                  fontWeight: FontWeight.w900,
+                                  color: orange,
+                                ),
+                              ),
+                              SizedBox(height: screenSize.height * 0.05),
+                              Image.asset('lib/assets/CTPLogo.png',
+                                  height: screenSize.height * 0.15),
+                              SizedBox(height: screenSize.height * 0.05),
+                              Text(
+                                'SIGN-UP',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: screenSize.height * 0.05),
+                              CustomTextField(
+                                hintText: 'USERNAME OR EMAIL',
+                                controller: _emailController,
+                              ),
+                              SizedBox(height: screenSize.height * 0.02),
+                              CustomTextField(
+                                hintText: 'PASSWORD',
+                                obscureText: true,
+                                controller: _passwordController,
+                              ),
+                              SizedBox(height: screenSize.height * 0.02),
+                              CustomTextField(
+                                hintText: 'CONFIRM PASSWORD',
+                                obscureText: true,
+                                controller: _confirmPasswordController,
+                              ),
+                            ],
                           ),
                           SizedBox(height: screenSize.height * 0.05),
                           CustomButton(

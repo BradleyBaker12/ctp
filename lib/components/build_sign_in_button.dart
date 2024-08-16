@@ -5,7 +5,8 @@ class SignInButton extends StatelessWidget {
   final Color borderColor;
   final VoidCallback onPressed;
 
-  const SignInButton({super.key, 
+  const SignInButton({
+    super.key,
     required this.text,
     required this.borderColor,
     required this.onPressed,
@@ -14,16 +15,17 @@ class SignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FractionallySizedBox(
-      widthFactor: 0.9, // 90% of the available width
+      widthFactor: 1, // 90% of the available width
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4.0), // Reduced vertical margin
+        margin: const EdgeInsets.symmetric(
+            vertical: 4.0), // Reduced vertical margin
         child: ElevatedButton(
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             foregroundColor: borderColor,
             backgroundColor: borderColor.withOpacity(0.25), // Text color
-            padding:
-                const EdgeInsets.symmetric(vertical: 15.0), // Padding inside button
+            padding: const EdgeInsets.symmetric(
+                vertical: 15.0), // Padding inside button
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(5), // Square corners
               side: BorderSide(color: borderColor), // Border color

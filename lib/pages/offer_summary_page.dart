@@ -5,12 +5,12 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:http/http.dart' as http;
 
 class OfferSummaryPage extends StatelessWidget {
   final String offerId;
@@ -44,8 +44,14 @@ class OfferSummaryPage extends StatelessWidget {
     );
 
     final vehicleImage = vehicleData['mainImageUrl'] != null
-        ? await networkImage(vehicleData['mainImageUrl'])
+        ? await _networkImage(vehicleData['mainImageUrl'])
         : null;
+
+    // Calculate VAT, Commission, and Total
+    final offerAmount = offerData['offerAmount'] ?? 0.0;
+    final vatAmount = offerAmount * 0.15;
+    final commissionAmount = 12000.0;
+    final totalAmount = offerAmount + vatAmount + commissionAmount;
 
     pdf.addPage(
       pw.Page(
@@ -252,7 +258,7 @@ class OfferSummaryPage extends StatelessWidget {
                                     fontSize: 16,
                                     color: PdfColors.white)),
                             pw.Text(
-                                'Offer (Excl VAT): R ${offerData['offerAmount'] ?? 'unknown'}\nVAT: R ${offerData['vatAmount'] ?? 'unknown'}\nCommission: R ${offerData['commissionAmount'] ?? 'unknown'}\nTotal: R ${offerData['totalAmount'] ?? 'unknown'}',
+                                'Offer (Excl VAT): R ${offerAmount.toStringAsFixed(2)}\nVAT: R ${vatAmount.toStringAsFixed(2)}\nCommission: R ${commissionAmount.toStringAsFixed(2)}\nTotal: R ${totalAmount.toStringAsFixed(2)}',
                                 style: pw.TextStyle(
                                     font: robotoRegular,
                                     color: PdfColors.white)),
@@ -317,6 +323,15 @@ class OfferSummaryPage extends StatelessWidget {
     final file = File("${output.path}/offer_summary.pdf");
     await file.writeAsBytes(await pdf.save());
     return file;
+  }
+
+  Future<pw.ImageProvider> _networkImage(String url) async {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      return pw.MemoryImage(response.bodyBytes);
+    } else {
+      throw Exception('Failed to load image');
+    }
   }
 
   Future<Map<String, dynamic>> _fetchDocumentData(
@@ -400,45 +415,20 @@ class OfferSummaryPage extends StatelessWidget {
                   },
                 ),
               ),
-              floatingActionButton: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  FloatingActionButton(
-                    onPressed: () async {
-                      final file = await _generatePdf(
-                        context,
-                        offerData,
-                        userData,
-                        vehicleData,
-                        transporterData,
-                      );
-                      await Printing.sharePdf(
-                        bytes: await file.readAsBytes(),
-                        filename: 'offer_summary.pdf',
-                      );
-                    },
-                    tooltip: 'Share PDF',
-                    child: Icon(Icons.share),
-                  ),
-                  const SizedBox(width: 10),
-                  FloatingActionButton(
-                    onPressed: () async {
-                      final file = await _generatePdf(
-                        context,
-                        offerData,
-                        userData,
-                        vehicleData,
-                        transporterData,
-                      );
-                      await Printing.layoutPdf(
-                        onLayout: (PdfPageFormat format) async =>
-                            file.readAsBytes(),
-                      );
-                    },
-                    tooltip: 'Print PDF',
-                    child: Icon(Icons.print),
-                  ),
-                ],
+              floatingActionButton: FloatingActionButton(
+                onPressed: () async {
+                  final file = await _generatePdf(
+                    context,
+                    offerData,
+                    userData,
+                    vehicleData,
+                    transporterData,
+                  );
+                  final xFile = XFile(file.path);
+                  await Share.shareXFiles([xFile], text: 'Offer Summary');
+                },
+                tooltip: 'Share PDF',
+                child: Icon(Icons.share),
               ),
             );
           },

@@ -194,29 +194,6 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'Form Progress',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(5, (index) {
-                                return Icon(
-                                  Icons.star,
-                                  color:
-                                      index < 2 ? Colors.white : Colors.white70,
-                                  size: 30,
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
                                 'Do you require the truck to be settled before selling?',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -247,71 +224,80 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                               ],
                             ),
                             const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
-                                'Please attach the following documents',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Center(
-                              child: GestureDetector(
-                                onTap: _pickFile,
-                                child: Container(
-                                  height: 100,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    border: Border.all(
-                                        color: Colors.white70, width: 1),
+                            Visibility(
+                              visible: _settleBeforeSelling == 'yes',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Center(
+                                    child: Text(
+                                      'Please attach the following documents',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
-                                  child: Center(
-                                    child: _settlementLetterFile == null
-                                        ? const Icon(Icons.folder_open,
-                                            color: Colors.blue, size: 40)
-                                        : Text(
-                                            _settlementLetterFile!
-                                                .split('/')
-                                                .last,
-                                            style: const TextStyle(
-                                                color: Colors.white),
-                                          ),
+                                  const SizedBox(height: 10),
+                                  Center(
+                                    child: GestureDetector(
+                                      onTap: _pickFile,
+                                      child: Container(
+                                        height: 100,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.3),
+                                          borderRadius:
+                                              BorderRadius.circular(10.0),
+                                          border: Border.all(
+                                              color: Colors.white70, width: 1),
+                                        ),
+                                        child: Center(
+                                          child: _settlementLetterFile == null
+                                              ? const Icon(Icons.folder_open,
+                                                  color: Colors.blue, size: 40)
+                                              : Text(
+                                                  _settlementLetterFile!
+                                                      .split('/')
+                                                      .last,
+                                                  style: const TextStyle(
+                                                      color: Colors.white),
+                                                ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(height: 10),
+                                  const Center(
+                                    child: Text(
+                                      'Please attach physical settlement letter',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Center(
+                                    child: Text(
+                                      'Please fill in our settlement amount',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildTextField(
+                                      controller: _amountController,
+                                      hintText: 'Amount'),
+                                  const SizedBox(height: 20),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            const Center(
-                              child: Text(
-                                'Please attach physical settlement letter',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
-                                'Please fill in our settlement amount',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            _buildTextField(
-                                controller: _amountController,
-                                hintText: 'Amount'),
-                            const SizedBox(height: 20),
                             Center(
                               child: CustomButton(
                                 text: 'CONTINUE',

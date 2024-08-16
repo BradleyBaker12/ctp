@@ -72,7 +72,7 @@ class CustomBottomNavigation extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavBarItem(context, Icons.home, selectedIndex == 0, 0),
-          _buildNavBarItem( 
+          _buildNavBarItem(
               context, Icons.local_shipping, selectedIndex == 1, 1),
           _buildNavBarItem(context, Icons.favorite, selectedIndex == 2, 2),
           _buildNavBarItem(context, Icons.person, selectedIndex == 3, 3),

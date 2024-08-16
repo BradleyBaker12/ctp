@@ -102,7 +102,7 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                   ),
                   CustomButton(
                     text: 'REPORT AN ISSUE',
-                    borderColor: Colors.brown,
+                    borderColor: const Color(0xFFFF4E00),
                     onPressed: () {
                       Navigator.push(
                         context,

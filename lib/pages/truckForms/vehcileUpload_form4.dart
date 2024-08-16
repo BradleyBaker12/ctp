@@ -6,6 +6,7 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class FourthFormPage extends StatefulWidget {
   const FourthFormPage({super.key});
@@ -43,9 +44,20 @@ class _FourthFormPageState extends State<FourthFormPage> {
 
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      final FirebaseStorage storage = FirebaseStorage.instance;
 
+      String? rc1NatisFileUrl;
+      if (_rc1NatisFile != null) {
+        // Upload the RC1/NATIS file to Firebase Storage
+        final ref = storage.ref().child('vehicles/$docId/rc1NatisFile.jpg');
+        final uploadTask = ref.putFile(File(_rc1NatisFile!));
+        final snapshot = await uploadTask;
+        rc1NatisFileUrl = await snapshot.ref.getDownloadURL();
+      }
+
+      // Save the file URL to Firestore
       await firestore.collection('vehicles').doc(docId).update({
-        'rc1NatisFile': _rc1NatisFile,
+        'rc1NatisFile': rc1NatisFileUrl,
       });
 
       print("Form submitted successfully!");
@@ -92,10 +104,6 @@ class _FourthFormPageState extends State<FourthFormPage> {
         ),
       );
     }
-
-    var screenSize = MediaQuery.of(context).size;
-    var blue = const Color(0xFF2F7FFF);
-    var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
       body: Stack(
@@ -163,29 +171,6 @@ class _FourthFormPageState extends State<FourthFormPage> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'Form Progress',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(5, (index) {
-                                return Icon(
-                                  Icons.star,
-                                  color:
-                                      index < 3 ? Colors.white : Colors.white70,
-                                  size: 30,
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
                                 'Upload your RC1/NATIS documentation',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -235,7 +220,7 @@ class _FourthFormPageState extends State<FourthFormPage> {
                             Center(
                               child: CustomButton(
                                 text: 'CONTINUE',
-                                borderColor: orange,
+                                borderColor: const Color(0xFFFF4E00),
                                 onPressed: _isLoading
                                     ? () {}
                                     : () => _submitForm(docId, imageFile),
@@ -263,6 +248,10 @@ class _FourthFormPageState extends State<FourthFormPage> {
               ],
             ),
           ),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(),
+            ),
           const Positioned(
             top: 40,
             left: 16,

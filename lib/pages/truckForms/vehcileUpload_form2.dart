@@ -172,18 +172,6 @@ class _SecondFormPageState extends State<SecondFormPage> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(5, (index) {
-                              return Icon(
-                                Icons.star,
-                                color:
-                                    index < 1 ? Colors.white : Colors.white70,
-                                size: 30,
-                              );
-                            }),
-                          ),
-                          const SizedBox(height: 20),
                           Form(
                             key: _formKey,
                             child: Column(

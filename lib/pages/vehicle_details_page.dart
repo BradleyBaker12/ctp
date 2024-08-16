@@ -1,11 +1,12 @@
+import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/profile_page.dart';
-import 'package:ctp/pages/truck_page.dart'; // Import the truck page
-import 'package:ctp/pages/wishlist_offers_page.dart'; // Import the wishlist offers page
+import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/wishlist_offers_page.dart';
 
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
@@ -22,6 +23,31 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   int _currentImageIndex = 0;
   bool _isLoading = false;
   double _offerAmount = 0.0;
+  bool _hasMadeOffer = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfOfferMade();
+  }
+
+  Future<void> _checkIfOfferMade() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    String dealerId = user.uid;
+    String vehicleId = widget.vehicle.id;
+
+    QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
+        .collection('offers')
+        .where('dealerId', isEqualTo: dealerId)
+        .where('vehicleId', isEqualTo: vehicleId)
+        .get();
+
+    setState(() {
+      _hasMadeOffer = offersSnapshot.docs.isNotEmpty;
+    });
+  }
 
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
     return TextStyle(
@@ -47,22 +73,18 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        // Handle user not logged in
         return;
       }
 
       String dealerId = user.uid;
       String vehicleId = widget.vehicle.id;
-      String transporterId = widget.vehicle
-          .userId; // Assuming transporterId is the same as userId in vehicle document
+      String transporterId = widget.vehicle.userId;
       DateTime createdAt = DateTime.now();
 
-      // Generate a document reference with a unique ID
       DocumentReference docRef =
           FirebaseFirestore.instance.collection('offers').doc();
       String offerId = docRef.id;
 
-      // Set the document data
       await docRef.set({
         'offerId': offerId,
         'dealerId': dealerId,
@@ -78,26 +100,29 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         'paymentStatus': 'pending',
         'offerStatus': 'in-progress',
         'offerAmount': _offerAmount,
-        // Other fields that should be null or not included
       });
 
-      // Clear the input field
       _controller.clear();
       setState(() {
         _totalCost = 0.0;
         _offerAmount = 0.0;
+        _hasMadeOffer = true;
       });
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offer submitted successfully!')),
+        const SnackBar(
+          content: Text('Offer submitted successfully!'),
+          backgroundColor: Colors.green, // Set the background color to green
+        ),
       );
     } catch (e) {
       print('Error making offer: $e');
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Error submitting offer. Please try again.')),
+          content: Text('Error submitting offer. Please try again.'),
+          backgroundColor:
+              Colors.red, // Set the background color to red for errors
+        ),
       );
     } finally {
       setState(() {
@@ -106,11 +131,62 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
+  Widget _buildAdditionalInfo() {
+    List<Widget> infoWidgets = [];
+
+    void addInfo(String title, String? value) {
+      if (value != null && value.isNotEmpty && value != 'Unknown') {
+        infoWidgets.add(_buildInfoRow(title, value));
+      }
+    }
+
+    addInfo('Accident Free', widget.vehicle.accidentFree);
+    addInfo('Application', widget.vehicle.application);
+    addInfo('Book Value', widget.vehicle.bookValue);
+    addInfo('Damage Description', widget.vehicle.damageDescription);
+    addInfo('Engine Number', widget.vehicle.engineNumber);
+    addInfo('First Owner', widget.vehicle.firstOwner);
+    addInfo('Hydraulics', widget.vehicle.hydraulics);
+    addInfo('List Damages', widget.vehicle.listDamages);
+    addInfo('Maintenance', widget.vehicle.maintenance);
+    addInfo('OEM Inspection', widget.vehicle.oemInspection);
+    addInfo('Registration Number', widget.vehicle.registrationNumber);
+    addInfo('Road Worthy', widget.vehicle.roadWorthy);
+    addInfo('Settle Before Selling', widget.vehicle.settleBeforeSelling);
+    addInfo('Settlement Amount', widget.vehicle.settlementAmount);
+    addInfo('Spare Tyre', widget.vehicle.spareTyre);
+    addInfo('Suspension', widget.vehicle.suspension);
+    addInfo('Tread Left', widget.vehicle.treadLeft);
+    addInfo('Tyre Type', widget.vehicle.tyreType);
+    addInfo('VIN Number', widget.vehicle.vinNumber);
+    addInfo('Warranty', widget.vehicle.warranty);
+    addInfo('Warranty Type', widget.vehicle.warrantyType);
+    addInfo('Weight Class', widget.vehicle.weightClass);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: infoWidgets,
+    );
+  }
+
+  Widget _buildInfoRow(String title, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: _customFont(14, FontWeight.normal, Colors.white)),
+          Text(value ?? 'Unknown',
+              style: _customFont(14, FontWeight.bold, Colors.white)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
-    // Combine all photos, starting with the main image
     List<String> allPhotos = [
       if (widget.vehicle.mainImageUrl != null) widget.vehicle.mainImageUrl!,
       ...widget.vehicle.photos.where((photo) => photo != null).cast<String>(),
@@ -131,7 +207,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             style: _customFont(20, FontWeight.bold, Colors.white)),
         backgroundColor: Colors.black,
       ),
-      backgroundColor: Colors.black, // Set the background color to black
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -192,67 +268,85 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Text('Make an Offer',
-                          style:
-                              _customFont(20, FontWeight.bold, Colors.white)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _controller,
-                        cursorColor: const Color(0xFFFF4E00),
-                        decoration: InputDecoration(
-                          hintText: '102 000 000',
-                          hintStyle:
-                              _customFont(24, FontWeight.normal, Colors.grey),
-                          enabledBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
-                          ),
-                          focusedBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(color: Color(0xFFFF4E00)),
-                          ),
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 15.0),
-                        ),
-                        textAlign: TextAlign.center,
-                        style: _customFont(20, FontWeight.bold, Colors.white),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          setState(() {
-                            if (value.isNotEmpty) {
-                              _offerAmount = double.parse(value
-                                  .replaceAll(' ', '')
-                                  .replaceAll(',', ''));
-                              _totalCost = _calculateTotalCost(_offerAmount);
-                            } else {
-                              _offerAmount = 0.0;
-                              _totalCost = 0.0;
-                            }
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          "R ${_totalCost.toStringAsFixed(2)} inc VAT plus comm",
-                          style: _customFont(18, FontWeight.bold, Colors.white),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity, // Span the button width
-                        child: ElevatedButton(
-                          onPressed: _makeOffer,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF4E00),
-                            padding: const EdgeInsets.symmetric(vertical: 20.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text('MAKE AN OFFER',
+                      if (!_hasMadeOffer)
+                        Column(
+                          children: [
+                            Text('Make an Offer',
+                                style: _customFont(
+                                    20, FontWeight.bold, Colors.white)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _controller,
+                              cursorColor: const Color(0xFFFF4E00),
+                              decoration: InputDecoration(
+                                hintText: '102 000 000',
+                                hintStyle: _customFont(
+                                    24, FontWeight.normal, Colors.grey),
+                                enabledBorder: const OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white),
+                                ),
+                                focusedBorder: const OutlineInputBorder(
+                                  borderSide:
+                                      BorderSide(color: Color(0xFFFF4E00)),
+                                ),
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 15.0),
+                              ),
+                              textAlign: TextAlign.center,
                               style: _customFont(
-                                  24, FontWeight.bold, Colors.white)),
+                                  20, FontWeight.bold, Colors.white),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value.isNotEmpty) {
+                                    _offerAmount = double.parse(value
+                                        .replaceAll(' ', '')
+                                        .replaceAll(',', ''));
+                                    _totalCost =
+                                        _calculateTotalCost(_offerAmount);
+                                  } else {
+                                    _offerAmount = 0.0;
+                                    _totalCost = 0.0;
+                                  }
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                "R ${_totalCost.toStringAsFixed(2)} inc VAT plus comm",
+                                style: _customFont(
+                                    18, FontWeight.bold, Colors.white),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _makeOffer,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFF4E00),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 20.0),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text('MAKE AN OFFER',
+                                    style: _customFont(
+                                        24, FontWeight.bold, Colors.white)),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Center(
+                          child: Text(
+                            "Offer Pending",
+                            style: _customFont(
+                                20, FontWeight.bold, Color(0xFFFF4E00)),
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 20),
                       Row(
                         children: [
@@ -264,23 +358,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Center(
-                        child: Column(
-                          children: [
-                            Text(
-                              'Discover the Power and Performance You Need: Our Semi Trucks Are Built to Drive Your Success Forward!',
-                              style: _customFont(
-                                  16, FontWeight.bold, Colors.white),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Looking for reliability, efficiency, and cutting-edge technology in your next semi-truck purchase? Look no further! Our fleet of semi trucks offers top-of-the-line performance to meet the demands of your toughest routes and deliver your cargo on time, every time.',
-                              style: _customFont(
-                                  14, FontWeight.normal, Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildAdditionalInfo(),
                     ],
                   ),
                 ),
@@ -297,11 +375,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         ],
       ),
       bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: 1, // Set the truck icon as selected
+        selectedIndex: 1,
         onItemTapped: (index) {
-          setState(() {
-            // This callback is handled inside _buildNavBarItem method
-          });
+          setState(() {});
         },
       ),
     );
@@ -310,10 +386,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   Widget _buildInfoContainer(String title, String? value) {
     return Flexible(
       child: Container(
-        height: 90, // Set a fixed height
+        height: 90,
         padding: const EdgeInsets.all(8.0),
         decoration: BoxDecoration(
-          color: Colors.black, // Change background color to black
+          color: Colors.black,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         ),
@@ -353,84 +429,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ),
         );
       }),
-    );
-  }
-}
-
-class CustomBottomNavigation extends StatelessWidget {
-  final int selectedIndex;
-  final Function(int) onItemTapped;
-  final double iconSize;
-
-  const CustomBottomNavigation({
-    super.key,
-    required this.selectedIndex,
-    required this.onItemTapped,
-    this.iconSize = 30.0, // Adjusted icon size
-  });
-
-  Widget _buildNavBarItem(
-      BuildContext context, IconData icon, bool isActive, int index) {
-    return GestureDetector(
-      onTap: () {
-        if (index == 0) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
-          );
-        } else if (index == 1) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const TruckPage()),
-          );
-        } else if (index == 2) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const WishlistOffersPage()),
-          );
-        } else if (index == 3) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const ProfilePage()),
-          );
-        }
-        onItemTapped(index);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: iconSize,
-            color: isActive ? Colors.black : Colors.black.withOpacity(0.6),
-          ),
-          if (isActive)
-            const Icon(
-              Icons.arrow_drop_up,
-              size: 30,
-              color: Colors.white,
-            ), // Pointer icon with adjusted size
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 80,
-      color: const Color(0xFF2F7FFF),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavBarItem(context, Icons.home, selectedIndex == 0, 0),
-          _buildNavBarItem(
-              context, Icons.local_shipping, selectedIndex == 1, 1),
-          _buildNavBarItem(context, Icons.favorite, selectedIndex == 2, 2),
-          _buildNavBarItem(context, Icons.person, selectedIndex == 3, 3),
-        ],
-      ),
     );
   }
 }

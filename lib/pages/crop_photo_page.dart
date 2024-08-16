@@ -4,15 +4,20 @@ import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/loading_screen.dart';
+import 'package:ctp/pages/dealer_reg.dart';
+import 'package:ctp/pages/transporter_reg.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CropPhotoPage extends StatefulWidget {
-  final File imageFile;
+  final XFile imageFile;
 
   const CropPhotoPage({super.key, required this.imageFile});
 
@@ -32,8 +37,10 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
 
   Future<void> _cropImage() async {
     try {
+      final File imageFile = File(widget.imageFile.path);
+
       final croppedFile = await ImageCropper().cropImage(
-        sourcePath: widget.imageFile.path,
+        sourcePath: imageFile.path,
         aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
         uiSettings: [
           AndroidUiSettings(
@@ -56,7 +63,7 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
         });
       } else {
         setState(() {
-          _croppedFile = widget.imageFile;
+          _croppedFile = imageFile;
           _isLoading = false;
         });
       }
@@ -85,8 +92,11 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
           .child('profile_images')
           .child('$userId.jpg');
 
-      // Upload the file
-      await storageRef.putFile(_croppedFile!);
+      // Compress the file
+      final compressedFile = await _compressImageFile(_croppedFile!);
+
+      // Upload the compressed file
+      await storageRef.putFile(compressedFile);
       final imageUrl = await storageRef.getDownloadURL();
 
       // Update user's profile image URL in Firestore
@@ -102,9 +112,17 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
       final userRole = userDoc['userRole'];
 
       if (userRole == 'transporter') {
-        Navigator.pushReplacementNamed(context, '/transporterRegister');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  const TransporterRegistrationPage()), // Ensure this page exists
+        );
       } else if (userRole == 'dealer') {
-        Navigator.pushReplacementNamed(context, '/dealerRegister');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DealerRegPage()),
+        );
       } else {
         Navigator.pushReplacementNamed(
             context, '/home'); // Fallback or home page
@@ -119,6 +137,17 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<File> _compressImageFile(File file) async {
+    final compressedFile = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      file.absolute.path.replaceAll('.jpg', '_compressed.jpg'),
+      quality: 70, // Adjust quality here (0-100)
+    );
+
+    // Convert compressedFile to File and return
+    return compressedFile != null ? File(compressedFile.path) : file;
   }
 
   @override
@@ -147,9 +176,9 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                               Image.asset('lib/assets/CTPLogo.png',
                                   height: 200), // Adjust the height as needed
                               const SizedBox(height: 50),
-                              const Text(
+                              Text(
                                 'PREVIEW',
-                                style: TextStyle(
+                                style: GoogleFonts.montserrat(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -162,6 +191,11 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                                   radius: 80,
                                   backgroundImage: _croppedFile != null
                                       ? FileImage(_croppedFile!)
+                                      : const AssetImage(
+                                          'lib/assets/placeholder_image.png'), // Placeholder image
+                                  child: _croppedFile == null
+                                      ? const Icon(Icons.person,
+                                          size: 80, color: Colors.grey)
                                       : null,
                                 ),
                               const SizedBox(height: 50),

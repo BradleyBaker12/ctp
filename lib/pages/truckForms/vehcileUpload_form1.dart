@@ -11,7 +11,9 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 
 class FirstTruckForm extends StatefulWidget {
-  const FirstTruckForm({super.key});
+  final String vehicleType;
+
+  const FirstTruckForm({super.key, required this.vehicleType});
 
   @override
   _FirstTruckFormState createState() => _FirstTruckFormState();
@@ -27,21 +29,27 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
 
   File? _selectedMainImage;
   File? _selectedLicenceDiskImage;
-  String _vehicleType = 'truck';
+  late String _vehicleType;
   String _weightClass = 'heavy';
   bool _isLoading = false;
   String? _selectedMileage;
 
   final List<String> _mileageOptions = [
-    '0 - 10,000',
-    '10,001 - 20,000',
-    '20,001 - 50,000',
-    '50,001 - 100,000',
-    '100,001 - 200,000',
-    '200,001 - 500,000',
-    '500,001 - 1,000,000',
+    '0+',
+    '10,001+',
+    '20,001+',
+    '50,001+',
+    '100,001+',
+    '200,001+',
+    '500,001+',
     '1,000,001+'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _vehicleType = widget.vehicleType; // Set initial vehicle type
+  }
 
   Future<void> _pickImage(ImageSource source,
       {required bool isLicenceDisk}) async {
@@ -78,14 +86,16 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
       final FirebaseStorage storage = FirebaseStorage.instance;
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-      // Create a new document in Firestore to get the vehicle ID
       final docRef = await firestore.collection('vehicles').add({
         'year': _yearController.text,
         'makeModel': _makeModelController.text,
         'mileage': _selectedMileage,
         'bookValue': _bookValueController.text,
         'vinNumber': _vinNumberController.text,
+        'vehicleType': _vehicleType,
+        'weightClass': _weightClass,
         'userId': userId,
+        'createdAt': FieldValue.serverTimestamp(), // Add timestamp
       });
 
       final vehicleId = docRef.id;
@@ -106,7 +116,6 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
               _selectedLicenceDiskImage!.path, 'licence_disk.jpg')
           : null;
 
-      // Update the vehicle document with the image URLs
       await docRef.update({
         'mainImageUrl': mainImageUrl,
         'licenceDiskUrl': licenceDiskUrl,
@@ -163,8 +172,9 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                               children: [
                                 Container(
                                   height: 300,
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16.0),
+                                  width: MediaQuery.of(context)
+                                      .size
+                                      .width, // Ensures full screen width
                                   decoration: BoxDecoration(
                                     color: Colors.black.withOpacity(0.3),
                                     borderRadius: BorderRadius.circular(10.0),
@@ -248,17 +258,6 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                               ),
                               textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(5, (index) {
-                              return Icon(
-                                Icons.star_outline,
-                                color: index < 3 ? Colors.white : Colors.white,
-                                size: 40,
-                              );
-                            }),
                           ),
                           const SizedBox(height: 20),
                           Row(

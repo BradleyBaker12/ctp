@@ -5,10 +5,6 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'offer_summary_page.dart';
 import 'payment_pending_page.dart';
-import 'package:ctp/pages/home_page.dart';
-import 'package:ctp/pages/profile_page.dart';
-import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/pages/wishlist_offers_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
 class PaymentOptionsPage extends StatefulWidget {
@@ -72,73 +68,79 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
         .update({'offerStatus': '2/4'});
     return Scaffold(
       body: GradientBackground(
-        child: Container(
-          height: MediaQuery.of(context).size.height,
-          padding: const EdgeInsets.all(16.0),
+        child: SizedBox.expand(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Image.asset('lib/assets/CTPLogo.png'),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'PAYMENT OPTIONS',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          "You're almost there!",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Image.asset('lib/assets/CTPLogo.png'),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'PAYMENT OPTIONS',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "You're almost there!",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                ),
               ),
               Column(
                 children: [
                   CustomButton(
                     text: 'GENERATE INVOICE',
-                    borderColor: Colors.orange,
+                    borderColor: const Color(0xFFFF4E00),
                     onPressed: () {
                       // Handle generate invoice action
                     },
                   ),
                   CustomButton(
                     text: 'PAY ONLINE NOW',
-                    borderColor: Colors.orange,
+                    borderColor: const Color(0xFFFF4E00),
                     onPressed: () {
                       // Handle pay online now action
                     },
                   ),
                   CustomButton(
                     text: 'SEND OFFER SUMMARY',
-                    borderColor: Colors.orange,
+                    borderColor: const Color(0xFFFF4E00),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -151,11 +153,13 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
                   ),
                   CustomButton(
                     text: 'CONTINUE',
-                    borderColor: Colors.orange,
+                    borderColor: const Color(0xFFFF4E00),
                     onPressed: () {
                       _navigateBasedOnStatus(context);
                     },
                   ),
+                  const SizedBox(
+                      height: 16), // Added spacing for bottom padding
                 ],
               ),
             ],

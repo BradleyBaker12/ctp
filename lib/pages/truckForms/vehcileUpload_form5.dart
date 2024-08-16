@@ -147,10 +147,6 @@ class _FifthFormPageState extends State<FifthFormPage> {
       );
     }
 
-    var screenSize = MediaQuery.of(context).size;
-    var blue = const Color(0xFF2F7FFF);
-    var orange = const Color(0xFFFF4E00);
-
     return Scaffold(
       body: Stack(
         children: [
@@ -217,29 +213,6 @@ class _FifthFormPageState extends State<FifthFormPage> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'Form Progress',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(5, (index) {
-                                return Icon(
-                                  Icons.star,
-                                  color:
-                                      index < 4 ? Colors.white : Colors.white70,
-                                  size: 30,
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
                                 'Do you want to list damages and product faults?',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -270,141 +243,144 @@ class _FifthFormPageState extends State<FifthFormPage> {
                               ],
                             ),
                             const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
-                                'Please attach the following documents',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Center(
-                              child: GestureDetector(
-                                onTap: () => _pickImageDialog(-1),
-                                child: Container(
-                                  height: 100,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    border: Border.all(
-                                        color: Colors.white70, width: 1),
+                            if (_listDamages == 'yes') ...[
+                              const Center(
+                                child: Text(
+                                  'Please attach the following documents',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
                                   ),
-                                  child: Center(
-                                    child: _dashboardPhoto == null
-                                        ? const Icon(Icons.add,
-                                            color: Colors.blue, size: 40)
-                                        : ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.file(
-                                              _dashboardPhoto!,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              fit: BoxFit.cover,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Center(
+                                child: GestureDetector(
+                                  onTap: () => _pickImageDialog(-1),
+                                  child: Container(
+                                    height: 100,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      border: Border.all(
+                                          color: Colors.white70, width: 1),
+                                    ),
+                                    child: Center(
+                                      child: _dashboardPhoto == null
+                                          ? const Icon(Icons.add,
+                                              color: Colors.blue, size: 40)
+                                          : ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10.0),
+                                              child: Image.file(
+                                                _dashboardPhoto!,
+                                                width: double.infinity,
+                                                height: double.infinity,
+                                                fit: BoxFit.cover,
+                                              ),
                                             ),
-                                          ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Center(
-                              child: Text(
-                                'Photo of Dashboard',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Center(
-                              child: GestureDetector(
-                                onTap: () => _pickImageDialog(-2),
-                                child: Container(
-                                  height: 100,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    border: Border.all(
-                                        color: Colors.white70, width: 1),
+                              const SizedBox(height: 10),
+                              const Center(
+                                child: Text(
+                                  'Photo of Dashboard',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
                                   ),
-                                  child: Center(
-                                    child: _faultCodesPhoto == null
-                                        ? const Icon(Icons.add,
-                                            color: Colors.blue, size: 40)
-                                        : ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.file(
-                                              _faultCodesPhoto!,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              fit: BoxFit.cover,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Center(
+                                child: GestureDetector(
+                                  onTap: () => _pickImageDialog(-2),
+                                  child: Container(
+                                    height: 100,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      border: Border.all(
+                                          color: Colors.white70, width: 1),
+                                    ),
+                                    child: Center(
+                                      child: _faultCodesPhoto == null
+                                          ? const Icon(Icons.add,
+                                              color: Colors.blue, size: 40)
+                                          : ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10.0),
+                                              child: Image.file(
+                                                _faultCodesPhoto!,
+                                                width: double.infinity,
+                                                height: double.infinity,
+                                                fit: BoxFit.cover,
+                                              ),
                                             ),
-                                          ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Center(
-                              child: Text(
-                                'Clear Picture of Fault Codes',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
-                                'Please describe and attach images of all damages',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            _buildTextField(
-                                controller: _damageDescriptionController,
-                                hintText: 'Describe Damage'),
-                            const SizedBox(height: 10),
-                            Column(
-                              children:
-                                  List.generate(_damagePhotos.length, (index) {
-                                return _buildDamagePhotoField(index);
-                              }),
-                            ),
-                            Center(
-                              child: TextButton.icon(
-                                onPressed: () {
-                                  setState(() {
-                                    _damagePhotos.add(null);
-                                  });
-                                },
-                                icon: const Icon(Icons.add, color: Colors.blue),
-                                label: const Text(
-                                  'ADD NEW DAMAGE',
-                                  style: TextStyle(color: Colors.blue),
+                              const SizedBox(height: 10),
+                              const Center(
+                                child: Text(
+                                  'Clear Picture of Fault Codes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 20),
+                              const Center(
+                                child: Text(
+                                  'Please describe and attach images of all damages',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              _buildTextField(
+                                  controller: _damageDescriptionController,
+                                  hintText: 'Describe Damage'),
+                              const SizedBox(height: 10),
+                              Column(
+                                children: List.generate(_damagePhotos.length,
+                                    (index) {
+                                  return _buildDamagePhotoField(index);
+                                }),
+                              ),
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _damagePhotos.add(null);
+                                    });
+                                  },
+                                  icon:
+                                      const Icon(Icons.add, color: Colors.blue),
+                                  label: const Text(
+                                    'ADD NEW DAMAGE',
+                                    style: TextStyle(color: Colors.blue),
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 20),
                             Center(
                               child: CustomButton(
                                 text: 'CONTINUE',
-                                borderColor: orange,
+                                borderColor: const Color(0xFFFF4E00),
                                 onPressed: _isLoading
                                     ? () {}
                                     : () => _submitForm(docId, imageFile),
@@ -550,8 +526,7 @@ class _FifthFormPageState extends State<FifthFormPage> {
           value: value,
           groupValue: groupValue,
           onChanged: onChanged,
-          activeColor:
-              const Color(0xFFFF4E00), // Set the active color to orange
+          activeColor: const Color(0xFFFF4E00),
         ),
         Text(
           label,

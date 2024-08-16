@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'edit_profile_page.dart'; // Import the EditProfilePage
+import 'edit_profile_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground
+import 'package:ctp/components/gradient_background.dart';
+import 'pdf_viewer_page.dart'; // Import the PDF Viewer Page
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -12,8 +13,7 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final size = MediaQuery.of(context).size;
-    const Color borderColor =
-        Color(0xFFFF4E00); // Change to your desired border color
+    const Color borderColor = Color(0xFFFF4E00);
     final Color backgroundColor = borderColor.withOpacity(0.6);
 
     String capitalizeFirstLetter(String? value) {
@@ -64,7 +64,8 @@ class ProfilePage extends StatelessWidget {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => const EditProfilePage(),
+                                      builder: (context) =>
+                                          const EditProfilePage(),
                                     ),
                                   );
                                 },
@@ -118,14 +119,20 @@ class ProfilePage extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              _buildDocumentItem('BANK CONFIRMATION',
-                  userProvider.getBankConfirmationUrl, Icons.visibility),
-              _buildDocumentItem('CIPC CERTIFICATE',
-                  userProvider.getCipcCertificateUrl, Icons.visibility),
               _buildDocumentItem(
-                  'PROXY', userProvider.getProxyUrl, Icons.visibility),
+                  'BANK CONFIRMATION',
+                  userProvider.getBankConfirmationUrl,
+                  Icons.visibility,
+                  context),
               _buildDocumentItem(
-                  'BRNC', userProvider.getBrncUrl, Icons.visibility),
+                  'CIPC CERTIFICATE',
+                  userProvider.getCipcCertificateUrl,
+                  Icons.visibility,
+                  context),
+              _buildDocumentItem(
+                  'PROXY', userProvider.getProxyUrl, Icons.visibility, context),
+              _buildDocumentItem(
+                  'BRNC', userProvider.getBrncUrl, Icons.visibility, context),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
@@ -189,7 +196,8 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildDocumentItem(String title, String? url, IconData icon) {
+  Widget _buildDocumentItem(
+      String title, String? url, IconData icon, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       child: Row(
@@ -205,11 +213,23 @@ class ProfilePage extends StatelessWidget {
           ),
           Row(
             children: [
-              Text(
-                url != null ? 'VIEW' : 'NOT UPLOADED',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: url != null ? Colors.blue : Colors.grey,
+              GestureDetector(
+                onTap: url != null
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PdfViewerPage(pdfUrl: url),
+                          ),
+                        );
+                      }
+                    : null,
+                child: Text(
+                  url != null ? 'VIEW' : 'NOT UPLOADED',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: url != null ? Colors.blue : Colors.grey,
+                  ),
                 ),
               ),
               const SizedBox(width: 5),

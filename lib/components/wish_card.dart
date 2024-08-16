@@ -5,7 +5,8 @@ class WishCard extends StatelessWidget {
   final String vehicleImageUrl;
   final Size size;
   final TextStyle Function(double, FontWeight, Color) customFont;
-  final VoidCallback onTap; // Add this line
+  final VoidCallback onTap;
+  final bool hasOffer;
 
   const WishCard({
     super.key,
@@ -14,6 +15,7 @@ class WishCard extends StatelessWidget {
     required this.size,
     required this.customFont,
     required this.onTap,
+    required this.hasOffer,
   });
 
   @override
@@ -32,17 +34,20 @@ class WishCard extends StatelessWidget {
             children: [
               Container(
                 width: 8,
-                height: 120, // Set a fixed height to avoid infinite height issue
+                height:
+                    120, // Set a fixed height to avoid infinite height issue
                 color: Colors.blue, // Set a color to indicate the wishlist item
               ),
               Container(
                 width: 90,
-                height: 120, // Set a fixed height to avoid infinite height issue
+                height:
+                    120, // Set a fixed height to avoid infinite height issue
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: vehicleImageUrl.isNotEmpty
                         ? NetworkImage(vehicleImageUrl)
-                        : const AssetImage('lib/assets/default_vehicle_image.png')
+                        : const AssetImage(
+                                'lib/assets/default_vehicle_image.png')
                             as ImageProvider,
                     fit: BoxFit.cover,
                   ),
@@ -70,21 +75,25 @@ class WishCard extends StatelessWidget {
               ),
               Container(
                 width: 90,
-                height: 120, // Set a fixed height to avoid infinite height issue
-                color: Colors.green,
-                child: const Center(
+                height:
+                    120, // Set a fixed height to avoid infinite height issue
+                color: hasOffer
+                    ? Color(0xFFFF4E00)
+                    : Colors.green, // Change color based on offer status
+                child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.arrow_forward,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      SizedBox(height: 4),
+                      if (!hasOffer) // Hide the arrow if an offer is made
+                        const Icon(
+                          Icons.arrow_forward,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      const SizedBox(height: 4),
                       Text(
-                        'Make Offer',
-                        style: TextStyle(color: Colors.white),
+                        hasOffer ? 'Offer Made' : 'Make Offer',
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ],
                   ),

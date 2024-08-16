@@ -1,3 +1,4 @@
+import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
@@ -92,7 +93,7 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   double _calculateHonestyPercentage(Vehicle vehicle) {
-    int totalFields = 29 + 18; // 29 fields and 18 photos
+    int totalFields = 35 + 18; // 35 fields and 18 photos
     int filledFields = 0;
 
     // Checking each field and incrementing filledFields if it is not null or empty
@@ -111,6 +112,7 @@ class _TruckPageState extends State<TruckPage> {
     if (vehicle.maintenance.isNotEmpty) filledFields++;
     if (vehicle.makeModel.isNotEmpty) filledFields++;
     if (vehicle.mileage.isNotEmpty) filledFields++;
+    if (vehicle.mileageImage != null) filledFields++;
     if (vehicle.oemInspection.isNotEmpty) filledFields++;
     if (vehicle.rc1NatisFile != null) filledFields++;
     if (vehicle.registrationNumber.isNotEmpty) filledFields++;
@@ -121,7 +123,7 @@ class _TruckPageState extends State<TruckPage> {
     if (vehicle.spareTyre.isNotEmpty) filledFields++;
     if (vehicle.suspension.isNotEmpty) filledFields++;
     if (vehicle.transmission.isNotEmpty) filledFields++;
-    if (vehicle.treadLeft.isNotEmpty) filledFields++;
+    if (vehicle.treadLeft != null) filledFields++;
     if (vehicle.tyrePhoto1 != null) filledFields++;
     if (vehicle.tyrePhoto2 != null) filledFields++;
     if (vehicle.tyreType.isNotEmpty) filledFields++;
@@ -130,6 +132,8 @@ class _TruckPageState extends State<TruckPage> {
     if (vehicle.warranty.isNotEmpty) filledFields++;
     if (vehicle.warrantyType.isNotEmpty) filledFields++;
     if (vehicle.year.isNotEmpty) filledFields++;
+    if (vehicle.vehicleType.isNotEmpty) filledFields++;
+    if (vehicle.weightClass.isNotEmpty) filledFields++;
 
     // Checking each photo in the photos array
     for (var photo in vehicle.photos) {
@@ -222,7 +226,7 @@ class _TruckPageState extends State<TruckPage> {
   Widget _buildTruckCard(BuildContext context,
       AppinioSwiperController controller, Vehicle vehicle, Size size) {
     double honestyPercentage = _calculateHonestyPercentage(vehicle);
-    int filledFields = (honestyPercentage / 100 * (29 + 18)).round();
+    int filledFields = (honestyPercentage / 100 * (35 + 18)).round();
 
     return GestureDetector(
       onDoubleTap: () {
@@ -272,6 +276,7 @@ class _TruckPageState extends State<TruckPage> {
               top: 10,
               right: 10,
               child: Column(
+                mainAxisSize: MainAxisSize.min, // Adjust for shrink-wrapping
                 children: [
                   _buildHonestyBar(honestyPercentage),
                   const SizedBox(height: 8),
@@ -287,6 +292,7 @@ class _TruckPageState extends State<TruckPage> {
               left: 10,
               right: 10,
               child: Column(
+                mainAxisSize: MainAxisSize.min, // Adjust for shrink-wrapping
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -300,29 +306,46 @@ class _TruckPageState extends State<TruckPage> {
                         'lib/assets/verified_Icon.png',
                         width: 20,
                         height: 20,
-                      )
+                      ),
                     ],
                   ),
                   const SizedBox(height: 5),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildBlurryContainer('YEAR',
-                          vehicle.year.isNotEmpty ? vehicle.year : "Unknown"),
-                      const SizedBox(width: 1),
-                      _buildBlurryContainer(
+                      Expanded(
+                        child: _buildBlurryContainer(
+                          'YEAR',
+                          vehicle.year.isNotEmpty ? vehicle.year : "Unknown",
+                        ),
+                      ),
+                      SizedBox(width: 8), // Add some spacing between columns
+                      Expanded(
+                        child: _buildBlurryContainer(
                           'MILEAGE',
                           vehicle.mileage.isNotEmpty
                               ? vehicle.mileage
-                              : "Unknown"),
-                      const SizedBox(width: 1),
-                      _buildBlurryContainer(
+                              : "Unknown",
+                        ),
+                      ),
+                      SizedBox(width: 8), // Add some spacing between columns
+                      Expanded(
+                        child: _buildBlurryContainer(
                           'TRANSMISSION',
                           vehicle.transmission.isNotEmpty
                               ? vehicle.transmission
-                              : "Unknown"),
-                      const SizedBox(width: 1),
-                      _buildBlurryContainer('CONFIG', 'Unknown'),
+                              : "Unknown",
+                        ),
+                      ),
+                      SizedBox(width: 8), // Add some spacing between columns
+                      Expanded(
+                        child: _buildBlurryContainer(
+                          'TYPE',
+                          vehicle.vehicleType.isNotEmpty
+                              ? vehicle.vehicleType
+                              : "Unknown",
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -379,34 +402,32 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   Widget _buildBlurryContainer(String title, String value) {
-    return Flexible(
-      child: Container(
-        height: 90,
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.2),
-            width: 1,
+    return Container(
+      height: 90,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            title,
+            style: _customFont(14, FontWeight.w300, Colors.white),
+            textAlign: TextAlign.center,
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: _customFont(14, FontWeight.w300, Colors.white),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value.isNotEmpty ? value : "Unknown",
-              style: _customFont(16, FontWeight.bold, Colors.white),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          const SizedBox(height: 4),
+          Text(
+            value.isNotEmpty ? value : "Unknown",
+            style: _customFont(16, FontWeight.bold, Colors.white),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
@@ -114,37 +115,38 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
     formattedNumber = '$dialCode$formattedNumber';
     await _savePhoneNumber(userId, formattedNumber);
 
+    // Start phone number verification with reCAPTCHA in the background
     await _auth.verifyPhoneNumber(
-        phoneNumber: formattedNumber,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          // Auto-retrieval or instant verification
-          await _auth.currentUser!.linkWithCredential(credential);
-          print(
-              'PhoneNumberPage: Auto verified and linked UID: ${_auth.currentUser!.uid}'); // Debugging
-          Navigator.pushReplacementNamed(context, '/firstName');
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = "Verification failed. Please try again.";
-          });
-          print(e);
-        },
-        codeSent: (String verificationId, int? forceResendingToken) {
-          setState(() {
-            _isLoading = false;
-          });
-          Navigator.pushNamed(context, '/otp', arguments: {
-            'verificationId': verificationId,
-            'phoneNumber': formattedNumber,
-            'userId': userId
-          });
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          setState(() {
-            _isLoading = false;
-          });
+      phoneNumber: formattedNumber,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        await _auth.currentUser!.linkWithCredential(credential);
+        Navigator.pushReplacementNamed(context, '/firstName');
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "Verification failed. Please try again.";
         });
+      },
+      codeSent: (String verificationId, int? forceResendingToken) {
+        setState(() {
+          _isLoading = false;
+        });
+        Navigator.pushNamed(context, '/otp', arguments: {
+          'verificationId': verificationId,
+          'phoneNumber': formattedNumber,
+          'userId': userId
+        });
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        setState(() {
+          _isLoading = false;
+        });
+      },
+      timeout: const Duration(seconds: 60),
+      forceResendingToken: null,
+    );
+
     setState(() {
       _isLoading = false;
     });
@@ -182,9 +184,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                               Image.asset('lib/assets/CTPLogo.png',
                                   height: 200), // Adjust the height as needed
                               const SizedBox(height: 50),
-                              const Text(
+                              Text(
                                 'MY NUMBER IS',
-                                style: TextStyle(
+                                style: GoogleFonts.montserrat(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -204,7 +206,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                               color: Colors.white),
                                           iconSize: 24,
                                           elevation: 16,
-                                          style: const TextStyle(
+                                          style: GoogleFonts.montserrat(
                                               color: Colors.white),
                                           dropdownColor: Colors.black,
                                           decoration: InputDecoration(
@@ -230,7 +232,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                                   '${value['code']} ${value['dial_code']}',
                                               child: Text(
                                                   '${value['code']} ${value['dial_code']}',
-                                                  style: const TextStyle(
+                                                  style: GoogleFonts.montserrat(
                                                       color: Colors.white)),
                                             );
                                           }).toList(),
@@ -252,7 +254,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                             ],
                                             decoration: InputDecoration(
                                               hintText: '00 000 0000',
-                                              hintStyle: TextStyle(
+                                              hintStyle: GoogleFonts.montserrat(
                                                   color: Colors.white
                                                       .withOpacity(0.7)),
                                               filled: true,
@@ -273,7 +275,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                                       vertical: 16.0,
                                                       horizontal: 16.0),
                                             ),
-                                            style: const TextStyle(
+                                            style: GoogleFonts.montserrat(
                                                 color: Colors.white),
                                             onChanged: (value) {
                                               if (_errorMessage.isNotEmpty) {
@@ -293,7 +295,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                               if (_errorMessage.isNotEmpty)
                                 Text(
                                   _errorMessage,
-                                  style: const TextStyle(
+                                  style: GoogleFonts.montserrat(
                                     fontSize: 14,
                                     color: Colors.red,
                                   ),
@@ -302,7 +304,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                               const SizedBox(height: 20),
                               Text(
                                 'We will send you a text with a verification code. Message and data rates may apply. Learn what happens when your number changes.',
-                                style: TextStyle(
+                                style: GoogleFonts.montserrat(
                                   fontSize: 12,
                                   color: Colors.white.withOpacity(0.7),
                                 ),

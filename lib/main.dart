@@ -81,7 +81,7 @@ class MyApp extends StatelessWidget {
         '/tradingInterests': (context) => const TradingInterestsPage(),
         '/tutorial': (context) => const TutorialPage(),
         '/tutorialStarted': (context) => const TutorialStartedPage(),
-        '/firstTruckForm': (context) => const FirstTruckForm(),
+        '/firstTruckForm': (context) => const FirstTruckForm(vehicleType: 'truck',),
         '/secondTruckForm': (context) => const SecondFormPage(),
         '/thirdTruckForm': (context) => const ThirdFormPage(),
         '/fourthTruckForm': (context) => const FourthFormPage(),

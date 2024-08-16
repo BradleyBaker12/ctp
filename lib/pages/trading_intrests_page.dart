@@ -7,6 +7,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/components/loading_screen.dart';
+import 'package:google_fonts/google_fonts.dart'; // Import the Google Fonts package
 
 class TradingInterestsPage extends StatefulWidget {
   const TradingInterestsPage({super.key});
@@ -37,7 +38,7 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
         _isLoading = false;
       });
 
-      Navigator.pushReplacementNamed(context, '/tutorial');
+      Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -70,9 +71,9 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                           fit: BoxFit.cover,
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'COMMERCIAL TRADER PORTAL',
-                          style: TextStyle(
+                          style: GoogleFonts.montserrat(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -80,9 +81,9 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'What are you interested in?',
-                          style: TextStyle(
+                          style: GoogleFonts.montserrat(
                             fontSize: 16,
                             color: Colors.white,
                           ),
@@ -118,7 +119,7 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
             ),
           ),
           const Positioned(
-            top: 40,
+            top: 120,
             left: 16,
             child: CustomBackButton(),
           ),

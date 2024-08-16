@@ -6,22 +6,30 @@ class Offer extends ChangeNotifier {
   final String dealerId;
   final String vehicleId;
   final String transportId;
-  final double? offerAmount;
+  double? offerAmount; // This can now be modified
   final String? offerStatus;
   String? vehicleMakeModel;
   String? vehicleMainImage;
   String? reason;
 
-  Offer(
-      {required this.offerId,
-      required this.dealerId,
-      required this.vehicleId,
-      required this.transportId,
-      this.offerAmount,
-      this.offerStatus,
-      this.vehicleMakeModel,
-      this.vehicleMainImage,
-      this.reason});
+  // New properties
+  List<String> vehicleImages = [];
+  Map<String, String?> additionalInfo = {};
+  String? vehicleYear;
+  String? vehicleMileage;
+  String? vehicleTransmission;
+
+  Offer({
+    required this.offerId,
+    required this.dealerId,
+    required this.vehicleId,
+    required this.transportId,
+    this.offerAmount,
+    this.offerStatus,
+    this.vehicleMakeModel,
+    this.vehicleMainImage,
+    this.reason,
+  });
 
   factory Offer.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -50,6 +58,15 @@ class Offer extends ChangeNotifier {
             vehicleSnapshot.data() as Map<String, dynamic>;
         vehicleMakeModel = vehicleData['makeModel'] ?? 'Unknown';
         vehicleMainImage = vehicleData['mainImageUrl'];
+        vehicleImages = List<String>.from(vehicleData['photos'] ?? []);
+        additionalInfo = {
+          'Engine Number': vehicleData['engineNumber'],
+          'VIN Number': vehicleData['vinNumber'],
+          // Add more fields as necessary
+        };
+        vehicleYear = vehicleData['year'];
+        vehicleMileage = vehicleData['mileage'];
+        vehicleTransmission = vehicleData['transmission'];
         print('Fetched vehicle details for $vehicleId');
         notifyListeners(); // Notify listeners after fetching vehicle details
       } else {
@@ -61,6 +78,19 @@ class Offer extends ChangeNotifier {
       print('Error fetching vehicle details: $e');
     }
   }
+
+  Future<void> updateOfferAmount(double newAmount) async {
+    try {
+      offerAmount = newAmount; // Update local value
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(offerId)
+          .update({'offerAmount': newAmount});
+      notifyListeners(); // Notify listeners after updating
+    } catch (e) {
+      print('Error updating offer amount: $e');
+    }
+  }
 }
 
 class OfferProvider extends ChangeNotifier {
@@ -68,13 +98,28 @@ class OfferProvider extends ChangeNotifier {
 
   List<Offer> get offers => _offers;
 
-  Future<void> fetchOffers(String dealerId) async {
+  Future<void> fetchOffers(String userId, String userRole) async {
     try {
-      print('Fetching offers for dealer $dealerId');
-      QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
-          .collection('offers')
-          .where('dealerId', isEqualTo: dealerId)
-          .get();
+      print('Fetching offers for user $userId with role $userRole');
+
+      QuerySnapshot offersSnapshot;
+      if (userRole == 'dealer') {
+        // Fetch offers for dealer
+        offersSnapshot = await FirebaseFirestore.instance
+            .collection('offers')
+            .where('dealerId', isEqualTo: userId)
+            .get();
+      } else if (userRole == 'transporter') {
+        // Fetch offers for transporter
+        offersSnapshot = await FirebaseFirestore.instance
+            .collection('offers')
+            .where('transportId', isEqualTo: userId)
+            .get();
+      } else {
+        // Handle other roles or throw an error
+        print('Unsupported user role: $userRole');
+        return;
+      }
 
       _offers = offersSnapshot.docs.map((doc) {
         return Offer.fromFirestore(doc);
@@ -83,10 +128,14 @@ class OfferProvider extends ChangeNotifier {
       for (Offer offer in _offers) {
         await offer.fetchVehicleDetails();
       }
-      print('Fetched ${_offers.length} offers for dealer $dealerId');
+      print('Fetched ${_offers.length} offers for user $userId');
       notifyListeners(); // Notify listeners after fetching offers
     } catch (e) {
       print('Error fetching offers: $e');
     }
+  }
+
+  Future<void> refreshOffers(String userId, String userRole) async {
+    await fetchOffers(userId, userRole);
   }
 }

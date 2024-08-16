@@ -196,29 +196,6 @@ class _SixthFormPageState extends State<SixthFormPage> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'Form Progress',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(5, (index) {
-                                return Icon(
-                                  Icons.star,
-                                  color:
-                                      index < 5 ? Colors.white : Colors.white70,
-                                  size: 30,
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 20),
-                            const Center(
-                              child: Text(
                                 'Tyres',
                                 style: TextStyle(
                                   fontSize: 16,

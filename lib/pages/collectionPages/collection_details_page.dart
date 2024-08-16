@@ -247,6 +247,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                       ),
                       const SizedBox(height: 8),
                       Container(
+                        margin: const EdgeInsets.only(
+                            top: 20.0), // Adds space between days and calendar
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(15),
@@ -261,51 +263,59 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           onDaySelected: (selectedDay, focusedDay) {
                             setState(() {
                               _selectedDay = selectedDay;
-                              _focusedDay =
-                                  focusedDay; // update focused day as well
+                              _focusedDay = focusedDay;
                             });
                           },
                           enabledDayPredicate: (day) {
-                            bool isEnabled = day.isAfter(DateTime.now()
+                            return day.isAfter(DateTime.now()
                                     .subtract(const Duration(days: 1))) &&
                                 isDateAvailable(day);
-                            return isEnabled;
                           },
                           calendarStyle: CalendarStyle(
+                            cellMargin: const EdgeInsets.all(
+                                4.0), // Adding space between cells
                             selectedDecoration: BoxDecoration(
                               color: Colors.blue,
                               shape: BoxShape.rectangle,
-                              borderRadius: BorderRadius.circular(8.0),
                             ),
                             todayDecoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.rectangle,
-                              borderRadius: BorderRadius.circular(8.0),
                             ),
-                            todayTextStyle:
-                                const TextStyle(color: Colors.black),
+                            todayTextStyle: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                             defaultDecoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.8),
                               shape: BoxShape.rectangle,
-                              borderRadius: BorderRadius.circular(8.0),
-                              border: Border.all(color: Colors.white),
+                            ),
+                            defaultTextStyle: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                             weekendDecoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.8),
                               shape: BoxShape.rectangle,
-                              borderRadius: BorderRadius.circular(8.0),
-                              border: Border.all(color: Colors.white),
                             ),
-                            defaultTextStyle:
-                                const TextStyle(color: Colors.white),
-                            weekendTextStyle:
-                                const TextStyle(color: Colors.white),
+                            weekendTextStyle: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                             outsideDaysVisible: false,
                             disabledDecoration: BoxDecoration(
+                              color: Colors.transparent,
                               shape: BoxShape.rectangle,
-                              borderRadius: BorderRadius.circular(8.0),
-                              color: Colors.black.withOpacity(0.5),
                             ),
-                            disabledTextStyle:
-                                const TextStyle(color: Colors.white),
+                            disabledTextStyle: const TextStyle(
+                              color: Color.fromARGB(255, 54, 54,
+                                  54), // Dull color for unavailable dates
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                             markerDecoration: const BoxDecoration(
                               color: Colors.transparent,
                             ),
@@ -314,19 +324,17 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             disabledBuilder: (context, day, focusedDay) {
                               return Container(
                                 decoration: BoxDecoration(
+                                  color: Colors.transparent,
                                   shape: BoxShape.rectangle,
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  color: Colors.black.withOpacity(0.5),
                                 ),
                                 child: Center(
-                                  child: CustomPaint(
-                                    painter: SingleDiagonalLinePainter(),
-                                    child: Center(
-                                      child: Text(
-                                        '${day.day}',
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                      ),
+                                  child: Text(
+                                    '${day.day}',
+                                    style: const TextStyle(
+                                      color: Color.fromARGB(255, 54, 54,
+                                          54), // Dull color for unavailable dates
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
                                 ),
@@ -337,9 +345,10 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             titleCentered: true,
                             formatButtonVisible: false,
                             titleTextStyle: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold),
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                             leftChevronIcon: Icon(
                               Icons.chevron_left,
                               color: Colors.white,
@@ -351,11 +360,13 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           ),
                           daysOfWeekStyle: const DaysOfWeekStyle(
                             weekdayStyle: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                             weekendStyle: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),

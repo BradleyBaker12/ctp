@@ -267,7 +267,7 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
                     ),
                     CustomButton(
                       text: 'DONE',
-                      borderColor: Colors.orange,
+                      borderColor: Color(0xFFFF4E00),
                       onPressed: _saveInspectionDetails,
                     ),
                     const SizedBox(height: 16),

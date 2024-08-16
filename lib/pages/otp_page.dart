@@ -61,6 +61,9 @@ class _OTPScreenState extends State<OTPScreen> {
           _isLoading = false;
         });
         print(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.message}')),
+        );
       },
       codeSent: (String verificationId, int? forceResendingToken) {
         setState(() {
@@ -69,10 +72,16 @@ class _OTPScreenState extends State<OTPScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Verification code resent')),
         );
-        // Update the verificationId if needed
+
+        // Extract arguments from the current route
+        final args =
+            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+
+        // Pass all necessary arguments when navigating back to OTPScreen
         Navigator.popAndPushNamed(context, '/otp', arguments: {
           'verificationId': verificationId,
           'phoneNumber': phoneNumber,
+          'userId': args['userId'], // Ensure userId is passed
         });
       },
       codeAutoRetrievalTimeout: (String verificationId) {

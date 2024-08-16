@@ -14,7 +14,15 @@ class BlurryAppBar extends StatelessWidget implements PreferredSizeWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
         child: Container(
-          color: Colors.black.withOpacity(0.2),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.1),
+            border: Border(
+              bottom: BorderSide(
+                color: Color(0xFFFF4E00),
+                width: 2.0, // Adjust the width of the border here
+              ),
+            ),
+          ),
           child: SafeArea(
             child: SizedBox(
               height: screenSize.height * 0.001,

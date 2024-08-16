@@ -21,18 +21,20 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
   @override
   void initState() {
     super.initState();
-    // Fetch offers when the page loads using the correct dealerId from UserProvider
+    // Fetch offers when the page loads using the correct userId from UserProvider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final dealerId = userProvider.userId;
-      if (dealerId != null) {
+      final userId = userProvider.userId;
+      final userRole = userProvider.getUserRole;
+
+      if (userId != null) {
         Provider.of<OfferProvider>(context, listen: false)
-            .fetchOffers(dealerId)
+            .fetchOffers(userId, userRole)
             .then((_) {
           print('Offers fetched in initState');
         });
       } else {
-        print('No dealerId found');
+        print('No userId found');
       }
     });
   }

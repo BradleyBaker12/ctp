@@ -205,7 +205,7 @@ class _CollectionConfirmationPageState
                     ),
                     CustomButton(
                       text: 'DONE',
-                      borderColor: Colors.orange,
+                      borderColor: Color(0xFFFF4E00),
                       onPressed: () {
                         Navigator.push(
                           context,

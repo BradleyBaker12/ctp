@@ -6,6 +6,7 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_back_button.dart';
+import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 
 class TradingCategoryPage extends StatelessWidget {
   const TradingCategoryPage({super.key});
@@ -53,29 +54,30 @@ class TradingCategoryPage extends StatelessWidget {
                           Image.asset('lib/assets/CTPLogo.png',
                               height: 200), // Adjust the height as needed
                           const SizedBox(height: 50),
-                          const Text(
+                          Text(
                             'Welcome to CTP where trading trucks and trailers is made easy!',
-                            style: TextStyle(
-                              fontSize: 18,
+                            style: GoogleFonts.montserrat(
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 20),
-                          const Text(
+                          Text(
                             'Please select your trading category:',
-                            style: TextStyle(
-                              fontSize: 16,
+                            style: GoogleFonts.montserrat(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(
                               height: 20), // Adjust the spacing as needed
-                          const Text(
+                          Text(
                             'Transporters are users who sell trucks.\nDealers are users who buy trucks.',
-                            style: TextStyle(
+                            style: GoogleFonts.montserrat(
                               fontSize: 14,
                               color: Colors.white,
                             ),

@@ -1,3 +1,4 @@
+import 'package:ctp/components/progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
@@ -7,6 +8,7 @@ import 'package:ctp/components/loading_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 
 class PreferredBrandsPage extends StatefulWidget {
   const PreferredBrandsPage({super.key});
@@ -89,26 +91,27 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                             const SizedBox(height: 20),
                             Image.asset('lib/assets/CTPLogo.png',
                                 height: 150), // Adjust the height as needed
-                            const SizedBox(height: 30),
-                            const Text(
+                            const SizedBox(height: 50),
+                            const ProgressBar(progress: 0.80),
+                            const SizedBox(height: 50),
+                            Text(
                               'PREFERRED BRANDS',
-                              style: TextStyle(
+                              style: GoogleFonts.montserrat(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 20),
                             GridView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
+                                crossAxisCount: 3,
                                 crossAxisSpacing: 5.0,
-                                mainAxisSpacing: 1.0,
-                                childAspectRatio: 1 / 1,
+                                mainAxisSpacing: 10.0,
+                                childAspectRatio: 2 / 1,
                               ),
                               itemCount: semiTruckBrands.length,
                               itemBuilder: (BuildContext context, int index) {
@@ -122,7 +125,7 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                         vertical: 5.0),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? blue
+                                          ? blue.withOpacity(0.8)
                                           : Colors.transparent,
                                       border: Border.all(color: blue),
                                       borderRadius: BorderRadius.circular(8.0),
@@ -131,7 +134,7 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                       child: Text(
                                         brand,
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(
+                                        style: GoogleFonts.montserrat(
                                           fontSize: 12,
                                           color: Colors.white,
                                           fontWeight: FontWeight.normal,
