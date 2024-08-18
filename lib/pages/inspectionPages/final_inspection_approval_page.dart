@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/adjust_offer.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
 import 'package:ctp/pages/report_issue.dart';
@@ -30,10 +31,35 @@ class _FinalInspectionApprovalPageState
   int _selectedIndex = 1;
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _updateOfferStatus();
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Future<void> _updateOfferStatus() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({'offerStatus': 'Inspection Approval'});
+    } catch (e) {
+      print('Failed to update offer status: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _navigateToRateTransporterPage(BuildContext context) async {
@@ -48,6 +74,17 @@ class _FinalInspectionApprovalPageState
     setState(() {
       _isLoading = false;
     });
+
+    // Update offer status to "Done" before navigating
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({'offerStatus': 'Done'});
+      print('Offer status updated to Done');
+    } catch (e) {
+      print('Failed to update offer status to Done: $e');
+    }
 
     Navigator.push(
       context,
@@ -146,7 +183,7 @@ class _FinalInspectionApprovalPageState
                         ),
                         CustomButton(
                           text: 'REPORT AN ISSUE',
-                          borderColor: Color(0xFFFF4E00),
+                          borderColor: const Color(0xFFFF4E00),
                           onPressed: () {
                             Navigator.push(
                               context,

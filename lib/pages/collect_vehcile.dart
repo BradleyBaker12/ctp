@@ -173,7 +173,7 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
               ),
               CustomButton(
                 text: 'SUBMIT',
-                borderColor: Colors.brown,
+                borderColor: const Color(0xFFFF4E00),
                 onPressed: _verifyLicensePlate,
               ),
             ],

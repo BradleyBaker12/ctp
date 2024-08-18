@@ -12,12 +12,24 @@ class Offer extends ChangeNotifier {
   String? vehicleMainImage;
   String? reason;
 
-  // New properties
+  // New properties for vehicle details
   List<String> vehicleImages = [];
   Map<String, String?> additionalInfo = {};
   String? vehicleYear;
   String? vehicleMileage;
   String? vehicleTransmission;
+
+  // Inspection-related properties
+  DateTime? dealerSelectedInspectionDate;
+  String? dealerSelectedInspectionTime;
+  String? dealerSelectedInspectionLocation;
+  GeoPoint? latLng; // LatLng coordinates for location
+
+  // Collection-related properties
+  String? dealerSelectedCollectionLocation;
+  String? dealerSelectedCollectionAddress;
+  DateTime? dealerSelectedCollectionDate;
+  String? dealerSelectedCollectionTime;
 
   Offer({
     required this.offerId,
@@ -29,6 +41,14 @@ class Offer extends ChangeNotifier {
     this.vehicleMakeModel,
     this.vehicleMainImage,
     this.reason,
+    this.dealerSelectedInspectionDate,
+    this.dealerSelectedInspectionTime,
+    this.dealerSelectedInspectionLocation,
+    this.latLng,
+    this.dealerSelectedCollectionLocation,
+    this.dealerSelectedCollectionAddress,
+    this.dealerSelectedCollectionDate,
+    this.dealerSelectedCollectionTime,
   });
 
   factory Offer.fromFirestore(DocumentSnapshot doc) {
@@ -43,6 +63,22 @@ class Offer extends ChangeNotifier {
       vehicleMakeModel: data['vehicleMakeModel'],
       vehicleMainImage: data['vehicleMainImage'],
       reason: data['reason'],
+      dealerSelectedInspectionDate:
+          (data['dealerSelectedInspectionDate'] != null)
+              ? (data['dealerSelectedInspectionDate'] as Timestamp).toDate()
+              : null,
+      dealerSelectedInspectionTime: data['dealerSelectedInspectionTime'],
+      dealerSelectedInspectionLocation:
+          data['dealerSelectedInspectionLocation'],
+      latLng: data['latLng'] != null ? data['latLng'] as GeoPoint : null,
+      dealerSelectedCollectionLocation:
+          data['dealerSelectedCollectionLocation'],
+      dealerSelectedCollectionAddress: data['dealerSelectedCollectionLocation'],
+      dealerSelectedCollectionDate:
+          (data['dealerSelectedCollectionDate'] != null)
+              ? (data['dealerSelectedCollectionDate'] as Timestamp).toDate()
+              : null,
+      dealerSelectedCollectionTime: data['dealerSelectedCollectionTime'],
     );
   }
 

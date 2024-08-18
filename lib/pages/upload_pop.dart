@@ -75,8 +75,8 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
         _isUploaded = true;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Proof of payment uploaded successfully')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Proof of payment uploaded successfully')));
 
       // Navigate back to the PaymentPendingPage after 2 seconds
       Future.delayed(const Duration(seconds: 2), () {
@@ -214,7 +214,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                 children: [
                   CustomButton(
                     text: 'CANCEL',
-                    borderColor: Colors.brown,
+                    borderColor: const Color(0xFFFF4E00),
                     onPressed: () {
                       Navigator.of(context).pop();
                     },

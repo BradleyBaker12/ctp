@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
     controller = AppinioSwiperController();
 
     _initialization = _initializeData();
+    _checkPaymentStatusForOffers();
   }
 
   Future<void> _initializeData() async {
@@ -55,6 +56,39 @@ class _HomePageState extends State<HomePage> {
       // Get liked and disliked vehicles from the user provider
       likedVehicles = userProvider.getLikedVehicles;
       dislikedVehicles = userProvider.getDislikedVehicles;
+    }
+  }
+
+  Future<void> _checkPaymentStatusForOffers() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    for (var offer in _offerProvider.offers) {
+      try {
+        DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(offer.offerId)
+            .get();
+
+        if (offerSnapshot.exists) {
+          String paymentStatus = offerSnapshot['paymentStatus'];
+
+          if (paymentStatus == 'accepted') {
+            // Update the offer status to "Payment Approved"
+            await FirebaseFirestore.instance
+                .collection('offers')
+                .doc(offer.offerId)
+                .update({'offerStatus': 'paid'});
+
+            // Optionally, refresh offers after updating status
+            await _offerProvider.fetchOffers(
+              userProvider.userId!,
+              userProvider.getUserRole,
+            );
+          }
+        }
+      } catch (e) {
+        print('Error checking payment status for offer ${offer.offerId}: $e');
+      }
     }
   }
 

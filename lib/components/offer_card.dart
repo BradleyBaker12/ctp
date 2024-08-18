@@ -1,5 +1,8 @@
 import 'package:ctp/components/expandable_container.dart';
+import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
+import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -9,6 +12,9 @@ import 'package:ctp/pages/offer_details_page.dart';
 import 'package:ctp/pages/payment_options_page.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/pages/payment_approved.dart';
+import 'package:ctp/pages/inspectionPages/location_confirmation_page.dart';
+import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
+import 'package:ctp/pages/rating_pages/rate_transporter_page.dart'; // Import RateTransporterPage
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 
@@ -171,6 +177,14 @@ class _OfferCardState extends State<OfferCard> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
 
+    // Add a debug print to verify if the offer has correct data
+    print('Navigating based on status: ${widget.offer.offerStatus}');
+    print('Offer ID: ${widget.offer.offerId}');
+    print('Location: ${widget.offer.dealerSelectedCollectionLocation}');
+    print('Address: ${widget.offer.dealerSelectedCollectionAddress}');
+    print('Date: ${widget.offer.dealerSelectedCollectionDate}');
+    print('LatLng: ${widget.offer.latLng}');
+
     if (userRole == 'transporter') {
       // Navigate to Transporter-specific Offer Details Page
       Navigator.push(
@@ -201,7 +215,7 @@ class _OfferCardState extends State<OfferCard> {
         ),
       );
     } else {
-      // Navigate to Dealer-specific pages based on offer status
+      // Handle navigation based on offer status for dealers
       switch (widget.offer.offerStatus) {
         case '1/4':
           Navigator.push(
@@ -216,6 +230,7 @@ class _OfferCardState extends State<OfferCard> {
           );
           break;
         case '2/4':
+        case 'payment options': // Check if offerStatus is 'payment options'
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -226,6 +241,7 @@ class _OfferCardState extends State<OfferCard> {
           );
           break;
         case '3/4':
+        case 'payment pending': // Check if offerStatus is 'payment pending'
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -245,6 +261,113 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           break;
+        case 'set location and time':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InspectionDetailsPage(
+                offerId: widget.offer.offerId,
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              ),
+            ),
+          );
+          break;
+        case 'confirm location':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationConfirmationPage(
+                offerId: widget.offer.offerId,
+                location:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                address:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                date: widget.offer.dealerSelectedInspectionDate!,
+                time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              ),
+            ),
+          );
+          break;
+        case 'Waiting on final inspection':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ConfirmationPage(
+                offerId: widget.offer.offerId,
+                location:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                address:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                date: widget.offer.dealerSelectedInspectionDate!,
+                time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+                latLng: LatLng(
+                  widget.offer.latLng?.latitude ?? 0,
+                  widget.offer.latLng?.longitude ?? 0,
+                ),
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              ),
+            ),
+          );
+          break;
+        case 'Inspection Approval':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FinalInspectionApprovalPage(
+                offerId: widget.offer.offerId,
+                oldOffer: formatOfferAmount(widget.offer.offerAmount),
+                vehicleName: widget.offer.vehicleMakeModel ?? 'Unknown',
+              ),
+            ),
+          );
+          break;
+        case 'Rating Transporter':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RateTransporterPage(
+                offerId: widget.offer.offerId,
+                fromCollectionPage: false,
+              ),
+            ),
+          );
+          break;
+        case 'Confirm Collection Details':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CollectionDetailsPage(
+                offerId: widget.offer.offerId,
+              ),
+            ),
+          );
+          break;
+        case 'Collection Location Confirmation':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CollectionConfirmationPage(
+                offerId: widget.offer.offerId,
+                location:
+                    widget.offer.dealerSelectedCollectionLocation ?? 'Unknown',
+                address:
+                    widget.offer.dealerSelectedCollectionAddress ?? 'Unknown',
+                date:
+                    widget.offer.dealerSelectedCollectionDate ?? DateTime.now(),
+                time: widget.offer.dealerSelectedCollectionTime ?? 'Unknown',
+                latLng: widget.offer.latLng != null
+                    ? LatLng(widget.offer.latLng!.latitude,
+                        widget.offer.latLng!.longitude)
+                    : null, // Passing the latLng here
+              ),
+            ),
+          );
+          break;
+
         default:
           // Handle any other statuses or default behavior
           break;

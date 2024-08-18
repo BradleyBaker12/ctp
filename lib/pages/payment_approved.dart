@@ -5,10 +5,6 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:ctp/pages/home_page.dart';
-import 'package:ctp/pages/profile_page.dart';
-import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/pages/wishlist_offers_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
 class PaymentApprovedPage extends StatefulWidget {
@@ -46,12 +42,26 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
     });
   }
 
+  Future<void> _updateOfferStatusToDone() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({'offerStatus': 'Done'});
+      print('Offer status updated to Done');
+    } catch (e) {
+      print('Error updating offer status: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Update the offer status to "Payment Approved"
     FirebaseFirestore.instance
         .collection('offers')
         .doc(widget.offerId)
-        .update({'offerStatus': '4/4'});
+        .update({'offerStatus': 'Payment Approved'});
+
     return Scaffold(
       body: GradientBackground(
         child: FutureBuilder<Map<String, dynamic>>(
@@ -211,7 +221,8 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             CustomButton(
                               text: 'VEHICLE COLLECTED',
                               borderColor: Colors.blue,
-                              onPressed: () {
+                              onPressed: () async {
+                                await _updateOfferStatusToDone();
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -223,7 +234,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             ),
                             CustomButton(
                               text: 'REPORT AN ISSUE',
-                              borderColor: Colors.brown,
+                              borderColor: const Color(0xFFFF4E00),
                               onPressed: () {
                                 Navigator.push(
                                   context,

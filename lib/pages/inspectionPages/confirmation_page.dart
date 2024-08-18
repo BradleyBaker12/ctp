@@ -40,6 +40,19 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
   int _selectedIndex =
       1; // Variable to keep track of the selected bottom nav item
 
+  @override
+  void initState() {
+    super.initState();
+    _updateOfferStatus();
+  }
+
+  void _updateOfferStatus() {
+    FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .update({'offerStatus': 'Waiting on final inspection'});
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -48,10 +61,6 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
 
   @override
   Widget build(BuildContext context) {
-    FirebaseFirestore.instance
-        .collection('offers')
-        .doc(widget.offerId)
-        .update({'offerStatus': '1/4'});
     final userProvider = Provider.of<UserProvider>(context);
     final profilePictureUrl = userProvider.getProfileImageUrl.isNotEmpty
         ? userProvider.getProfileImageUrl
@@ -136,10 +145,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                       const SizedBox(height: 8),
                       Text(
                         'TIME: ${widget.time}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
+                        style:
+                            const TextStyle(fontSize: 16, color: Colors.white),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -27,6 +28,17 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   int _selectedTimeSlot = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Update the offer status to "set location and time" when the page loads
+    FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .update({'offerStatus': 'set location and time'});
+  }
 
   final List<String> _locations = ['LOCATION 1', 'LOCATION 2', 'LOCATION 3'];
 

@@ -26,6 +26,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
   int _selectedIndex = 0;
   String? _transporterProfileImageUrl;
   String? _transportId;
+  bool _isSecondRating = false;
 
   final Map<String, bool> _traits = {
     'Punctual': true,
@@ -39,6 +40,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
   void initState() {
     super.initState();
     _fetchTransporterProfileImage();
+    _checkIfSecondRating(); // Check if this is the second rating
   }
 
   void _fetchTransporterProfileImage() async {
@@ -80,6 +82,29 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
     }
   }
 
+  void _checkIfSecondRating() async {
+    if (_transportId != null) {
+      try {
+        CollectionReference ratingsRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(_transportId)
+            .collection('ratings');
+
+        // Check if the dealer has already rated the transporter twice for this offer
+        QuerySnapshot ratingSnapshot =
+            await ratingsRef.where('offerId', isEqualTo: widget.offerId).get();
+
+        if (ratingSnapshot.docs.length >= 1) {
+          setState(() {
+            _isSecondRating = true;
+          });
+        }
+      } catch (e) {
+        print('Error checking if this is the second rating: $e');
+      }
+    }
+  }
+
   void _onTraitChanged(bool value, String trait) {
     setState(() {
       _traits[trait] = value;
@@ -99,6 +124,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
         await ratingsRef.add({
           'stars': _stars,
           'timestamp': FieldValue.serverTimestamp(),
+          'offerId': widget.offerId, // Save offerId with rating
         });
 
         // Recalculate average rating
@@ -122,6 +148,15 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
         });
 
         print('Rating submitted and average rating updated.');
+
+        // Check if this is the second rating, and update the offer status to "Done"
+        if (_isSecondRating) {
+          await FirebaseFirestore.instance
+              .collection('offers')
+              .doc(widget.offerId)
+              .update({'offerStatus': 'Done'});
+          print('Offer status updated to Done');
+        }
       } catch (e) {
         print('Error submitting rating: $e');
       }

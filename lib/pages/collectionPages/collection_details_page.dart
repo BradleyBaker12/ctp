@@ -1,14 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
-import 'package:ctp/components/diagonal_line_painter.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
-import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:geocoding/geocoding.dart'; // Add this import
 
 class CollectionDetailsPage extends StatefulWidget {
   final String offerId; // Add offerId parameter
@@ -27,6 +26,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   int _selectedIndex =
       0; // Variable to keep track of the selected bottom nav item
 
+  bool _isLoading = false;
+
   final List<String> _locations = ['LOCATION 1', 'LOCATION 2', 'LOCATION 3'];
 
   final List<String> _addresses = [
@@ -35,11 +36,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     'Sandton'
   ];
 
-  final List<LatLng> _latLngs = [
-    const LatLng(-26.2041, 28.0473), // Example coordinates for Johannesburg
-    const LatLng(-25.7461, 28.1881), // Example coordinates for Pretoria
-    const LatLng(-33.9249, 18.4241) // Example coordinates for Cape Town
-  ];
+  List<LatLng> _latLngs = []; // Initialize as empty list
 
   final Map<int, List<DateTime>> _locationDates = {
     0: [
@@ -103,6 +100,53 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     return false;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _updateOfferStatus(); // Update the offer status when the page loads
+    _convertAddressesToLatLng(); // Convert addresses to LatLng
+  }
+
+  Future<void> _updateOfferStatus() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({'offerStatus': 'Confirm Collection Details'});
+
+      print('Offer status updated to Confirm Collection Details');
+    } catch (e) {
+      print('Error updating offer status: $e');
+    }
+  }
+
+  Future<void> _convertAddressesToLatLng() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      for (String address in _addresses) {
+        List<Location> locations = await locationFromAddress(address);
+        if (locations.isNotEmpty) {
+          final location = locations.first;
+          _latLngs.add(LatLng(location.latitude, location.longitude));
+        } else {
+          _latLngs.add(LatLng(0, 0)); // Use a placeholder if conversion fails
+        }
+      }
+    } catch (e) {
+      print('Error converting addresses to coordinates: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to convert addresses: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   Future<void> _saveCollectionDetails() async {
     setState(() {
       _isLoading = true;
@@ -130,6 +174,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             address: _addresses[_selectedLocation],
             date: _selectedDay!,
             time: _availableTimes[_selectedTimeSlot],
+            latLng: _latLngs[_selectedLocation], // Pass the LatLng
           ),
         ),
       );
@@ -143,8 +188,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       });
     }
   }
-
-  bool _isLoading = false;
 
   void _onItemTapped(int index) {
     setState(() {
@@ -311,8 +354,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                               shape: BoxShape.rectangle,
                             ),
                             disabledTextStyle: const TextStyle(
-                              color: Color.fromARGB(255, 54, 54,
-                                  54), // Dull color for unavailable dates
+                              color: Color.fromARGB(255, 54, 54, 54),
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -331,8 +373,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                                   child: Text(
                                     '${day.day}',
                                     style: const TextStyle(
-                                      color: Color.fromARGB(255, 54, 54,
-                                          54), // Dull color for unavailable dates
+                                      color: Color.fromARGB(255, 54, 54, 54),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),

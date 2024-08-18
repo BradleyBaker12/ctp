@@ -20,6 +20,26 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
   int _selectedIndex =
       0; // Variable to keep track of the selected bottom nav item
 
+  @override
+  void initState() {
+    super.initState();
+    _updateOfferStatus(); // Update the offer status when the page loads
+  }
+
+  Future<void> _updateOfferStatus() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({'offerStatus': 'payment options'});
+
+      print('Offer status updated to "payment options"');
+    } catch (e) {
+      print('Failed to update offer status: $e');
+      // Handle error
+    }
+  }
+
   Future<void> _navigateBasedOnStatus(BuildContext context) async {
     try {
       DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
@@ -62,10 +82,6 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    FirebaseFirestore.instance
-        .collection('offers')
-        .doc(widget.offerId)
-        .update({'offerStatus': '2/4'});
     return Scaffold(
       body: GradientBackground(
         child: SizedBox.expand(

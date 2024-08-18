@@ -1,12 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/payment_options_page.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:geocoding/geocoding.dart';
 
 import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
@@ -15,7 +16,8 @@ class CollectionConfirmationPage extends StatefulWidget {
   final String address;
   final DateTime date;
   final String time;
-  final String offerId; // Add offerId parameter
+  final String offerId;
+  final LatLng? latLng; // Add LatLng parameter
 
   const CollectionConfirmationPage({
     super.key,
@@ -23,7 +25,8 @@ class CollectionConfirmationPage extends StatefulWidget {
     required this.address,
     required this.date,
     required this.time,
-    required this.offerId, // Add offerId parameter
+    required this.offerId,
+    this.latLng, // Add LatLng parameter
   });
 
   @override
@@ -41,23 +44,59 @@ class _CollectionConfirmationPageState
   @override
   void initState() {
     super.initState();
-    _getCoordinatesFromAddress();
+    _updateOfferStatus(); // Update offer status on page load
+    _getCoordinates();
   }
 
-  Future<void> _getCoordinatesFromAddress() async {
+  Future<void> _updateOfferStatus() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      List<Location> locations = await locationFromAddress(widget.address);
-      if (locations.isNotEmpty) {
-        final location = locations.first;
-        setState(() {
-          _latLng = LatLng(location.latitude, location.longitude);
-        });
+      final DocumentReference offerRef =
+          FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
+
+      await offerRef.update({
+        'offerStatus': 'Collection Location Confirmation',
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Offer status updated to Collection Location Confirmation')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update offer status: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _getCoordinates() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Check if LatLng is provided directly
+      if (widget.latLng != null) {
+        _latLng = widget.latLng;
       } else {
-        throw 'No locations found for the provided address';
+        // If not, attempt to get coordinates using the address (fallback)
+        List<Location> locations = await locationFromAddress(widget.address);
+        if (locations.isNotEmpty) {
+          final location = locations.first;
+          setState(() {
+            _latLng = LatLng(location.latitude, location.longitude);
+          });
+        } else {
+          throw 'No locations found for the provided address';
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -205,7 +244,7 @@ class _CollectionConfirmationPageState
                     ),
                     CustomButton(
                       text: 'DONE',
-                      borderColor: Color(0xFFFF4E00),
+                      borderColor: const Color(0xFFFF4E00),
                       onPressed: () {
                         Navigator.push(
                           context,

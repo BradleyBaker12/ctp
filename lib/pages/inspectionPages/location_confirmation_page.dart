@@ -8,12 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:ctp/pages/home_page.dart';
-import 'package:ctp/pages/profile_page.dart';
-import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/pages/wishlist_offers_page.dart';
-
-import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+import 'package:ctp/components/custom_bottom_navigation.dart';
 
 class LocationConfirmationPage extends StatefulWidget {
   final String offerId;
@@ -43,13 +38,30 @@ class LocationConfirmationPage extends StatefulWidget {
 class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
   bool _isLoading = false;
   LatLng? _latLng;
-  int _selectedIndex =
-      0; // Variable to keep track of the selected bottom nav item
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _updateOfferStatus();
     _getCoordinatesFromAddress();
+  }
+
+  Future<void> _updateOfferStatus() async {
+    try {
+      // Update the offer status to "confirm location" when the page loads
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({'offerStatus': 'confirm location'});
+
+      print('Offer status updated to "confirm location"');
+    } catch (e) {
+      print('Failed to update offer status: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update offer status: $e')),
+      );
+    }
   }
 
   Future<void> _getCoordinatesFromAddress() async {
@@ -267,7 +279,7 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
                     ),
                     CustomButton(
                       text: 'DONE',
-                      borderColor: Color(0xFFFF4E00),
+                      borderColor: const Color(0xFFFF4E00),
                       onPressed: _saveInspectionDetails,
                     ),
                     const SizedBox(height: 16),
