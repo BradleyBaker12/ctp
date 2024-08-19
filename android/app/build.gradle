@@ -6,16 +6,19 @@ plugins {
 }
 
 dependencies {
-    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation platform('com.google.firebase:firebase-bom:33.1.1')  // Downgrade to 33.1.1 if 33.2.0 is unavailable
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
-    implementation 'com.google.android.gms:play-services-base:17.6.0'
-    implementation 'com.google.android.gms:play-services-basement:17.6.0'
-    implementation 'androidx.core:core-ktx:1.9.0'
-    implementation 'androidx.multidex:multidex:2.0.1' // Update to the latest version
+    implementation 'com.google.android.gms:play-services-base:18.2.0'
+    implementation 'com.google.android.gms:play-services-basement:18.2.0'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'com.google.firebase:firebase-appcheck-playintegrity:17.0.0'
 
-    // Other dependencies...
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'com.squareup.okio:okio:2.10.0'
 }
+
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file("local.properties")
@@ -51,7 +54,7 @@ android {
         targetSdkVersion 34 // Ensure this is set to the latest version
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
-        // multiDexEnabled true // Enable multidex if required
+        multiDexEnabled true // Enable multidex if required
     }
 
     buildTypes {

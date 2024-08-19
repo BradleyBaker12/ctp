@@ -1,12 +1,12 @@
-import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/pages/edit_vehicle.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ctp/pages/home_page.dart';
-import 'package:ctp/pages/profile_page.dart';
-import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/pages/wishlist_offers_page.dart';
+import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
@@ -32,29 +32,39 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   Future<void> _checkIfOfferMade() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-    String dealerId = user.uid;
-    String vehicleId = widget.vehicle.id;
+      String dealerId = user.uid;
+      String vehicleId = widget.vehicle.id;
 
-    QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
-        .collection('offers')
-        .where('dealerId', isEqualTo: dealerId)
-        .where('vehicleId', isEqualTo: vehicleId)
-        .get();
+      QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .where('dealerId', isEqualTo: dealerId)
+          .where('vehicleId', isEqualTo: vehicleId)
+          .get();
 
-    setState(() {
-      _hasMadeOffer = offersSnapshot.docs.isNotEmpty;
-    });
+      setState(() {
+        _hasMadeOffer = offersSnapshot.docs.isNotEmpty;
+      });
+    } catch (e) {
+      print('Error checking if offer is made: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to check offer status. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
-    return TextStyle(
+    return GoogleFonts.montserrat(
+      // Use Google Fonts Montserrat
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
-      fontFamily: 'Montserrat',
     );
   }
 
@@ -112,7 +122,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Offer submitted successfully!'),
-          backgroundColor: Colors.green, // Set the background color to green
+          backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
@@ -120,8 +130,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error submitting offer. Please try again.'),
-          backgroundColor:
-              Colors.red, // Set the background color to red for errors
+          backgroundColor: Colors.red,
         ),
       );
     } finally {
@@ -136,32 +145,49 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     void addInfo(String title, String? value) {
       if (value != null && value.isNotEmpty && value != 'Unknown') {
-        infoWidgets.add(_buildInfoRow(title, value));
+        if (title == 'Damage Description') {
+          infoWidgets.add(_buildInfoRowWithIcon(title, value));
+        } else {
+          infoWidgets.add(_buildInfoRow(title, value));
+        }
       }
     }
 
-    addInfo('Accident Free', widget.vehicle.accidentFree);
-    addInfo('Application', widget.vehicle.application);
-    addInfo('Book Value', widget.vehicle.bookValue);
-    addInfo('Damage Description', widget.vehicle.damageDescription);
-    addInfo('Engine Number', widget.vehicle.engineNumber);
-    addInfo('First Owner', widget.vehicle.firstOwner);
-    addInfo('Hydraulics', widget.vehicle.hydraulics);
-    addInfo('List Damages', widget.vehicle.listDamages);
-    addInfo('Maintenance', widget.vehicle.maintenance);
-    addInfo('OEM Inspection', widget.vehicle.oemInspection);
-    addInfo('Registration Number', widget.vehicle.registrationNumber);
-    addInfo('Road Worthy', widget.vehicle.roadWorthy);
-    addInfo('Settle Before Selling', widget.vehicle.settleBeforeSelling);
-    addInfo('Settlement Amount', widget.vehicle.settlementAmount);
-    addInfo('Spare Tyre', widget.vehicle.spareTyre);
-    addInfo('Suspension', widget.vehicle.suspension);
-    addInfo('Tread Left', widget.vehicle.treadLeft);
-    addInfo('Tyre Type', widget.vehicle.tyreType);
-    addInfo('VIN Number', widget.vehicle.vinNumber);
-    addInfo('Warranty', widget.vehicle.warranty);
-    addInfo('Warranty Type', widget.vehicle.warrantyType);
-    addInfo('Weight Class', widget.vehicle.weightClass);
+    try {
+      addInfo('Accident Free', widget.vehicle.accidentFree);
+      addInfo('Application', widget.vehicle.application);
+      addInfo('Book Value', widget.vehicle.bookValue);
+      addInfo(
+          'Damage Description',
+          widget.vehicle
+              .damageDescription); // Add icon and dialog for Damage Description
+      addInfo('Engine Number', widget.vehicle.engineNumber);
+      addInfo('First Owner', widget.vehicle.firstOwner);
+      addInfo('Hydraulics', widget.vehicle.hydraulics);
+      addInfo('List Damages', widget.vehicle.listDamages);
+      addInfo('Maintenance', widget.vehicle.maintenance);
+      addInfo('OEM Inspection', widget.vehicle.oemInspection);
+      addInfo('Registration Number', widget.vehicle.registrationNumber);
+      addInfo('Road Worthy', widget.vehicle.roadWorthy);
+      addInfo('Settle Before Selling', widget.vehicle.settleBeforeSelling);
+      addInfo('Settlement Amount', widget.vehicle.settlementAmount);
+      addInfo('Spare Tyre', widget.vehicle.spareTyre);
+      addInfo('Suspension', widget.vehicle.suspension);
+      addInfo('Tread Left', widget.vehicle.treadLeft);
+      addInfo('Tyre Type', widget.vehicle.tyreType);
+      addInfo('VIN Number', widget.vehicle.vinNumber);
+      addInfo('Warranty', widget.vehicle.warranty);
+      addInfo('Warranty Type', widget.vehicle.warrantyType);
+      addInfo('Weight Class', widget.vehicle.weightClass);
+    } catch (e) {
+      print('Error building additional info: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error loading vehicle details. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,29 +209,118 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
+  Widget _buildInfoRowWithIcon(String title, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Text(title,
+                  style: _customFont(14, FontWeight.normal, Colors.white)),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  _showDamageDescriptionDialog(value);
+                },
+                child: const Icon(Icons.info_outline, color: Colors.white),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDamageDescriptionDialog(String? description) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Damage Description',
+              style: _customFont(18, FontWeight.bold, Colors.black)),
+          content: Text(description ?? 'No damage description available.',
+              style: _customFont(16, FontWeight.normal, Colors.black)),
+          actions: <Widget>[
+            TextButton(
+              child: Text('CLOSE',
+                  style: _customFont(14, FontWeight.bold, Colors.blue)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final bool isTransporter = userProvider.getUserRole == 'transporter';
+
     final size = MediaQuery.of(context).size;
 
-    List<String> allPhotos = [
-      if (widget.vehicle.mainImageUrl != null) widget.vehicle.mainImageUrl!,
-      ...widget.vehicle.photos.where((photo) => photo != null).cast<String>(),
-      if (widget.vehicle.dashboardPhoto != null) widget.vehicle.dashboardPhoto!,
-      if (widget.vehicle.faultCodesPhoto != null)
-        widget.vehicle.faultCodesPhoto!,
-      if (widget.vehicle.licenceDiskUrl != null) widget.vehicle.licenceDiskUrl!,
-      if (widget.vehicle.tyrePhoto1 != null) widget.vehicle.tyrePhoto1!,
-      if (widget.vehicle.tyrePhoto2 != null) widget.vehicle.tyrePhoto2!,
-      ...widget.vehicle.damagePhotos
-          .where((photo) => photo != null)
-          .cast<String>(),
-    ];
+    List<String> allPhotos = [];
+
+    try {
+      allPhotos = [
+        if (widget.vehicle.mainImageUrl != null) widget.vehicle.mainImageUrl!,
+        ...widget.vehicle.photos.where((photo) => photo != null).cast<String>(),
+        if (widget.vehicle.dashboardPhoto != null)
+          widget.vehicle.dashboardPhoto!,
+        if (widget.vehicle.faultCodesPhoto != null)
+          widget.vehicle.faultCodesPhoto!,
+        if (widget.vehicle.licenceDiskUrl != null)
+          widget.vehicle.licenceDiskUrl!,
+        if (widget.vehicle.tyrePhoto1 != null) widget.vehicle.tyrePhoto1!,
+        if (widget.vehicle.tyrePhoto2 != null) widget.vehicle.tyrePhoto2!,
+        ...widget.vehicle.damagePhotos
+            .where((photo) => photo != null)
+            .cast<String>(),
+      ];
+    } catch (e) {
+      print('Error loading vehicle photos: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error loading vehicle photos. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.vehicle.makeModel ?? 'Unknown',
             style: _customFont(20, FontWeight.bold, Colors.white)),
         backgroundColor: Colors.black,
+        actions: [
+          if (isTransporter)
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.white),
+              onPressed: () {
+                try {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          EditVehiclePage(vehicle: widget.vehicle),
+                    ),
+                  );
+                } catch (e) {
+                  print('Error navigating to edit vehicle page: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to navigate to edit page.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+        ],
       ),
       backgroundColor: Colors.black,
       body: Stack(
@@ -230,6 +345,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: size.height * 0.3,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Image.asset(
+                                'lib/assets/default_vehicle_image.png',
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: size.height * 0.3,
+                              );
+                            },
                           );
                         },
                       ),
@@ -257,18 +380,18 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _buildInfoContainer('YEAR', widget.vehicle.year),
-                          const SizedBox(width: 8),
+                          // const SizedBox(width: 8),
                           _buildInfoContainer(
                               'MILEAGE', widget.vehicle.mileage),
-                          const SizedBox(width: 8),
+                          // const SizedBox(width: 8),
                           _buildInfoContainer(
-                              'TRANSMISSION', widget.vehicle.transmission),
-                          const SizedBox(width: 8),
+                              'GEARBOX', widget.vehicle.transmission),
+                          // const SizedBox(width: 8),
                           _buildInfoContainer('CONFIG', '6X4'),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      if (!_hasMadeOffer)
+                      if (!_hasMadeOffer && !isTransporter)
                         Column(
                           children: [
                             Text('Make an Offer',
@@ -299,11 +422,23 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               onChanged: (value) {
                                 setState(() {
                                   if (value.isNotEmpty) {
-                                    _offerAmount = double.parse(value
-                                        .replaceAll(' ', '')
-                                        .replaceAll(',', ''));
-                                    _totalCost =
-                                        _calculateTotalCost(_offerAmount);
+                                    try {
+                                      _offerAmount = double.parse(value
+                                          .replaceAll(' ', '')
+                                          .replaceAll(',', ''));
+                                      _totalCost =
+                                          _calculateTotalCost(_offerAmount);
+                                    } catch (e) {
+                                      print('Error parsing offer amount: $e');
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Invalid offer amount. Please enter a valid number.'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   } else {
                                     _offerAmount = 0.0;
                                     _totalCost = 0.0;
@@ -339,12 +474,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             ),
                           ],
                         )
-                      else
+                      else if (!isTransporter)
                         Center(
                           child: Text(
                             "Offer Pending",
                             style: _customFont(
-                                20, FontWeight.bold, Color(0xFFFF4E00)),
+                                20, FontWeight.bold, const Color(0xFFFF4E00)),
                           ),
                         ),
                       const SizedBox(height: 20),

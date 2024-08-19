@@ -19,7 +19,7 @@ class _TutorialTruckSwipePageState extends State<TutorialTruckSwipePage> {
     'mileage': '25 000 km',
     'transmission': 'Auto',
     'config': '6X4',
-    'photos': AssetImage("lib/assets/default_vehicle_image.png"),
+    'photos': const AssetImage("lib/assets/default_vehicle_image.png"),
     'honestyPercentage': 85,
   };
 

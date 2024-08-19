@@ -85,12 +85,17 @@ class _SignUpPageState extends State<SignUpPage> {
       User? user = userCredential.user;
 
       if (user != null) {
-        await _firestore.collection('users').doc(user.uid).set({
+        // Creating a batch write to optimize performance
+        WriteBatch batch = _firestore.batch();
+
+        DocumentReference userRef =
+            _firestore.collection('users').doc(user.uid);
+        batch.set(userRef, {
           'email': user.email,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        print('SignUp: User created with UID: ${user.uid}'); // Debugging
+        await batch.commit(); // Commit the batch write
 
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         userProvider.setUser(user); // Set the user in UserProvider

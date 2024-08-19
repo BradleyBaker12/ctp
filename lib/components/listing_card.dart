@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
-class WishCard extends StatelessWidget {
+class ListingCard extends StatelessWidget {
   final String vehicleMakeModel;
   final String vehicleImageUrl;
-  final Size size;
-  final TextStyle Function(double, FontWeight, Color) customFont;
+  final String vehicleYear;
+  final String vehicleMileage;
+  final String vehicleTransmission;
   final VoidCallback onTap;
-  final bool hasOffer;
 
-  const WishCard({
+  const ListingCard({
     super.key,
     required this.vehicleMakeModel,
     required this.vehicleImageUrl,
-    required this.size,
-    required this.customFont,
+    required this.vehicleYear,
+    required this.vehicleMileage,
+    required this.vehicleTransmission,
     required this.onTap,
-    required this.hasOffer,
   });
 
   @override
@@ -34,14 +34,12 @@ class WishCard extends StatelessWidget {
             children: [
               Container(
                 width: 8,
-                height:
-                    120, // Set a fixed height to avoid infinite height issue
-                color: Colors.blue, // Set a color to indicate the wishlist item
+                height: 120, // Fixed height to avoid layout issues
+                color: Colors.blue, // Indicator color
               ),
               Container(
                 width: 90,
-                height:
-                    120, // Set a fixed height to avoid infinite height issue
+                height: 120, // Fixed height to avoid layout issues
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: vehicleImageUrl.isNotEmpty
@@ -56,46 +54,45 @@ class WishCard extends StatelessWidget {
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(10.0),
-                  height:
-                      120, // Set a fixed height to avoid infinite height issue
-                  color: Colors.blue, // Set background color to blue
+                  height: 120, // Fixed height to avoid layout issues
+                  color: Colors.black87, // Background color
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         vehicleMakeModel,
-                        style: customFont(
-                            18, FontWeight.bold, Colors.white), // White text
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
                       ),
                       const SizedBox(height: 5),
+                      Text(
+                        'Year: $vehicleYear',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      Text(
+                        'Mileage: $vehicleMileage',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      Text(
+                        'Transmission: $vehicleTransmission',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
                     ],
                   ),
                 ),
               ),
               Container(
                 width: 90,
-                height:
-                    120, // Set a fixed height to avoid infinite height issue
-                color: hasOffer
-                    ? const Color(0xFFFF4E00)
-                    : Colors.green, // Change color based on offer status
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (!hasOffer) // Hide the arrow if an offer is made
-                        const Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      const SizedBox(height: 4),
-                      Text(
-                        hasOffer ? 'Offer Made' : 'Make Offer',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
+                height: 120, // Fixed height to avoid layout issues
+                color: Colors.green, // Action color
+                child: const Center(
+                  child: Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 30,
                   ),
                 ),
               ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:ctp/pages/inspectionPages/final_inspection_approval_page.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
@@ -20,14 +21,10 @@ import 'package:ctp/providers/user_provider.dart';
 
 class OfferCard extends StatefulWidget {
   final Offer offer;
-  final Size size;
-  final TextStyle Function(double, FontWeight, Color) customFont;
 
   const OfferCard({
     super.key,
     required this.offer,
-    required this.size,
-    required this.customFont,
   });
 
   @override
@@ -38,6 +35,14 @@ class _OfferCardState extends State<OfferCard> {
   bool _isExpanded = false;
   final TextEditingController _editController = TextEditingController();
 
+  TextStyle customFont(double size, FontWeight weight, Color color) {
+    return GoogleFonts.montserrat(
+      fontSize: size,
+      fontWeight: weight,
+      color: color,
+    );
+  }
+
   Color getStatusColor(String? status) {
     switch (status) {
       case 'accepted':
@@ -46,6 +51,8 @@ class _OfferCardState extends State<OfferCard> {
         return Colors.deepOrange;
       case 'rejected':
         return Colors.red;
+      case 'Done':
+        return Colors.green; // Green color for 'Done'
       default:
         return Colors.grey;
     }
@@ -64,6 +71,8 @@ class _OfferCardState extends State<OfferCard> {
         return Icons.access_time; // Clock icon
       case 'paid':
         return Icons.check_circle; // Paid icon
+      case 'Done':
+        return Icons.check; // Tick icon for 'Done'
       default:
         return Icons.info; // Default icon
     }
@@ -71,23 +80,18 @@ class _OfferCardState extends State<OfferCard> {
 
   Future<void> _updateOfferAmount(double newAmount) async {
     try {
-      // Update the offer amount in Firestore
       await widget.offer.updateOfferAmount(newAmount);
-
-      // Clear the text input field
       _editController.clear();
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Offer amount updated to R${newAmount.toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.green),
+            style: customFont(16, FontWeight.bold, Colors.green),
           ),
           backgroundColor: Colors.black,
         ),
       );
 
-      // Refresh the list of offers by refetching data
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final userId = userProvider.userId ?? ''; // Add a fallback value
       final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
@@ -96,13 +100,15 @@ class _OfferCardState extends State<OfferCard> {
         userRole,
       );
 
-      // Update the UI by calling setState
       setState(() {
         widget.offer.offerAmount = newAmount;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update offer amount: $e')),
+        SnackBar(
+          content: Text('Failed to update offer amount: $e',
+              style: customFont(16, FontWeight.normal, Colors.red)),
+        ),
       );
     }
   }
@@ -114,33 +120,37 @@ class _OfferCardState extends State<OfferCard> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Edit Offer Amount'),
+          title: Text('Edit Offer Amount',
+              style: customFont(18, FontWeight.bold, Colors.black)),
           content: TextField(
             controller: _editController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               hintText: 'Enter new offer amount',
-              hintStyle: widget.customFont(16, FontWeight.normal, Colors.grey),
+              hintStyle: customFont(16, FontWeight.normal, Colors.grey),
             ),
           ),
           actions: [
             TextButton(
               child: Text('Cancel',
-                  style: widget.customFont(16, FontWeight.bold, Colors.red)),
+                  style: customFont(16, FontWeight.bold, Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
               child: Text('Save',
-                  style: widget.customFont(16, FontWeight.bold, Colors.green)),
+                  style: customFont(16, FontWeight.bold, Colors.green)),
               onPressed: () {
                 double? newAmount = double.tryParse(_editController.text);
                 if (newAmount != null) {
                   _updateOfferAmount(newAmount);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Invalid offer amount')),
+                    SnackBar(
+                      content: Text('Invalid offer amount',
+                          style: customFont(16, FontWeight.normal, Colors.red)),
+                    ),
                   );
                 }
                 Navigator.of(context).pop();
@@ -160,7 +170,10 @@ class _OfferCardState extends State<OfferCard> {
           .update({'offerStatus': status});
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Offer status updated to $status')),
+        SnackBar(
+          content: Text('Offer status updated to $status',
+              style: customFont(16, FontWeight.normal, Colors.green)),
+        ),
       );
 
       setState(() {
@@ -168,7 +181,10 @@ class _OfferCardState extends State<OfferCard> {
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update status: $e')),
+        SnackBar(
+          content: Text('Failed to update status: $e',
+              style: customFont(16, FontWeight.normal, Colors.red)),
+        ),
       );
     }
   }
@@ -177,37 +193,25 @@ class _OfferCardState extends State<OfferCard> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
 
-    // Add a debug print to verify if the offer has correct data
-    print('Navigating based on status: ${widget.offer.offerStatus}');
-    print('Offer ID: ${widget.offer.offerId}');
-    print('Location: ${widget.offer.dealerSelectedCollectionLocation}');
-    print('Address: ${widget.offer.dealerSelectedCollectionAddress}');
-    print('Date: ${widget.offer.dealerSelectedCollectionDate}');
-    print('LatLng: ${widget.offer.latLng}');
-
     if (userRole == 'transporter') {
-      // Navigate to Transporter-specific Offer Details Page
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => OfferDetailsPage(
-            offerId: widget.offer.offerId, // Pass the offer ID
+            offerId: widget.offer.offerId,
             vehicleName: widget.offer.vehicleMakeModel ?? 'Unknown',
             offerAmount: formatOfferAmount(widget.offer.offerAmount),
-            images: widget.offer.vehicleImages, // Pass the images here
-            additionalInfo:
-                widget.offer.additionalInfo, // Pass the additional info
+            images: widget.offer.vehicleImages,
+            additionalInfo: widget.offer.additionalInfo,
             year: widget.offer.vehicleYear,
             mileage: widget.offer.vehicleMileage,
             transmission: widget.offer.vehicleTransmission,
             onAccept: () async {
-              await _updateOfferStatus(
-                  'accepted'); // Handle offer acceptance logic
+              await _updateOfferStatus('accepted');
               Navigator.of(context).pop();
             },
             onReject: () async {
-              await _updateOfferStatus(
-                  'rejected'); // Handle offer rejection logic
+              await _updateOfferStatus('rejected');
               Navigator.of(context).pop();
             },
             offerStatus: widget.offer.offerStatus ?? 'Unknown',
@@ -215,7 +219,6 @@ class _OfferCardState extends State<OfferCard> {
         ),
       );
     } else {
-      // Handle navigation based on offer status for dealers
       switch (widget.offer.offerStatus) {
         case '1/4':
           Navigator.push(
@@ -230,7 +233,7 @@ class _OfferCardState extends State<OfferCard> {
           );
           break;
         case '2/4':
-        case 'payment options': // Check if offerStatus is 'payment options'
+        case 'payment options':
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -241,7 +244,7 @@ class _OfferCardState extends State<OfferCard> {
           );
           break;
         case '3/4':
-        case 'payment pending': // Check if offerStatus is 'payment pending'
+        case 'Payment Pending':
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -252,6 +255,7 @@ class _OfferCardState extends State<OfferCard> {
           );
           break;
         case 'paid':
+        case 'Payment Approved':
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -291,7 +295,7 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           break;
-        case 'Waiting on final inspection':
+        case 'Inspection Pending':
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -313,7 +317,7 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           break;
-        case 'Inspection Approval':
+        case 'Inspection Done':
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -381,25 +385,33 @@ class _OfferCardState extends State<OfferCard> {
     final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
     Color statusColor = getStatusColor(widget.offer.offerStatus);
 
-    return GestureDetector(
-      onTap: () => navigateBasedOnStatus(context),
-      child: Card(
-        elevation: 5,
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: userRole == 'transporter'
-              ? _buildTransporterCard(statusColor)
-              : _buildDealerCard(statusColor),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        double imageWidth = constraints.maxWidth * 0.25;
+        double statusWidth = constraints.maxWidth * 0.2;
+        double cardHeight = constraints.maxHeight < 150 ? 100 : 120;
+
+        return GestureDetector(
+          onTap: () => navigateBasedOnStatus(context),
+          child: Card(
+            elevation: 5,
+            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: userRole == 'transporter'
+                  ? _buildTransporterCard(statusColor, constraints)
+                  : _buildDealerCard(statusColor, constraints),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildDealerCard(Color statusColor) {
+  Widget _buildDealerCard(Color statusColor, BoxConstraints constraints) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch, // Ensure full width
       children: [
@@ -411,7 +423,7 @@ class _OfferCardState extends State<OfferCard> {
               color: statusColor,
             ),
             Container(
-              width: widget.size.width * 0.2,
+              width: constraints.maxWidth * 0.2,
               height: 120, // Set a fixed height to avoid infinite height issue
               decoration: BoxDecoration(
                 image: DecorationImage(
@@ -435,14 +447,12 @@ class _OfferCardState extends State<OfferCard> {
                   children: [
                     Text(
                       widget.offer.vehicleMakeModel ?? 'Unknown',
-                      style:
-                          widget.customFont(18, FontWeight.bold, Colors.white),
+                      style: customFont(18, FontWeight.bold, Colors.white),
                     ),
                     const SizedBox(height: 5),
                     Text(
                       'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
-                      style: widget.customFont(
-                          16, FontWeight.normal, Colors.white),
+                      style: customFont(16, FontWeight.normal, Colors.white),
                     ),
                     const SizedBox(height: 5),
                     GestureDetector(
@@ -453,8 +463,7 @@ class _OfferCardState extends State<OfferCard> {
                       },
                       child: Text(
                         _isExpanded ? 'View less' : 'View more details',
-                        style: widget
-                            .customFont(14, FontWeight.normal, Colors.white)
+                        style: customFont(14, FontWeight.normal, Colors.white)
                             .copyWith(decoration: TextDecoration.underline),
                       ),
                     ),
@@ -463,7 +472,7 @@ class _OfferCardState extends State<OfferCard> {
               ),
             ),
             Container(
-              width: widget.size.width * 0.2,
+              width: constraints.maxWidth * 0.2,
               height: 120, // Set a fixed height to avoid infinite height issue
               color: statusColor,
               child: Center(
@@ -477,8 +486,7 @@ class _OfferCardState extends State<OfferCard> {
                     const SizedBox(height: 5),
                     Text(
                       widget.offer.offerStatus ?? 'Unknown',
-                      style:
-                          widget.customFont(16, FontWeight.bold, Colors.white),
+                      style: customFont(16, FontWeight.bold, Colors.white),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -496,7 +504,7 @@ class _OfferCardState extends State<OfferCard> {
             children: [
               Text(
                 'STATUS: ${widget.offer.offerStatus}',
-                style: widget.customFont(16, FontWeight.bold, Colors.white),
+                style: customFont(16, FontWeight.bold, Colors.white),
               ),
               const SizedBox(height: 5),
               if (widget.offer.offerStatus == 'in-progress')
@@ -506,8 +514,7 @@ class _OfferCardState extends State<OfferCard> {
                     backgroundColor: Colors.orange,
                   ),
                   child: Text('Edit Offer Amount',
-                      style:
-                          widget.customFont(16, FontWeight.bold, Colors.white)),
+                      style: customFont(16, FontWeight.bold, Colors.white)),
                 ),
               if (widget.offer.offerStatus == 'accepted')
                 GestureDetector(
@@ -526,8 +533,7 @@ class _OfferCardState extends State<OfferCard> {
                   },
                   child: Text(
                     'Proceed with next steps',
-                    style: widget
-                        .customFont(16, FontWeight.normal, Colors.white)
+                    style: customFont(16, FontWeight.normal, Colors.white)
                         .copyWith(decoration: TextDecoration.underline),
                   ),
                 ),
@@ -540,7 +546,7 @@ class _OfferCardState extends State<OfferCard> {
                   widget.offer.reason!.isNotEmpty)
                 Text(
                   'REASON: ${widget.offer.reason}',
-                  style: widget.customFont(16, FontWeight.normal, Colors.white),
+                  style: customFont(16, FontWeight.normal, Colors.white),
                 ),
             ],
           ),
@@ -549,11 +555,11 @@ class _OfferCardState extends State<OfferCard> {
     );
   }
 
-  Widget _buildTransporterCard(Color statusColor) {
+  Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
     return Row(
       children: [
         Container(
-          width: widget.size.width * 0.02,
+          width: constraints.maxWidth * 0.02,
           color: Colors.green,
         ),
         Expanded(
@@ -565,22 +571,21 @@ class _OfferCardState extends State<OfferCard> {
               children: [
                 Text(
                   'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
-                  style: widget.customFont(18, FontWeight.bold, Colors.white),
+                  style: customFont(18, FontWeight.bold, Colors.white),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'DEALERS RATING:',
-                  style: widget.customFont(14, FontWeight.normal, Colors.white),
+                  style: customFont(14, FontWeight.normal, Colors.white),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.star, color: Colors.white),
+                    const Icon(Icons.star, color: Colors.white),
                     const SizedBox(width: 5),
                     Text(
                       '50/50', // You can replace this with dynamic data if available
-                      style: widget.customFont(
-                          14, FontWeight.normal, Colors.white),
+                      style: customFont(14, FontWeight.normal, Colors.white),
                     ),
                   ],
                 ),
@@ -589,18 +594,18 @@ class _OfferCardState extends State<OfferCard> {
           ),
         ),
         Container(
-          width: widget.size.width * 0.2,
+          width: constraints.maxWidth * 0.2,
           height: 120,
           color: Colors.green,
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.remove_red_eye, color: Colors.white),
+                const Icon(Icons.remove_red_eye, color: Colors.white),
                 const SizedBox(height: 8),
                 Text(
                   'View',
-                  style: widget.customFont(16, FontWeight.bold, Colors.white),
+                  style: customFont(16, FontWeight.bold, Colors.white),
                 ),
               ],
             ),

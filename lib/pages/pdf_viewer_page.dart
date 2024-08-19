@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart'; // Import this package
 class PdfViewerPage extends StatelessWidget {
   final String pdfUrl;
 
-  const PdfViewerPage({Key? key, required this.pdfUrl}) : super(key: key);
+  const PdfViewerPage({super.key, required this.pdfUrl});
 
   Future<File> _downloadAndSaveFile(String url, String fileName) async {
     final response = await HttpClient().getUrl(Uri.parse(url));
@@ -38,8 +38,8 @@ class PdfViewerPage extends StatelessWidget {
             autoSpacing: true,
             swipeHorizontal: true,
             pageFling: true,
-            onRender: (_pages) {
-              print("Total pages: $_pages");
+            onRender: (pages) {
+              print("Total pages: $pages");
             },
             onError: (error) {
               print("PDF Error: $error");

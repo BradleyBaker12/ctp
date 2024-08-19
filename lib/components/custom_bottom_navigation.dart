@@ -3,6 +3,9 @@ import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/wishlist_offers_page.dart';
+import 'package:ctp/pages/vehicles_list.dart'; // Import the vehicles list page
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/user_provider.dart'; // Import the UserProvider
 
 class CustomBottomNavigation extends StatelessWidget {
   final int selectedIndex;
@@ -20,16 +23,26 @@ class CustomBottomNavigation extends StatelessWidget {
       BuildContext context, IconData icon, bool isActive, int index) {
     return GestureDetector(
       onTap: () {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final userRole = userProvider.getUserRole;
+
         if (index == 0) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const HomePage()),
           );
         } else if (index == 1) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const TruckPage()),
-          );
+          if (userRole == 'dealer') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const TruckPage()),
+            );
+          } else if (userRole == 'transporter') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const VehiclesListPage()),
+            );
+          }
         } else if (index == 2) {
           Navigator.pushReplacement(
             context,

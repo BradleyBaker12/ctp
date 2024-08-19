@@ -50,7 +50,7 @@ class OfferSummaryPage extends StatelessWidget {
     // Calculate VAT, Commission, and Total
     final offerAmount = offerData['offerAmount'] ?? 0.0;
     final vatAmount = offerAmount * 0.15;
-    final commissionAmount = 12000.0;
+    const commissionAmount = 12000.0;
     final totalAmount = offerAmount + vatAmount + commissionAmount;
 
     pdf.addPage(
@@ -428,7 +428,7 @@ class OfferSummaryPage extends StatelessWidget {
                   await Share.shareXFiles([xFile], text: 'Offer Summary');
                 },
                 tooltip: 'Share PDF',
-                child: Icon(Icons.share),
+                child: const Icon(Icons.share),
               ),
             );
           },

@@ -2,8 +2,10 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/pages/login.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'signup_page.dart'; // Import the SignUp page
 
 class ErrorPage extends StatelessWidget {
   const ErrorPage({super.key});
@@ -58,7 +60,11 @@ class ErrorPage extends StatelessWidget {
                           text: 'CREATE NEW ACCOUNT',
                           borderColor: blue,
                           onPressed: () {
-                            // Handle create new account action
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const SignUpPage()),
+                            );
                           },
                         ),
                         const SizedBox(height: 16),
@@ -66,7 +72,11 @@ class ErrorPage extends StatelessWidget {
                           text: 'CHOOSE ANOTHER SIGN IN METHOD',
                           borderColor: orange,
                           onPressed: () {
-                            // Handle choose another sign in method action
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const LoginPage()),
+                            );
                           },
                         ),
                       ],

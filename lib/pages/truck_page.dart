@@ -6,6 +6,7 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class TruckPage extends StatefulWidget {
   const TruckPage({super.key});
@@ -33,48 +34,66 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   void _loadInitialVehicles() {
-    final vehicleProvider =
-        Provider.of<VehicleProvider>(context, listen: false);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    setState(() {
-      displayedVehicles = vehicleProvider.vehicles
-          .where((vehicle) =>
-              !userProvider.getLikedVehicles.contains(vehicle.id) &&
-              !userProvider.getDislikedVehicles.contains(vehicle.id))
-          .take(5)
-          .toList();
-      loadedVehicleIndex = displayedVehicles.length;
-      print('Initial vehicles loaded: ${displayedVehicles.length}');
-      for (var vehicle in displayedVehicles) {
-        print(
-            'Displayed Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}');
-      }
-    });
+    try {
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      setState(() {
+        displayedVehicles = vehicleProvider.vehicles
+            .where((vehicle) =>
+                !userProvider.getLikedVehicles.contains(vehicle.id) &&
+                !userProvider.getDislikedVehicles.contains(vehicle.id))
+            .take(5)
+            .toList();
+        loadedVehicleIndex = displayedVehicles.length;
+        print('Initial vehicles loaded: ${displayedVehicles.length}');
+        for (var vehicle in displayedVehicles) {
+          print(
+              'Displayed Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}');
+        }
+      });
+    } catch (e) {
+      print('Error loading initial vehicles: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load vehicles. Please try again later.'),
+        ),
+      );
+    }
   }
 
   void _loadNextVehicle() {
-    final vehicleProvider =
-        Provider.of<VehicleProvider>(context, listen: false);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    print(
-        'Loading next vehicle. Current loaded index: $loadedVehicleIndex, Total vehicles: ${vehicleProvider.vehicles.length}');
-    while (loadedVehicleIndex < vehicleProvider.vehicles.length) {
-      final nextVehicle = vehicleProvider.vehicles[loadedVehicleIndex];
-      if (!userProvider.getLikedVehicles.contains(nextVehicle.id) &&
-          !userProvider.getDislikedVehicles.contains(nextVehicle.id)) {
-        setState(() {
-          displayedVehicles.add(nextVehicle);
-          loadedVehicleIndex++;
-          print('Next vehicle loaded: ${nextVehicle.id}');
-        });
-        return;
+    try {
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      print(
+          'Loading next vehicle. Current loaded index: $loadedVehicleIndex, Total vehicles: ${vehicleProvider.vehicles.length}');
+      while (loadedVehicleIndex < vehicleProvider.vehicles.length) {
+        final nextVehicle = vehicleProvider.vehicles[loadedVehicleIndex];
+        if (!userProvider.getLikedVehicles.contains(nextVehicle.id) &&
+            !userProvider.getDislikedVehicles.contains(nextVehicle.id)) {
+          setState(() {
+            displayedVehicles.add(nextVehicle);
+            loadedVehicleIndex++;
+            print('Next vehicle loaded: ${nextVehicle.id}');
+          });
+          return;
+        }
+        loadedVehicleIndex++;
       }
-      loadedVehicleIndex++;
+      setState(() {
+        _hasReachedEnd = true;
+        print('No more vehicles to load.');
+      });
+    } catch (e) {
+      print('Error loading next vehicle: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load the next vehicle. Please try again.'),
+        ),
+      );
     }
-    setState(() {
-      _hasReachedEnd = true;
-      print('No more vehicles to load.');
-    });
   }
 
   void _onItemTapped(int index) {
@@ -84,63 +103,106 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
-    return TextStyle(
+    return GoogleFonts.montserrat(
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
-      fontFamily: 'Montserrat',
     );
   }
 
   double _calculateHonestyPercentage(Vehicle vehicle) {
-    int totalFields = 35 + 18; // 35 fields and 18 photos
+    int totalFields = 35 + 18; // Total fields and photos
     int filledFields = 0;
 
-    // Checking each field and incrementing filledFields if it is not null or empty
-    if (vehicle.accidentFree.isNotEmpty) filledFields++;
-    if (vehicle.application.isNotEmpty) filledFields++;
-    if (vehicle.bookValue.isNotEmpty) filledFields++;
-    if (vehicle.damageDescription.isNotEmpty) filledFields++;
-    if (vehicle.dashboardPhoto != null) filledFields++;
-    if (vehicle.engineNumber.isNotEmpty) filledFields++;
-    if (vehicle.expectedSellingPrice.isNotEmpty) filledFields++;
-    if (vehicle.faultCodesPhoto != null) filledFields++;
-    if (vehicle.firstOwner.isNotEmpty) filledFields++;
-    if (vehicle.hydraulics.isNotEmpty) filledFields++;
-    if (vehicle.licenceDiskUrl != null) filledFields++;
-    if (vehicle.listDamages.isNotEmpty) filledFields++;
-    if (vehicle.maintenance.isNotEmpty) filledFields++;
-    if (vehicle.makeModel.isNotEmpty) filledFields++;
-    if (vehicle.mileage.isNotEmpty) filledFields++;
-    if (vehicle.mileageImage != null) filledFields++;
-    if (vehicle.oemInspection.isNotEmpty) filledFields++;
-    if (vehicle.rc1NatisFile != null) filledFields++;
-    if (vehicle.registrationNumber.isNotEmpty) filledFields++;
-    if (vehicle.roadWorthy.isNotEmpty) filledFields++;
-    if (vehicle.settleBeforeSelling.isNotEmpty) filledFields++;
-    if (vehicle.settlementAmount.isNotEmpty) filledFields++;
-    if (vehicle.settlementLetterFile != null) filledFields++;
-    if (vehicle.spareTyre.isNotEmpty) filledFields++;
-    if (vehicle.suspension.isNotEmpty) filledFields++;
-    if (vehicle.transmission.isNotEmpty) filledFields++;
-    if (vehicle.treadLeft != null) filledFields++;
-    if (vehicle.tyrePhoto1 != null) filledFields++;
-    if (vehicle.tyrePhoto2 != null) filledFields++;
-    if (vehicle.tyreType.isNotEmpty) filledFields++;
-    if (vehicle.userId.isNotEmpty) filledFields++;
-    if (vehicle.vinNumber.isNotEmpty) filledFields++;
-    if (vehicle.warranty.isNotEmpty) filledFields++;
-    if (vehicle.warrantyType.isNotEmpty) filledFields++;
-    if (vehicle.year.isNotEmpty) filledFields++;
-    if (vehicle.vehicleType.isNotEmpty) filledFields++;
-    if (vehicle.weightClass.isNotEmpty) filledFields++;
+    try {
+      // List of fields to check
+      final fieldsToCheck = [
+        vehicle.accidentFree,
+        vehicle.application,
+        vehicle.bookValue,
+        vehicle.damageDescription,
+        vehicle.engineNumber,
+        vehicle.expectedSellingPrice,
+        vehicle.firstOwner,
+        vehicle.hydraulics,
+        vehicle.listDamages,
+        vehicle.maintenance,
+        vehicle.makeModel,
+        vehicle.mileage,
+        vehicle.oemInspection,
+        vehicle.registrationNumber,
+        vehicle.roadWorthy,
+        vehicle.settleBeforeSelling,
+        vehicle.settlementAmount,
+        vehicle.spareTyre,
+        vehicle.suspension,
+        vehicle.transmission,
+        vehicle.tyreType,
+        vehicle.userId,
+        vehicle.vinNumber,
+        vehicle.warranty,
+        vehicle.warrantyType,
+        vehicle.weightClass,
+        vehicle.year,
+        vehicle.vehicleType,
+      ];
 
-    // Checking each photo in the photos array
-    for (var photo in vehicle.photos) {
-      if (photo != null) filledFields++;
+      // Increment filledFields for each non-empty string field
+      for (var field in fieldsToCheck) {
+        if (field.isNotEmpty) {
+          filledFields++;
+          print('Field filled: $field');
+        } else {
+          print('Field empty: $field');
+        }
+      }
+
+      // Check nullable fields
+      final nullableFieldsToCheck = [
+        vehicle.dashboardPhoto,
+        vehicle.faultCodesPhoto,
+        vehicle.licenceDiskUrl,
+        vehicle.mileageImage,
+        vehicle.rc1NatisFile,
+        vehicle.settlementLetterFile,
+        vehicle.treadLeft,
+        vehicle.tyrePhoto1,
+        vehicle.tyrePhoto2,
+      ];
+
+      // Increment filledFields for each non-null field
+      for (var field in nullableFieldsToCheck) {
+        if (field != null) {
+          filledFields++;
+          print('Nullable field filled: $field');
+        } else {
+          print('Nullable field empty');
+        }
+      }
+
+      // Checking each photo in the photos array
+      for (var photo in vehicle.photos) {
+        if (photo != null && photo.isNotEmpty) {
+          filledFields++;
+          print('Photo filled: $photo');
+        } else {
+          print('Photo empty');
+        }
+      }
+
+      // Calculate honesty percentage
+      double honestyPercentage = (filledFields / totalFields) * 100;
+
+      // Debugging output
+      print('Total fields: $totalFields');
+      print('Filled fields: $filledFields');
+      print('Honesty percentage: $honestyPercentage%');
+
+      return honestyPercentage;
+    } catch (e) {
+      print('Error calculating honesty percentage: $e');
+      return 0.0;
     }
-
-    return (filledFields / totalFields) * 100;
   }
 
   @override
@@ -166,39 +228,49 @@ class _TruckPageState extends State<TruckPage> {
                   },
                   onSwipeEnd:
                       (int previousIndex, int? targetIndex, direction) async {
-                    print(
-                        'Swiped card at index: $previousIndex in direction: $direction');
-                    if (direction == AxisDirection.left ||
-                        direction == AxisDirection.right) {
-                      final vehicle = displayedVehicles[previousIndex];
-                      setState(() {
-                        print('Adding vehicle to swiped list');
-                        swipedVehicles.add(vehicle);
-                        swipedDirections.add(direction == AxisDirection.right
-                            ? 'right'
-                            : 'left');
-                        print('Removing vehicle from displayed list');
-                        displayedVehicles.removeAt(previousIndex);
-                      });
+                    try {
                       print(
-                          'Displayed vehicles after removal: ${displayedVehicles.map((v) => v.id).toList()}');
-                      print(
-                          'Swiped vehicles: ${swipedVehicles.map((v) => v.id).toList()}');
-                      _loadNextVehicle();
+                          'Swiped card at index: $previousIndex in direction: $direction');
+                      if (direction == AxisDirection.left ||
+                          direction == AxisDirection.right) {
+                        final vehicle = displayedVehicles[previousIndex];
+                        setState(() {
+                          print('Adding vehicle to swiped list');
+                          swipedVehicles.add(vehicle);
+                          swipedDirections.add(direction == AxisDirection.right
+                              ? 'right'
+                              : 'left');
+                          print('Removing vehicle from displayed list');
+                          displayedVehicles.removeAt(previousIndex);
+                        });
+                        print(
+                            'Displayed vehicles after removal: ${displayedVehicles.map((v) => v.id).toList()}');
+                        print(
+                            'Swiped vehicles: ${swipedVehicles.map((v) => v.id).toList()}');
+                        _loadNextVehicle();
 
-                      final userProvider =
-                          Provider.of<UserProvider>(context, listen: false);
-                      if (direction == AxisDirection.right) {
-                        await userProvider.likeVehicle(vehicle.id);
-                      } else if (direction == AxisDirection.left) {
-                        await userProvider.dislikeVehicle(vehicle.id);
+                        final userProvider =
+                            Provider.of<UserProvider>(context, listen: false);
+                        if (direction == AxisDirection.right) {
+                          await userProvider.likeVehicle(vehicle.id);
+                        } else if (direction == AxisDirection.left) {
+                          await userProvider.dislikeVehicle(vehicle.id);
+                        }
                       }
-                    }
-                    if (targetIndex == null) {
-                      setState(() {
-                        _hasReachedEnd = true;
-                      });
-                      print('All cards swiped');
+                      if (targetIndex == null) {
+                        setState(() {
+                          _hasReachedEnd = true;
+                        });
+                        print('All cards swiped');
+                      }
+                    } catch (e) {
+                      print('Error handling swipe: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              'An error occurred while processing your swipe.'),
+                        ),
+                      );
                     }
                   },
                   onEnd: () {
@@ -230,12 +302,22 @@ class _TruckPageState extends State<TruckPage> {
 
     return GestureDetector(
       onDoubleTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-          ),
-        );
+        try {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VehicleDetailsPage(vehicle: vehicle),
+            ),
+          );
+        } catch (e) {
+          print('Error navigating to vehicle details: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Failed to load vehicle details. Please try again.'),
+            ),
+          );
+        }
       },
       child: Container(
         width: double.infinity,
@@ -251,10 +333,17 @@ class _TruckPageState extends State<TruckPage> {
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: vehicle.photos.isNotEmpty && vehicle.photos[0] != null
+                child: vehicle.mainImageUrl != null &&
+                        vehicle.mainImageUrl!.isNotEmpty
                     ? Image.network(
-                        vehicle.photos[0]!,
+                        vehicle.mainImageUrl!,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            'lib/assets/default_vehicle_image.png',
+                            fit: BoxFit.cover,
+                          );
+                        },
                       )
                     : Stack(
                         children: [
@@ -281,8 +370,9 @@ class _TruckPageState extends State<TruckPage> {
                   _buildHonestyBar(honestyPercentage),
                   const SizedBox(height: 8),
                   Text(
-                    "$filledFields/100",
-                    style: _customFont(14, FontWeight.bold, Colors.white),
+                    "${honestyPercentage.toStringAsFixed(0)}/100",
+                    style: _customFont(
+                        size.height * 0.015, FontWeight.bold, Colors.white),
                   ),
                 ],
               ),
@@ -299,13 +389,14 @@ class _TruckPageState extends State<TruckPage> {
                     children: [
                       Text(
                         vehicle.makeModel,
-                        style: _customFont(20, FontWeight.bold, Colors.white),
+                        style: _customFont(
+                            size.height * 0.025, FontWeight.bold, Colors.white),
                       ),
                       const SizedBox(width: 5),
                       Image.asset(
                         'lib/assets/verified_Icon.png',
-                        width: 20,
-                        height: 20,
+                        width: size.width * 0.05,
+                        height: size.height * 0.05,
                       ),
                     ],
                   ),
@@ -319,7 +410,8 @@ class _TruckPageState extends State<TruckPage> {
                           vehicle.year.isNotEmpty ? vehicle.year : "Unknown",
                         ),
                       ),
-                      SizedBox(width: 8), // Add some spacing between columns
+                      const SizedBox(
+                          width: 8), // Add some spacing between columns
                       Expanded(
                         child: _buildBlurryContainer(
                           'MILEAGE',
@@ -328,16 +420,18 @@ class _TruckPageState extends State<TruckPage> {
                               : "Unknown",
                         ),
                       ),
-                      SizedBox(width: 8), // Add some spacing between columns
+                      const SizedBox(
+                          width: 8), // Add some spacing between columns
                       Expanded(
                         child: _buildBlurryContainer(
-                          'TRANSMISSION',
+                          'GEARBOX',
                           vehicle.transmission.isNotEmpty
                               ? vehicle.transmission
                               : "Unknown",
                         ),
                       ),
-                      SizedBox(width: 8), // Add some spacing between columns
+                      const SizedBox(
+                          width: 8), // Add some spacing between columns
                       Expanded(
                         child: _buildBlurryContainer(
                           'TYPE',
@@ -373,9 +467,10 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   Widget _buildHonestyBar(double percentage) {
+    final size = MediaQuery.of(context).size;
     return Container(
-      width: 25,
-      height: 560, // Adjust the height as needed
+      width: size.height * 0.025,
+      height: size.height * 0.62, // Adjust the height as needed
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.5),
         borderRadius: BorderRadius.circular(5),
@@ -402,6 +497,7 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   Widget _buildBlurryContainer(String title, String value) {
+    final size = MediaQuery.of(context).size;
     return Container(
       height: 90,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
@@ -418,13 +514,15 @@ class _TruckPageState extends State<TruckPage> {
         children: [
           Text(
             title,
-            style: _customFont(14, FontWeight.w300, Colors.white),
+            style:
+                _customFont(size.height * 0.012, FontWeight.w400, Colors.white),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
             value.isNotEmpty ? value : "Unknown",
-            style: _customFont(16, FontWeight.bold, Colors.white),
+            style:
+                _customFont(size.height * 0.016, FontWeight.bold, Colors.white),
             textAlign: TextAlign.center,
           ),
         ],
@@ -434,30 +532,40 @@ class _TruckPageState extends State<TruckPage> {
 
   Widget _buildIconButton(IconData icon, Color color,
       AppinioSwiperController controller, String direction, Vehicle vehicle) {
+    final size = MediaQuery.of(context).size;
     return Expanded(
       child: GestureDetector(
         onTap: () async {
-          print('${icon == Icons.close ? "DISLIKE" : "LIKE"} button pressed');
-          if (direction == 'left') {
-            final userProvider =
-                Provider.of<UserProvider>(context, listen: false);
-            await userProvider.dislikeVehicle(vehicle.id);
+          try {
+            print('${icon == Icons.close ? "DISLIKE" : "LIKE"} button pressed');
+            if (direction == 'left') {
+              final userProvider =
+                  Provider.of<UserProvider>(context, listen: false);
+              await userProvider.dislikeVehicle(vehicle.id);
 
-            print(
-                'Disliked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
+              print(
+                  'Disliked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
 
-            controller.swipeLeft();
-            print('Swiping left');
-          } else if (direction == 'right') {
-            final userProvider =
-                Provider.of<UserProvider>(context, listen: false);
-            await userProvider.likeVehicle(vehicle.id);
+              controller.swipeLeft();
+              print('Swiping left');
+            } else if (direction == 'right') {
+              final userProvider =
+                  Provider.of<UserProvider>(context, listen: false);
+              await userProvider.likeVehicle(vehicle.id);
 
-            print(
-                'Liked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
+              print(
+                  'Liked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
 
-            controller.swipeRight();
-            print('Swiping right');
+              controller.swipeRight();
+              print('Swiping right');
+            }
+          } catch (e) {
+            print('Error swiping vehicle: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to swipe vehicle. Please try again.'),
+              ),
+            );
           }
         },
         child: Container(
@@ -471,7 +579,7 @@ class _TruckPageState extends State<TruckPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: 24),
+              Icon(icon, color: Colors.white, size: size.height * 0.025),
             ],
           ),
         ),
@@ -480,34 +588,44 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   Widget _buildCenterButton(AppinioSwiperController controller) {
+    final size = MediaQuery.of(context).size;
     return Expanded(
       child: GestureDetector(
         onTap: () async {
-          print("Undo button pressed");
-          print(
-              'Swiped vehicles before undo: ${swipedVehicles.map((v) => v.id).toList()}');
-          print(
-              'Displayed vehicles before undo: ${displayedVehicles.map((v) => v.id).toList()}');
+          try {
+            print("Undo button pressed");
+            print(
+                'Swiped vehicles before undo: ${swipedVehicles.map((v) => v.id).toList()}');
+            print(
+                'Displayed vehicles before undo: ${displayedVehicles.map((v) => v.id).toList()}');
 
-          if (swipedVehicles.isNotEmpty) {
-            final lastVehicle = swipedVehicles.removeLast();
-            final lastDirection = swipedDirections.removeLast();
-            final userProvider =
-                Provider.of<UserProvider>(context, listen: false);
+            if (swipedVehicles.isNotEmpty) {
+              final lastVehicle = swipedVehicles.removeLast();
+              final lastDirection = swipedDirections.removeLast();
+              final userProvider =
+                  Provider.of<UserProvider>(context, listen: false);
 
-            // Remove the vehicle from liked or disliked list in the database
-            if (lastDirection == 'right') {
-              await userProvider.removeLikedVehicle(lastVehicle.id);
-            } else if (lastDirection == 'left') {
-              await userProvider.removeDislikedVehicle(lastVehicle.id);
+              // Remove the vehicle from liked or disliked list in the database
+              if (lastDirection == 'right') {
+                await userProvider.removeLikedVehicle(lastVehicle.id);
+              } else if (lastDirection == 'left') {
+                await userProvider.removeDislikedVehicle(lastVehicle.id);
+              }
+
+              controller.unswipe();
+
+              print(
+                  'Swiped vehicles after undo: ${swipedVehicles.map((v) => v.id).toList()}');
+              print(
+                  'Displayed vehicles after undo: ${displayedVehicles.map((v) => v.id).toList()}');
             }
-
-            controller.unswipe();
-
-            print(
-                'Swiped vehicles after undo: ${swipedVehicles.map((v) => v.id).toList()}');
-            print(
-                'Displayed vehicles after undo: ${displayedVehicles.map((v) => v.id).toList()}');
+          } catch (e) {
+            print('Error undoing swipe: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to undo swipe. Please try again.'),
+              ),
+            );
           }
         },
         child: Container(
@@ -518,10 +636,10 @@ class _TruckPageState extends State<TruckPage> {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.black, width: 2),
           ),
-          child: const Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.undo, color: Colors.white, size: 24),
+              Icon(Icons.undo, color: Colors.white, size: size.height * 0.025),
             ],
           ),
         ),

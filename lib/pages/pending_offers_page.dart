@@ -132,16 +132,6 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
                             'Displaying offer: ${offer.offerId} with status ${offer.offerStatus}');
                         return OfferCard(
                           offer: offer,
-                          size: size,
-                          customFont: (double fontSize, FontWeight fontWeight,
-                              Color color) {
-                            return TextStyle(
-                              fontSize: fontSize,
-                              fontWeight: fontWeight,
-                              color: color,
-                              fontFamily: 'Montserrat',
-                            );
-                          },
                         );
                       },
                     ),

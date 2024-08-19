@@ -52,7 +52,7 @@ class _FinalInspectionApprovalPageState
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
-          .update({'offerStatus': 'Inspection Approval'});
+          .update({'offerStatus': 'Inspection Done'});
     } catch (e) {
       print('Failed to update offer status: $e');
     } finally {
@@ -99,6 +99,12 @@ class _FinalInspectionApprovalPageState
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final padding = screenSize.width * 0.05;
+    final buttonWidth = screenSize.width * 0.85;
+    final logoHeight = screenSize.height * 0.15;
+    final spacing = screenSize.height * 0.02;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -107,94 +113,104 @@ class _FinalInspectionApprovalPageState
               child: Stack(
                 children: [
                   SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Align(
-                          alignment: Alignment.topLeft,
-                          child: IconButton(
-                            icon: const Icon(Icons.arrow_back,
-                                color: Colors.white),
-                            onPressed: () => Navigator.of(context).pop(),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: padding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(height: spacing),
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_back,
+                                  color: Colors.white),
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 60),
-                        Image.asset('lib/assets/CTPLogo.png'),
-                        const SizedBox(height: 40),
-                        const Text(
-                          'FINAL INSPECTION APPROVAL',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                          SizedBox(height: spacing),
+                          Image.asset(
+                            'lib/assets/CTPLogo.png',
+                            height: logoHeight,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "You're almost there!",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
+                          SizedBox(height: spacing),
+                          const Text(
+                            'FINAL INSPECTION APPROVAL',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'By approving the transaction, you confirm that all conditions have been met to your satisfaction. If there are any issues, please select "Report an Issue" to provide details. Our team is here to assist you in resolving any concerns.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
+                          SizedBox(height: spacing),
+                          const Text(
+                            "You're almost there!",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 80),
-                      ],
+                          SizedBox(height: spacing),
+                          const Text(
+                            'By approving the transaction, you confirm that all conditions have been met to your satisfaction. If there are any issues, please select "Report an Issue" to provide details. Our team is here to assist you in resolving any concerns.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: spacing * 3),
+                        ],
+                      ),
                     ),
                   ),
                   Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CustomButton(
-                          text: 'APPROVE',
-                          borderColor: Colors.blue,
-                          onPressed: () {
-                            _navigateToRateTransporterPage(context);
-                          },
-                        ),
-                        CustomButton(
-                          text: 'ADJUST OFFER',
-                          borderColor: Colors.blue,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AdjustOfferPage(
-                                  oldOffer: widget.oldOffer,
-                                  vehicleName: widget.vehicleName,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: spacing),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CustomButton(
+                            text: 'APPROVE',
+                            borderColor: Colors.blue,
+                            onPressed: () {
+                              _navigateToRateTransporterPage(context);
+                            },
+                          ),
+                          CustomButton(
+                            text: 'ADJUST OFFER',
+                            borderColor: Colors.blue,
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AdjustOfferPage(
+                                    oldOffer: widget.oldOffer,
+                                    vehicleName: widget.vehicleName,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                        CustomButton(
-                          text: 'REPORT AN ISSUE',
-                          borderColor: const Color(0xFFFF4E00),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ReportIssuePage(),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                      ],
+                              );
+                            },
+                          ),
+                          CustomButton(
+                            text: 'REPORT AN ISSUE',
+                            borderColor: const Color(0xFFFF4E00),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ReportIssuePage(),
+                                ),
+                              );
+                            },
+                          ),
+                          SizedBox(height: spacing),
+                        ],
+                      ),
                     ),
                   ),
                 ],

@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:provider/provider.dart';
 
 class CollectVehiclePage extends StatefulWidget {
   final String offerId;
@@ -29,26 +32,33 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
 
   Future<void> _fetchTruckData() async {
     try {
-      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offerId)
-          .get();
+      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
 
-      if (offerSnapshot.exists) {
-        String vehicleId = offerSnapshot.get('vehicleId');
-        DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
-            .collection('vehicles')
-            .doc(vehicleId)
-            .get();
-
-        if (vehicleSnapshot.exists) {
-          setState(() {
-            _truckMainImageUrl = vehicleSnapshot.get('mainImageUrl');
-            _truckName = vehicleSnapshot.get('name');
-            _registrationNumber = vehicleSnapshot.get('registrationNumber');
-          });
-        }
+      Offer? offer;
+      try {
+        offer =
+            offerProvider.offers.firstWhere((o) => o.offerId == widget.offerId);
+      } catch (e) {
+        print('Offer not found for offerId: ${widget.offerId}');
+        return; // Early return if the offer is not found
       }
+
+      Vehicle? vehicle;
+      try {
+        vehicle = vehicleProvider.vehicles
+            .firstWhere((v) => v.id == offer!.vehicleId);
+      } catch (e) {
+        print('Vehicle not found for vehicleId: ${offer.vehicleId}');
+        return; // Early return if the vehicle is not found
+      }
+
+      setState(() {
+        _truckMainImageUrl = vehicle!.mainImageUrl;
+        _truckName = vehicle.makeModel;
+        _registrationNumber = vehicle.registrationNumber;
+      });
     } catch (e) {
       print('Error fetching truck data: $e');
     }

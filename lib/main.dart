@@ -30,6 +30,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -38,6 +39,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Enable Crashlytics for Flutter framework errors
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
 
   runApp(
     MultiProvider(
@@ -81,7 +85,9 @@ class MyApp extends StatelessWidget {
         '/tradingInterests': (context) => const TradingInterestsPage(),
         '/tutorial': (context) => const TutorialPage(),
         '/tutorialStarted': (context) => const TutorialStartedPage(),
-        '/firstTruckForm': (context) => const FirstTruckForm(vehicleType: 'truck',),
+        '/firstTruckForm': (context) => const FirstTruckForm(
+              vehicleType: 'truck',
+            ),
         '/secondTruckForm': (context) => const SecondFormPage(),
         '/thirdTruckForm': (context) => const ThirdFormPage(),
         '/fourthTruckForm': (context) => const FourthFormPage(),

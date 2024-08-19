@@ -10,10 +10,10 @@ class AdjustOfferPage extends StatefulWidget {
   final String vehicleName;
 
   const AdjustOfferPage({
-    Key? key,
+    super.key,
     required this.oldOffer,
     required this.vehicleName,
-  }) : super(key: key);
+  });
 
   @override
   _AdjustOfferPageState createState() => _AdjustOfferPageState();
@@ -48,7 +48,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
         number.split('.'); // Split the number by the decimal point
     String integerPart = parts[0]; // Get the integer part of the number
     String decimalPart = parts.length > 1
-        ? '.' + parts[1]
+        ? '.${parts[1]}'
         : ''; // Get the decimal part if it exists
 
     String formatted = '';
@@ -125,7 +125,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                   _buildOfferLabel('OLD OFFER'),
                   _buildOfferRow(
                       'R ${formatWithSpacing(widget.oldOffer.replaceAll('R', '').replaceAll(',', ''))}',
-                      Color(0xFF2F7FFF)),
+                      const Color(0xFF2F7FFF)),
                   const SizedBox(height: 16),
                   _buildOfferLabel('NEW OFFER'),
                   _buildNewOfferInput(),
@@ -133,11 +133,11 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                   _buildOfferLabel('DISCOUNT'),
                   _buildOfferRow(
                       'R ${formatWithSpacing(discount.toStringAsFixed(2))}',
-                      Color(0xFFFF4E00)),
+                      const Color(0xFFFF4E00)),
                   const SizedBox(height: 16),
                   CustomButton(
                     text: 'Submit',
-                    borderColor: Color(0xFFFF4E00),
+                    borderColor: const Color(0xFFFF4E00),
                     onPressed: () async {
                       // Check if the new offer is a valid number
                       double newOfferValue = double.tryParse(
@@ -146,7 +146,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                       if (newOfferValue <= 0) {
                         // Show some error message or feedback to the user
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content:
                                 Text('Please enter a valid new offer amount.'),
                           ),
@@ -180,7 +180,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
 
                         // Show success message
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text('Offer updated successfully.'),
                           ),
                         );
@@ -190,7 +190,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                       } catch (e) {
                         // Handle errors, e.g., show an error message
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text(
                                 'Failed to update the offer. Please try again.'),
                           ),

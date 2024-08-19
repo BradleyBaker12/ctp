@@ -106,145 +106,136 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                         'Unknown Location';
 
                 return SingleChildScrollView(
-                  child: Container(
-                    height: MediaQuery.of(context).size.height,
+                  child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Align(
-                              alignment: Alignment.topLeft,
-                              child: IconButton(
-                                icon: const Icon(Icons.arrow_back,
-                                    color: Colors.white),
-                                onPressed: () => Navigator.of(context).pop(),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Image.asset('lib/assets/CTPLogo.png'),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'PAYMENT APPROVED',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundImage: mainImageUrl.isNotEmpty
-                                  ? NetworkImage(mainImageUrl)
-                                  : const AssetImage(
-                                          'lib/assets/truck_image.png')
-                                      as ImageProvider,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              truckName,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'READY FOR COLLECTION',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16.0),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: Text(
-                                readyDate,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16.0),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: Text(
-                                'TIME : $readyTime',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16.0),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: Text(
-                                location,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
                         ),
-                        Column(
-                          children: [
-                            CustomButton(
-                              text: 'VEHICLE COLLECTED',
-                              borderColor: Colors.blue,
-                              onPressed: () async {
-                                await _updateOfferStatusToDone();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CollectVehiclePage(
-                                        offerId: widget.offerId),
-                                  ),
-                                );
-                              },
+                        const SizedBox(height: 16),
+                        Image.asset('lib/assets/CTPLogo.png'),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'PAYMENT APPROVED',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundImage: mainImageUrl.isNotEmpty
+                              ? NetworkImage(mainImageUrl)
+                              : const AssetImage('lib/assets/truck_image.png')
+                                  as ImageProvider,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          truckName,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'READY FOR COLLECTION',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Text(
+                            readyDate,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
                             ),
-                            CustomButton(
-                              text: 'REPORT AN ISSUE',
-                              borderColor: const Color(0xFFFF4E00),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ReportIssuePage(),
-                                  ),
-                                );
-                              },
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Text(
+                            'TIME : $readyTime',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
                             ),
-                          ],
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Text(
+                            location,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 16), // Add some spacing
+                        CustomButton(
+                          text: 'VEHICLE COLLECTED',
+                          borderColor: Colors.blue,
+                          onPressed: () async {
+                            await _updateOfferStatusToDone();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    CollectVehiclePage(offerId: widget.offerId),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8), // Add some spacing
+                        CustomButton(
+                          text: 'REPORT AN ISSUE',
+                          borderColor: const Color(0xFFFF4E00),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ReportIssuePage(),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

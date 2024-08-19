@@ -99,7 +99,7 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ThankYouPage(),
+                        builder: (context) => const ThankYouPage(),
                       ),
                     );
                   },

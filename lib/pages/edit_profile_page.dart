@@ -7,6 +7,7 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_back_button.dart';
+import 'package:path/path.dart' as path;
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -115,6 +116,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
       setState(() {
         _profileImageFile = File(result.files.single.path!);
       });
+    }
+  }
+
+  IconData _getIconForFileType(String fileName) {
+    final extension = path.extension(fileName).toLowerCase();
+    switch (extension) {
+      case '.pdf':
+        return Icons.picture_as_pdf;
+      case '.doc':
+      case '.docx':
+        return Icons.description;
+      case '.xls':
+      case '.xlsx':
+        return Icons.table_chart;
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+        return Icons.image;
+      default:
+        return Icons.insert_drive_file;
     }
   }
 
@@ -289,25 +310,70 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildUploadButton(String field, String? fileUrl) {
-    return GestureDetector(
-      onTap: () => _pickFile(field),
-      child: Container(
-        height: 100,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(10.0),
-          border: Border.all(color: Colors.white70, width: 1),
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () => _pickFile(field),
+          child: Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: Colors.white70, width: 1),
+            ),
+            child: Center(
+              child: fileUrl == null
+                  ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_getIconForFileType(fileUrl),
+                            color: Colors.white, size: 40),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            path.basename(fileUrl),
+                            style: const TextStyle(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
         ),
-        child: Center(
-          child: fileUrl == null
-              ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
-              : Text(
-                  fileUrl,
-                  style: const TextStyle(color: Colors.white),
-                ),
-        ),
-      ),
+        if (fileUrl != null)
+          Positioned(
+            top: 5,
+            right: 5,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  switch (field) {
+                    case 'bankConfirmation':
+                      _bankConfirmationUrl = null;
+                      break;
+                    case 'cipcCertificate':
+                      _cipcCertificateUrl = null;
+                      break;
+                    case 'proxy':
+                      _proxyUrl = null;
+                      break;
+                    case 'brnc':
+                      _brncUrl = null;
+                      break;
+                  }
+                });
+              },
+              child: const Icon(
+                Icons.close,
+                color: Colors.red,
+                size: 24,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

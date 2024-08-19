@@ -19,7 +19,7 @@ class GradientBackground extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0E4CAF), Colors.black],
+          colors: const [Color(0xFF0E4CAF), Colors.black],
           begin: begin,
           end: end,
           stops: stops,

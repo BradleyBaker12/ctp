@@ -4,6 +4,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
@@ -35,6 +36,7 @@ class _HomePageState extends State<HomePage> {
 
     _initialization = _initializeData();
     _checkPaymentStatusForOffers();
+    // FirebaseCrashlytics.instance.crash();
   }
 
   Future<void> _initializeData() async {
@@ -42,20 +44,29 @@ class _HomePageState extends State<HomePage> {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
 
-    // Fetch user data
-    await userProvider.fetchUserData();
+    try {
+      // Fetch user data
+      await userProvider.fetchUserData();
 
-    // Fetch vehicles
-    await vehicleProvider.fetchVehicles();
+      // Fetch vehicles
+      await vehicleProvider.fetchVehicles();
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final userRole = userProvider.getUserRole;
-      await _offerProvider.fetchOffers(user.uid, userRole);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userRole = userProvider.getUserRole;
+        await _offerProvider.fetchOffers(user.uid, userRole);
 
-      // Get liked and disliked vehicles from the user provider
-      likedVehicles = userProvider.getLikedVehicles;
-      dislikedVehicles = userProvider.getDislikedVehicles;
+        // Get liked and disliked vehicles from the user provider
+        likedVehicles = userProvider.getLikedVehicles;
+        dislikedVehicles = userProvider.getDislikedVehicles;
+      }
+    } catch (e, stackTrace) {
+      print('Error initializing data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to initialize data. Please try again.')),
+      );
+      // Report error to Crashlytics
+      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
     }
   }
 
@@ -86,8 +97,16 @@ class _HomePageState extends State<HomePage> {
             );
           }
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         print('Error checking payment status for offer ${offer.offerId}: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Error checking payment status for one or more offers. Please try again later.'),
+          ),
+        );
+        // Report error to Crashlytics
+        await FirebaseCrashlytics.instance.recordError(e, stackTrace);
       }
     }
   }
@@ -141,10 +160,10 @@ class _HomePageState extends State<HomePage> {
                   radius: 20,
                   backgroundImage: profileImageUrl.isNotEmpty
                       ? NetworkImage(profileImageUrl)
-                      : const AssetImage('lib/assets/default_profile_photo.jpg')
+                      : const AssetImage('lib/assets/default-profile-photo.jpg')
                           as ImageProvider,
                   onBackgroundImageError: (_, __) =>
-                      Image.asset('lib/assets/default_profile_photo.jpg'),
+                      Image.asset('lib/assets/default-profile-photo.jpg'),
                 );
               },
             ),
@@ -155,7 +174,7 @@ class _HomePageState extends State<HomePage> {
         future: _initializeData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
             return Center(
                 child: Text('Error loading data',
@@ -399,7 +418,7 @@ class _HomePageState extends State<HomePage> {
                       style: _customFont(16, FontWeight.normal, Colors.white),
                     ),
                     const SizedBox(height: 20),
-                    Container(
+                    SizedBox(
                       height: size.height * 0.6, // Adjust the height as needed
                       child: AppinioSwiper(
                         controller: controller,
@@ -431,7 +450,7 @@ class _HomePageState extends State<HomePage> {
                       style: _customFont(18, FontWeight.bold, Colors.white),
                     ),
                     const SizedBox(height: 10),
-                    Container(
+                    SizedBox(
                       height: size.height * 0.3,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
@@ -449,7 +468,7 @@ class _HomePageState extends State<HomePage> {
                       "You have swiped through all the available trucks.",
                       style: _customFont(18, FontWeight.bold, Colors.white),
                     ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 10), // Reduce the gap here
                   GestureDetector(
                     onTap: () {
                       Navigator.pushNamed(context, '/pendingOffers');
@@ -479,10 +498,10 @@ class _HomePageState extends State<HomePage> {
                               _customFont(16, FontWeight.normal, Colors.white),
                           textAlign: TextAlign.center,
                         ),
+                        const SizedBox(height: 10), // Reduce the gap here
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
                   // Offer cards section for both roles
                   FutureBuilder<void>(
                     future: _initialization,
@@ -507,8 +526,6 @@ class _HomePageState extends State<HomePage> {
                                 (offer) => offer.vehicleId == vehicle.id);
                             return OfferCard(
                               offer: offer,
-                              size: size,
-                              customFont: _customFont,
                             );
                           },
                         );
@@ -615,7 +632,8 @@ class _HomePageState extends State<HomePage> {
         children: [
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(10)),
               child: vehicle.mainImageUrl != null
                   ? Image.network(
                       vehicle.mainImageUrl!,
@@ -679,13 +697,23 @@ class _HomePageState extends State<HomePage> {
       AppinioSwiperController controller, String direction, Vehicle vehicle) {
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          if (direction == 'left') {
-            _dislikeVehicle(vehicle.id);
-            controller.swipeLeft();
-          } else if (direction == 'right') {
-            _likeVehicle(vehicle.id);
-            controller.swipeRight();
+        onTap: () async {
+          try {
+            if (direction == 'left') {
+              await _dislikeVehicle(vehicle.id);
+              controller.swipeLeft();
+            } else if (direction == 'right') {
+              await _likeVehicle(vehicle.id);
+              controller.swipeRight();
+            }
+          } catch (e) {
+            print('Error handling swipe action for vehicle ${vehicle.id}: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Failed to process the action. Please try again later.'),
+              ),
+            );
           }
         },
         child: Container(
@@ -707,19 +735,37 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _likeVehicle(String vehicleId) async {
+  Future<void> _likeVehicle(String vehicleId) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    await userProvider.likeVehicle(vehicleId);
-    setState(() {
-      likedVehicles.add(vehicleId);
-    });
+    try {
+      await userProvider.likeVehicle(vehicleId);
+      setState(() {
+        likedVehicles.add(vehicleId);
+      });
+    } catch (e, stackTrace) {
+      print('Error liking vehicle $vehicleId: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to like vehicle. Please try again.')),
+      );
+      // Report error to Crashlytics
+      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+    }
   }
 
-  void _dislikeVehicle(String vehicleId) async {
+  Future<void> _dislikeVehicle(String vehicleId) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    await userProvider.dislikeVehicle(vehicleId);
-    setState(() {
-      dislikedVehicles.add(vehicleId);
-    });
+    try {
+      await userProvider.dislikeVehicle(vehicleId);
+      setState(() {
+        dislikedVehicles.add(vehicleId);
+      });
+    } catch (e, stackTrace) {
+      print('Error disliking vehicle $vehicleId: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to dislike vehicle. Please try again.')),
+      );
+      // Report error to Crashlytics
+      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+    }
   }
 }

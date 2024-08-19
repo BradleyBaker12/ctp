@@ -7,7 +7,6 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'final_inspection_approval_page.dart';
-
 import 'package:ctp/components/custom_bottom_navigation.dart';
 
 class ConfirmationPage extends StatefulWidget {
@@ -40,23 +39,27 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
   int _selectedIndex =
       1; // Variable to keep track of the selected bottom nav item
 
+  void _updateOfferStatus() {
+    FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .update({'offerStatus': 'Inspection Pending'});
+  }
+
   @override
   void initState() {
     super.initState();
     _updateOfferStatus();
   }
 
-  void _updateOfferStatus() {
-    FirebaseFirestore.instance
-        .collection('offers')
-        .doc(widget.offerId)
-        .update({'offerStatus': 'Waiting on final inspection'});
-  }
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  void _navigateToHomePage(BuildContext context) {
+    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
   }
 
   @override
@@ -195,6 +198,13 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                               ),
                             ),
                           );
+                        },
+                      ),
+                      CustomButton(
+                        text: 'BACK TO HOME',
+                        borderColor: const Color(0xFFFF4E00),
+                        onPressed: () {
+                          _navigateToHomePage(context);
                         },
                       ),
                     ],

@@ -28,15 +28,11 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
 
   bool _isLoading = false;
 
-  final List<String> _locations = ['LOCATION 1', 'LOCATION 2', 'LOCATION 3'];
+  final List<String> _locations = ['Vereeniging', 'Meyerton', 'Springs'];
 
-  final List<String> _addresses = [
-    '56 Iffley Road, Henley On Klip, Meyerton, 1962',
-    '119 Blackwood Street, Three Rivers, Vereeniging, 1929',
-    'Sandton'
-  ];
+  final List<String> _addresses = ['Vereenging', 'Meyerton', 'Springs'];
 
-  List<LatLng> _latLngs = []; // Initialize as empty list
+  final List<LatLng> _latLngs = []; // Initialize as empty list
 
   final Map<int, List<DateTime>> _locationDates = {
     0: [
@@ -112,7 +108,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
-          .update({'offerStatus': 'Confirm Collection Details'});
+          .update({'offerStatus': 'Confirm Collection'});
 
       print('Offer status updated to Confirm Collection Details');
     } catch (e) {
@@ -132,7 +128,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           final location = locations.first;
           _latLngs.add(LatLng(location.latitude, location.longitude));
         } else {
-          _latLngs.add(LatLng(0, 0)); // Use a placeholder if conversion fails
+          _latLngs
+              .add(const LatLng(0, 0)); // Use a placeholder if conversion fails
         }
       }
     } catch (e) {
@@ -317,11 +314,11 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           calendarStyle: CalendarStyle(
                             cellMargin: const EdgeInsets.all(
                                 4.0), // Adding space between cells
-                            selectedDecoration: BoxDecoration(
+                            selectedDecoration: const BoxDecoration(
                               color: Colors.blue,
                               shape: BoxShape.rectangle,
                             ),
-                            todayDecoration: BoxDecoration(
+                            todayDecoration: const BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.rectangle,
                             ),
@@ -349,7 +346,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                               fontSize: 16,
                             ),
                             outsideDaysVisible: false,
-                            disabledDecoration: BoxDecoration(
+                            disabledDecoration: const BoxDecoration(
                               color: Colors.transparent,
                               shape: BoxShape.rectangle,
                             ),
@@ -365,7 +362,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           calendarBuilders: CalendarBuilders(
                             disabledBuilder: (context, day, focusedDay) {
                               return Container(
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   color: Colors.transparent,
                                   shape: BoxShape.rectangle,
                                 ),

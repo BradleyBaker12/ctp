@@ -15,6 +15,7 @@ import 'package:path/path.dart' as path;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:flutter/services.dart'; // Import the services package for input formatters
 
 class DealerRegPage extends StatefulWidget {
   const DealerRegPage({super.key});
@@ -278,7 +279,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
                                     controller: _registrationNumberController,
                                     focusNode: _registrationNumberFocusNode,
                                     hintText: 'Registration Number',
-                                    validator: _validateRegistrationNumber),
+                                    validator: _validateRegistrationNumber,
+                                    inputFormatters: [
+                                      RegistrationNumberInputFormatter()
+                                    ]), // Apply the formatter here
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _vatNumberController,
@@ -408,7 +412,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
   }
 
   Widget _buildDropdownField() {
-    return Container(
+    return SizedBox(
         width: double.infinity,
         child: DropdownButtonFormField<String>(
           value: _selectedCountry,
@@ -456,8 +460,9 @@ class _DealerRegPageState extends State<DealerRegPage> {
     required String hintText,
     required FocusNode focusNode,
     bool isOptional = false,
-    String? Function(String?)?
-        validator, // Add this parameter for custom validation
+    String? Function(String?)? validator,
+    List<TextInputFormatter>?
+        inputFormatters, // Add this parameter for custom input formatters
   }) {
     return TextFormField(
       controller: controller,
@@ -497,6 +502,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
         }
         return null;
       },
+      inputFormatters: inputFormatters, // Apply input formatters
     );
   }
 
@@ -625,16 +631,48 @@ class _DealerRegPageState extends State<DealerRegPage> {
   }
 }
 
+class RegistrationNumberInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text.replaceAll('/', '');
+
+    if (text.length <= 4) {
+      return newValue.copyWith(
+        text: text,
+        selection: TextSelection.collapsed(offset: newValue.selection.end),
+      );
+    } else if (text.length <= 10) {
+      return newValue.copyWith(
+        text: '${text.substring(0, 4)}/${text.substring(4)}',
+        selection: TextSelection.collapsed(offset: newValue.selection.end + 1),
+      );
+    } else if (text.length <= 12) {
+      return newValue.copyWith(
+        text:
+            '${text.substring(0, 4)}/${text.substring(4, 10)}/${text.substring(10)}',
+        selection: TextSelection.collapsed(offset: newValue.selection.end + 2),
+      );
+    } else {
+      return newValue.copyWith(
+        text:
+            '${text.substring(0, 4)}/${text.substring(4, 10)}/${text.substring(10, 12)}',
+        selection: TextSelection.collapsed(offset: newValue.selection.end),
+      );
+    }
+  }
+}
+
 class PDFViewerScreen extends StatelessWidget {
   final String filePath;
 
-  PDFViewerScreen({required this.filePath});
+  const PDFViewerScreen({super.key, required this.filePath});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('View PDF'),
+        title: const Text('View PDF'),
       ),
       body: PDFView(
         filePath: filePath,

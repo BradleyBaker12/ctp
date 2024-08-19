@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:ctp/components/progress_bar.dart';
 import 'package:provider/provider.dart';
@@ -107,23 +106,22 @@ class _FirstNamePageState extends State<FirstNamePage> {
                 Expanded(
                   child: SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 8.0),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenSize.width * 0.04,
+                        vertical: screenSize.height * 0.02,
+                      ),
                       child: Column(
                         children: [
-                          const SizedBox(height: 20),
-                          // Set default size for the image
+                          SizedBox(height: screenSize.height * 0.03),
                           Image.asset(
                             'lib/assets/CTPLogo.png',
                             height: screenSize.height * 0.2,
-                            width: screenSize.height *
-                                0.2, // Ensure width is not zero
+                            width: screenSize.height * 0.2,
                             fit: BoxFit.cover,
                           ),
-                          const SizedBox(height: 50),
+                          SizedBox(height: screenSize.height * 0.07),
                           const ProgressBar(progress: 0.30),
-                          const SizedBox(height: 50),
-                          // Ensure proper constraints for text
+                          SizedBox(height: screenSize.height * 0.07),
                           Text(
                             'MY FIRST NAME IS',
                             style: GoogleFonts.montserrat(
@@ -133,7 +131,7 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: screenSize.height * 0.03),
                           TextField(
                             controller: _firstNameController,
                             textAlign: TextAlign.center,
@@ -161,7 +159,7 @@ class _FirstNamePageState extends State<FirstNamePage> {
                               fontSize: screenSize.width * 0.045,
                             ),
                           ),
-                          const SizedBox(height: 50),
+                          SizedBox(height: screenSize.height * 0.07),
                           Text(
                             'This is the name that will appear to other users in the app',
                             style: GoogleFonts.montserrat(
@@ -170,7 +168,7 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 30),
+                          SizedBox(height: screenSize.height * 0.04),
                           TextButton(
                             onPressed: () {
                               // Handle name changes approval info
@@ -185,13 +183,13 @@ class _FirstNamePageState extends State<FirstNamePage> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 100),
+                          SizedBox(height: screenSize.height * 0.13),
                           CustomButton(
                             text: 'CONTINUE',
                             borderColor: blue,
                             onPressed: _continue,
                           ),
-                          const SizedBox(height: 30),
+                          SizedBox(height: screenSize.height * 0.04),
                         ],
                       ),
                     ),

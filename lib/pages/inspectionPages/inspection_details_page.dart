@@ -40,13 +40,9 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
         .update({'offerStatus': 'set location and time'});
   }
 
-  final List<String> _locations = ['LOCATION 1', 'LOCATION 2', 'LOCATION 3'];
+  final List<String> _locations = ['Cape Town', 'Pretoria', 'Sandton'];
 
-  final List<String> _addresses = [
-    '56 Iffley Road, Henley On Klip, Meyerton, 1962',
-    '119 Blackwood Street, Three Rivers, Vereeniging, 1929',
-    'Sandton'
-  ];
+  final List<String> _addresses = ['Cape Town', 'Pretoria', 'Sandton'];
 
   final Map<int, List<DateTime>> _locationDates = {
     0: [
@@ -108,6 +104,34 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
       }
     }
     return false;
+  }
+
+  Future<void> _saveInspectionDetails() async {
+    setState(() {
+      // Optional: You can add a loading state if you want
+    });
+
+    try {
+      final DocumentReference offerRef =
+          FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
+
+      await offerRef.set({
+        'dealerSelectedInspectionDate': _selectedDay,
+        'dealerSelectedInspectionTime': _availableTimes[_selectedTimeSlot],
+        'dealerSelectedInspectionLocation': _locations[_selectedLocation],
+      }, SetOptions(merge: true));
+
+      // Optionally, show a confirmation or navigate to the next page
+    } catch (e) {
+      print('Error saving inspection details: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save inspection details: $e')),
+      );
+    } finally {
+      setState(() {
+        // Optional: Reset the loading state
+      });
+    }
   }
 
   @override
@@ -253,11 +277,11 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                               calendarStyle: CalendarStyle(
                                 cellMargin: const EdgeInsets.all(
                                     4.0), // Adding space between cells
-                                selectedDecoration: BoxDecoration(
+                                selectedDecoration: const BoxDecoration(
                                   color: Colors.blue,
                                   shape: BoxShape.rectangle,
                                 ),
-                                todayDecoration: BoxDecoration(
+                                todayDecoration: const BoxDecoration(
                                   color: Colors.white,
                                   shape: BoxShape.rectangle,
                                 ),
@@ -285,7 +309,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                   fontSize: 16,
                                 ),
                                 outsideDaysVisible: false,
-                                disabledDecoration: BoxDecoration(
+                                disabledDecoration: const BoxDecoration(
                                   color: Colors.transparent,
                                   shape: BoxShape.rectangle,
                                 ),
@@ -302,7 +326,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                               calendarBuilders: CalendarBuilders(
                                 disabledBuilder: (context, day, focusedDay) {
                                   return Container(
-                                    decoration: BoxDecoration(
+                                    decoration: const BoxDecoration(
                                       color: Colors.transparent,
                                       shape: BoxShape.rectangle,
                                     ),
@@ -388,7 +412,8 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           CustomButton(
                             text: 'CONFIRM MEETING',
                             borderColor: Colors.blue,
-                            onPressed: () {
+                            onPressed: () async {
+                              await _saveInspectionDetails();
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(

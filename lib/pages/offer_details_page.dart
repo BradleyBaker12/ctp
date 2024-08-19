@@ -14,7 +14,7 @@ class OfferDetailsPage extends StatefulWidget {
   final Future<void> Function() onReject; // Function to handle rejection
 
   const OfferDetailsPage({
-    Key? key,
+    super.key,
     required this.offerId,
     required this.vehicleName,
     required this.offerAmount,
@@ -26,7 +26,7 @@ class OfferDetailsPage extends StatefulWidget {
     this.year,
     this.mileage,
     this.transmission,
-  }) : super(key: key);
+  });
 
   @override
   _OfferDetailsPageState createState() => _OfferDetailsPageState();

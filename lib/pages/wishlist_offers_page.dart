@@ -76,6 +76,8 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
     final size = MediaQuery.of(context).size;
     final vehicleProvider =
         Provider.of<VehicleProvider>(context); // Access VehicleProvider
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userRole = userProvider.getUserRole;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -153,8 +155,6 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             Offer offer = latestOffers[index];
                             return OfferCard(
                               offer: offer,
-                              size: size,
-                              customFont: _customFont,
                             );
                           },
                         );
@@ -162,99 +162,105 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Wishlist', 'lib/assets/HeartVector.png'),
-                  const SizedBox(height: 8),
-                  _buildViewAllLink(() {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const WishlistPage()),
-                    );
-                  }),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _wishlistVehicles.length,
-                    itemBuilder: (context, index) {
-                      DocumentSnapshot vehicleDoc = _wishlistVehicles[index];
-                      Map<String, dynamic>? data =
-                          vehicleDoc.data() as Map<String, dynamic>?;
-                      Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
-                          (v) => v.id == vehicleDoc.id,
-                          orElse: () => Vehicle(
-                              id: 'default',
-                              accidentFree: 'N/A',
-                              application: 'N/A',
-                              bookValue: 'N/A',
-                              damageDescription: '',
-                              damagePhotos: [],
-                              engineNumber: 'N/A',
-                              expectedSellingPrice: 'N/A',
-                              firstOwner: 'N/A',
-                              hydraulics: 'N/A',
-                              listDamages: 'N/A',
-                              maintenance: 'N/A',
-                              makeModel: 'Unknown',
-                              mileage: 'N/A',
-                              oemInspection: 'N/A',
-                              photos: [],
-                              registrationNumber: 'N/A',
-                              roadWorthy: 'N/A',
-                              settleBeforeSelling: 'N/A',
-                              settlementAmount: 'N/A',
-                              spareTyre: 'N/A',
-                              suspension: 'N/A',
-                              transmission: 'N/A',
-                              tyreType: 'N/A',
-                              userId: 'N/A',
-                              vehicleType: 'N/A',
-                              vinNumber: 'N/A',
-                              warranty: 'N/A',
-                              warrantyType: 'N/A',
-                              weightClass: 'N/A',
-                              year: 'N/A',
-                              createdAt: (vehicleDoc['createdAt'] as Timestamp)
-                                  .toDate())); // Default if not found
 
-                      String imageUrl = data != null &&
-                              data.containsKey('mainImageUrl') &&
-                              data['mainImageUrl'] != null
-                          ? data['mainImageUrl']
-                          : 'lib/assets/default_vehicle_image.png';
-
-                      // Check if an offer exists for this vehicle
-                      bool hasOffer = _offerProvider.offers
-                          .any((offer) => offer.vehicleId == vehicle.id);
-
-                      return WishCard(
-                        vehicleMakeModel:
-                            data != null && data.containsKey('makeModel')
-                                ? data['makeModel']
-                                : 'Unknown',
-                        vehicleImageUrl: imageUrl,
-                        size: size,
-                        customFont: (double fontSize, FontWeight fontWeight,
-                            Color color) {
-                          return TextStyle(
-                            fontSize: fontSize,
-                            fontWeight: fontWeight,
-                            color: color,
-                            fontFamily: 'Montserrat',
-                          );
-                        },
-                        hasOffer: hasOffer, // Pass the hasOffer value
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  VehicleDetailsPage(vehicle: vehicle),
-                            ),
-                          );
-                        },
+                  // Conditionally hide the wishlist section for transporters
+                  if (userRole != 'transporter') ...[
+                    _buildSectionTitle(
+                        'Wishlist', 'lib/assets/HeartVector.png'),
+                    const SizedBox(height: 8),
+                    _buildViewAllLink(() {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const WishlistPage()),
                       );
-                    },
-                  ),
+                    }),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _wishlistVehicles.length,
+                      itemBuilder: (context, index) {
+                        DocumentSnapshot vehicleDoc = _wishlistVehicles[index];
+                        Map<String, dynamic>? data =
+                            vehicleDoc.data() as Map<String, dynamic>?;
+                        Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
+                            (v) => v.id == vehicleDoc.id,
+                            orElse: () => Vehicle(
+                                id: 'default',
+                                accidentFree: 'N/A',
+                                application: 'N/A',
+                                bookValue: 'N/A',
+                                damageDescription: '',
+                                damagePhotos: [],
+                                engineNumber: 'N/A',
+                                expectedSellingPrice: 'N/A',
+                                firstOwner: 'N/A',
+                                hydraulics: 'N/A',
+                                listDamages: 'N/A',
+                                maintenance: 'N/A',
+                                makeModel: 'Unknown',
+                                mileage: 'N/A',
+                                oemInspection: 'N/A',
+                                photos: [],
+                                registrationNumber: 'N/A',
+                                roadWorthy: 'N/A',
+                                settleBeforeSelling: 'N/A',
+                                settlementAmount: 'N/A',
+                                spareTyre: 'N/A',
+                                suspension: 'N/A',
+                                transmission: 'N/A',
+                                tyreType: 'N/A',
+                                userId: 'N/A',
+                                vehicleType: 'N/A',
+                                vinNumber: 'N/A',
+                                warranty: 'N/A',
+                                warrantyType: 'N/A',
+                                weightClass: 'N/A',
+                                year: 'N/A',
+                                createdAt:
+                                    (vehicleDoc['createdAt'] as Timestamp)
+                                        .toDate())); // Default if not found
+
+                        String imageUrl = data != null &&
+                                data.containsKey('mainImageUrl') &&
+                                data['mainImageUrl'] != null
+                            ? data['mainImageUrl']
+                            : 'lib/assets/default_vehicle_image.png';
+
+                        // Check if an offer exists for this vehicle
+                        bool hasOffer = _offerProvider.offers
+                            .any((offer) => offer.vehicleId == vehicle.id);
+
+                        return WishCard(
+                          vehicleMakeModel:
+                              data != null && data.containsKey('makeModel')
+                                  ? data['makeModel']
+                                  : 'Unknown',
+                          vehicleImageUrl: imageUrl,
+                          size: size,
+                          customFont: (double fontSize, FontWeight fontWeight,
+                              Color color) {
+                            return TextStyle(
+                              fontSize: fontSize,
+                              fontWeight: fontWeight,
+                              color: color,
+                              fontFamily: 'Montserrat',
+                            );
+                          },
+                          hasOffer: hasOffer, // Pass the hasOffer value
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    VehicleDetailsPage(vehicle: vehicle),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),

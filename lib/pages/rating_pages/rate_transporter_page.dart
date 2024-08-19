@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -23,10 +23,10 @@ class RateTransporterPage extends StatefulWidget {
 
 class _RateTransporterPageState extends State<RateTransporterPage> {
   int _stars = 5;
-  int _selectedIndex = 0;
   String? _transporterProfileImageUrl;
   String? _transportId;
   bool _isSecondRating = false;
+  bool _useDefaultImage = false;
 
   final Map<String, bool> _traits = {
     'Punctual': true,
@@ -39,46 +39,75 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
   @override
   void initState() {
     super.initState();
+    _startImageLoadingTimer();
     _fetchTransporterProfileImage();
-    _checkIfSecondRating(); // Check if this is the second rating
+    _checkIfSecondRating();
+  }
+
+  void _startImageLoadingTimer() {
+    Timer(const Duration(seconds: 5), () {
+      if (_transporterProfileImageUrl == null) {
+        setState(() {
+          _useDefaultImage = true;
+        });
+      }
+    });
   }
 
   void _fetchTransporterProfileImage() async {
     try {
       OfferProvider offerProvider =
           Provider.of<OfferProvider>(context, listen: false);
-      List<Offer> offers = offerProvider.offers;
+      Offer offer = offerProvider.offers.firstWhere(
+        (offer) => offer.offerId == widget.offerId,
+        orElse: () => Offer(
+          offerId: '', // Default or fallback values
+          dealerId: '',
+          vehicleId: '',
+          transportId: '',
+        ),
+      );
 
-      Offer? offer;
-      try {
-        offer = offers.firstWhere((offer) => offer.offerId == widget.offerId);
-      } catch (e) {
-        offer = null;
-      }
-
-      if (offer != null) {
-        print('Found offer with offerId: ${offer.offerId}');
+      if (offer.offerId.isNotEmpty) {
         _transportId = offer.transportId;
 
-        // Fetch transporter profile image URL using the UserProvider
-        DocumentSnapshot transporterDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_transportId)
-            .get();
+        if (_transportId != null) {
+          DocumentSnapshot transporterDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_transportId)
+              .get();
 
-        if (transporterDoc.exists) {
-          setState(() {
-            _transporterProfileImageUrl = transporterDoc['profileImageUrl'];
-          });
+          if (transporterDoc.exists) {
+            setState(() {
+              _transporterProfileImageUrl = transporterDoc['profileImageUrl'];
+            });
+
+            print(
+                'Transporter profile image URL: $_transporterProfileImageUrl');
+          } else {
+            print('Error: Transporter document does not exist.');
+            setState(() {
+              _useDefaultImage = true;
+            });
+          }
         } else {
-          print('Error: Transporter document does not exist.');
+          print('Error: Transporter ID is null.');
+          setState(() {
+            _useDefaultImage = true;
+          });
         }
       } else {
         print(
             'Error: Offer not found for the provided offerId: ${widget.offerId}');
+        setState(() {
+          _useDefaultImage = true;
+        });
       }
     } catch (e) {
       print('Error fetching transporter profile image: $e');
+      setState(() {
+        _useDefaultImage = true;
+      });
     }
   }
 
@@ -90,11 +119,10 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
             .doc(_transportId)
             .collection('ratings');
 
-        // Check if the dealer has already rated the transporter twice for this offer
         QuerySnapshot ratingSnapshot =
             await ratingsRef.where('offerId', isEqualTo: widget.offerId).get();
 
-        if (ratingSnapshot.docs.length >= 1) {
+        if (ratingSnapshot.docs.isNotEmpty) {
           setState(() {
             _isSecondRating = true;
           });
@@ -120,14 +148,12 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
             .doc(_transportId)
             .collection('ratings');
 
-        // Add new rating to the sub-collection
         await ratingsRef.add({
           'stars': _stars,
           'timestamp': FieldValue.serverTimestamp(),
-          'offerId': widget.offerId, // Save offerId with rating
+          'offerId': widget.offerId,
         });
 
-        // Recalculate average rating
         QuerySnapshot ratingsSnapshot = await ratingsRef.get();
         List<DocumentSnapshot> ratingsDocs = ratingsSnapshot.docs;
 
@@ -138,7 +164,6 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
 
         double averageRating = totalStars / ratingsDocs.length;
 
-        // Update transporter's average rating
         await FirebaseFirestore.instance
             .collection('users')
             .doc(_transportId)
@@ -147,16 +172,11 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
           'ratingCount': ratingsDocs.length,
         });
 
-        print('Rating submitted and average rating updated.');
-
-        // Check if this is the second rating, and update the offer status to "Done"
-        if (_isSecondRating) {
-          await FirebaseFirestore.instance
-              .collection('offers')
-              .doc(widget.offerId)
-              .update({'offerStatus': 'Done'});
-          print('Offer status updated to Done');
-        }
+        // Update the offer status to 'Done'
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .update({'offerStatus': 'Done'});
       } catch (e) {
         print('Error submitting rating: $e');
       }
@@ -180,122 +200,103 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
     }
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: GradientBackground(
         child: Container(
-          constraints: BoxConstraints.expand(),
+          constraints: const BoxConstraints.expand(),
           child: SingleChildScrollView(
             child: Container(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: IconButton(
-                          icon:
-                              const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Image.asset('lib/assets/CTPLogo.png'),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'RATE THE TRANSPORTER',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'The transporter is automatically given five stars. For every trait you uncheck, the transporter loses one star.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      if (_transporterProfileImageUrl != null)
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage:
-                              NetworkImage(_transporterProfileImageUrl!),
-                        )
-                      else
-                        const CircularProgressIndicator(),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (index) {
-                          return Icon(
-                            index < _stars ? Icons.star : Icons.star_border,
-                            color: Color(0xFFFF4E00),
-                            size: 40.0,
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 20),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 80.0),
-                        child: Column(
-                          children: _traits.keys.map((trait) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  _onTraitChanged(!_traits[trait]!, trait);
-                                },
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      height: 24.0,
-                                      width: 24.0,
-                                      decoration: BoxDecoration(
-                                        color: _traits[trait]!
-                                            ? Color(0xFFFF4E00)
-                                            : Colors.transparent,
-                                        borderRadius:
-                                            BorderRadius.circular(12.0),
-                                        border: Border.all(
-                                          width: 2.0,
-                                          color: Color(0xFFFF4E00),
-                                        ),
-                                      ),
-                                      // Removed the tick mark (Icon)
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Text(
-                                        trait,
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 16),
+                  Image.asset('lib/assets/CTPLogo.png'),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'RATE THE TRANSPORTER',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'The transporter is automatically given five stars. For every trait you uncheck, the transporter loses one star.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: _useDefaultImage
+                        ? const AssetImage(
+                                'lib/assets/default-profile-photo.jpg')
+                            as ImageProvider
+                        : (_transporterProfileImageUrl != null
+                            ? NetworkImage(_transporterProfileImageUrl!)
+                            : const AssetImage(
+                                'lib/assets/default-profile-photo.jpg')),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return Icon(
+                        index < _stars ? Icons.star : Icons.star_border,
+                        color: const Color(0xFFFF4E00),
+                        size: 40.0,
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 80.0),
+                    child: Column(
+                      children: _traits.keys.map((trait) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: GestureDetector(
+                            onTap: () {
+                              _onTraitChanged(!_traits[trait]!, trait);
+                            },
+                            child: Row(
+                              children: [
+                                Container(
+                                  height: 24.0,
+                                  width: 24.0,
+                                  decoration: BoxDecoration(
+                                    color: _traits[trait]!
+                                        ? const Color(0xFFFF4E00)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12.0),
+                                    border: Border.all(
+                                      width: 2.0,
+                                      color: const Color(0xFFFF4E00),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    trait,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   CustomButton(
                     text: 'SUBMIT',
                     borderColor: Colors.blue,
@@ -306,10 +307,6 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
       ),
     );
   }
