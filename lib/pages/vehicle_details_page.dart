@@ -6,7 +6,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
+import 'package:google_fonts/google_fonts.dart';
 
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
@@ -25,10 +25,42 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   double _offerAmount = 0.0;
   bool _hasMadeOffer = false;
 
+  List<String> allPhotos = [];
+  late PageController _pageController;
+
   @override
   void initState() {
     super.initState();
     _checkIfOfferMade();
+
+    try {
+      allPhotos = [
+        if (widget.vehicle.mainImageUrl != null) widget.vehicle.mainImageUrl!,
+        ...widget.vehicle.photos.where((photo) => photo != null).cast<String>(),
+        if (widget.vehicle.dashboardPhoto != null)
+          widget.vehicle.dashboardPhoto!,
+        if (widget.vehicle.faultCodesPhoto != null)
+          widget.vehicle.faultCodesPhoto!,
+        if (widget.vehicle.licenceDiskUrl != null)
+          widget.vehicle.licenceDiskUrl!,
+        if (widget.vehicle.tyrePhoto1 != null) widget.vehicle.tyrePhoto1!,
+        if (widget.vehicle.tyrePhoto2 != null) widget.vehicle.tyrePhoto2!,
+        ...widget.vehicle.damagePhotos
+            .where((photo) => photo != null)
+            .cast<String>(),
+      ];
+
+      // Initialize the PageController
+      _pageController = PageController();
+    } catch (e) {
+      print('Error loading vehicle photos: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error loading vehicle photos. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _checkIfOfferMade() async {
@@ -61,7 +93,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
     return GoogleFonts.montserrat(
-      // Use Google Fonts Montserrat
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -157,10 +188,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       addInfo('Accident Free', widget.vehicle.accidentFree);
       addInfo('Application', widget.vehicle.application);
       addInfo('Book Value', widget.vehicle.bookValue);
-      addInfo(
-          'Damage Description',
-          widget.vehicle
-              .damageDescription); // Add icon and dialog for Damage Description
+      addInfo('Damage Description', widget.vehicle.damageDescription);
       addInfo('Engine Number', widget.vehicle.engineNumber);
       addInfo('First Owner', widget.vehicle.firstOwner);
       addInfo('Hydraulics', widget.vehicle.hydraulics);
@@ -263,34 +291,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     final size = MediaQuery.of(context).size;
 
-    List<String> allPhotos = [];
-
-    try {
-      allPhotos = [
-        if (widget.vehicle.mainImageUrl != null) widget.vehicle.mainImageUrl!,
-        ...widget.vehicle.photos.where((photo) => photo != null).cast<String>(),
-        if (widget.vehicle.dashboardPhoto != null)
-          widget.vehicle.dashboardPhoto!,
-        if (widget.vehicle.faultCodesPhoto != null)
-          widget.vehicle.faultCodesPhoto!,
-        if (widget.vehicle.licenceDiskUrl != null)
-          widget.vehicle.licenceDiskUrl!,
-        if (widget.vehicle.tyrePhoto1 != null) widget.vehicle.tyrePhoto1!,
-        if (widget.vehicle.tyrePhoto2 != null) widget.vehicle.tyrePhoto2!,
-        ...widget.vehicle.damagePhotos
-            .where((photo) => photo != null)
-            .cast<String>(),
-      ];
-    } catch (e) {
-      print('Error loading vehicle photos: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error loading vehicle photos. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.vehicle.makeModel ?? 'Unknown',
@@ -340,19 +340,22 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           });
                         },
                         itemBuilder: (context, index) {
-                          return Image.network(
-                            allPhotos[index],
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: size.height * 0.3,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Image.asset(
-                                'lib/assets/default_vehicle_image.png',
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: size.height * 0.3,
-                              );
-                            },
+                          return GestureDetector(
+                            onTap: () => _showFullScreenImage(context, index),
+                            child: Image.network(
+                              allPhotos[index],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: size.height * 0.3,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'lib/assets/default_vehicle_image.png',
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: size.height * 0.3,
+                                );
+                              },
+                            ),
                           );
                         },
                       ),
@@ -380,13 +383,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _buildInfoContainer('YEAR', widget.vehicle.year),
-                          // const SizedBox(width: 8),
                           _buildInfoContainer(
                               'MILEAGE', widget.vehicle.mileage),
-                          // const SizedBox(width: 8),
                           _buildInfoContainer(
                               'GEARBOX', widget.vehicle.transmission),
-                          // const SizedBox(width: 8),
                           _buildInfoContainer('CONFIG', '6X4'),
                         ],
                       ),
@@ -564,6 +564,88 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ),
         );
       }),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, int initialIndex) {
+    _pageController = PageController(
+        initialPage: initialIndex); // Ensure PageController is initialized here
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: _pageController,
+                itemCount: allPhotos.length,
+                itemBuilder: (context, index) {
+                  return InteractiveViewer(
+                    child: Image.network(
+                      allPhotos[index],
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                top: 10,
+                left: 10,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ),
+              Positioned(
+                left: 10,
+                top: MediaQuery.of(context).size.height / 2 - 25,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                  onPressed: () {
+                    if (_pageController.hasClients) {
+                      int previousIndex = _pageController.page!.toInt() - 1;
+                      if (previousIndex >= 0) {
+                        _pageController.animateToPage(
+                          previousIndex,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+              Positioned(
+                right: 10,
+                top: MediaQuery.of(context).size.height / 2 - 25,
+                child: IconButton(
+                  icon:
+                      const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                  onPressed: () {
+                    if (_pageController.hasClients) {
+                      int nextIndex = _pageController.page!.toInt() + 1;
+                      if (nextIndex < allPhotos.length) {
+                        _pageController.animateToPage(
+                          nextIndex,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

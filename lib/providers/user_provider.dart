@@ -301,9 +301,14 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  void updatePreferredBrands(List<String> brands) {
+  Future<void> updatePreferredBrands(List<String> brands) async {
     _preferredBrands = brands;
-    _updatePreferredBrandsInFirestore();
+    if (_user != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .update({'preferredBrands': _preferredBrands});
+    }
     notifyListeners();
   }
 

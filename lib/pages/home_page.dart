@@ -36,7 +36,6 @@ class _HomePageState extends State<HomePage> {
 
     _initialization = _initializeData();
     _checkPaymentStatusForOffers();
-    // FirebaseCrashlytics.instance.crash();
   }
 
   Future<void> _initializeData() async {
@@ -403,6 +402,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  // New Section: Preferred Brands
+                  _buildPreferredBrandsSection(userProvider),
+                  const SizedBox(height: 20),
                   // Conditional rendering based on user role
                   if (userRole == 'dealer' &&
                       _showSwiper &&
@@ -538,6 +540,180 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPreferredBrandsSection(UserProvider userProvider) {
+    final preferredBrands = userProvider.getPreferredBrands;
+
+    if (preferredBrands.isEmpty) {
+      return Container(); // Return empty container if no brands are preferred
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'CURRENT BRANDS',
+              style: _customFont(18, FontWeight.bold, Colors.white),
+            ),
+            GestureDetector(
+              onTap: () => _showEditBrandsDialog(userProvider),
+              child: Text(
+                'EDIT',
+                style: _customFont(16, FontWeight.bold, Colors.white),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: 1.0), // Padding from the sides
+          child: Divider(
+            color: Colors.white, // Set the color of the divider
+            thickness: 1.0, // Set the thickness of the divider
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Center the logos horizontally
+              children: preferredBrands.map((brand) {
+                String logoPath;
+                switch (brand) {
+                  case 'DAF':
+                    logoPath = 'lib/assets/Logo/DAF-removebg-preview.png';
+                    break;
+                  case 'Freightliner':
+                    logoPath =
+                        'lib/assets/Logo/Freightliner_Trucks_Red-removebg-preview.png';
+                    break;
+                  case 'International':
+                    logoPath = 'lib/assets/Logo/Globe Emoji.png';
+                    break;
+                  case 'Iveco':
+                    logoPath = 'lib/assets/Logo/Iveco 2023 New.png';
+                    break;
+                  case 'Kenworth':
+                    logoPath =
+                        'lib/assets/Logo/kenworth-red-logo-7q7yvcad0c7g543b-removebg-preview.png';
+                    break;
+                  case 'Mack':
+                    logoPath = 'lib/assets/Logo/Mack Trucks.png';
+                    break;
+                  case 'Peterbilt':
+                    logoPath = 'lib/assets/Logo/Peterbilt.png';
+                    break;
+                  case 'MAN':
+                    logoPath =
+                        'lib/assets/Logo/png-clipart-man-truck-bus-scania-ab-logo-man-se-truck-angle-text-removebg-preview.png';
+                    break;
+                  case 'Scania':
+                    logoPath = 'lib/assets/Logo/Scania Emblem.png';
+                    break;
+                  case 'Volvo':
+                    logoPath =
+                        'lib/assets/Logo/Volvo_Icon-removebg-preview.png';
+                    break;
+                  case 'Mercedes':
+                    logoPath = 'lib/assets/Logo/Mercedes Benz 3D Star.png';
+                    break;
+                  case 'Western Star':
+                    logoPath = 'lib/assets/Logo/Western Star Trucks.png';
+                    break;
+                  default:
+                    logoPath =
+                        'lib/assets/Logo/Globe Emoji.png'; // Fallback logo
+                    break;
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Image.asset(
+                    logoPath,
+                    height: 50,
+                    width: 50,
+                    fit: BoxFit.contain,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showEditBrandsDialog(UserProvider userProvider) {
+    final availableBrands = [
+      'Volvo',
+      'Freightliner',
+      'Kenworth',
+      'Peterbilt',
+      'Mack',
+      'Western Star',
+      'International',
+      'Scania',
+      'Mercedes-Benz',
+      'MAN',
+      'DAF',
+      'Iveco'
+    ];
+
+    List<String> selectedBrands = List.from(userProvider.getPreferredBrands);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit Preferred Brands'),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: availableBrands.map((brand) {
+                    return CheckboxListTile(
+                      title: Text(brand),
+                      value: selectedBrands.contains(brand),
+                      onChanged: (bool? isChecked) {
+                        setState(() {
+                          if (isChecked == true) {
+                            selectedBrands.add(brand);
+                          } else {
+                            selectedBrands.remove(brand);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('CANCEL'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: const Text('DONE'),
+                  onPressed: () async {
+                    await userProvider.updatePreferredBrands(selectedBrands);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

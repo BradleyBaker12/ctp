@@ -84,19 +84,6 @@ flutter:
     - lib/assets/trailer_image.png
     - lib/assets/truck_image.png
     - lib/assets/default_vehicle_image.png
-    - lib/assets/mercedes-benz_logo.png
-    - lib/assets/volvo_logo.png
-    - lib/assets/scania_logo.png
-    - lib/assets/man_logo.png
-    - lib/assets/iveco_logo.png
-    - lib/assets/peterbilt_logo.png
-    - lib/assets/kenworth_logo.png
-    - lib/assets/mack_logo.png
-    - lib/assets/hino_logo.png
-    - lib/assets/isuzu_logo.png
-    - lib/assets/gmc_logo.png
-    - lib/assets/ford_logo.png
-    - lib/assets/western_star_logo.png
     - lib/assets/verified_Icon.png
     - lib/assets/shaking_hands.png
     - lib/assets/Offer_SummaryImage.png
@@ -107,6 +94,18 @@ flutter:
     - lib/assets/country-by-name.json
     - lib/assets/Layer_1.png
     - lib/assets/Layer_2.png
+    - lib/assets/Logo/DAF-removebg-preview.png
+    - lib/assets/Logo/Freightliner_Trucks_Red-removebg-preview.png
+    - lib/assets/Logo/Globe Emoji.png
+    - lib/assets/Logo/Iveco 2023 New.png
+    - lib/assets/Logo/kenworth-red-logo-7q7yvcad0c7g543b-removebg-preview.png
+    - lib/assets/Logo/Mack Trucks.png
+    - lib/assets/Logo/Peterbilt.png
+    - lib/assets/Logo/png-clipart-man-truck-bus-scania-ab-logo-man-se-truck-angle-text-removebg-preview.png
+    - lib/assets/Logo/Scania Emblem.png
+    - lib/assets/Logo/Volvo_Icon-removebg-preview.png
+    - lib/assets/Logo/Mercedes Benz 3D Star.png
+    - lib/assets/Logo/Western Star Trucks.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
   # For details regarding adding assets from package dependencies, see
