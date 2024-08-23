@@ -107,12 +107,12 @@ class _FirstNamePageState extends State<FirstNamePage> {
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: screenSize.width * 0.04,
+                        horizontal: screenSize.width * 0.05,
                         vertical: screenSize.height * 0.02,
                       ),
                       child: Column(
                         children: [
-                          SizedBox(height: screenSize.height * 0.03),
+                          SizedBox(height: screenSize.height * 0.02),
                           Image.asset(
                             'lib/assets/CTPLogo.png',
                             height: screenSize.height * 0.2,
@@ -131,7 +131,7 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: screenSize.height * 0.03),
+                          SizedBox(height: screenSize.height * 0.02),
                           TextField(
                             controller: _firstNameController,
                             textAlign: TextAlign.center,
@@ -156,10 +156,10 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                             style: GoogleFonts.montserrat(
                               color: Colors.white,
-                              fontSize: screenSize.width * 0.045,
+                              fontSize: screenSize.width * 0.04,
                             ),
                           ),
-                          SizedBox(height: screenSize.height * 0.07),
+                          SizedBox(height: screenSize.height * 0.05),
                           Text(
                             'This is the name that will appear to other users in the app',
                             style: GoogleFonts.montserrat(
@@ -168,7 +168,7 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: screenSize.height * 0.04),
+                          SizedBox(height: screenSize.height * 0.03),
                           TextButton(
                             onPressed: () {
                               // Handle name changes approval info
@@ -183,13 +183,13 @@ class _FirstNamePageState extends State<FirstNamePage> {
                               ),
                             ),
                           ),
-                          SizedBox(height: screenSize.height * 0.13),
+                          SizedBox(height: screenSize.height * 0.07),
                           CustomButton(
                             text: 'CONTINUE',
                             borderColor: blue,
                             onPressed: _continue,
                           ),
-                          SizedBox(height: screenSize.height * 0.04),
+                          // SizedBox(height: screenSize.height * 0.04),
                         ],
                       ),
                     ),

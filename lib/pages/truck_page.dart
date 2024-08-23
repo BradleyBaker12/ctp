@@ -55,7 +55,7 @@ class _TruckPageState extends State<TruckPage> {
     } catch (e) {
       print('Error loading initial vehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to load vehicles. Please try again later.'),
         ),
       );
@@ -89,7 +89,7 @@ class _TruckPageState extends State<TruckPage> {
     } catch (e) {
       print('Error loading next vehicle: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to load the next vehicle. Please try again.'),
         ),
       );
@@ -216,6 +216,8 @@ class _TruckPageState extends State<TruckPage> {
               ? AppinioSwiper(
                   key: ValueKey(displayedVehicles.length), // Ensure unique key
                   controller: controller,
+                  swipeOptions: const SwipeOptions.symmetric(
+                      vertical: false, horizontal: false),
                   cardCount: displayedVehicles.length,
                   cardBuilder: (BuildContext context, int index) {
                     print('Building card at index: $index');
@@ -266,7 +268,7 @@ class _TruckPageState extends State<TruckPage> {
                     } catch (e) {
                       print('Error handling swipe: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
+                        const SnackBar(
                           content: Text(
                               'An error occurred while processing your swipe.'),
                         ),
@@ -312,7 +314,7 @@ class _TruckPageState extends State<TruckPage> {
         } catch (e) {
           print('Error navigating to vehicle details: $e');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content:
                   Text('Failed to load vehicle details. Please try again.'),
             ),
@@ -485,7 +487,7 @@ class _TruckPageState extends State<TruckPage> {
                 height:
                     (560 * percentage) / 100, // Adjust the height calculation
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF4E00),
+                  color: const Color(0xFF2F7FFF),
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -539,9 +541,10 @@ class _TruckPageState extends State<TruckPage> {
           try {
             print('${icon == Icons.close ? "DISLIKE" : "LIKE"} button pressed');
             if (direction == 'left') {
-              final userProvider =
-                  Provider.of<UserProvider>(context, listen: false);
-              await userProvider.dislikeVehicle(vehicle.id);
+              // Disable saving disliked trucks to Firebase
+              // final userProvider =
+              //     Provider.of<UserProvider>(context, listen: false);
+              // await userProvider.dislikeVehicle(vehicle.id);
 
               print(
                   'Disliked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
@@ -562,7 +565,7 @@ class _TruckPageState extends State<TruckPage> {
           } catch (e) {
             print('Error swiping vehicle: $e');
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
+              const SnackBar(
                 content: Text('Failed to swipe vehicle. Please try again.'),
               ),
             );
@@ -572,14 +575,14 @@ class _TruckPageState extends State<TruckPage> {
           margin: const EdgeInsets.symmetric(horizontal: 5),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.3),
+            color: color,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: color, width: 2),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: size.height * 0.025),
+              Icon(icon, color: Colors.black, size: size.height * 0.025),
             ],
           ),
         ),
@@ -622,7 +625,7 @@ class _TruckPageState extends State<TruckPage> {
           } catch (e) {
             print('Error undoing swipe: $e');
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
+              const SnackBar(
                 content: Text('Failed to undo swipe. Please try again.'),
               ),
             );
@@ -632,9 +635,9 @@ class _TruckPageState extends State<TruckPage> {
           margin: const EdgeInsets.symmetric(horizontal: 5),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.grey[900],
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black, width: 2),
+            border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

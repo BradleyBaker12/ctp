@@ -12,7 +12,7 @@ class VehicleProvider with ChangeNotifier {
   ValueNotifier<List<Vehicle>> vehicleListenable = ValueNotifier([]);
 
   VehicleProvider() {
-    fetchVehicles();
+    fetchVehicles(); // Fetch vehicles as usual
   }
 
   void addVehicle(Vehicle vehicle) {
@@ -90,6 +90,28 @@ class VehicleProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // New method to fetch 5 most recently added vehicles
+  Future<List<Vehicle>> fetchRecentVehicles() async {
+    try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .orderBy('createdAt', descending: true) // Order by createdAt field
+          .limit(5) // Limit to 5 most recent vehicles
+          .get();
+
+      final recentVehicles = querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return Vehicle.fromFirestore(data);
+      }).toList();
+
+      return recentVehicles;
+    } catch (e) {
+      print('Error fetching recent vehicles: $e');
+      return [];
+    }
+  }
 }
 
 class Vehicle {
@@ -134,7 +156,7 @@ class Vehicle {
   final String warrantyType;
   final String weightClass;
   final String year;
-  final DateTime createdAt; // Add this field
+  final DateTime createdAt;
 
   Vehicle({
     required this.id,
@@ -178,7 +200,7 @@ class Vehicle {
     required this.warrantyType,
     required this.weightClass,
     required this.year,
-    required this.createdAt, // Add this field
+    required this.createdAt,
   });
 
   factory Vehicle.fromFirestore(Map<String, dynamic> data) {
@@ -224,8 +246,7 @@ class Vehicle {
       warrantyType: data['warrantyType'] ?? 'N/A',
       weightClass: data['weightClass'] ?? 'N/A',
       year: data['year'] ?? 'N/A',
-      createdAt: (data['createdAt'] as Timestamp)
-          .toDate(), // Convert the Firestore timestamp to DateTime
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
 

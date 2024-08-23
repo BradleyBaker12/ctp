@@ -5,7 +5,7 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/crop_photo_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
-import 'package:ctp/pages/transporter_reg.dart'; // Import the transporter registration page
+import 'package:ctp/pages/house_rules_page.dart'; // Import the House Rules page
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -62,28 +62,14 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
         'profileImageUrl': _selectedProfileImage,
       });
 
-      // Fetch the user's role from Firestore
-      DocumentSnapshot userDoc =
-          await firestore.collection('users').doc(userId).get();
-      String userRole = userDoc['role'];
-
-      // Navigate to the appropriate registration page based on the user's role
-      if (userRole == 'dealer') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DealerRegPage()),
-        );
-      } else if (userRole == 'transporter') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) =>
-                  const TransporterRegistrationPage()), // Ensure this page exists
-        );
-      } else {
-        // Handle other roles if necessary
-        print("Unknown user role: $userRole");
-      }
+      // Navigate directly to the Dealer Registration page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              const DealerRegPage(), // Ensure DealerRegistrationPage exists
+        ),
+      );
     } catch (e) {
       print("Error setting default profile image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -96,12 +82,6 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     var blue = const Color(0xFF2F7FFF);
-
-    double paddingValue = screenSize.width * 0.04;
-    double imageHeight = screenSize.height * 0.25;
-    double iconSize = screenSize.width * 0.1;
-    double fontSizeTitle = screenSize.width * 0.05;
-    double fontSizeButton = screenSize.width * 0.04;
 
     return Scaffold(
       body: Stack(
@@ -116,26 +96,30 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                       children: [
                         Container(
                           width: screenSize.width,
-                          padding: EdgeInsets.symmetric(
-                              horizontal: paddingValue, vertical: 8.0),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0, vertical: 8.0),
                           child: Column(
                             children: [
-                              SizedBox(height: screenSize.height * 0.03),
-                              Image.asset('lib/assets/CTPLogo.png',
-                                  height: imageHeight),
-                              SizedBox(height: screenSize.height * 0.05),
+                              SizedBox(height: screenSize.height * 0.02),
+                              Image.asset(
+                                'lib/assets/CTPLogo.png',
+                                height: screenSize.height * 0.2,
+                                width: screenSize.height * 0.2,
+                                fit: BoxFit.cover,
+                              ),
+                              SizedBox(height: screenSize.height * 0.07),
                               const ProgressBar(progress: 0.90),
                               SizedBox(height: screenSize.height * 0.05),
                               Text(
                                 'ADD A PROFILE PHOTO',
                                 style: GoogleFonts.montserrat(
-                                  fontSize: fontSizeTitle,
+                                  fontSize: screenSize.height * 0.025,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              SizedBox(height: screenSize.height * 0.06),
+                              SizedBox(height: screenSize.height * 0.04),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -151,10 +135,10 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                         ),
                                         child: IconButton(
                                           icon: Padding(
-                                            padding:
-                                                EdgeInsets.all(iconSize * 0.32),
+                                            padding: EdgeInsets.all(
+                                                screenSize.height * 0.008),
                                             child: Icon(Icons.camera_alt,
-                                                size: iconSize,
+                                                size: screenSize.height * 0.05,
                                                 color: Colors.white),
                                           ),
                                           onPressed: () =>
@@ -166,13 +150,13 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                       Text(
                                         'CAMERA',
                                         style: GoogleFonts.montserrat(
-                                          fontSize: fontSizeButton,
+                                          fontSize: 24,
                                           color: Colors.white,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  SizedBox(width: screenSize.width * 0.1),
+                                  SizedBox(width: screenSize.width * 0.15),
                                   Column(
                                     children: [
                                       Container(
@@ -185,10 +169,10 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                         ),
                                         child: IconButton(
                                           icon: Padding(
-                                            padding:
-                                                EdgeInsets.all(iconSize * 0.32),
+                                            padding: EdgeInsets.all(
+                                                screenSize.height * 0.008),
                                             child: Icon(Icons.photo_library,
-                                                size: iconSize,
+                                                size: screenSize.height * 0.05,
                                                 color: Colors.white),
                                           ),
                                           onPressed: () =>
@@ -200,7 +184,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                       Text(
                                         'GALLERY',
                                         style: GoogleFonts.montserrat(
-                                          fontSize: fontSizeButton,
+                                          fontSize: 24,
                                           color: Colors.white,
                                         ),
                                       ),
@@ -214,11 +198,12 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                 child: Text(
                                   'UPLOAD LATER',
                                   style: GoogleFonts.montserrat(
-                                    fontSize: fontSizeButton,
-                                    color: Colors.white,
-                                    decoration: TextDecoration.underline,
-                                    letterSpacing: 2.0,
-                                  ),
+                                      fontSize: screenSize.height * 0.015,
+                                      color: Colors.white,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white,
+                                      letterSpacing: 2.0,
+                                      fontWeight: FontWeight.w500),
                                 ),
                               ),
                               SizedBox(height: screenSize.height * 0.04),

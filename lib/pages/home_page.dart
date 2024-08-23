@@ -18,24 +18,37 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AppinioSwiperController controller;
   int _selectedIndex = 0;
   late Future<void> _initialization;
 
   final OfferProvider _offerProvider = OfferProvider();
-  bool _showSwiper = true; // Initially, show the swiper
-  bool _showEndMessage = false; // Control to show the end message
+  final bool _showSwiper = true;
+  bool _showEndMessage = false;
   late List<String> likedVehicles;
   late List<String> dislikedVehicles;
+
+  // Use ValueNotifier to manage displayedVehicles
+  ValueNotifier<List<Vehicle>> displayedVehiclesNotifier =
+      ValueNotifier<List<Vehicle>>([]);
+  int loadedVehicleIndex = 0;
+  bool _hasReachedEnd = false;
+
+  // New list to store the most recent vehicles
+  List<Vehicle> recentVehicles = [];
 
   @override
   void initState() {
     super.initState();
     controller = AppinioSwiperController();
-
     _initialization = _initializeData();
     _checkPaymentStatusForOffers();
+
+    // Load initial vehicles after data initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialVehicles();
+    });
   }
 
   Future<void> _initializeData() async {
@@ -44,27 +57,24 @@ class _HomePageState extends State<HomePage> {
         Provider.of<VehicleProvider>(context, listen: false);
 
     try {
-      // Fetch user data
       await userProvider.fetchUserData();
-
-      // Fetch vehicles
       await vehicleProvider.fetchVehicles();
+
+      // Fetch the most recent vehicles
+      recentVehicles = await vehicleProvider.fetchRecentVehicles();
 
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final userRole = userProvider.getUserRole;
         await _offerProvider.fetchOffers(user.uid, userRole);
 
-        // Get liked and disliked vehicles from the user provider
         likedVehicles = userProvider.getLikedVehicles;
         dislikedVehicles = userProvider.getDislikedVehicles;
       }
     } catch (e, stackTrace) {
-      print('Error initializing data: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to initialize data. Please try again.')),
+        const SnackBar(content: Text('Failed to initialize data. Please try again.')),
       );
-      // Report error to Crashlytics
       await FirebaseCrashlytics.instance.recordError(e, stackTrace);
     }
   }
@@ -83,13 +93,11 @@ class _HomePageState extends State<HomePage> {
           String paymentStatus = offerSnapshot['paymentStatus'];
 
           if (paymentStatus == 'accepted') {
-            // Update the offer status to "Payment Approved"
             await FirebaseFirestore.instance
                 .collection('offers')
                 .doc(offer.offerId)
                 .update({'offerStatus': 'paid'});
 
-            // Optionally, refresh offers after updating status
             await _offerProvider.fetchOffers(
               userProvider.userId!,
               userProvider.getUserRole,
@@ -97,16 +105,59 @@ class _HomePageState extends State<HomePage> {
           }
         }
       } catch (e, stackTrace) {
-        print('Error checking payment status for offer ${offer.offerId}: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Error checking payment status for one or more offers. Please try again later.'),
+          const SnackBar(
+            content:
+                Text('Error checking payment status. Please try again later.'),
           ),
         );
-        // Report error to Crashlytics
         await FirebaseCrashlytics.instance.recordError(e, stackTrace);
       }
+    }
+  }
+
+  void _loadInitialVehicles() {
+    try {
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final initialVehicles = vehicleProvider.vehicles
+          .where((vehicle) =>
+              !userProvider.getLikedVehicles.contains(vehicle.id) &&
+              !userProvider.getDislikedVehicles.contains(vehicle.id))
+          .take(5)
+          .toList();
+      displayedVehiclesNotifier.value = initialVehicles;
+      loadedVehicleIndex = initialVehicles.length;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Failed to load vehicles. Please try again later.')),
+      );
+    }
+  }
+
+  void _loadNextVehicle(BuildContext context) {
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    while (loadedVehicleIndex < vehicleProvider.vehicles.length) {
+      final nextVehicle = vehicleProvider.vehicles[loadedVehicleIndex];
+      if (!userProvider.getLikedVehicles.contains(nextVehicle.id) &&
+          !userProvider.getDislikedVehicles.contains(nextVehicle.id)) {
+        displayedVehiclesNotifier.value = [
+          ...displayedVehiclesNotifier.value,
+          nextVehicle
+        ];
+        loadedVehicleIndex++;
+        return;
+      }
+      loadedVehicleIndex++;
+    }
+
+    if (loadedVehicleIndex >= vehicleProvider.vehicles.length) {
+      _hasReachedEnd = true;
     }
   }
 
@@ -114,6 +165,25 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  // New method for handling swipes
+  void _handleSwipe(int previousIndex, SwiperActivity activity) async {
+    final vehicleId = displayedVehiclesNotifier.value[previousIndex].id;
+
+    if (activity is Swipe) {
+      if (activity.direction == AxisDirection.right) {
+        await _likeVehicle(vehicleId);
+      } else if (activity.direction == AxisDirection.left) {
+        await _dislikeVehicle(vehicleId);
+      }
+    }
+
+    // Check if all vehicles are swiped
+    if (previousIndex == displayedVehiclesNotifier.value.length - 1) {
+      _showEndMessage = true;
+      setState(() {}); // Trigger a rebuild to show the message
+    }
   }
 
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
@@ -161,8 +231,6 @@ class _HomePageState extends State<HomePage> {
                       ? NetworkImage(profileImageUrl)
                       : const AssetImage('lib/assets/default-profile-photo.jpg')
                           as ImageProvider,
-                  onBackgroundImageError: (_, __) =>
-                      Image.asset('lib/assets/default-profile-photo.jpg'),
                 );
               },
             ),
@@ -195,19 +263,9 @@ class _HomePageState extends State<HomePage> {
     final userProvider = Provider.of<UserProvider>(context);
     final vehicleProvider = Provider.of<VehicleProvider>(context);
 
-    final userName = userProvider.getUserName;
     final userRole = userProvider.getUserRole;
-    final profileImageUrl = userProvider.getProfileImageUrl;
 
-    // Filter vehicles to exclude those in liked or disliked arrays and limit to 5 per day
-    final recentTruckUploads = vehicleProvider.vehicles
-        .where((vehicle) =>
-            vehicle.vehicleType == 'truck' &&
-            !likedVehicles.contains(vehicle.id) &&
-            !dislikedVehicles.contains(vehicle.id))
-        .take(5)
-        .toList();
-
+    // Filter vehicles with offers for the current user
     final vehiclesWithOffers = vehicleProvider.vehicles.where((vehicle) {
       return _offerProvider.offers
           .any((offer) => offer.vehicleId == vehicle.id);
@@ -234,12 +292,11 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       children: [
                         Text(
-                          'Welcome $userName',
+                          'Welcome ${userProvider.getUserName}',
                           style: const TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFFFF4E00),
-                          ),
+                              fontSize: 34,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFFF4E00)),
                         ),
                         const SizedBox(height: 5),
                         Text(
@@ -263,156 +320,24 @@ class _HomePageState extends State<HomePage> {
                   Padding(
                     padding:
                         EdgeInsets.symmetric(horizontal: size.width * 0.05),
-                    child: Container(
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            userRole == 'transporter'
-                                ? "I’m selling a".toUpperCase()
-                                : "I’m looking for".toLowerCase(),
-                            style:
-                                _customFont(18, FontWeight.bold, Colors.white),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    if (userRole == 'transporter') {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/firstTruckForm',
-                                        arguments: {'vehicleType': 'truck'},
-                                      );
-                                    } else if (userRole == 'dealer') {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/searchTruck',
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    height: size.height * 0.2,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: Colors.blue,
-                                        width: 3,
-                                      ),
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        Positioned.fill(
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            child: Image.asset(
-                                              'lib/assets/truck_image.png',
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                        ),
-                                        Align(
-                                          alignment: Alignment.bottomCenter,
-                                          child: Container(
-                                            color: Colors.black54,
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.all(8.0),
-                                            child: Text(
-                                              "TRUCKS",
-                                              style: _customFont(18,
-                                                  FontWeight.bold, Colors.blue),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    if (userRole == 'transporter') {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/firstTruckForm',
-                                        arguments: {'vehicleType': 'trailer'},
-                                      );
-                                    } else if (userRole == 'dealer') {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/searchTrailer',
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    height: size.height * 0.2,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: orange,
-                                        width: 3,
-                                      ),
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        Positioned.fill(
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            child: Image.asset(
-                                              'lib/assets/trailer_image.png',
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                        ),
-                                        Align(
-                                          alignment: Alignment.bottomCenter,
-                                          child: Container(
-                                            color: Colors.black54,
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.all(8.0),
-                                            child: Text(
-                                              "TRAILERS",
-                                              style: _customFont(
-                                                  18, FontWeight.bold, orange),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                    child: _buildVehicleTypeSelection(userRole, size),
                   ),
                   const SizedBox(height: 20),
-                  // New Section: Preferred Brands
                   _buildPreferredBrandsSection(userProvider),
                   const SizedBox(height: 20),
-                  // Conditional rendering based on user role
-                  if (userRole == 'dealer' &&
-                      _showSwiper &&
-                      recentTruckUploads.isNotEmpty) ...[
+                  if (_showEndMessage) ...[
                     Text(
-                      "🔥 NEW ARRIVALS",
-                      style: _customFont(18, FontWeight.bold, Colors.blue),
+                      "You've seen all the available trucks.",
+                      style: _customFont(18, FontWeight.bold, Colors.white),
                     ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "The list will be updated tomorrow.",
+                      style: _customFont(16, FontWeight.normal, Colors.grey),
+                    ),
+                  ] else if (userRole == 'dealer' && _showSwiper) ...[
+                    Text("🔥 NEW ARRIVALS",
+                        style: _customFont(18, FontWeight.bold, Colors.blue)),
                     const SizedBox(height: 10),
                     Text(
                       "Discover the newest additions to our fleet, ready for your next venture.",
@@ -420,57 +345,61 @@ class _HomePageState extends State<HomePage> {
                       style: _customFont(16, FontWeight.normal, Colors.white),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      height: size.height * 0.6, // Adjust the height as needed
-                      child: AppinioSwiper(
-                        controller: controller,
-                        cardCount: recentTruckUploads.length,
-                        cardBuilder: (BuildContext context, int index) {
-                          final vehicle = recentTruckUploads[index];
-                          return _buildTruckCard(context, controller, vehicle);
-                        },
-                        onEnd: () {
-                          setState(() {
-                            _showEndMessage = true; // Show the end message
-                            Future.delayed(const Duration(seconds: 2), () {
-                              setState(() {
-                                _showSwiper =
-                                    false; // Hide the swiper after showing the message
-                                _showEndMessage = false; // Hide the message
-                              });
-                            });
-                          });
-                        },
-                      ),
+                    ValueListenableBuilder<List<Vehicle>>(
+                      valueListenable: displayedVehiclesNotifier,
+                      builder: (context, displayedVehicles, child) {
+                        if (displayedVehicles.isEmpty && _hasReachedEnd) {
+                          return Text(
+                            "You have swiped through all the available trucks.",
+                            style:
+                                _customFont(18, FontWeight.bold, Colors.white),
+                          );
+                        } else if (displayedVehicles.isEmpty) {
+                          return Center(
+                            child: Text(
+                              "No vehicles available",
+                              style: _customFont(
+                                  18, FontWeight.bold, Colors.white),
+                            ),
+                          );
+                        } else {
+                          return SwiperWidget(
+                            parentContext:
+                                context, // Pass context from HomePage
+                            displayedVehicles: displayedVehicles,
+                            controller: controller,
+                            onSwipeEnd: _handleSwipe, // Pass the swipe handler
+                            vsync: this, // Pass the TickerProvider
+                          );
+                        }
+                      },
                     ),
                     const SizedBox(height: 20),
                   ],
-                  if (userRole == 'transporter' &&
-                      vehiclesWithOffers.isNotEmpty) ...[
-                    Text(
-                      "YOUR VEHICLES WITH OFFERS",
-                      style: _customFont(18, FontWeight.bold, Colors.white),
-                    ),
+                  if (userRole == 'transporter') ...[
+                    Text("YOUR VEHICLES WITH OFFERS",
+                        style: _customFont(18, FontWeight.bold, Colors.white)),
                     const SizedBox(height: 10),
-                    SizedBox(
-                      height: size.height * 0.3,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: vehiclesWithOffers.length,
-                        itemBuilder: (context, index) {
-                          final vehicle = vehiclesWithOffers[index];
-                          return _buildTransporterVehicleCard(vehicle, size);
-                        },
-                      ),
+                    ValueListenableBuilder<List<Vehicle>>(
+                      valueListenable: displayedVehiclesNotifier,
+                      builder: (context, displayedVehicles, child) {
+                        return SizedBox(
+                          height: size.height * 0.3,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: displayedVehicles.length,
+                            itemBuilder: (context, index) {
+                              final vehicle = displayedVehicles[index];
+                              return _buildTransporterVehicleCard(
+                                  vehicle, size);
+                            },
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
                   ],
-                  if (_showEndMessage)
-                    Text(
-                      "You have swiped through all the available trucks.",
-                      style: _customFont(18, FontWeight.bold, Colors.white),
-                    ),
-                  const SizedBox(height: 10), // Reduce the gap here
+                  const SizedBox(height: 10),
                   GestureDetector(
                     onTap: () {
                       Navigator.pushNamed(context, '/pendingOffers');
@@ -500,25 +429,17 @@ class _HomePageState extends State<HomePage> {
                               _customFont(16, FontWeight.normal, Colors.white),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 10), // Reduce the gap here
+                        const SizedBox(height: 10),
                       ],
                     ),
                   ),
                   // Offer cards section for both roles
-                  FutureBuilder<void>(
-                    future: _initialization,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircularProgressIndicator();
-                      } else if (snapshot.hasError) {
-                        return Text(
-                          'Error fetching offers',
-                          style:
-                              _customFont(16, FontWeight.normal, Colors.white),
-                        );
-                      } else {
-                        // Display offer cards for both transporters and dealers
-                        return ListView.builder(
+                  if (vehiclesWithOffers.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: vehiclesWithOffers.length,
@@ -530,10 +451,9 @@ class _HomePageState extends State<HomePage> {
                               offer: offer,
                             );
                           },
-                        );
-                      }
-                    },
-                  ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -543,11 +463,196 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildVehicleTypeSelection(String userRole, Size size) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[800],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(
+            userRole == 'transporter'
+                ? "I’m selling a".toUpperCase()
+                : "I’m looking for".toLowerCase(),
+            style: _customFont(18, FontWeight.bold, Colors.white),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    if (userRole == 'transporter') {
+                      Navigator.pushNamed(
+                        context,
+                        '/firstTruckForm',
+                        arguments: {'vehicleType': 'truck'},
+                      );
+                    } else if (userRole == 'dealer') {
+                      Navigator.pushNamed(
+                        context,
+                        '/searchTruck',
+                      );
+                    }
+                  },
+                  child: _buildVehicleTypeCard(size,
+                      'lib/assets/truck_image.png', "TRUCKS", Colors.blue),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    if (userRole == 'transporter') {
+                      Navigator.pushNamed(
+                        context,
+                        '/firstTruckForm',
+                        arguments: {'vehicleType': 'trailer'},
+                      );
+                    } else if (userRole == 'dealer') {
+                      Navigator.pushNamed(
+                        context,
+                        '/searchTrailer',
+                      );
+                    }
+                  },
+                  child: _buildVehicleTypeCard(
+                      size,
+                      'lib/assets/trailer_image.png',
+                      "TRAILERS",
+                      const Color(0xFFFF4E00)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleTypeCard(
+      Size size, String imagePath, String label, Color borderColor) {
+    return Container(
+      height: size.height * 0.2,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: borderColor,
+          width: 3,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              color: Colors.black54,
+              width: double.infinity,
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                label,
+                style: _customFont(18, FontWeight.bold, borderColor),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransporterVehicleCard(Vehicle vehicle, Size size) {
+    return Container(
+      width: size.width * 0.7,
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(10)),
+              child: vehicle.mainImageUrl != null
+                  ? Image.network(vehicle.mainImageUrl!,
+                      width: double.infinity, fit: BoxFit.cover)
+                  : Image.asset('lib/assets/default_vehicle_image.png',
+                      width: double.infinity, fit: BoxFit.cover),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(vehicle.makeModel,
+                    style: _customFont(18, FontWeight.bold, Colors.white)),
+                const SizedBox(height: 4),
+                Text(vehicle.year ?? 'Unknown Year',
+                    style: _customFont(14, FontWeight.normal, Colors.grey)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _likeVehicle(String vehicleId) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    // Check if the vehicle is already liked
+    if (!likedVehicles.contains(vehicleId)) {
+      try {
+        await userProvider.likeVehicle(vehicleId);
+        likedVehicles.add(vehicleId);
+      } catch (e, stackTrace) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to like vehicle. Please try again.')),
+        );
+        await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vehicle already liked.')),
+      );
+    }
+  }
+
+  Future<void> _dislikeVehicle(String vehicleId) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    try {
+      await userProvider.dislikeVehicle(vehicleId);
+      dislikedVehicles.add(vehicleId);
+    } catch (e, stackTrace) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to dislike vehicle. Please try again.')),
+      );
+      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+    }
+  }
+
   Widget _buildPreferredBrandsSection(UserProvider userProvider) {
     final preferredBrands = userProvider.getPreferredBrands;
 
     if (preferredBrands.isEmpty) {
-      return Container(); // Return empty container if no brands are preferred
+      return Container();
     }
 
     return Column(
@@ -556,81 +661,65 @@ class _HomePageState extends State<HomePage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'CURRENT BRANDS',
-              style: _customFont(18, FontWeight.bold, Colors.white),
-            ),
+            Text('CURRENT BRANDS',
+                style: _customFont(18, FontWeight.bold, Colors.white)),
             GestureDetector(
               onTap: () => _showEditBrandsDialog(userProvider),
-              child: Text(
-                'EDIT',
-                style: _customFont(16, FontWeight.bold, Colors.white),
-              ),
+              child: Text('EDIT',
+                  style: _customFont(16, FontWeight.bold, Colors.white)),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 1.0), // Padding from the sides
-          child: Divider(
-            color: Colors.white, // Set the color of the divider
-            thickness: 1.0, // Set the thickness of the divider
-          ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 1.0),
+          child: Divider(color: Colors.white, thickness: 1.0),
         ),
         const SizedBox(height: 10),
         Center(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.center, // Center the logos horizontally
+              mainAxisAlignment: MainAxisAlignment.center,
               children: preferredBrands.map((brand) {
                 String logoPath;
                 switch (brand) {
                   case 'DAF':
                     logoPath = 'lib/assets/Logo/DAF-removebg-preview.png';
                     break;
-                  case 'Freightliner':
-                    logoPath =
-                        'lib/assets/Logo/Freightliner_Trucks_Red-removebg-preview.png';
-                    break;
-                  case 'International':
-                    logoPath = 'lib/assets/Logo/Globe Emoji.png';
-                    break;
-                  case 'Iveco':
+                  case 'IVECO':
                     logoPath = 'lib/assets/Logo/Iveco 2023 New.png';
-                    break;
-                  case 'Kenworth':
-                    logoPath =
-                        'lib/assets/Logo/kenworth-red-logo-7q7yvcad0c7g543b-removebg-preview.png';
-                    break;
-                  case 'Mack':
-                    logoPath = 'lib/assets/Logo/Mack Trucks.png';
-                    break;
-                  case 'Peterbilt':
-                    logoPath = 'lib/assets/Logo/Peterbilt.png';
                     break;
                   case 'MAN':
                     logoPath =
                         'lib/assets/Logo/png-clipart-man-truck-bus-scania-ab-logo-man-se-truck-angle-text-removebg-preview.png';
                     break;
-                  case 'Scania':
-                    logoPath = 'lib/assets/Logo/Scania Emblem.png';
+                  case 'MERCEDES-BENZ':
+                    logoPath = 'lib/assets/Logo/Mercedes Benz 3D Star.png';
                     break;
-                  case 'Volvo':
+                  case 'VOLVO':
                     logoPath =
                         'lib/assets/Logo/Volvo_Icon-removebg-preview.png';
                     break;
-                  case 'Mercedes':
-                    logoPath = 'lib/assets/Logo/Mercedes Benz 3D Star.png';
+                  case 'SCANIA':
+                    logoPath = 'lib/assets/Logo/Scania Emblem.png';
                     break;
-                  case 'Western Star':
-                    logoPath = 'lib/assets/Logo/Western Star Trucks.png';
-                    break;
+                  case 'CNHTC':
+                  case 'EICHER':
+                  case 'FAW':
+                  case 'FUSO':
+                  case 'HINO':
+                  case 'ISUZU':
+                  case 'JAC':
+                  case 'POWERSTAR':
+                  case 'RENAULT':
+                  case 'SSCANIA':
+                  case 'TATA':
+                  case 'UD TRUCKS':
+                  case 'VOLKSWAGEN':
+                  case 'MAKE':
                   default:
-                    logoPath =
-                        'lib/assets/Logo/Globe Emoji.png'; // Fallback logo
+                    logoPath = 'lib/assets/Logo/Globe Emoji.png';
                     break;
                 }
 
@@ -653,18 +742,35 @@ class _HomePageState extends State<HomePage> {
 
   void _showEditBrandsDialog(UserProvider userProvider) {
     final availableBrands = [
-      'Volvo',
-      'Freightliner',
-      'Kenworth',
-      'Peterbilt',
-      'Mack',
-      'Western Star',
-      'International',
-      'Scania',
-      'Mercedes-Benz',
-      'MAN',
       'DAF',
-      'Iveco'
+      'FUSO',
+      'HINO',
+      'ISUZU',
+      'IVECO',
+      'MAN',
+      'MERCEDES-BENZ',
+      'SSCANIA',
+      'UD TRUCKS',
+      'VW',
+      'VOLVO',
+      'FORD',
+      'TOYOTA',
+      'MAKE',
+      'CNHTC',
+      'EICHER',
+      'FAW',
+      'JAC',
+      'POWERSTAR',
+      'RENAULT',
+      'TATA',
+      'ASHOK LEYLAND',
+      'DAYUN',
+      'FIAT',
+      'FOTON',
+      'HYUNDAI',
+      'JOYLONG',
+      'PEUGEOT',
+      'US TRUCKS'
     ];
 
     List<String> selectedBrands = List.from(userProvider.getPreferredBrands);
@@ -716,131 +822,204 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
+}
 
-  Widget _buildTruckCard(BuildContext context,
-      AppinioSwiperController controller, Vehicle vehicle) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: vehicle.mainImageUrl != null
-                  ? Image.network(
-                      vehicle.mainImageUrl!,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.asset(
-                      'lib/assets/default_vehicle_image.png',
-                      fit: BoxFit.cover,
-                    ),
-            ),
-          ),
-          Positioned(
-            bottom: 90,
-            left: 10,
-            right: 10,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      vehicle.makeModel,
-                      style: _customFont(20, FontWeight.bold, Colors.white),
-                    ),
-                    const SizedBox(width: 5),
-                    Image.asset(
-                      'lib/assets/verified_Icon.png',
-                      width: 20,
-                      height: 20,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildBlurryContainer('YEAR', vehicle.year),
-                    _buildBlurryContainer('MILEAGE', vehicle.mileage),
-                    _buildBlurryContainer('TRANSMISSION', vehicle.transmission),
-                    _buildBlurryContainer('CONFIG', 'N/A'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 10,
-            left: 10,
-            right: 10,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildIconButton(
-                    Icons.close, Colors.blue, controller, 'left', vehicle),
-                _buildIconButton(Icons.favorite, const Color(0xFFFF4E00),
-                    controller, 'right', vehicle),
-              ],
-            ),
-          ),
-        ],
+class SwiperWidget extends StatelessWidget {
+  final List<Vehicle> displayedVehicles;
+  final AppinioSwiperController controller;
+  final void Function(int, SwiperActivity) onSwipeEnd;
+  final TickerProvider vsync;
+  final BuildContext parentContext; // Pass the context from the parent
+
+  const SwiperWidget({
+    super.key,
+    required this.displayedVehicles,
+    required this.controller,
+    required this.onSwipeEnd,
+    required this.vsync,
+    required this.parentContext, // Initialize the context from the parent
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height:
+          MediaQuery.of(parentContext).size.height * 0.6, // Use parent context
+      child: AppinioSwiper(
+        controller: controller,
+        cardCount: displayedVehicles.length,
+        backgroundCardOffset: Offset.zero,
+        cardBuilder: (BuildContext context, int index) {
+          return _buildTruckCard(controller, displayedVehicles[index]);
+        },
+        swipeOptions: const SwipeOptions.symmetric(
+            horizontal: false, vertical: false), // Disable swiping
+        onSwipeEnd: (int previousIndex, int? targetIndex,
+            SwiperActivity direction) async {
+          onSwipeEnd(previousIndex, direction);
+        },
+        onEnd: () {
+          // Handle end of swiping
+          final parentState =
+              parentContext.findAncestorStateOfType<_HomePageState>();
+          parentState?._showEndMessage = true;
+          parentState?.setState(() {});
+        },
       ),
     );
   }
 
-  Widget _buildTransporterVehicleCard(Vehicle vehicle, Size size) {
-    return Container(
-      width: size.width * 0.7,
-      margin: const EdgeInsets.symmetric(horizontal: 8.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blue, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(10)),
-              child: vehicle.mainImageUrl != null
-                  ? Image.network(
-                      vehicle.mainImageUrl!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.asset(
-                      'lib/assets/default_vehicle_image.png',
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+  Widget _buildTruckCard(AppinioSwiperController controller, Vehicle vehicle) {
+    AnimationController animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: vsync,
+    );
+
+    Animation<double> scaleAnimation =
+        Tween<double>(begin: 1.0, end: 1.05).animate(animationController);
+
+    return AnimatedBuilder(
+      animation: scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: scaleAnimation.value,
+          child: Container(
+            // margin: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(10),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Text(
-                  vehicle.makeModel,
-                  style: _customFont(18, FontWeight.bold, Colors.white),
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: vehicle.mainImageUrl != null
+                        ? Image.network(vehicle.mainImageUrl!,
+                            fit: BoxFit.cover)
+                        : Image.asset('lib/assets/default_vehicle_image.png',
+                            fit: BoxFit.cover),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  vehicle.year ?? 'Unknown Year',
-                  style: _customFont(14, FontWeight.normal, Colors.grey),
+                Positioned(
+                  bottom: 90,
+                  left: 10,
+                  right: 10,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(vehicle.makeModel,
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white)),
+                          const SizedBox(width: 5),
+                          Image.asset('lib/assets/verified_Icon.png',
+                              width: 20, height: 20),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildBlurryContainer('YEAR', vehicle.year),
+                          _buildBlurryContainer('MILEAGE', vehicle.mileage),
+                          _buildBlurryContainer(
+                              'TRANSMISSION', vehicle.transmission),
+                          _buildBlurryContainer('CONFIG', 'N/A'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  bottom: 10,
+                  left: 10,
+                  right: 10,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildIconButton(Icons.close, Colors.blue, controller,
+                          'left', vehicle), // Dislike
+                      _buildIconButton(Icons.favorite, const Color(0xFFFF4E00),
+                          controller, 'right', vehicle), // Like
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, Color color,
+      AppinioSwiperController controller, String direction, Vehicle vehicle) {
+    final size = MediaQuery.of(parentContext).size;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          try {
+            print('${icon == Icons.close ? "DISLIKE" : "LIKE"} button pressed');
+            final userProvider =
+                Provider.of<UserProvider>(parentContext, listen: false);
+
+            if (direction == 'left') {
+              // Check if the vehicle is already disliked
+              if (!userProvider.getDislikedVehicles.contains(vehicle.id)) {
+                await userProvider.dislikeVehicle(vehicle.id);
+                print(
+                    'Disliked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
+                controller.swipeLeft();
+                print('Swiping left');
+              } else {
+                print('Vehicle is already disliked.');
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(content: Text('Vehicle already disliked.')),
+                );
+              }
+            } else if (direction == 'right') {
+              // Check if the vehicle is already liked
+              if (!userProvider.getLikedVehicles.contains(vehicle.id)) {
+                await userProvider.likeVehicle(vehicle.id);
+                print(
+                    'Liked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
+                controller.swipeRight();
+                print('Swiping right');
+              } else {
+                print('Vehicle is already liked.');
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(content: Text('Vehicle already liked.')),
+                );
+              }
+            }
+          } catch (e) {
+            print('Error swiping vehicle: $e');
+            ScaffoldMessenger.of(parentContext).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to swipe vehicle. Please try again.'),
+              ),
+            );
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color, width: 2),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.black, size: size.height * 0.025),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -855,93 +1034,19 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: _customFont(12, FontWeight.bold, Colors.grey),
-          ),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey)),
           const SizedBox(height: 2),
-          Text(
-            value ?? 'Unknown',
-            style: _customFont(14, FontWeight.bold, Colors.white),
-          ),
+          Text(value ?? 'Unknown',
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white)),
         ],
       ),
     );
-  }
-
-  Widget _buildIconButton(IconData icon, Color color,
-      AppinioSwiperController controller, String direction, Vehicle vehicle) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () async {
-          try {
-            if (direction == 'left') {
-              await _dislikeVehicle(vehicle.id);
-              controller.swipeLeft();
-            } else if (direction == 'right') {
-              await _likeVehicle(vehicle.id);
-              controller.swipeRight();
-            }
-          } catch (e) {
-            print('Error handling swipe action for vehicle ${vehicle.id}: $e');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Failed to process the action. Please try again later.'),
-              ),
-            );
-          }
-        },
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color, width: 2),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.black, size: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _likeVehicle(String vehicleId) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    try {
-      await userProvider.likeVehicle(vehicleId);
-      setState(() {
-        likedVehicles.add(vehicleId);
-      });
-    } catch (e, stackTrace) {
-      print('Error liking vehicle $vehicleId: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to like vehicle. Please try again.')),
-      );
-      // Report error to Crashlytics
-      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
-    }
-  }
-
-  Future<void> _dislikeVehicle(String vehicleId) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    try {
-      await userProvider.dislikeVehicle(vehicleId);
-      setState(() {
-        dislikedVehicles.add(vehicleId);
-      });
-    } catch (e, stackTrace) {
-      print('Error disliking vehicle $vehicleId: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to dislike vehicle. Please try again.')),
-      );
-      // Report error to Crashlytics
-      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
-    }
   }
 }

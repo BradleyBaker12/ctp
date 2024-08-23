@@ -84,7 +84,7 @@ class _WishlistPageState extends State<WishlistPage> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    var screenSize = MediaQuery.of(context).size;
     final vehicleProvider = Provider.of<VehicleProvider>(context);
     final offerProvider = _offerProvider;
 
@@ -93,23 +93,6 @@ class _WishlistPageState extends State<WishlistPage> {
       appBar: const BlurryAppBar(),
       body: Column(
         children: [
-          Container(
-            color: Colors.black.withOpacity(0.2),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Image.asset('lib/assets/CTPLogo.png', height: 40),
-                CircleAvatar(
-                  backgroundImage: profileImageUrl.isNotEmpty
-                      ? NetworkImage(profileImageUrl)
-                      : const AssetImage('lib/assets/default-profile-photo.jpg')
-                          as ImageProvider,
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -120,10 +103,18 @@ class _WishlistPageState extends State<WishlistPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        SizedBox(height: screenSize.height * 0.02),
+                        Image.asset(
+                          'lib/assets/CTPLogo.png',
+                          height: screenSize.height * 0.2,
+                          width: screenSize.height * 0.2,
+                          fit: BoxFit.cover,
+                        ),
+                        SizedBox(height: screenSize.height * 0.07),
                         const Text(
-                          'Wishlist',
+                          'WISHLIST',
                           style: TextStyle(
-                            color: Colors.orange,
+                            color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
@@ -212,7 +203,7 @@ class _WishlistPageState extends State<WishlistPage> {
                                   return WishCard(
                                     vehicleMakeModel: vehicle.makeModel,
                                     vehicleImageUrl: imageUrl,
-                                    size: size,
+                                    size: screenSize,
                                     customFont: (double fontSize,
                                         FontWeight fontWeight, Color color) {
                                       return TextStyle(

@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/loading_screen.dart';
+import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/transporter_reg.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -171,23 +171,29 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                               horizontal: 16.0, vertical: 8.0),
                           child: Column(
                             children: [
-                              const SizedBox(height: 20),
-                              Image.asset('lib/assets/CTPLogo.png',
-                                  height: 200), // Adjust the height as needed
-                              const SizedBox(height: 50),
+                              SizedBox(height: screenSize.height * 0.02),
+                              Image.asset(
+                                'lib/assets/CTPLogo.png',
+                                height: screenSize.height * 0.2,
+                                width: screenSize.height * 0.2,
+                                fit: BoxFit.cover,
+                              ), // Adjust the height as needed
+                              SizedBox(height: screenSize.height * 0.07),
+                              const ProgressBar(progress: 1),
+                              SizedBox(height: screenSize.height * 0.05),
                               Text(
                                 'PREVIEW',
                                 style: GoogleFonts.montserrat(
-                                  fontSize: 18,
+                                  fontSize: screenSize.height * 0.025,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              const SizedBox(height: 20),
+                              SizedBox(height: screenSize.height * 0.05),
                               if (!_isLoading)
                                 CircleAvatar(
-                                  radius: 80,
+                                  radius: screenSize.height * 0.08,
                                   backgroundImage: _croppedFile != null
                                       ? FileImage(_croppedFile!)
                                       : const AssetImage(
@@ -197,21 +203,21 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                                           size: 80, color: Colors.grey)
                                       : null,
                                 ),
-                              const SizedBox(height: 50),
+                              SizedBox(height: screenSize.height * 0.1),
                               CustomButton(
                                 text: 'CONTINUE',
                                 borderColor: blue,
                                 onPressed: _uploadProfileImage,
                               ),
-                              const SizedBox(height: 30),
+                              SizedBox(height: screenSize.height * 0.03),
                             ],
                           ),
                         ),
-                        const Positioned(
-                          top: 40,
-                          left: 16,
-                          child: CustomBackButton(),
-                        ),
+                        // const Positioned(
+                        //   top: 40,
+                        //   left: 16,
+                        //   child: CustomBackButton(),
+                        // ),
                       ],
                     ),
                   ),

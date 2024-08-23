@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -32,7 +33,7 @@ class CustomButton extends StatelessWidget {
           ),
           child: Text(
             text,
-            style: const TextStyle(
+            style: GoogleFonts.montserrat(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white, // Text color

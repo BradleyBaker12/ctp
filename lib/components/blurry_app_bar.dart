@@ -16,7 +16,7 @@ class BlurryAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: Container(
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(0.1),
-            border: Border(
+            border: const Border(
               bottom: BorderSide(
                 color: Color(0xFFFF4E00),
                 width: 2.0, // Adjust the width of the border here

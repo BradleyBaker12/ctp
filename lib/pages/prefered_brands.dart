@@ -19,18 +19,18 @@ class PreferredBrandsPage extends StatefulWidget {
 
 class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
   final List<String> semiTruckBrands = [
-    'Volvo',
-    'Freightliner',
-    'Kenworth',
-    'Peterbilt',
-    'Mack',
-    'Western Star',
-    'International',
-    'Scania',
-    'Mercedes-Benz',
-    'MAN',
     'DAF',
-    'Iveco'
+    'FUSO',
+    'HINO',
+    'ISUZU',
+    'IVECO',
+    'MAN',
+    'MERCEDES-BENZ',
+    'SCANIA',
+    'UD TRUCKS',
+    'VOLVO',
+    'FORD',
+    'TOYOTA',
   ];
 
   final Set<String> selectedBrands = {};
@@ -72,17 +72,6 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
     var blue = const Color(0xFF2F7FFF);
     var isPortrait = screenSize.height > screenSize.width;
 
-    double logoHeight =
-        isPortrait ? screenSize.height * 0.15 : screenSize.height * 0.25;
-    double spacing =
-        isPortrait ? screenSize.height * 0.03 : screenSize.height * 0.02;
-    double headerFontSize =
-        isPortrait ? screenSize.width * 0.06 : screenSize.width * 0.05;
-    double brandFontSize =
-        isPortrait ? screenSize.width * 0.04 : screenSize.width * 0.035;
-    double buttonFontSize =
-        isPortrait ? screenSize.width * 0.045 : screenSize.width * 0.04;
-
     return Scaffold(
       body: Stack(
         children: [
@@ -102,36 +91,38 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            SizedBox(height: spacing),
+                            SizedBox(height: screenSize.height * 0.02),
                             Image.asset(
                               'lib/assets/CTPLogo.png',
-                              height:
-                                  logoHeight, // Adjust the height responsively
+                              height: screenSize.height * 0.2,
+                              width: screenSize.height * 0.2,
+                              fit: BoxFit.cover,
                             ),
-                            SizedBox(height: spacing),
+                            SizedBox(height: screenSize.height * 0.03),
                             const ProgressBar(progress: 0.80),
-                            SizedBox(height: spacing),
+                            SizedBox(height: screenSize.height * 0.04),
                             Text(
                               'PREFERRED BRANDS',
                               style: GoogleFonts.montserrat(
-                                fontSize: headerFontSize,
+                                fontSize: screenSize.height * 0.022,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            SizedBox(height: spacing),
+                            SizedBox(height: screenSize.height * 0.04),
                             Expanded(
                               child: GridView.builder(
                                 padding: EdgeInsets.symmetric(
-                                    horizontal: screenSize.width * 0.05),
+                                    horizontal: screenSize.width * 0.01),
                                 shrinkWrap: true,
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: isPortrait ? 3 : 5,
                                   crossAxisSpacing: screenSize.width * 0.02,
-                                  mainAxisSpacing: screenSize.height * 0.02,
-                                  childAspectRatio: isPortrait ? 2 / 1 : 3 / 1,
+                                  mainAxisSpacing: screenSize.height * 0.01,
+                                  childAspectRatio:
+                                      isPortrait ? 3.5 / 1 : 5 / 1,
                                 ),
                                 itemCount: semiTruckBrands.length,
                                 itemBuilder: (BuildContext context, int index) {
@@ -146,7 +137,7 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                       decoration: BoxDecoration(
                                         color: isSelected
                                             ? blue.withOpacity(0.8)
-                                            : Colors.transparent,
+                                            : blue.withOpacity(0.3),
                                         border: Border.all(color: blue),
                                         borderRadius:
                                             BorderRadius.circular(8.0),
@@ -156,9 +147,9 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                           brand,
                                           textAlign: TextAlign.center,
                                           style: GoogleFonts.montserrat(
-                                            fontSize: brandFontSize,
+                                            fontSize: screenSize.height * 0.012,
                                             color: Colors.white,
-                                            fontWeight: FontWeight.normal,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -167,13 +158,23 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                 },
                               ),
                             ),
-                            SizedBox(height: spacing),
+                            SizedBox(height: screenSize.height * 0.02),
+                            // Text(
+                            //   'There are more truck brands when you edit you prefered ',
+                            //   style: GoogleFonts.montserrat(
+                            //     fontSize: screenSize.height * 0.016,
+                            //     color: Colors.white,
+                            //     fontWeight: FontWeight.w400,
+                            //   ),
+                            //   textAlign: TextAlign.center,
+                            // ),
+                            SizedBox(height: screenSize.height * 0.02),
                             CustomButton(
                               text: 'CONTINUE',
                               borderColor: blue,
                               onPressed: () => _savePreferredBrands(context),
                             ),
-                            SizedBox(height: spacing),
+                            SizedBox(height: screenSize.height * 0.02),
                           ],
                         ),
                       ),

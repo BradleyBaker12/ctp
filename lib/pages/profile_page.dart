@@ -11,6 +11,7 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var screenSize = MediaQuery.of(context).size;
     final userProvider = Provider.of<UserProvider>(context);
     final size = MediaQuery.of(context).size;
     const Color borderColor = Color(0xFFFF4E00);
@@ -27,7 +28,14 @@ class ProfilePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(height: size.height * 0.1),
+              SizedBox(height: screenSize.height * 0.1),
+              Image.asset(
+                'lib/assets/CTPLogo.png',
+                height: screenSize.height * 0.1,
+                width: screenSize.height * 0.1,
+                fit: BoxFit.cover,
+              ),
+              SizedBox(height: screenSize.height * 0.03),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Row(
@@ -72,10 +80,10 @@ class ProfilePage extends StatelessWidget {
                                 child: const Text(
                                   'Edit Profile',
                                   style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                    decoration: TextDecoration.underline,
-                                  ),
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white),
                                 ),
                               ),
                             ],
@@ -109,8 +117,6 @@ class ProfilePage extends StatelessWidget {
                       '${userProvider.getState ?? ''}\n'
                       '${userProvider.getPostalCode ?? ''}'),
               const SizedBox(height: 20),
-              const Divider(color: Colors.white),
-              const SizedBox(height: 10),
               const Text(
                 'DOCUMENTS',
                 style: TextStyle(
@@ -119,6 +125,8 @@ class ProfilePage extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
+              const Divider(color: Colors.white),
+              const SizedBox(height: 10),
               _buildDocumentItem(
                   'BANK CONFIRMATION',
                   userProvider.getBankConfirmationUrl,
@@ -186,7 +194,7 @@ class ProfilePage extends StatelessWidget {
               value,
               style: const TextStyle(
                 fontSize: 14,
-                color: Colors.grey,
+                color: Colors.white,
               ),
               textAlign: TextAlign.right,
             ),
@@ -228,13 +236,13 @@ class ProfilePage extends StatelessWidget {
                   url != null ? 'VIEW' : 'NOT UPLOADED',
                   style: TextStyle(
                     fontSize: 14,
-                    color: url != null ? Colors.blue : Colors.grey,
+                    color: url != null ? Colors.white : Colors.white,
                   ),
                 ),
               ),
               const SizedBox(width: 5),
               Icon(icon,
-                  color: url != null ? Colors.white : Colors.grey, size: 20),
+                  color: url != null ? Colors.white : Colors.white, size: 20),
             ],
           ),
         ],

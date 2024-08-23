@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 
 class TradingCategoryPage extends StatelessWidget {
@@ -50,14 +49,18 @@ class TradingCategoryPage extends StatelessWidget {
                           horizontal: 16.0, vertical: 8.0),
                       child: Column(
                         children: [
-                          const SizedBox(height: 20),
-                          Image.asset('lib/assets/CTPLogo.png',
-                              height: 200), // Adjust the height as needed
-                          const SizedBox(height: 50),
+                          SizedBox(height: screenSize.height * 0.02),
+                          Image.asset(
+                            'lib/assets/CTPLogo.png',
+                            height: screenSize.height * 0.2,
+                            width: screenSize.height * 0.2,
+                            fit: BoxFit.cover,
+                          ), // Adjust the height as needed
+                          SizedBox(height: screenSize.height * 0.15),
                           Text(
                             'Welcome to CTP where trading trucks and trailers is made easy!',
                             style: GoogleFonts.montserrat(
-                              fontSize: 20,
+                              fontSize: screenSize.height * 0.02,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -100,11 +103,11 @@ class TradingCategoryPage extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Positioned(
-                      top: 40,
-                      left: 16,
-                      child: CustomBackButton(),
-                    ),
+                    // const Positioned(
+                    //   top: 40,
+                    //   left: 16,
+                    //   child: CustomBackButton(),
+                    // ),
                   ],
                 ),
               ),

@@ -107,7 +107,7 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildTab('View All'),
+                      _buildTab('All'),
                       const SizedBox(width: 8),
                       _buildTab('Accepted'),
                       const SizedBox(width: 8),

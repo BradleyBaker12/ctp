@@ -175,10 +175,10 @@ class _OTPScreenState extends State<OTPScreen> {
                                 onPressed: () {
                                   _resendCode(phoneNumber);
                                 },
-                                child: Text(
+                                child: const Text(
                                   'Resend code',
                                   style: TextStyle(
-                                    color: blue,
+                                    color: Colors.white,
                                     fontSize: 16,
                                     decoration: TextDecoration.underline,
                                   ),
@@ -195,11 +195,11 @@ class _OTPScreenState extends State<OTPScreen> {
                             ],
                           ),
                         ),
-                        const Positioned(
-                          top: 40,
-                          left: 16,
-                          child: CustomBackButton(),
-                        ),
+                        // const Positioned(
+                        //   top: 40,
+                        //   left: 16,
+                        //   child: CustomBackButton(),
+                        // ),
                       ],
                     ),
                   ),

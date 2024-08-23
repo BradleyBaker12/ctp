@@ -5,7 +5,8 @@ class CustomTextField extends StatefulWidget {
   final bool obscureText;
   final TextEditingController? controller;
 
-  const CustomTextField({super.key, 
+  const CustomTextField({
+    super.key,
     required this.hintText,
     this.obscureText = false,
     this.controller,
@@ -33,6 +34,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
   @override
   Widget build(BuildContext context) {
     var orange = const Color(0xFFFF4E00);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.black
@@ -57,7 +59,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.0),
-            borderSide: const BorderSide(color: Colors.white),
+            borderSide: BorderSide(color: orange), // Orange border when focused
           ),
           contentPadding:
               const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),

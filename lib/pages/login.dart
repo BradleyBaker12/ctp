@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         Container(
                           width: screenSize.width,
-                          height: screenSize.height * 0.4,
+                          height: screenSize.height * 0.5,
                           decoration: const BoxDecoration(
                             image: DecorationImage(
                               image: AssetImage(

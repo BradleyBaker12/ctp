@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -76,13 +75,13 @@ class _HouseRulesPageState extends State<HouseRulesPage> {
                             children: [
                               SizedBox(
                                   height: screenSize.height *
-                                      0.03), // 3% of screen height
+                                      0.06), // 3% of screen height
                               Text(
                                 'WELCOME TO',
                                 style: GoogleFonts.montserrat(
                                   fontSize: screenSize.width *
                                       0.05, // 6% of screen width
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w900,
                                   color: Colors.white,
                                 ),
                                 textAlign: TextAlign.center,
@@ -184,11 +183,11 @@ class _HouseRulesPageState extends State<HouseRulesPage> {
                             ],
                           ),
                         ),
-                        const Positioned(
-                          top: 40,
-                          left: 16,
-                          child: CustomBackButton(),
-                        ),
+                        // const Positioned(
+                        //   top: 40,
+                        //   left: 16,
+                        //   child: CustomBackButton(),
+                        // ),
                       ],
                     ),
                   ),

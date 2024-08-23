@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -202,6 +202,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
 
   @override
   Widget build(BuildContext context) {
+    var screenSize = MediaQuery.of(context).size;
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
@@ -220,46 +221,48 @@ class _DealerRegPageState extends State<DealerRegPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(height: 20),
+                          SizedBox(height: screenSize.height * 0.05),
                           Center(
                             child: Image.asset('lib/assets/CTPLogo.png',
-                                height: 100), // Adjust the height as needed
+                                height: screenSize.height *
+                                    0.12), // Adjust the height as needed
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: screenSize.height * 0.04),
                           Center(
                             child: Text(
                               'DEALER REGISTRATION',
                               style: GoogleFonts.montserrat(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
+                                fontSize: screenSize.height * 0.025,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
                               ),
                               textAlign: TextAlign.center,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          SizedBox(height: screenSize.height * 0.02),
                           Center(
                             child: Text(
                               'Fill out the form carefully to register.',
                               style: GoogleFonts.montserrat(
-                                fontSize: 16,
+                                fontSize: screenSize.height * 0.018,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          SizedBox(height: screenSize.height * 0.02),
+                          Center(
+                            child: Text(
+                              'CTP Offers a way for you to sell your vehicle to multiple dealers in SA.\n\nCTP\'s fees are R 12 500 flat fee.',
+                              style: GoogleFonts.montserrat(
+                                fontSize: screenSize.height * 0.015,
                                 color: Colors.white,
                               ),
                               textAlign: TextAlign.center,
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          Center(
-                            child: Text(
-                              'CTP Offers a way for you to sell your vehicle to multiple dealers in SA.\nCTP\'s fees are R12500,00 flat fee.',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: screenSize.height * 0.02),
                           Form(
                             key: _formKey,
                             child: Column(
@@ -290,21 +293,35 @@ class _DealerRegPageState extends State<DealerRegPage> {
                                     hintText: 'VAT Number',
                                     validator: _validateVATNumber),
                                 const SizedBox(height: 15),
+                                Text(
+                                  'Dealer personal details *'.toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _firstNameController,
                                     focusNode: _firstNameFocusNode,
-                                    hintText: 'First'),
+                                    hintText: 'First Name'),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _middleNameController,
                                     focusNode: _middleNameFocusNode,
-                                    hintText: 'Middle',
+                                    hintText: 'Middle Name (OPTIONAL)',
                                     isOptional: true),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _lastNameController,
                                     focusNode: _lastNameFocusNode,
-                                    hintText: 'Last'),
+                                    hintText: 'Last Name'),
+                                const SizedBox(height: 15),
+                                Text(
+                                  'Address'.toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500),
+                                ),
                                 const SizedBox(height: 15),
                                 _buildDropdownField(),
                                 const SizedBox(height: 15),
@@ -335,9 +352,11 @@ class _DealerRegPageState extends State<DealerRegPage> {
                                     hintText: 'Postal Code'),
                                 const SizedBox(height: 30),
                                 Text(
-                                  'DOCUMENT UPLOADS',
+                                  'Document Uploads'.toUpperCase(),
                                   style: GoogleFonts.montserrat(
-                                      color: Colors.white),
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: screenSize.height * 0.02),
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
@@ -394,16 +413,18 @@ class _DealerRegPageState extends State<DealerRegPage> {
               ],
             ),
           ),
-          const Positioned(
-            top: 120,
-            left: 16,
-            child: CustomBackButton(),
-          ),
+          // const Positioned(
+          //   top: 120,
+          //   left: 16,
+          //   child: CustomBackButton(),
+          // ),
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(
+                  color: Color(0xFFFF4E00),
+                ),
               ),
             ),
         ],
@@ -413,46 +434,106 @@ class _DealerRegPageState extends State<DealerRegPage> {
 
   Widget _buildDropdownField() {
     return SizedBox(
-        width: double.infinity,
-        child: DropdownButtonFormField<String>(
-          value: _selectedCountry,
-          focusNode: _countryFocusNode,
-          hint: Text(
-            'Select Country',
-            style: GoogleFonts.montserrat(color: Colors.white70),
-          ),
-          dropdownColor: Colors.black,
-          decoration: InputDecoration(
+      width: double.infinity,
+      child: DropdownSearch<String>(
+        items: _countries,
+        selectedItem: _selectedCountry,
+        onChanged: (String? newValue) {
+          setState(() {
+            _selectedCountry = newValue;
+          });
+        },
+        validator: (value) {
+          if (value == null) {
+            _scrollToFocusNode(_countryFocusNode);
+            return 'Please select a country';
+          }
+          return null;
+        },
+        dropdownDecoratorProps: DropDownDecoratorProps(
+          dropdownSearchDecoration: InputDecoration(
+            hintText: 'Select Country',
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
             filled: true,
-            fillColor: Colors.black.withOpacity(0.3),
-            border: OutlineInputBorder(
+            fillColor: Colors.black
+                .withOpacity(0.4), // Black background for the dropdown field
+            enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10.0),
-              borderSide: const BorderSide(color: Colors.white, width: 2),
+              borderSide: const BorderSide(
+                  color: Colors.white), // White border when not focused
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10.0),
+              borderSide: const BorderSide(
+                  color: Color(0xFFFF4E00)), // Orange border when focused
             ),
           ),
-          items: _countries.map<DropdownMenuItem<String>>((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(
-                value,
-                style: GoogleFonts.montserrat(color: Colors.white),
-                overflow: TextOverflow.ellipsis, // Add this to handle overflow
+        ),
+        dropdownBuilder: (context, selectedItem) => selectedItem == null
+            ? Text(
+                'Select Country',
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.7)), // White hint text
+              )
+            : Text(
+                selectedItem,
+                style: const TextStyle(
+                    color: Colors.white), // White text for selected item
               ),
-            );
-          }).toList(),
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedCountry = newValue;
-            });
-          },
-          validator: (value) {
-            if (value == null) {
-              _scrollToFocusNode(_countryFocusNode);
-              return 'Please select a country';
-            }
-            return null;
-          },
-        ));
+        clearButtonProps: const ClearButtonProps(
+          isVisible: true,
+          icon: Icon(Icons.clear, color: Colors.white),
+        ),
+        popupProps: PopupProps.menu(
+          showSearchBox: true, // Enable search box
+          menuProps: const MenuProps(
+            backgroundColor:
+                Colors.black, // Black background for the dropdown menu
+          ),
+          searchFieldProps: TextFieldProps(
+            style: const TextStyle(
+                color: Colors.white), // White text in search field
+            cursorColor: const Color(0xFFFF4E00), // Orange cursor
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.black, // Black background for search bar
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide:
+                    const BorderSide(color: Colors.black), // Black border
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: const BorderSide(
+                    color: Color(0xFFFF4E00)), // Orange border when focused
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: const BorderSide(
+                    color: Colors
+                        .white), // White border when enabled (not focused)
+              ),
+              hintText: 'Search Country',
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+            ),
+          ),
+          showSelectedItems: true,
+          fit: FlexFit.loose,
+          itemBuilder: (context, item, isSelected) => Container(
+            color: isSelected
+                ? Colors.black.withOpacity(0.2)
+                : Colors.black, // Highlight selected item
+            child: ListTile(
+              title: Text(
+                item,
+                style: const TextStyle(
+                    color: Colors.white), // White text for items
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildTextField({
@@ -460,6 +541,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
     required String hintText,
     required FocusNode focusNode,
     bool isOptional = false,
+    var orange = const Color(0xFFFF4E00),
     String? Function(String?)? validator,
     List<TextInputFormatter>?
         inputFormatters, // Add this parameter for custom input formatters
@@ -467,24 +549,25 @@ class _DealerRegPageState extends State<DealerRegPage> {
     return TextFormField(
       controller: controller,
       focusNode: focusNode,
+      cursorColor: orange,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: GoogleFonts.montserrat(color: Colors.white70),
         filled: true,
         fillColor: Colors.black.withOpacity(0.3),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10.0),
+          borderRadius: BorderRadius.circular(4.0),
           borderSide:
-              BorderSide(color: Colors.white.withOpacity(0.2), width: 2),
+              BorderSide(color: Colors.white.withOpacity(0.4), width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
           borderSide:
-              BorderSide(color: Colors.white.withOpacity(0.5), width: 2),
+              BorderSide(color: Colors.white.withOpacity(0.6), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(color: Colors.white, width: 2),
+          borderSide: const BorderSide(color: Color(0xFFFF4E00), width: 2),
         ),
       ),
       style: GoogleFonts.montserrat(color: Colors.white),
@@ -547,16 +630,20 @@ class _DealerRegPageState extends State<DealerRegPage> {
             child: Center(
               child: fileName == null
                   ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
-                  : Row(
+                  : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(_getIconForFileType(fileName),
-                            color: Colors.white, size: 40),
-                        const SizedBox(width: 10),
+                        Icon(
+                          _getIconForFileType(fileName),
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                        const SizedBox(height: 5),
                         Flexible(
                           child: Text(
                             path.basename(fileName),
                             style: GoogleFonts.montserrat(color: Colors.white),
+                            textAlign: TextAlign.center,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

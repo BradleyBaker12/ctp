@@ -33,6 +33,15 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
   void initState() {
     super.initState();
     _loadCountryCodes();
+
+    _phoneController.addListener(_formatPhoneNumber);
+  }
+
+  @override
+  void dispose() {
+    _phoneController.removeListener(_formatPhoneNumber);
+    _phoneController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCountryCodes() async {
@@ -50,21 +59,40 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
     });
   }
 
+  void _formatPhoneNumber() {
+    String text = _phoneController.text.replaceAll(RegExp(r'\s+'), '');
+    if (text.length > 3) {
+      final buffer = StringBuffer();
+      for (int i = 0; i < text.length; i++) {
+        buffer.write(text[i]);
+        if (i == 2 || i == 5) {
+          buffer.write(' '); // Adds a space after the 3rd and 6th digits
+        }
+      }
+      _phoneController.value = TextEditingValue(
+        text: buffer.toString(),
+        selection: TextSelection.collapsed(offset: buffer.length),
+      );
+    }
+  }
+
   bool _validatePhoneNumber(String phoneNumber) {
     final RegExp regex = RegExp(r'^\d+$');
-    if (!regex.hasMatch(phoneNumber)) {
+    final String cleanedNumber = phoneNumber.replaceAll(' ', '');
+
+    if (!regex.hasMatch(cleanedNumber)) {
       setState(() {
         _errorMessage = 'Number format is incorrect. Only digits are allowed.';
       });
       return false;
     }
-    if (phoneNumber.length == 10 && phoneNumber.startsWith('0')) {
+    if (cleanedNumber.length == 10 && cleanedNumber.startsWith('0')) {
       setState(() {
         _errorMessage = '';
       });
       return true;
     }
-    if (phoneNumber.length == 9) {
+    if (cleanedNumber.length == 9) {
       setState(() {
         _errorMessage = '';
       });
@@ -97,7 +125,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
         Provider.of<UserProvider>(context, listen: false).userId!;
     print('PhoneNumberPage: Current User UID: $userId'); // Debugging
 
-    final String phoneNumber = _phoneController.text;
+    final String phoneNumber = _phoneController.text.replaceAll(' ', '');
     if (!_validatePhoneNumber(phoneNumber)) {
       setState(() {
         _isLoading = false;
@@ -302,13 +330,17 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                   textAlign: TextAlign.center,
                                 ),
                               const SizedBox(height: 20),
-                              Text(
-                                'We will send you a text with a verification code. Message and data rates may apply. Learn what happens when your number changes.',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.7),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8.0),
+                                child: Text(
+                                  'We will send you a text with a verification code. Message and data rates may apply.',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                  textAlign: TextAlign.justify,
                                 ),
-                                textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 150),
                               CustomButton(

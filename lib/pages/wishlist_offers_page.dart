@@ -104,11 +104,11 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                     CrossAxisAlignment.center, // Center the headings
                 children: [
                   const Text(
-                    'Wishlist and Offers',
+                    'WHISHLIST AND OFFERS',
                     style: TextStyle(
-                      color: Colors.orange,
+                      color: Color(0xFFFF4E00),
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -331,6 +331,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
               color: Colors.white,
               fontSize: 16,
               decoration: TextDecoration.underline,
+              decorationColor: Colors.white,
             ),
           ),
           SizedBox(width: 4),
