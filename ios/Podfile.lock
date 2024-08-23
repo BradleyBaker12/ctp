@@ -1120,69 +1120,12 @@ PODS:
     - Flutter
   - geocoding_ios (1.0.5):
     - Flutter
-  - Google-Maps-iOS-Utils (5.0.0):
-    - GoogleMaps (~> 8.0)
+  - Google-Maps-iOS-Utils (6.0.0):
+    - GoogleMaps (~> 9.0)
   - google_maps_flutter_ios (0.0.1):
     - Flutter
     - Google-Maps-iOS-Utils (< 7.0, >= 5.0)
     - GoogleMaps (< 10.0, >= 8.4)
-  - google_mlkit_barcode_scanning (0.12.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/BarcodeScanning (~> 6.0.0)
-  - google_mlkit_commons (0.7.1):
-    - Flutter
-    - MLKitVision
-  - google_mlkit_digital_ink_recognition (0.12.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/DigitalInkRecognition (~> 6.0.0)
-  - google_mlkit_entity_extraction (0.13.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/EntityExtraction (~> 6.0.0)
-  - google_mlkit_face_detection (0.11.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/FaceDetection (~> 6.0.0)
-  - google_mlkit_face_mesh_detection (0.2.0):
-    - Flutter
-    - google_mlkit_commons
-  - google_mlkit_image_labeling (0.12.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/ImageLabeling (~> 6.0.0)
-    - GoogleMLKit/ImageLabelingCustom (~> 6.0.0)
-  - google_mlkit_language_id (0.11.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/LanguageID (~> 6.0.0)
-  - google_mlkit_object_detection (0.13.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/ObjectDetection (~> 6.0.0)
-    - GoogleMLKit/ObjectDetectionCustom (~> 6.0.0)
-  - google_mlkit_pose_detection (0.12.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/PoseDetection (~> 6.0.0)
-    - GoogleMLKit/PoseDetectionAccurate (~> 6.0.0)
-  - google_mlkit_selfie_segmentation (0.8.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/SegmentationSelfie (~> 6.0.0)
-  - google_mlkit_smart_reply (0.11.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/SmartReply (~> 6.0.0)
-  - google_mlkit_text_recognition (0.13.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/TextRecognition (~> 6.0.0)
-  - google_mlkit_translation (0.11.0):
-    - Flutter
-    - google_mlkit_commons
-    - GoogleMLKit/Translate (~> 6.0.0)
   - google_sign_in_ios (0.0.1):
     - AppAuth (>= 1.7.4)
     - Flutter
@@ -1193,69 +1136,15 @@ PODS:
     - GoogleUtilities/Environment (~> 7.7)
     - nanopb (< 2.30911.0, >= 2.30908.0)
     - PromisesObjC (< 3.0, >= 1.2)
-  - GoogleMaps (8.4.0):
-    - GoogleMaps/Maps (= 8.4.0)
-  - GoogleMaps/Base (8.4.0)
-  - GoogleMaps/Maps (8.4.0):
+  - GoogleMaps (9.1.0):
+    - GoogleMaps/Maps (= 9.1.0)
+  - GoogleMaps/Base (9.1.0)
+  - GoogleMaps/Maps (9.1.0):
     - GoogleMaps/Base
-  - GoogleMLKit/BarcodeScanning (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitBarcodeScanning (~> 5.0.0)
-  - GoogleMLKit/DigitalInkRecognition (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitDigitalInkRecognition (~> 5.0.0)
-  - GoogleMLKit/EntityExtraction (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitEntityExtraction (~> 1.0.0-beta12)
-  - GoogleMLKit/FaceDetection (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitFaceDetection (~> 5.0.0)
-  - GoogleMLKit/ImageLabeling (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitImageLabeling (~> 5.0.0)
-  - GoogleMLKit/ImageLabelingCustom (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitImageLabelingCustom (~> 5.0.0)
-  - GoogleMLKit/LanguageID (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitLanguageID (~> 6.0.0)
-  - GoogleMLKit/MLKitCore (6.0.0):
-    - MLKitCommon (~> 11.0.0)
-  - GoogleMLKit/ObjectDetection (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitObjectDetection (~> 5.0.0)
-  - GoogleMLKit/ObjectDetectionCustom (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitObjectDetectionCustom (~> 5.0.0)
-  - GoogleMLKit/PoseDetection (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitPoseDetection (~> 1.0.0-beta13)
-  - GoogleMLKit/PoseDetectionAccurate (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitPoseDetectionAccurate (~> 1.0.0-beta13)
-  - GoogleMLKit/SegmentationSelfie (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitSegmentationSelfie (~> 1.0.0-beta11)
-  - GoogleMLKit/SmartReply (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitSmartReply (~> 5.0.0)
-  - GoogleMLKit/TextRecognition (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitTextRecognition (~> 4.0.0)
-  - GoogleMLKit/Translate (6.0.0):
-    - GoogleMLKit/MLKitCore
-    - MLKitTranslate (~> 5.0.0)
   - GoogleSignIn (7.1.0):
     - AppAuth (< 2.0, >= 1.7.3)
     - GTMAppAuth (< 5.0, >= 4.1.1)
     - GTMSessionFetcher/Core (~> 3.3)
-  - GoogleToolboxForMac/Defines (4.2.1)
-  - GoogleToolboxForMac/Logger (4.2.1):
-    - GoogleToolboxForMac/Defines (= 4.2.1)
-  - "GoogleToolboxForMac/NSData+zlib (4.2.1)":
-    - GoogleToolboxForMac/Defines (= 4.2.1)
-  - GoogleToolboxForMac/StringEncoding (4.2.1):
-    - GoogleToolboxForMac/Defines (= 4.2.1)
   - GoogleUtilities/AppDelegateSwizzler (7.13.3):
     - GoogleUtilities/Environment
     - GoogleUtilities/Logger
@@ -1281,8 +1170,6 @@ PODS:
   - GoogleUtilities/UserDefaults (7.13.3):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
-  - GoogleUtilitiesComponents (1.1.0):
-    - GoogleUtilities/Logger
   - "gRPC-C++ (1.62.5)":
     - "gRPC-C++/Implementation (= 1.62.5)"
     - "gRPC-C++/Interface (= 1.62.5)"
@@ -1390,105 +1277,6 @@ PODS:
   - Mantle (2.2.0):
     - Mantle/extobjc (= 2.2.0)
   - Mantle/extobjc (2.2.0)
-  - MLImage (1.0.0-beta5)
-  - MLKitBarcodeScanning (5.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitVision (~> 7.0)
-  - MLKitCommon (11.0.0):
-    - GoogleDataTransport (< 10.0, >= 9.4.1)
-    - GoogleToolboxForMac/Logger (< 5.0, >= 4.2.1)
-    - "GoogleToolboxForMac/NSData+zlib (< 5.0, >= 4.2.1)"
-    - GoogleUtilities/UserDefaults (< 8.0, >= 7.13.0)
-    - GoogleUtilitiesComponents (~> 1.0)
-    - GTMSessionFetcher/Core (< 4.0, >= 3.3.2)
-  - MLKitDigitalInkRecognition (5.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitMDD (~> 7.0)
-    - SSZipArchive (< 3.0, >= 2.5.5)
-  - MLKitEntityExtraction (1.0.0-beta12):
-    - MLKitNaturalLanguage (~> 7.0)
-  - MLKitFaceDetection (5.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitVision (~> 7.0)
-  - MLKitImageLabeling (5.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitImageLabelingCommon (~> 7.0)
-    - MLKitVision (~> 7.0)
-    - MLKitVisionKit (~> 8.0)
-  - MLKitImageLabelingCommon (7.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitVision (~> 7.0)
-  - MLKitImageLabelingCustom (5.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitImageLabelingCommon (~> 7.0)
-    - MLKitVision (~> 7.0)
-    - MLKitVisionKit (~> 8.0)
-  - MLKitLanguageID (6.0.0):
-    - MLKitNaturalLanguage (~> 7.0)
-  - MLKitMDD (7.0.0):
-    - MLKitCommon (~> 11.0)
-  - MLKitNaturalLanguage (7.0.0):
-    - GoogleToolboxForMac/Logger (< 5.0, >= 4.2.1)
-    - "GoogleToolboxForMac/NSData+zlib (< 5.0, >= 4.2.1)"
-    - GoogleToolboxForMac/StringEncoding (< 5.0, >= 4.2.1)
-    - GTMSessionFetcher/Core (< 4.0, >= 3.3.2)
-    - MLKitCommon (~> 11.0)
-  - MLKitObjectDetection (5.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitObjectDetectionCommon (~> 7.0)
-    - MLKitVision (~> 7.0)
-    - MLKitVisionKit (~> 8.0)
-  - MLKitObjectDetectionCommon (7.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitVision (~> 7.0)
-  - MLKitObjectDetectionCustom (5.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitObjectDetectionCommon (~> 7.0)
-    - MLKitVision (~> 7.0)
-    - MLKitVisionKit (~> 8.0)
-  - MLKitPoseDetection (1.0.0-beta13):
-    - MLKitCommon (~> 11.0)
-    - MLKitPoseDetectionCommon (= 1.0.0-beta13)
-    - MLKitXenoCommon (= 1.0.0-beta13)
-  - MLKitPoseDetectionAccurate (1.0.0-beta13):
-    - MLKitCommon (~> 11.0)
-    - MLKitPoseDetectionCommon (= 1.0.0-beta13)
-    - MLKitXenoCommon (= 1.0.0-beta13)
-  - MLKitPoseDetectionCommon (1.0.0-beta13):
-    - MLKitCommon (~> 11.0)
-    - MLKitXenoCommon (= 1.0.0-beta13)
-  - MLKitSegmentationCommon (1.0.0-beta11):
-    - MLKitCommon (~> 11.0)
-    - MLKitXenoCommon (= 1.0.0-beta13)
-  - MLKitSegmentationSelfie (1.0.0-beta11):
-    - MLKitSegmentationCommon (= 1.0.0-beta11)
-  - MLKitSmartReply (5.0.0):
-    - MLKitLanguageID (~> 6.0)
-    - MLKitNaturalLanguage (~> 7.0)
-  - MLKitTextRecognition (4.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitTextRecognitionCommon (= 3.0.0)
-    - MLKitVision (~> 7.0)
-  - MLKitTextRecognitionCommon (3.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitVision (~> 7.0)
-  - MLKitTranslate (5.0.0):
-    - MLKitNaturalLanguage (~> 7.0)
-    - SSZipArchive (< 3.0, >= 2.5.5)
-  - MLKitVision (7.0.0):
-    - GoogleToolboxForMac/Logger (< 5.0, >= 4.2.1)
-    - "GoogleToolboxForMac/NSData+zlib (< 5.0, >= 4.2.1)"
-    - GTMSessionFetcher/Core (< 4.0, >= 3.3.2)
-    - MLImage (= 1.0.0-beta5)
-    - MLKitCommon (~> 11.0)
-  - MLKitVisionKit (8.0.0):
-    - MLKitCommon (~> 11.0)
-    - MLKitImageLabelingCommon (~> 7.0)
-    - MLKitObjectDetectionCommon (~> 7.0)
-    - MLKitVision (~> 7.0)
-  - MLKitXenoCommon (1.0.0-beta13):
-    - MLKitCommon (~> 11.0)
-    - MLKitVision (~> 7.0)
   - nanopb (2.30910.0):
     - nanopb/decode (= 2.30910.0)
     - nanopb/encode (= 2.30910.0)
@@ -1501,15 +1289,14 @@ PODS:
   - PromisesSwift (2.4.0):
     - PromisesObjC (= 2.4.0)
   - RecaptchaInterop (100.0.0)
-  - SDWebImage (5.19.4):
-    - SDWebImage/Core (= 5.19.4)
-  - SDWebImage/Core (5.19.4)
+  - SDWebImage (5.19.7):
+    - SDWebImage/Core (= 5.19.7)
+  - SDWebImage/Core (5.19.7)
   - SDWebImageWebPCoder (0.14.6):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - share_plus (0.0.1):
     - Flutter
-  - SSZipArchive (2.5.5)
   - SwiftyGif (5.4.5)
   - TOCropViewController (2.7.4)
   - url_launcher_ios (0.0.1):
@@ -1528,20 +1315,6 @@ DEPENDENCIES:
   - flutter_pdfview (from `.symlinks/plugins/flutter_pdfview/ios`)
   - geocoding_ios (from `.symlinks/plugins/geocoding_ios/ios`)
   - google_maps_flutter_ios (from `.symlinks/plugins/google_maps_flutter_ios/ios`)
-  - google_mlkit_barcode_scanning (from `.symlinks/plugins/google_mlkit_barcode_scanning/ios`)
-  - google_mlkit_commons (from `.symlinks/plugins/google_mlkit_commons/ios`)
-  - google_mlkit_digital_ink_recognition (from `.symlinks/plugins/google_mlkit_digital_ink_recognition/ios`)
-  - google_mlkit_entity_extraction (from `.symlinks/plugins/google_mlkit_entity_extraction/ios`)
-  - google_mlkit_face_detection (from `.symlinks/plugins/google_mlkit_face_detection/ios`)
-  - google_mlkit_face_mesh_detection (from `.symlinks/plugins/google_mlkit_face_mesh_detection/ios`)
-  - google_mlkit_image_labeling (from `.symlinks/plugins/google_mlkit_image_labeling/ios`)
-  - google_mlkit_language_id (from `.symlinks/plugins/google_mlkit_language_id/ios`)
-  - google_mlkit_object_detection (from `.symlinks/plugins/google_mlkit_object_detection/ios`)
-  - google_mlkit_pose_detection (from `.symlinks/plugins/google_mlkit_pose_detection/ios`)
-  - google_mlkit_selfie_segmentation (from `.symlinks/plugins/google_mlkit_selfie_segmentation/ios`)
-  - google_mlkit_smart_reply (from `.symlinks/plugins/google_mlkit_smart_reply/ios`)
-  - google_mlkit_text_recognition (from `.symlinks/plugins/google_mlkit_text_recognition/ios`)
-  - google_mlkit_translation (from `.symlinks/plugins/google_mlkit_translation/ios`)
   - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - image_cropper (from `.symlinks/plugins/image_cropper/ios`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
@@ -1576,11 +1349,8 @@ SPEC REPOS:
     - Google-Maps-iOS-Utils
     - GoogleDataTransport
     - GoogleMaps
-    - GoogleMLKit
     - GoogleSignIn
-    - GoogleToolboxForMac
     - GoogleUtilities
-    - GoogleUtilitiesComponents
     - "gRPC-C++"
     - gRPC-Core
     - GTMAppAuth
@@ -1588,40 +1358,12 @@ SPEC REPOS:
     - leveldb-library
     - libwebp
     - Mantle
-    - MLImage
-    - MLKitBarcodeScanning
-    - MLKitCommon
-    - MLKitDigitalInkRecognition
-    - MLKitEntityExtraction
-    - MLKitFaceDetection
-    - MLKitImageLabeling
-    - MLKitImageLabelingCommon
-    - MLKitImageLabelingCustom
-    - MLKitLanguageID
-    - MLKitMDD
-    - MLKitNaturalLanguage
-    - MLKitObjectDetection
-    - MLKitObjectDetectionCommon
-    - MLKitObjectDetectionCustom
-    - MLKitPoseDetection
-    - MLKitPoseDetectionAccurate
-    - MLKitPoseDetectionCommon
-    - MLKitSegmentationCommon
-    - MLKitSegmentationSelfie
-    - MLKitSmartReply
-    - MLKitTextRecognition
-    - MLKitTextRecognitionCommon
-    - MLKitTranslate
-    - MLKitVision
-    - MLKitVisionKit
-    - MLKitXenoCommon
     - nanopb
     - PromisesObjC
     - PromisesSwift
     - RecaptchaInterop
     - SDWebImage
     - SDWebImageWebPCoder
-    - SSZipArchive
     - SwiftyGif
     - TOCropViewController
 
@@ -1650,34 +1392,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/geocoding_ios/ios"
   google_maps_flutter_ios:
     :path: ".symlinks/plugins/google_maps_flutter_ios/ios"
-  google_mlkit_barcode_scanning:
-    :path: ".symlinks/plugins/google_mlkit_barcode_scanning/ios"
-  google_mlkit_commons:
-    :path: ".symlinks/plugins/google_mlkit_commons/ios"
-  google_mlkit_digital_ink_recognition:
-    :path: ".symlinks/plugins/google_mlkit_digital_ink_recognition/ios"
-  google_mlkit_entity_extraction:
-    :path: ".symlinks/plugins/google_mlkit_entity_extraction/ios"
-  google_mlkit_face_detection:
-    :path: ".symlinks/plugins/google_mlkit_face_detection/ios"
-  google_mlkit_face_mesh_detection:
-    :path: ".symlinks/plugins/google_mlkit_face_mesh_detection/ios"
-  google_mlkit_image_labeling:
-    :path: ".symlinks/plugins/google_mlkit_image_labeling/ios"
-  google_mlkit_language_id:
-    :path: ".symlinks/plugins/google_mlkit_language_id/ios"
-  google_mlkit_object_detection:
-    :path: ".symlinks/plugins/google_mlkit_object_detection/ios"
-  google_mlkit_pose_detection:
-    :path: ".symlinks/plugins/google_mlkit_pose_detection/ios"
-  google_mlkit_selfie_segmentation:
-    :path: ".symlinks/plugins/google_mlkit_selfie_segmentation/ios"
-  google_mlkit_smart_reply:
-    :path: ".symlinks/plugins/google_mlkit_smart_reply/ios"
-  google_mlkit_text_recognition:
-    :path: ".symlinks/plugins/google_mlkit_text_recognition/ios"
-  google_mlkit_translation:
-    :path: ".symlinks/plugins/google_mlkit_translation/ios"
   google_sign_in_ios:
     :path: ".symlinks/plugins/google_sign_in_ios/darwin"
   image_cropper:
@@ -1725,30 +1439,13 @@ SPEC CHECKSUMS:
   flutter_image_compress_common: ec1d45c362c9d30a3f6a0426c297f47c52007e3e
   flutter_pdfview: 25f53dd6097661e6395b17de506e6060585946bd
   geocoding_ios: d7460f56e80e118d57678efe5c2cdc888739ff18
-  Google-Maps-iOS-Utils: 66d6de12be1ce6d3742a54661e7a79cb317a9321
+  Google-Maps-iOS-Utils: cfe6a0239c7ca634b7e001ad059a6707143dc8dc
   google_maps_flutter_ios: e31555a04d1986ab130f2b9f24b6cdc861acc6d3
-  google_mlkit_barcode_scanning: 383d0c2dd62d92b36c0b10c7e69cf98d3650dc40
-  google_mlkit_commons: 96aaca445520311b84a2da013dedf3427fe4cc69
-  google_mlkit_digital_ink_recognition: b9abc8bbe3b9a62a28b2740efc74d9324d8b24c5
-  google_mlkit_entity_extraction: 6a2f93e1d83cd971a453052a955084e22fadb0ed
-  google_mlkit_face_detection: b760d6035222630f347352b3b13f4a23ea9fb994
-  google_mlkit_face_mesh_detection: 0b0aa33d79e82959925391b176e1d96a846caf9c
-  google_mlkit_image_labeling: 6e0b7cbdec78650a00cccefc95f1ee8e6168a58c
-  google_mlkit_language_id: a63b1951078835b2682e52d9243012dfed621fec
-  google_mlkit_object_detection: 54a45452f93ce49f38a24a2e6880591708d7c752
-  google_mlkit_pose_detection: 47f28fa7b4f849b3a73cb0091c2891eff84b7361
-  google_mlkit_selfie_segmentation: 0c0a21ee1f811575cead86a3b810cd05b900117c
-  google_mlkit_smart_reply: 8d3ad8957603cb394212c7def04fe74999f74624
-  google_mlkit_text_recognition: 393c2526da49aa6c9c883e6d69100f54af011e24
-  google_mlkit_translation: a255e8ca9bc6b68cf7913202f8d09f0460becca6
   google_sign_in_ios: 07375bfbf2620bc93a602c0e27160d6afc6ead38
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
-  GoogleMaps: 8939898920281c649150e0af74aa291c60f2e77d
-  GoogleMLKit: 97ac7af399057e99182ee8edfa8249e3226a4065
+  GoogleMaps: c74e02e00db0be27b165516bde753826e2652b9c
   GoogleSignIn: d4281ab6cf21542b1cfaff85c191f230b399d2db
-  GoogleToolboxForMac: d1a2cbf009c453f4d6ded37c105e2f67a32206d8
   GoogleUtilities: ea963c370a38a8069cc5f7ba4ca849a60b6d7d15
-  GoogleUtilitiesComponents: 679b2c881db3b615a2777504623df6122dd20afe
   "gRPC-C++": e725ef63c4475d7cdb7e2cf16eb0fde84bd9ee51
   gRPC-Core: eee4be35df218649fe66d721a05a7f27a28f069b
   GTMAppAuth: f69bd07d68cd3b766125f7e072c45d7340dea0de
@@ -1758,46 +1455,18 @@ SPEC CHECKSUMS:
   leveldb-library: e8eadf9008a61f9e1dde3978c086d2b6d9b9dc28
   libwebp: 1786c9f4ff8a279e4dac1e8f385004d5fc253009
   Mantle: c5aa8794a29a022dfbbfc9799af95f477a69b62d
-  MLImage: 1824212150da33ef225fbd3dc49f184cf611046c
-  MLKitBarcodeScanning: 10ca0845a6d15f2f6e911f682a1998b68b973e8b
-  MLKitCommon: afec63980417d29ffbb4790529a1b0a2291699e1
-  MLKitDigitalInkRecognition: e98972a195fd44fe9e8c649118d34dae484c94bf
-  MLKitEntityExtraction: d78214343274e319bacb553e10a72228dbad3799
-  MLKitFaceDetection: 7c0e8bf09ddd27105da32d088fca978a99fc30cc
-  MLKitImageLabeling: c13caec3baa684553ec823d5dfbca3e3be8ce9a2
-  MLKitImageLabelingCommon: fa802f14c3a321121409f6cbe1df89ba9cf1a00c
-  MLKitImageLabelingCustom: 57b8782ddda60b3027a796efcc0c6970f9e2b78f
-  MLKitLanguageID: a897902aa4e58f7bf0943b07a1f9b58d762273aa
-  MLKitMDD: 61c79805b9fb4833a1cbb4ac1178988b858fa06a
-  MLKitNaturalLanguage: 7cd66a1ec3fbee2ff22890e1d42dda5c928e811b
-  MLKitObjectDetection: 9b40359730baceef23322c6d41070da7639ff100
-  MLKitObjectDetectionCommon: f3ca8581a0741be6ce609920367316571a280efa
-  MLKitObjectDetectionCustom: a412a63a743724ae124b07d6c3cc817283da3453
-  MLKitPoseDetection: 508d062f66c695fddaf9c59ac94c855486a1b220
-  MLKitPoseDetectionAccurate: d6fcf8949b52d73af1f67c4b72b2ddedff131f1d
-  MLKitPoseDetectionCommon: 6063ec16a354c0c28b7b2f223196e8aeab1ec99c
-  MLKitSegmentationCommon: 5a55f7f2d873f49f6e685b71e2fc3acd64be531c
-  MLKitSegmentationSelfie: 61141c0b97651768ab0d08a5722e578fc2b964ea
-  MLKitSmartReply: fe162fe2a832ab302a7f5f937c8ddd4076defa00
-  MLKitTextRecognition: c83c18ad25496f2077f6ec93c5940487ff2eb343
-  MLKitTextRecognitionCommon: c0b3a63d529296a19bce1f8bc8a513644ed4d1f6
-  MLKitTranslate: a404df6fba19d2ddcbebf4f1fc51d9f5edd24ee5
-  MLKitVision: e858c5f125ecc288e4a31127928301eaba9ae0c1
-  MLKitVisionKit: 6d2ea9741b262ec0fed2a5a3de521cfa671c6e83
-  MLKitXenoCommon: 39060e7a54769d97a877152c59a1898e7f8d9e35
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RecaptchaInterop: 7d1a4a01a6b2cb1610a47ef3f85f0c411434cb21
-  SDWebImage: 066c47b573f408f18caa467d71deace7c0f8280d
+  SDWebImage: 8a6b7b160b4d710e2a22b6900e25301075c34cb3
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
   share_plus: 8875f4f2500512ea181eef553c3e27dba5135aad
-  SSZipArchive: c69881e8ac5521f0e622291387add5f60f30f3c4
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   TOCropViewController: 80b8985ad794298fb69d3341de183f33d1853654
   url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
 
-PODFILE CHECKSUM: f2095d9946016fd9e5adc1075579dbb37c2bbacc
+PODFILE CHECKSUM: 741f620b8f9446b149917ac544932bf9c9b2cafa
 
 COCOAPODS: 1.15.2
