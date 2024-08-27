@@ -336,9 +336,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                 child: Text(
                                   'We will send you a text with a verification code. Message and data rates may apply.',
                                   style: GoogleFonts.montserrat(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.7),
-                                  ),
+                                      fontSize: 12,
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontWeight: FontWeight.w600),
                                   textAlign: TextAlign.justify,
                                 ),
                               ),

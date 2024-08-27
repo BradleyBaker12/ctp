@@ -91,6 +91,107 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
+  // Method to get unique makeModels from the vehicle list
+  List<String> getAllMakeModels() {
+    // List of brand names to filter by
+    final List<String> brands = [
+      'DAF',
+      'FUSO',
+      'HINO',
+      'ISUZU',
+      'IVECO',
+      'MAN',
+      'MERCEDES-BENZ',
+      'SSCANIA',
+      'UD TRUCKS',
+      'VW',
+      'VOLVO',
+      'FORD',
+      'TOYOTA',
+      'MAKE',
+      'CNHTC',
+      'EICHER',
+      'FAW',
+      'JAC',
+      'POWERSTAR',
+      'RENAULT',
+      'TATA',
+      'ASHOK LEYLAND',
+      'DAYUN',
+      'FIAT',
+      'FOTON',
+      'HYUNDAI',
+      'JOYLONG',
+      'PEUGEOT',
+      'US TRUCKS'
+    ];
+
+    final Set<String> matchedBrands = {};
+
+    for (var vehicle in _vehicles) {
+      for (var brand in brands) {
+        if (vehicle.makeModel.toLowerCase().contains(brand.toLowerCase())) {
+          matchedBrands.add(brand);
+          break; // No need to check other brands if one is matched
+        }
+      }
+    }
+
+    return ['All', ...matchedBrands];
+  }
+
+  // Method to check if a vehicle's makeModel contains a specific brand
+  bool doesMakeModelContainBrand(String makeModel, String? brand) {
+    if (brand == null || brand == 'All') {
+      return true;
+    }
+    return makeModel.toLowerCase().contains(brand.toLowerCase());
+  }
+
+  List<String> getAllYears() {
+    List<String> years =
+        _vehicles.map((vehicle) => vehicle.year).toSet().toList();
+
+    years.sort((a, b) {
+      // Handle cases where year might be "N/A" or non-numeric
+      if (a == 'N/A') return 1;
+      if (b == 'N/A') return -1;
+      return int.parse(a).compareTo(int.parse(b));
+    });
+
+    return ['All', ...years];
+  }
+
+  // Method to get unique transmissions from the vehicle list with normalization
+  List<String> getAllTransmissions() {
+    final Set<String> normalizedTransmissions = {};
+
+    for (var vehicle in _vehicles) {
+      String normalized = _normalizeTransmission(vehicle.transmission);
+      if (normalized.isNotEmpty && normalized != 'n/a') {
+        normalizedTransmissions.add(normalized);
+      }
+    }
+
+    // Add 'All' as the first option and remove duplicates
+    return [
+      'All',
+      ...normalizedTransmissions
+          .where((trans) => trans != 'n/a' && trans != 'automatic')
+    ];
+  }
+
+  // Helper method to normalize transmission names
+  String _normalizeTransmission(String transmission) {
+    transmission = transmission.toLowerCase();
+    if (transmission == 'auto' || transmission == 'automatic') {
+      return 'Automatic';
+    } else if (transmission == 'manual') {
+      return 'Manual';
+    }
+    return transmission; // Return as is for other values, like "n/a"
+  }
+
   // New method to fetch 5 most recently added vehicles
   Future<List<Vehicle>> fetchRecentVehicles() async {
     try {
@@ -145,6 +246,7 @@ class Vehicle {
   final String spareTyre;
   final String suspension;
   final String transmission;
+  final String? config;
   final String? treadLeft;
   final String? tyrePhoto1;
   final String? tyrePhoto2;
@@ -189,6 +291,7 @@ class Vehicle {
     required this.spareTyre,
     required this.suspension,
     required this.transmission,
+    this.config,
     this.treadLeft,
     this.tyrePhoto1,
     this.tyrePhoto2,

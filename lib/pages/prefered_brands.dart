@@ -105,7 +105,7 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                               'PREFERRED BRANDS',
                               style: GoogleFonts.montserrat(
                                 fontSize: screenSize.height * 0.022,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
                               ),
                               textAlign: TextAlign.center,

@@ -1,6 +1,7 @@
-import 'package:ctp/components/expandable_container.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
@@ -32,7 +33,6 @@ class OfferCard extends StatefulWidget {
 }
 
 class _OfferCardState extends State<OfferCard> {
-  bool _isExpanded = false;
   final TextEditingController _editController = TextEditingController();
 
   TextStyle customFont(double size, FontWeight weight, Color color) {
@@ -65,6 +65,10 @@ class _OfferCardState extends State<OfferCard> {
 
   IconData getIcon() {
     switch (widget.offer.offerStatus) {
+      case 'in-progress':
+      case 'Inspection Pending':
+      case 'set location and time':
+        return Icons.access_time; // Clock icon for "In Progress"
       case '1/4':
       case '2/4':
       case '3/4':
@@ -72,9 +76,35 @@ class _OfferCardState extends State<OfferCard> {
       case 'paid':
         return Icons.check_circle; // Paid icon
       case 'Done':
+      case 'accepted':
         return Icons.check; // Tick icon for 'Done'
       default:
         return Icons.info; // Default icon
+    }
+  }
+
+  String getDisplayStatus(String? offerStatus) {
+    switch (offerStatus) {
+      case 'in-progress':
+        return 'In Progress';
+      case 'select location and time':
+        return 'Set Location and Time';
+      case 'accepted':
+        return 'Accepted';
+      case 'set location and time':
+        return 'Setup Inspection';
+      case 'confirm location':
+        return 'Confirm Location';
+      case '3/4':
+        return 'Step 3 of 4';
+      case 'paid':
+        return 'Paid';
+      case 'done':
+      case 'Done':
+        return 'Done';
+      // Add more cases as needed
+      default:
+        return offerStatus ?? 'Unknown';
     }
   }
 
@@ -220,6 +250,18 @@ class _OfferCardState extends State<OfferCard> {
       );
     } else {
       switch (widget.offer.offerStatus) {
+        case 'accepted':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InspectionDetailsPage(
+                offerId: widget.offer.offerId,
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              ),
+            ),
+          );
+          break;
         case '1/4':
           Navigator.push(
             context,
@@ -411,147 +453,148 @@ class _OfferCardState extends State<OfferCard> {
     );
   }
 
+  @override
   Widget _buildDealerCard(Color statusColor, BoxConstraints constraints) {
+    var screenSize = MediaQuery.of(context).size;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch, // Ensure full width
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Container(
-              width: 8,
-              height: 120, // Set a fixed height to avoid infinite height issue
-              color: statusColor,
+            GestureDetector(
+              onTap: () => navigateBasedOnStatus(context),
+              child: Container(
+                width: constraints.maxWidth * 0.06,
+                height: screenSize.height * 0.128,
+                color: statusColor,
+              ),
             ),
-            Container(
-              width: constraints.maxWidth * 0.2,
-              height: 120, // Set a fixed height to avoid infinite height issue
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: widget.offer.vehicleMainImage != null
-                      ? NetworkImage(widget.offer.vehicleMainImage!)
-                      : const AssetImage('lib/assets/default_vehicle_image.png')
-                          as ImageProvider,
-                  fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () => navigateToVehicleDetails(),
+              child: Container(
+                width: constraints.maxWidth * 0.22,
+                height: 120,
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: widget.offer.vehicleMainImage != null
+                        ? NetworkImage(widget.offer.vehicleMainImage!)
+                        : const AssetImage(
+                                'lib/assets/default_vehicle_image.png')
+                            as ImageProvider,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ),
             Expanded(
-              child: Container(
-                color: Colors.blue,
-                padding: const EdgeInsets.all(10.0),
-                height:
-                    120, // Set a fixed height to avoid infinite height issue
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      widget.offer.vehicleMakeModel ?? 'Unknown',
-                      style: customFont(18, FontWeight.bold, Colors.white),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
-                      style: customFont(16, FontWeight.normal, Colors.white),
-                    ),
-                    const SizedBox(height: 5),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isExpanded = !_isExpanded;
-                        });
-                      },
-                      child: Text(
-                        _isExpanded ? 'View less' : 'View more details',
-                        style: customFont(14, FontWeight.normal, Colors.white)
-                            .copyWith(decoration: TextDecoration.underline),
+              // Ensure Expanded is within a Row or Column
+              child: GestureDetector(
+                onTap: () => navigateToVehicleDetails(),
+                child: Container(
+                  color: Colors.blue,
+                  padding: const EdgeInsets.all(10.0),
+                  height: screenSize.height * 0.128,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        widget.offer.vehicleMakeModel ?? 'Unknown',
+                        style: customFont(screenSize.height * 0.017,
+                            FontWeight.w800, Colors.white),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 1),
+                      Text(
+                        'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
+                        style: customFont(screenSize.height * 0.017,
+                            FontWeight.w800, Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-            Container(
-              width: constraints.maxWidth * 0.2,
-              height: 120, // Set a fixed height to avoid infinite height issue
-              color: statusColor,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      getIcon(),
-                      color: Colors.white,
+            GestureDetector(
+              onTap: () => navigateBasedOnStatus(context),
+              child: Container(
+                width: constraints.maxWidth * 0.24,
+                height: screenSize.height * 0.128,
+                color: statusColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          getIcon(),
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          getDisplayStatus(widget.offer.offerStatus),
+                          style: customFont(screenSize.height * 0.016,
+                              FontWeight.bold, Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      widget.offer.offerStatus ?? 'Unknown',
-                      style: customFont(16, FontWeight.bold, Colors.white),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
-        ExpandableContainer(
-          isExpanded: _isExpanded,
-          borderColor: statusColor,
-          backgroundColor: statusColor,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'STATUS: ${widget.offer.offerStatus}',
-                style: customFont(16, FontWeight.bold, Colors.white),
-              ),
-              const SizedBox(height: 5),
-              if (widget.offer.offerStatus == 'in-progress')
-                ElevatedButton(
-                  onPressed: _editOfferAmountDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: Text('Edit Offer Amount',
-                      style: customFont(16, FontWeight.bold, Colors.white)),
-                ),
-              if (widget.offer.offerStatus == 'accepted')
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => InspectionDetailsPage(
-                          offerId: widget.offer.offerId,
-                          makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
-                          offerAmount:
-                              formatOfferAmount(widget.offer.offerAmount),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Text(
-                    'Proceed with next steps',
-                    style: customFont(16, FontWeight.normal, Colors.white)
-                        .copyWith(decoration: TextDecoration.underline),
-                  ),
-                ),
-              if (widget.offer.offerStatus == 'rejected' &&
-                  widget.offer.reason != null &&
-                  widget.offer.reason!.isNotEmpty)
-                const SizedBox(height: 5),
-              if (widget.offer.offerStatus == 'rejected' &&
-                  widget.offer.reason != null &&
-                  widget.offer.reason!.isNotEmpty)
-                Text(
-                  'REASON: ${widget.offer.reason}',
-                  style: customFont(16, FontWeight.normal, Colors.white),
-                ),
-            ],
-          ),
-        ),
       ],
+    );
+  }
+
+  void navigateToVehicleDetails() async {
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context, listen: false);
+    Vehicle? vehicle;
+
+    try {
+      vehicle = vehicleProvider.vehicles.firstWhere(
+        (v) => v.id == widget.offer.vehicleId,
+        orElse: () => throw Exception('Vehicle not found in provider'),
+      );
+    } catch (e) {
+      // If the vehicle is not found in the provider, fetch it from the database
+      try {
+        DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.offer.vehicleId)
+            .get();
+
+        if (vehicleSnapshot.exists) {
+          vehicle = Vehicle.fromDocument(vehicleSnapshot);
+          vehicleProvider.addVehicle(vehicle); // Add to provider
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Vehicle details not found.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error fetching vehicle details: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+      ),
     );
   }
 

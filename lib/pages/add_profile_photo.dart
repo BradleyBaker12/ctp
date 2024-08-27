@@ -5,7 +5,7 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/crop_photo_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
-import 'package:ctp/pages/house_rules_page.dart'; // Import the House Rules page
+// Import the House Rules page
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -114,7 +114,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                 'ADD A PROFILE PHOTO',
                                 style: GoogleFonts.montserrat(
                                   fontSize: screenSize.height * 0.025,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w900,
                                   color: Colors.white,
                                 ),
                                 textAlign: TextAlign.center,
@@ -203,7 +203,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                       decoration: TextDecoration.underline,
                                       decorationColor: Colors.white,
                                       letterSpacing: 2.0,
-                                      fontWeight: FontWeight.w500),
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ),
                               SizedBox(height: screenSize.height * 0.04),

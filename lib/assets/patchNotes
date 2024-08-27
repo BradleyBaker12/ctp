@@ -1,0 +1,10 @@
+Updated Logo for all truck brands
+Add better spacing between the text
+Fix the truck cards on the truck page to look more like a card
+Moved the text and buttons under the image to look more visible
+Adding the unswipe feature, if the user has made a mistake on a swipe
+Added an ellipses to the vehicle name if it's too long
+The file change, the icon sits on top of the file name now
+The user can edit their new updated profile image to fix the rotation and size of to crop as well
+Added blue box on the sides of the truck cards on the home page
+The adjust offer page functionality is working now, but still needs a few design adjustments

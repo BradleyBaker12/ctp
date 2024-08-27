@@ -33,6 +33,21 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
   void initState() {
     super.initState();
 
+    // Find the first available date across all locations
+    DateTime? firstAvailableDate;
+    for (var dates in _locationDates.values) {
+      for (var date in dates) {
+        if (date.isAfter(DateTime.now()) &&
+            (firstAvailableDate == null || date.isBefore(firstAvailableDate))) {
+          firstAvailableDate = date;
+        }
+      }
+    }
+
+    // Set the focused day to the first available date or the current date if none found
+    _focusedDay = firstAvailableDate ?? DateTime.now();
+    _selectedDay = _focusedDay;
+
     // Update the offer status to "set location and time" when the page loads
     FirebaseFirestore.instance
         .collection('offers')
@@ -136,6 +151,22 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Array to get the name of the month
+    final List<String> monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+
     return GradientBackground(
       child: Material(
         color: Colors.transparent,
@@ -151,8 +182,14 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           const SizedBox(
-                              height: 50), // Adjust the height as needed
-                          Image.asset('lib/assets/CTPLogo.png'),
+                              height: 80), // Adjust the height as needed
+                          SizedBox(
+                            width: 100,
+                            height: 100,
+                            child: Image.asset(
+                              'lib/assets/CTPLogo.png',
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           const Text(
                             'CONFIRM YOUR FINAL INSPECTION DETAILS',
@@ -163,25 +200,32 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Great news! You have a potential buyer.',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
+                          const SizedBox(height: 16),
+                          const Row(
+                            children: [
+                              Text(
+                                'Great news! You have a potential buyer.',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
+
+                          const SizedBox(height: 16),
                           const Text(
                             'Now, let\'s set up a meeting with the potential seller to inspect the vehicle. Your careful selection ensures a smooth process ahead.',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               color: Colors.white,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 32),
                           GestureDetector(
                             onTap: () {
                               // Handle skip action
@@ -199,12 +243,12 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           const Text(
                             'YOU CAN SKIP THIS STEP IF YOU TRUST THE TRANSPORTER',
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                            ),
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 40),
                           const Text(
                             'SELECT LOCATION',
                             style: TextStyle(
@@ -214,7 +258,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 32),
                           Column(
                             children: _locations.asMap().entries.map((entry) {
                               int idx = entry.key;
@@ -371,19 +415,33 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              // Disable horizontal swipe
+                              shouldFillViewport: false,
+                              availableGestures: AvailableGestures.none,
                             ),
                           ),
                           const SizedBox(height: 16),
+                          if (_selectedDay != null)
+                            Text(
+                              'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFF4E00),
+                              ),
+                            ),
+                          const SizedBox(height: 32),
                           if (_selectedDay != null &&
                               _availableTimes.isNotEmpty) ...[
                             const Text(
-                              'SELECT TIME SLOT',
+                              'AVAILABLE TIMES',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
-                              textAlign: TextAlign.center,
+                              //TODO: The heading needs to be aligned to the left
+                              textAlign: TextAlign.start,
                             ),
                             const SizedBox(height: 8),
                             Column(

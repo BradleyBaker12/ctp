@@ -1,4 +1,3 @@
-import 'package:ctp/pages/edit_vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -25,7 +24,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   bool _isLoading = false;
   double _offerAmount = 0.0;
   bool _hasMadeOffer = false;
-  bool _isAdditionalInfoExpanded = false; // State to track the dropdown
+  bool _isAdditionalInfoExpanded = true; // State to track the dropdown
   List<String> allPhotos = [];
   late PageController _pageController;
 
@@ -427,7 +426,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               'MILEAGE', widget.vehicle.mileage),
                           _buildInfoContainer(
                               'GEARBOX', widget.vehicle.transmission),
-                          _buildInfoContainer('CONFIG', '6X4'),
+                          _buildInfoContainer('CONFIG', widget.vehicle.config),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -553,10 +552,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         child: Row(
                           children: [
                             AnimatedRotation(
-                              turns: _isAdditionalInfoExpanded ? 0.0 : 025,
+                              turns: _isAdditionalInfoExpanded ? 0.25 : 0.0,
                               duration: const Duration(milliseconds: 300),
                               child: Icon(
-                                Icons.arrow_drop_down,
+                                Icons.arrow_right,
                                 color: const Color(0xFFFF4E00),
                                 size: screenSize.height * 0.03,
                               ),
@@ -599,11 +598,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return Flexible(
       child: Container(
         height: screenSize.height * 0.08,
+        width: screenSize.width * 0.22,
         padding: EdgeInsets.all(screenSize.height * 0.01),
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: Colors.grey[900],
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+          border: Border.all(color: Colors.grey, width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -611,13 +611,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             Text(
               title,
               style: _customFont(
-                  screenSize.height * 0.014, FontWeight.w500, Colors.grey),
+                  screenSize.height * 0.011, FontWeight.w500, Colors.grey),
             ),
             const SizedBox(height: 6),
             Text(
               value?.toUpperCase() ?? 'UNKNOWN',
               style: _customFont(
-                  screenSize.height * 0.017, FontWeight.bold, Colors.white),
+                  screenSize.height * 0.012, FontWeight.bold, Colors.white),
             ),
           ],
         ),

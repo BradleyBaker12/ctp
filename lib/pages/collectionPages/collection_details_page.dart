@@ -211,37 +211,40 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                         child: CustomBackButton(
                             onPressed: () => Navigator.of(context).pop()),
                       ),
-                      const SizedBox(height: 16),
-                      Image.asset('lib/assets/CTPLogo.png'),
+                      const SizedBox(height: 50),
+                      SizedBox(
+                          width: 100,
+                          height: 100,
+                          child: Image.asset('lib/assets/CTPLogo.png')),
                       const SizedBox(height: 16),
                       const Text(
                         'CONFIRM YOUR COLLECTION DETAILS',
                         style: TextStyle(
                           fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
                       const Text(
                         'Great news! You have a potential buyer.',
                         style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                        ),
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
                       const Text(
                         'Now, let\'s set up a meeting with the potential seller to collect the vehicle. Your careful selection ensures a smooth process ahead.',
                         style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 64),
                       const Text(
                         'SELECT LOCATION',
                         style: TextStyle(
@@ -251,14 +254,14 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
                       Column(
                         children: _locations.asMap().entries.map((entry) {
                           int idx = entry.key;
                           String location = entry.value;
                           return RadioListTile(
                             title: Text(
-                              location,
+                              location.toUpperCase(),
                               style: const TextStyle(color: Colors.white),
                             ),
                             value: idx,
@@ -275,7 +278,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 32),
                       const Text(
                         'SELECT FROM AVAILABLE DATES AND TIMES FOR YOUR SELECTED LOCATION',
                         style: TextStyle(
@@ -285,7 +288,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
                       Container(
                         margin: const EdgeInsets.only(
                             top: 20.0), // Adds space between days and calendar
@@ -412,7 +415,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                       if (_selectedDay != null &&
                           _availableTimes.isNotEmpty) ...[
                         const Text(
-                          'SELECT TIME SLOT',
+                          'AVAIABLE TIMES',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

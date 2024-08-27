@@ -1,18 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/offer_provider.dart';
 
 class AdjustOfferPage extends StatefulWidget {
-  final String oldOffer;
-  final String vehicleName;
+  final String offerId;
 
   const AdjustOfferPage({
     super.key,
-    required this.oldOffer,
-    required this.vehicleName,
+    required this.offerId,
   });
 
   @override
@@ -24,16 +24,21 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
   final TextEditingController _newOfferController = TextEditingController();
   double discount = 0.0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Fetch the offer details when the page initializes
+    Provider.of<OfferProvider>(context, listen: false)
+        .fetchOfferById(widget.offerId);
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  void _updateDiscount() {
-    double oldOfferValue = double.tryParse(
-            widget.oldOffer.replaceAll('R', '').replaceAll(' ', '')) ??
-        0.0;
+  void _updateDiscount(double oldOfferValue) {
     double newOffer =
         double.tryParse(_newOfferController.text.replaceAll(' ', '')) ?? 0.0;
 
@@ -65,6 +70,16 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Access the OfferProvider
+    OfferProvider offerProvider = Provider.of<OfferProvider>(context);
+    Offer? offer = offerProvider.getOfferById(widget.offerId);
+
+    if (offer == null) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       body: GradientBackground(
         child: SizedBox.expand(
@@ -113,7 +128,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    widget.vehicleName,
+                    offer.vehicleMakeModel ?? 'Unknown Vehicle',
                     style: GoogleFonts.montserrat(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -124,11 +139,11 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                   const SizedBox(height: 16),
                   _buildOfferLabel('OLD OFFER'),
                   _buildOfferRow(
-                      'R ${formatWithSpacing(widget.oldOffer.replaceAll('R', '').replaceAll(',', ''))}',
+                      'R ${formatWithSpacing(offer.offerAmount?.toString() ?? '0')}',
                       const Color(0xFF2F7FFF)),
                   const SizedBox(height: 16),
                   _buildOfferLabel('NEW OFFER'),
-                  _buildNewOfferInput(),
+                  _buildNewOfferInput(offer.offerAmount ?? 0.0),
                   const SizedBox(height: 16),
                   _buildOfferLabel('DISCOUNT'),
                   _buildOfferRow(
@@ -154,28 +169,18 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                         return;
                       }
 
-                      // Calculate the discount
-                      double oldOfferValue = double.tryParse(widget.oldOffer
-                              .replaceAll('R', '')
-                              .replaceAll(' ', '')) ??
-                          0.0;
-                      double discountValue = oldOfferValue - newOfferValue;
-
                       try {
-                        // Reference to the specific offer document in Firebase
-                        DocumentReference offerRef = FirebaseFirestore.instance
+                        // Save the old offer amount and update the offer with the new amount and status
+                        await FirebaseFirestore.instance
                             .collection('offers')
-                            .doc(
-                                'f9AYrUNp7gDxIkomZbzp'); // Replace with widget.offerId if dynamic
-
-                        // Update the offer document
-                        await offerRef.update({
-                          'offerAmount': newOfferValue,
-                          'discount': discountValue,
-                          'oldOffer':
-                              oldOfferValue, // Optional: if you want to store the old offer
+                            .doc(widget.offerId)
+                            .update({
+                          'oldOfferAmount':
+                              offer.offerAmount, // Save the old offer amount
+                          'offerAmount':
+                              newOfferValue, // Update to the new offer amount
                           'offerStatus':
-                              'in-progress', // Set offerStatus back to in-progress
+                              'in-progress', // Update status to in-progress
                         });
 
                         // Show success message
@@ -185,10 +190,12 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                           ),
                         );
 
-                        // Navigate back or to another page
-                        Navigator.of(context).pop();
+                        // Navigate back to the home page
+                        Navigator.of(context)
+                            .pushNamedAndRemoveUntil('/home', (route) => false);
                       } catch (e) {
-                        // Handle errors, e.g., show an error message
+                        print(
+                            "Adjust offer error: $e"); // Handle errors, e.g., show an error message
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -251,7 +258,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
     );
   }
 
-  Widget _buildNewOfferInput() {
+  Widget _buildNewOfferInput(double oldOfferValue) {
     return Container(
       height: 60.0, // Set a fixed height for consistency
       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
@@ -278,7 +285,8 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
           hintStyle: TextStyle(color: Colors.grey),
         ),
         onChanged: (value) {
-          _updateDiscount(); // Update discount when new offer changes
+          _updateDiscount(
+              oldOfferValue); // Update discount when new offer changes
         },
       ),
     );

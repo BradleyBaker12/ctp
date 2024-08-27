@@ -115,26 +115,30 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Image.asset('lib/assets/CTPLogo.png'),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'COLLECT VEHICLE',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
+                      SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Image.asset('lib/assets/CTPLogo.png'),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 64),
                       CircleAvatar(
-                        radius: 50,
+                        radius: 60,
                         backgroundImage: _truckMainImageUrl != null
                             ? NetworkImage(_truckMainImageUrl!)
                             : const AssetImage('lib/assets/truck_image.png')
                                 as ImageProvider,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 64),
+                      //TODO Name of truck needs to be added
+                      const Text(
+                        'COLLECT VEHICLE',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                       Text(
                         _truckName,
                         style: const TextStyle(
@@ -148,12 +152,12 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                       const Text(
                         'CTP requires proof of collection of the vehicle. Please enter the license plate number.',
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 32),
                       CustomTextField(
                         hintText: 'License Plate Number',
                         controller: _licensePlateController,
@@ -180,10 +184,13 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                   ),
                 ),
               ),
-              CustomButton(
-                text: 'SUBMIT',
-                borderColor: const Color(0xFFFF4E00),
-                onPressed: _verifyLicensePlate,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: CustomButton(
+                  text: 'Cancle'.toUpperCase(),
+                  borderColor: const Color(0xFFFF4E00),
+                  onPressed: () {},
+                ),
               ),
             ],
           ),

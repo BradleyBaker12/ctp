@@ -105,78 +105,84 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
                         ),
                         const SizedBox(height: 16),
                         Image.asset('lib/assets/CTPLogo.png'),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 64),
                         const Text(
                           'PAYMENT OPTIONS',
                           style: TextStyle(
                             fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "You're almost there!",
-                          style: TextStyle(
-                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
                             color: Colors.white,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
+                          "You're almost there!",
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                          ),
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600),
                           textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        const SizedBox(
+                          width: 350,
+                          child: Text(
+                            'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
               ),
-              Column(
-                children: [
-                  CustomButton(
-                    text: 'GENERATE INVOICE',
-                    borderColor: const Color(0xFFFF4E00),
-                    onPressed: () {
-                      // Handle generate invoice action
-                    },
-                  ),
-                  CustomButton(
-                    text: 'PAY ONLINE NOW',
-                    borderColor: const Color(0xFFFF4E00),
-                    onPressed: () {
-                      // Handle pay online now action
-                    },
-                  ),
-                  CustomButton(
-                    text: 'SEND OFFER SUMMARY',
-                    borderColor: const Color(0xFFFF4E00),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              OfferSummaryPage(offerId: widget.offerId),
-                        ),
-                      );
-                    },
-                  ),
-                  CustomButton(
-                    text: 'CONTINUE',
-                    borderColor: const Color(0xFFFF4E00),
-                    onPressed: () {
-                      _navigateBasedOnStatus(context);
-                    },
-                  ),
-                  const SizedBox(
-                      height: 16), // Added spacing for bottom padding
-                ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  children: [
+                    CustomButton(
+                      text: 'GENERATE INVOICE',
+                      borderColor: const Color(0xFFFF4E00),
+                      onPressed: () {
+                        // Handle generate invoice action
+                      },
+                    ),
+                    CustomButton(
+                      text: 'PAY ONLINE NOW',
+                      borderColor: const Color(0xFFFF4E00),
+                      onPressed: () {
+                        // Handle pay online now action
+                      },
+                    ),
+                    CustomButton(
+                      text: 'SEND OFFER SUMMARY',
+                      borderColor: const Color(0xFFFF4E00),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                OfferSummaryPage(offerId: widget.offerId),
+                          ),
+                        );
+                      },
+                    ),
+                    CustomButton(
+                      text: 'CONTINUE',
+                      borderColor: const Color(0xFFFF4E00),
+                      onPressed: () {
+                        _navigateBasedOnStatus(context);
+                      },
+                    ),
+                    const SizedBox(
+                        height: 16), // Added spacing for bottom padding
+                  ],
+                ),
               ),
             ],
           ),

@@ -211,30 +211,33 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  const SizedBox(height: 16),
-                  Image.asset('lib/assets/CTPLogo.png'),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 60),
+                  SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: Image.asset('lib/assets/CTPLogo.png')),
+                  const SizedBox(height: 32),
                   const Text(
                     'RATE THE TRANSPORTER',
                     style: TextStyle(
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'The transporter is automatically given five stars. For every trait you uncheck, the transporter loses one star.',
-                    style: TextStyle(
-                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
                       color: Colors.white,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
+                  const Text(
+                    'The transporter is automatically given five stars. For every trait you uncheck, the transporter loses one star.',
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
                   CircleAvatar(
-                    radius: 40,
+                    radius: 60,
                     backgroundImage: _useDefaultImage
                         ? const AssetImage(
                                 'lib/assets/default-profile-photo.jpg')
@@ -244,7 +247,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
                             : const AssetImage(
                                 'lib/assets/default-profile-photo.jpg')),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
@@ -255,7 +258,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
                       );
                     }),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 64),
                   Padding(
                     padding: const EdgeInsets.only(left: 80.0),
                     child: Column(
@@ -269,24 +272,26 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
                             child: Row(
                               children: [
                                 Container(
-                                  height: 24.0,
-                                  width: 24.0,
+                                  height: 20.0,
+                                  width: 20.0,
                                   decoration: BoxDecoration(
                                     color: _traits[trait]!
                                         ? const Color(0xFFFF4E00)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12.0),
                                     border: Border.all(
-                                      width: 2.0,
-                                      color: const Color(0xFFFF4E00),
+                                      width: 3.0,
+                                      color: const Color(0xFFFFFFFF),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Text(
-                                    trait,
-                                    style: const TextStyle(color: Colors.white),
+                                    trait.toUpperCase(),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500),
                                   ),
                                 ),
                               ],
@@ -296,7 +301,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
                       }).toList(),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 32),
                   CustomButton(
                     text: 'SUBMIT',
                     borderColor: Colors.blue,

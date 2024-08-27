@@ -110,9 +110,9 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                               Text(
                                 'What are you interested in?',
                                 style: GoogleFonts.montserrat(
-                                  fontSize: screenSize.height * 0.017,
-                                  color: Colors.white,
-                                ),
+                                    fontSize: screenSize.height * 0.017,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500),
                                 textAlign: TextAlign.center,
                               ),
                               SizedBox(height: screenSize.height * 0.03),

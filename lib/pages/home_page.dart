@@ -29,13 +29,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late List<String> likedVehicles;
   late List<String> dislikedVehicles;
 
-  // Use ValueNotifier to manage displayedVehicles
   ValueNotifier<List<Vehicle>> displayedVehiclesNotifier =
       ValueNotifier<List<Vehicle>>([]);
+  List<Vehicle> swipedVehicles = []; // Track swiped vehicles
+  List<String> swipedDirections = []; // Track swipe directions for undo
   int loadedVehicleIndex = 0;
   bool _hasReachedEnd = false;
 
-  // New list to store the most recent vehicles
   List<Vehicle> recentVehicles = [];
 
   @override
@@ -45,7 +45,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _initialization = _initializeData();
     _checkPaymentStatusForOffers();
 
-    // Load initial vehicles after data initialization
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialVehicles();
     });
@@ -60,8 +59,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       await userProvider.fetchUserData();
       await vehicleProvider.fetchVehicles();
 
-      // Fetch the most recent vehicles
       recentVehicles = await vehicleProvider.fetchRecentVehicles();
+      displayedVehiclesNotifier.value = recentVehicles.take(5).toList();
 
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -73,7 +72,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }
     } catch (e, stackTrace) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to initialize data. Please try again.')),
+        const SnackBar(
+            content: Text('Failed to initialize data. Please try again.')),
       );
       await FirebaseCrashlytics.instance.recordError(e, stackTrace);
     }
@@ -167,7 +167,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  // New method for handling swipes
   void _handleSwipe(int previousIndex, SwiperActivity activity) async {
     final vehicleId = displayedVehiclesNotifier.value[previousIndex].id;
 
@@ -175,14 +174,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (activity.direction == AxisDirection.right) {
         await _likeVehicle(vehicleId);
       } else if (activity.direction == AxisDirection.left) {
-        await _dislikeVehicle(vehicleId);
+        // await _dislikeVehicle(vehicleId);
       }
     }
 
-    // Check if all vehicles are swiped
     if (previousIndex == displayedVehiclesNotifier.value.length - 1) {
       _showEndMessage = true;
-      setState(() {}); // Trigger a rebuild to show the message
+      setState(() {});
+    }
+  }
+
+  Future<void> _likeVehicle(String vehicleId) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    if (!likedVehicles.contains(vehicleId)) {
+      try {
+        await userProvider.likeVehicle(vehicleId);
+        likedVehicles.add(vehicleId);
+      } catch (e, stackTrace) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to like vehicle. Please try again.')),
+        );
+        await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vehicle already liked.')),
+      );
+    }
+  }
+
+  Future<void> _dislikeVehicle(String vehicleId) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    try {
+      // await userProvider.dislikeVehicle(vehicleId);
+      // dislikedVehicles.add(vehicleId);
+    } catch (e, stackTrace) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Failed to dislike vehicle. Please try again.')),
+      );
+      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
     }
   }
 
@@ -241,7 +274,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         future: _initializeData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+                child: CircularProgressIndicator(
+              color: Color(0xFFFF4E00),
+            ));
           } else if (snapshot.hasError) {
             return Center(
                 child: Text('Error loading data',
@@ -265,11 +301,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     final userRole = userProvider.getUserRole;
 
-    // Filter vehicles with offers for the current user
     final vehiclesWithOffers = vehicleProvider.vehicles.where((vehicle) {
       return _offerProvider.offers
           .any((offer) => offer.vehicleId == vehicle.id);
     }).toList();
+
+    // Get the 5 most recent offers
+    final recentOffers = _offerProvider.offers.take(5).toList();
 
     return Container(
       color: Colors.black,
@@ -311,151 +349,134 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: size.width * 0.05),
-                    child: _buildVehicleTypeSelection(userRole, size),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 20),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: size.width * 0.05),
+                  child: _buildVehicleTypeSelection(userRole, size),
+                ),
+                const SizedBox(height: 20),
+                _buildPreferredBrandsSection(userProvider),
+                const SizedBox(height: 20),
+                if (_showEndMessage) ...[
+                  Text(
+                    "You've seen all the available trucks.",
+                    style: _customFont(18, FontWeight.bold, Colors.white),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "The list will be updated tomorrow.",
+                    style: _customFont(16, FontWeight.normal, Colors.grey),
+                  ),
+                ] else if (userRole == 'dealer' && _showSwiper) ...[
+                  Text("🔥 NEW ARRIVALS",
+                      style:
+                          _customFont(18, FontWeight.bold, Color(0xFF2F7FFF))),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Discover the newest additions to our fleet, ready for your next venture.",
+                    textAlign: TextAlign.center,
+                    style: _customFont(16, FontWeight.normal, Colors.white),
                   ),
                   const SizedBox(height: 20),
-                  _buildPreferredBrandsSection(userProvider),
-                  const SizedBox(height: 20),
-                  if (_showEndMessage) ...[
-                    Text(
-                      "You've seen all the available trucks.",
-                      style: _customFont(18, FontWeight.bold, Colors.white),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      "The list will be updated tomorrow.",
-                      style: _customFont(16, FontWeight.normal, Colors.grey),
-                    ),
-                  ] else if (userRole == 'dealer' && _showSwiper) ...[
-                    Text("🔥 NEW ARRIVALS",
-                        style: _customFont(18, FontWeight.bold, Colors.blue)),
-                    const SizedBox(height: 10),
-                    Text(
-                      "Discover the newest additions to our fleet, ready for your next venture.",
-                      textAlign: TextAlign.center,
-                      style: _customFont(16, FontWeight.normal, Colors.white),
-                    ),
-                    const SizedBox(height: 20),
-                    ValueListenableBuilder<List<Vehicle>>(
-                      valueListenable: displayedVehiclesNotifier,
-                      builder: (context, displayedVehicles, child) {
-                        if (displayedVehicles.isEmpty && _hasReachedEnd) {
-                          return Text(
-                            "You have swiped through all the available trucks.",
+                  ValueListenableBuilder<List<Vehicle>>(
+                    valueListenable: displayedVehiclesNotifier,
+                    builder: (context, displayedVehicles, child) {
+                      if (displayedVehicles.isEmpty && _hasReachedEnd) {
+                        return Text(
+                          "You have swiped through all the available trucks.",
+                          style: _customFont(18, FontWeight.bold, Colors.white),
+                        );
+                      } else if (displayedVehicles.isEmpty) {
+                        return Center(
+                          child: Text(
+                            "No vehicles available",
                             style:
                                 _customFont(18, FontWeight.bold, Colors.white),
-                          );
-                        } else if (displayedVehicles.isEmpty) {
-                          return Center(
-                            child: Text(
-                              "No vehicles available",
-                              style: _customFont(
-                                  18, FontWeight.bold, Colors.white),
-                            ),
-                          );
-                        } else {
-                          return SwiperWidget(
-                            parentContext:
-                                context, // Pass context from HomePage
-                            displayedVehicles: displayedVehicles,
-                            controller: controller,
-                            onSwipeEnd: _handleSwipe, // Pass the swipe handler
-                            vsync: this, // Pass the TickerProvider
-                          );
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  if (userRole == 'transporter') ...[
-                    Text("YOUR VEHICLES WITH OFFERS",
-                        style: _customFont(18, FontWeight.bold, Colors.white)),
-                    const SizedBox(height: 10),
-                    ValueListenableBuilder<List<Vehicle>>(
-                      valueListenable: displayedVehiclesNotifier,
-                      builder: (context, displayedVehicles, child) {
-                        return SizedBox(
-                          height: size.height * 0.3,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: displayedVehicles.length,
-                            itemBuilder: (context, index) {
-                              final vehicle = displayedVehicles[index];
-                              return _buildTransporterVehicleCard(
-                                  vehicle, size);
-                            },
                           ),
                         );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, '/pendingOffers');
+                      } else {
+                        return SwiperWidget(
+                          parentContext: context,
+                          displayedVehicles: displayedVehicles,
+                          controller: controller,
+                          onSwipeEnd: _handleSwipe,
+                          vsync: this,
+                        );
+                      }
                     },
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              'lib/assets/shaking_hands.png',
-                              width: 30,
-                              height: 30,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'RECENT PENDING OFFERS',
-                              style:
-                                  _customFont(24, FontWeight.bold, Colors.blue),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          'Track and manage your active trading offers here.',
-                          style:
-                              _customFont(16, FontWeight.normal, Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                    ),
                   ),
-                  // Offer cards section for both roles
-                  if (vehiclesWithOffers.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 10),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: vehiclesWithOffers.length,
+                  const SizedBox(height: 20),
+                ],
+                if (userRole == 'transporter') ...[
+                  Text("YOUR VEHICLES WITH OFFERS",
+                      style: _customFont(18, FontWeight.bold, Colors.white)),
+                  const SizedBox(height: 10),
+                  ValueListenableBuilder<List<Vehicle>>(
+                    valueListenable: displayedVehiclesNotifier,
+                    builder: (context, displayedVehicles, child) {
+                      return SizedBox(
+                        height: size.height * 0.3,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: displayedVehicles.length,
                           itemBuilder: (context, index) {
-                            final vehicle = vehiclesWithOffers[index];
-                            final offer = _offerProvider.offers.firstWhere(
-                                (offer) => offer.vehicleId == vehicle.id);
-                            return OfferCard(
-                              offer: offer,
-                            );
+                            final vehicle = displayedVehicles[index];
+                            return _buildTransporterVehicleCard(vehicle, size);
                           },
                         ),
-                      ],
-                    ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
                 ],
-              ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pushNamed(context, '/pendingOffers');
+                  },
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'lib/assets/shaking_hands.png',
+                            width: 30,
+                            height: 30,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'RECENT PENDING OFFERS',
+                            style: _customFont(
+                                24, FontWeight.bold, Color(0xFF2F7FFF)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        'Track and manage your active trading offers here.',
+                        style: _customFont(16, FontWeight.normal, Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                // Directly displaying the 5 most recent offers
+                if (recentOffers.isNotEmpty)
+                  const SizedBox(
+                    height: 10,
+                  ),
+                Column(
+                  children: recentOffers.map((offer) {
+                    return OfferCard(
+                      offer: offer,
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
           ],
         ),
@@ -498,8 +519,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       );
                     }
                   },
-                  child: _buildVehicleTypeCard(size,
-                      'lib/assets/truck_image.png', "TRUCKS", Colors.blue),
+                  child: _buildVehicleTypeCard(
+                      size,
+                      'lib/assets/truck_image.png',
+                      "TRUCKS",
+                      Color(0xFF2F7FFF)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -580,7 +604,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blue, width: 2),
+        border: Border.all(color: Color(0xFF2F7FFF), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,130 +638,174 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _likeVehicle(String vehicleId) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-    // Check if the vehicle is already liked
-    if (!likedVehicles.contains(vehicleId)) {
-      try {
-        await userProvider.likeVehicle(vehicleId);
-        likedVehicles.add(vehicleId);
-      } catch (e, stackTrace) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to like vehicle. Please try again.')),
-        );
-        await FirebaseCrashlytics.instance.recordError(e, stackTrace);
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vehicle already liked.')),
-      );
-    }
-  }
-
-  Future<void> _dislikeVehicle(String vehicleId) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    try {
-      await userProvider.dislikeVehicle(vehicleId);
-      dislikedVehicles.add(vehicleId);
-    } catch (e, stackTrace) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to dislike vehicle. Please try again.')),
-      );
-      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
-    }
-  }
-
   Widget _buildPreferredBrandsSection(UserProvider userProvider) {
     final preferredBrands = userProvider.getPreferredBrands;
-
-    if (preferredBrands.isEmpty) {
-      return Container();
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('CURRENT BRANDS',
-                style: _customFont(18, FontWeight.bold, Colors.white)),
-            GestureDetector(
-              onTap: () => _showEditBrandsDialog(userProvider),
-              child: Text('EDIT',
-                  style: _customFont(16, FontWeight.bold, Colors.white)),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('CURRENT BRANDS',
+                  style: _customFont(18, FontWeight.bold, Colors.white)),
+              GestureDetector(
+                onTap: () => _showEditBrandsDialog(userProvider),
+                child: Text('EDIT',
+                    style: _customFont(16, FontWeight.bold, Colors.white)),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 10),
         const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 1.0),
+          padding: EdgeInsets.symmetric(horizontal: 16.0),
           child: Divider(color: Colors.white, thickness: 1.0),
         ),
         const SizedBox(height: 10),
         Center(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: preferredBrands.map((brand) {
-                String logoPath;
-                switch (brand) {
-                  case 'DAF':
-                    logoPath = 'lib/assets/Logo/DAF-removebg-preview.png';
-                    break;
-                  case 'IVECO':
-                    logoPath = 'lib/assets/Logo/Iveco 2023 New.png';
-                    break;
-                  case 'MAN':
-                    logoPath =
-                        'lib/assets/Logo/png-clipart-man-truck-bus-scania-ab-logo-man-se-truck-angle-text-removebg-preview.png';
-                    break;
-                  case 'MERCEDES-BENZ':
-                    logoPath = 'lib/assets/Logo/Mercedes Benz 3D Star.png';
-                    break;
-                  case 'VOLVO':
-                    logoPath =
-                        'lib/assets/Logo/Volvo_Icon-removebg-preview.png';
-                    break;
-                  case 'SCANIA':
-                    logoPath = 'lib/assets/Logo/Scania Emblem.png';
-                    break;
-                  case 'CNHTC':
-                  case 'EICHER':
-                  case 'FAW':
-                  case 'FUSO':
-                  case 'HINO':
-                  case 'ISUZU':
-                  case 'JAC':
-                  case 'POWERSTAR':
-                  case 'RENAULT':
-                  case 'SSCANIA':
-                  case 'TATA':
-                  case 'UD TRUCKS':
-                  case 'VOLKSWAGEN':
-                  case 'MAKE':
-                  default:
-                    logoPath = 'lib/assets/Logo/Globe Emoji.png';
-                    break;
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Image.asset(
-                    logoPath,
-                    height: 50,
-                    width: 50,
-                    fit: BoxFit.contain,
+          child: preferredBrands.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Please select some truck brands.',
+                    style: _customFont(18, FontWeight.bold, Colors.white),
+                    textAlign: TextAlign.center,
                   ),
-                );
-              }).toList(),
-            ),
-          ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: preferredBrands.map((brand) {
+                      String logoPath;
+                      switch (brand) {
+                        case 'DAF':
+                          logoPath = 'lib/assets/Logo/daf-2.png';
+                          break;
+                        case 'IVECO':
+                          logoPath = 'lib/assets/Logo/iveco.png';
+                          break;
+                        case 'MAN':
+                          logoPath = 'lib/assets/Logo/man-logo.png';
+                          break;
+                        case 'MERCEDES-BENZ':
+                          logoPath = 'lib/assets/Logo/mercedes-benz-9.png';
+                          break;
+                        case 'VOLVO':
+                          logoPath = 'lib/assets/Logo/volvo.png';
+                          break;
+                        case 'SCANIA':
+                          logoPath = 'lib/assets/Logo/scania-6.png';
+                          break;
+                        case 'FUSO':
+                          logoPath = 'lib/assets/Logo/fuso-1.png';
+                          break;
+                        case 'HINO':
+                          logoPath = 'lib/assets/Logo/hino.png';
+                          break;
+                        case 'ISUZU':
+                          logoPath = 'lib/assets/Logo/isuzu-2.png';
+                          break;
+                        case 'UD TRUCKS':
+                          logoPath = 'lib/assets/Logo/ud-trucks-1.png';
+                          break;
+                        case 'VW':
+                          logoPath = 'lib/assets/Logo/volkswagen-10.png';
+                          break;
+                        case 'FORD':
+                          logoPath = 'lib/assets/Logo/ford-8.png';
+                          break;
+                        case 'TOYOTA':
+                          logoPath = 'lib/assets/Logo/toyota-7.png';
+                          break;
+                        case 'CNHTC':
+                          logoPath = 'lib/assets/Logo/CNHTC.png';
+                          break;
+                        case 'EICHER':
+                          logoPath = 'lib/assets/Logo/eicher-logo.png';
+                          break;
+                        case 'FAW':
+                          logoPath = 'lib/assets/Logo/FAW.png';
+                          break;
+                        case 'JAC':
+                          logoPath = 'lib/assets/Logo/JAC.png';
+                          break;
+                        case 'POWERSTAR':
+                          logoPath = 'lib/assets/Logo/EVQzwvJI_400x400.png';
+                          break;
+                        case 'RENAULT':
+                          logoPath = 'lib/assets/Logo/renault-2.png';
+                          break;
+                        case 'TATA':
+                          logoPath = 'lib/assets/Logo/tata-logo.png';
+                          break;
+                        case 'ASHOK LEYLAND':
+                          logoPath = 'lib/assets/Logo/ashok-leyland-logo-2.png';
+                          break;
+                        case 'DAYUN':
+                          logoPath = 'lib/assets/Logo/DAYUN.png';
+                          break;
+                        case 'FIAT':
+                          logoPath = 'lib/assets/Logo/fiat-3.png';
+                          break;
+                        case 'FOTON':
+                          logoPath = 'lib/assets/Logo/Foton.png';
+                          break;
+                        case 'HYUNDAI':
+                          logoPath =
+                              'lib/assets/Logo/hyundai-motor-company-2.png';
+                          break;
+                        case 'JOYLONG':
+                          logoPath = 'lib/assets/Logo/Joylong.png';
+                          break;
+                        case 'PEUGEOT':
+                          logoPath = 'lib/assets/Logo/peugeot-8.png';
+                          break;
+                        case 'US TRUCKS':
+                          logoPath = 'lib/assets/Logo/image2vector.png';
+                          break;
+                        case 'MAKE':
+                        default:
+                          logoPath = 'lib/assets/Logo/Globe Emoji.png';
+                          break;
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Image.asset(
+                          logoPath,
+                          height: 50,
+                          width: 50,
+                          fit: BoxFit.contain,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
         ),
       ],
     );
+  }
+
+  Widget _buildBrandLogo(String logoPath) {
+    try {
+      return Image.asset(
+        logoPath,
+        height: 50,
+        width: 50,
+        fit: BoxFit.contain,
+      );
+    } catch (e) {
+      return Image.asset(
+        'lib/assets/default_logo.png', // Provide a default image path here
+        height: 50,
+        width: 50,
+        fit: BoxFit.contain,
+      );
+    }
   }
 
   void _showEditBrandsDialog(UserProvider userProvider) {
@@ -749,7 +817,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'IVECO',
       'MAN',
       'MERCEDES-BENZ',
-      'SSCANIA',
+      'SCANIA',
       'UD TRUCKS',
       'VW',
       'VOLVO',
@@ -829,7 +897,7 @@ class SwiperWidget extends StatelessWidget {
   final AppinioSwiperController controller;
   final void Function(int, SwiperActivity) onSwipeEnd;
   final TickerProvider vsync;
-  final BuildContext parentContext; // Pass the context from the parent
+  final BuildContext parentContext;
 
   const SwiperWidget({
     super.key,
@@ -837,35 +905,83 @@ class SwiperWidget extends StatelessWidget {
     required this.controller,
     required this.onSwipeEnd,
     required this.vsync,
-    required this.parentContext, // Initialize the context from the parent
+    required this.parentContext,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height:
-          MediaQuery.of(parentContext).size.height * 0.6, // Use parent context
-      child: AppinioSwiper(
-        controller: controller,
-        cardCount: displayedVehicles.length,
-        backgroundCardOffset: Offset.zero,
-        cardBuilder: (BuildContext context, int index) {
-          return _buildTruckCard(controller, displayedVehicles[index]);
-        },
-        swipeOptions: const SwipeOptions.symmetric(
-            horizontal: false, vertical: false), // Disable swiping
-        onSwipeEnd: (int previousIndex, int? targetIndex,
-            SwiperActivity direction) async {
-          onSwipeEnd(previousIndex, direction);
-        },
-        onEnd: () {
-          // Handle end of swiping
-          final parentState =
-              parentContext.findAncestorStateOfType<_HomePageState>();
-          parentState?._showEndMessage = true;
-          parentState?.setState(() {});
-        },
-      ),
+    double blueBoxHeightPercentage =
+        0.9; // Percentage of the screen height for the blue box
+
+    double blueBoxTopOffset =
+        (MediaQuery.of(context).size.height * (1 - blueBoxHeightPercentage)) /
+            2; // This centers the blue box vertically
+
+    return Stack(
+      children: [
+        // Blue box on the left edge of the screen
+        Positioned(
+          left: 0,
+          top: blueBoxTopOffset, // Adjust the top offset
+          bottom: blueBoxTopOffset, // Adjust the bottom offset
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(10.0), // Top right corner
+              bottomRight: Radius.circular(10.0), // Bottom right corner
+            ),
+            child: Container(
+              width: 20, // Adjust the width as needed
+              color: const Color(0xFF2F7FFF),
+            ),
+          ),
+        ),
+// Blue box on the right edge of the screen
+        Positioned(
+          right: 0,
+          top: blueBoxTopOffset, // Adjust the top offset
+          bottom: blueBoxTopOffset, // Adjust the bottom offset
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(10.0), // Top left corner
+              bottomLeft: Radius.circular(10.0), // Bottom left corner
+            ),
+            child: Container(
+              width: 20, // Adjust the width as needed
+              color: const Color(0xFF2F7FFF),
+            ),
+          ),
+        ),
+
+        // Swiper Widget
+        SizedBox(
+          height: MediaQuery.of(parentContext).size.height * 0.6,
+          child: AppinioSwiper(
+            controller: controller,
+            cardCount: displayedVehicles.length,
+            backgroundCardOffset: Offset.zero,
+            cardBuilder: (BuildContext context, int index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal:
+                        40.0), // Match this padding with the blue box width
+                child: _buildTruckCard(controller, displayedVehicles[index]),
+              );
+            },
+            swipeOptions: const SwipeOptions.symmetric(
+                horizontal: false, vertical: false),
+            onSwipeEnd: (int previousIndex, int? targetIndex,
+                SwiperActivity direction) async {
+              onSwipeEnd(previousIndex, direction);
+            },
+            onEnd: () {
+              final parentState =
+                  parentContext.findAncestorStateOfType<_HomePageState>();
+              parentState?._showEndMessage = true;
+              parentState?.setState(() {});
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -884,67 +1000,90 @@ class SwiperWidget extends StatelessWidget {
         return Transform.scale(
           scale: scaleAnimation.value,
           child: Container(
-            // margin: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.grey.withOpacity(0.5), // Light grey border color
+                width: 2.0, // Border width
+              ),
             ),
-            child: Stack(
+            child: Column(
               children: [
-                Positioned.fill(
+                // Image section
+                Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(10),
+                        topRight: Radius.circular(10)),
                     child: vehicle.mainImageUrl != null
-                        ? Image.network(vehicle.mainImageUrl!,
-                            fit: BoxFit.cover)
-                        : Image.asset('lib/assets/default_vehicle_image.png',
-                            fit: BoxFit.cover),
+                        ? Image.network(
+                            vehicle.mainImageUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          )
+                        : Image.asset(
+                            'lib/assets/default_vehicle_image.png',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
                   ),
                 ),
-                Positioned(
-                  bottom: 90,
-                  left: 10,
-                  right: 10,
+                // Text section
+                Padding(
+                  padding: const EdgeInsets.all(10.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text(vehicle.makeModel,
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Text(
+                              vehicle.makeModel,
                               style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
+                                fontSize: 25,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                           const SizedBox(width: 5),
-                          Image.asset('lib/assets/verified_Icon.png',
-                              width: 20, height: 20),
+                          Image.asset(
+                            'lib/assets/verified_Icon.png',
+                            width: 20,
+                            height: 20,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 10),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _buildBlurryContainer('YEAR', vehicle.year),
                           _buildBlurryContainer('MILEAGE', vehicle.mileage),
                           _buildBlurryContainer(
-                              'TRANSMISSION', vehicle.transmission),
+                              'GEARBOX', vehicle.transmission),
                           _buildBlurryContainer('CONFIG', 'N/A'),
                         ],
                       ),
                     ],
                   ),
                 ),
-                Positioned(
-                  bottom: 10,
-                  left: 10,
-                  right: 10,
+                // Buttons section
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 15.0, vertical: 10.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildIconButton(Icons.close, Colors.blue, controller,
-                          'left', vehicle), // Dislike
+                      _buildIconButton(Icons.close, Color(0xFF2F7FFF),
+                          controller, 'left', vehicle),
+                      SizedBox(
+                        width: 10,
+                      ),
                       _buildIconButton(Icons.favorite, const Color(0xFFFF4E00),
-                          controller, 'right', vehicle), // Like
+                          controller, 'right', vehicle),
                     ],
                   ),
                 ),
@@ -963,41 +1102,29 @@ class SwiperWidget extends StatelessWidget {
       child: GestureDetector(
         onTap: () async {
           try {
-            print('${icon == Icons.close ? "DISLIKE" : "LIKE"} button pressed');
             final userProvider =
                 Provider.of<UserProvider>(parentContext, listen: false);
 
             if (direction == 'left') {
-              // Check if the vehicle is already disliked
               if (!userProvider.getDislikedVehicles.contains(vehicle.id)) {
                 await userProvider.dislikeVehicle(vehicle.id);
-                print(
-                    'Disliked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
                 controller.swipeLeft();
-                print('Swiping left');
               } else {
-                print('Vehicle is already disliked.');
                 ScaffoldMessenger.of(parentContext).showSnackBar(
                   const SnackBar(content: Text('Vehicle already disliked.')),
                 );
               }
             } else if (direction == 'right') {
-              // Check if the vehicle is already liked
               if (!userProvider.getLikedVehicles.contains(vehicle.id)) {
                 await userProvider.likeVehicle(vehicle.id);
-                print(
-                    'Liked vehicle: ${vehicle.id}, MakeModel: ${vehicle.makeModel}'); // Debugging statement
                 controller.swipeRight();
-                print('Swiping right');
               } else {
-                print('Vehicle is already liked.');
                 ScaffoldMessenger.of(parentContext).showSnackBar(
                   const SnackBar(content: Text('Vehicle already liked.')),
                 );
               }
             }
           } catch (e) {
-            print('Error swiping vehicle: $e');
             ScaffoldMessenger.of(parentContext).showSnackBar(
               const SnackBar(
                 content: Text('Failed to swipe vehicle. Please try again.'),
@@ -1006,7 +1133,7 @@ class SwiperWidget extends StatelessWidget {
           }
         },
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 5),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: color,
@@ -1025,26 +1152,50 @@ class SwiperWidget extends StatelessWidget {
   }
 
   Widget _buildBlurryContainer(String title, String? value) {
+    String normalizedValue = value?.trim().toLowerCase() ?? '';
+
+    // Check if the title is 'GEARBOX' and handle 'Automatic' or 'Manual'
+    String displayValue = (title.toLowerCase() == 'gearbox' && value != null)
+        ? (normalizedValue.contains('auto')
+            ? 'AUTO'
+            : normalizedValue.contains('manual')
+                ? 'MANUAL'
+                : value.toUpperCase())
+        : value?.toUpperCase() ?? 'UNKNOWN';
+
     return Container(
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.grey[900], // Set the background color to gray
         borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: Colors.white, // Set the border color to white
+          width: 0.2, // Border width
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.center, // Center the text horizontally
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey)),
+          Text(
+            title,
+            textAlign: TextAlign.center, // Center the title text
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white, // Dark gray color for the title
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(value ?? 'Unknown',
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)),
+          Text(
+            displayValue,
+            textAlign: TextAlign.center, // Center the value text
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white, // White color for the value text
+            ),
+          ),
         ],
       ),
     );

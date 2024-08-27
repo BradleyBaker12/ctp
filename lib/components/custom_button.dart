@@ -23,7 +23,7 @@ class CustomButton extends StatelessWidget {
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.white,
-            backgroundColor: borderColor.withOpacity(0.25), // Text color
+            backgroundColor: borderColor.withOpacity(0.17), // Text color
             padding: const EdgeInsets.symmetric(
                 vertical: 15.0), // Padding inside button
             shape: RoundedRectangleBorder(
@@ -35,7 +35,7 @@ class CustomButton extends StatelessWidget {
             text,
             style: GoogleFonts.montserrat(
               fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: Colors.white, // Text color
             ),
           ),

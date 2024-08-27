@@ -128,16 +128,19 @@ class _FinalInspectionApprovalPageState
                             ),
                           ),
                           SizedBox(height: spacing),
-                          Image.asset(
-                            'lib/assets/CTPLogo.png',
-                            height: logoHeight,
+                          SizedBox(
+                            width: 250,
+                            height: 250,
+                            child: Image.asset(
+                              'lib/assets/CTPLogo.png',
+                            ),
                           ),
-                          SizedBox(height: spacing),
+                          const SizedBox(height: 30),
                           const Text(
                             'FINAL INSPECTION APPROVAL',
                             style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 23,
+                              fontWeight: FontWeight.w900,
                               color: Colors.white,
                             ),
                             textAlign: TextAlign.center,
@@ -146,21 +149,21 @@ class _FinalInspectionApprovalPageState
                           const Text(
                             "You're almost there!",
                             style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700),
                             textAlign: TextAlign.center,
                           ),
                           SizedBox(height: spacing),
                           const Text(
                             'By approving the transaction, you confirm that all conditions have been met to your satisfaction. If there are any issues, please select "Report an Issue" to provide details. Our team is here to assist you in resolving any concerns.',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600),
                             textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: spacing * 3),
+                          SizedBox(height: spacing),
                         ],
                       ),
                     ),
@@ -189,8 +192,7 @@ class _FinalInspectionApprovalPageState
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => AdjustOfferPage(
-                                    oldOffer: widget.oldOffer,
-                                    vehicleName: widget.vehicleName,
+                                    offerId: widget.offerId,
                                   ),
                                 ),
                               );

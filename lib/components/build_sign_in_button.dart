@@ -23,7 +23,7 @@ class SignInButton extends StatelessWidget {
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             foregroundColor: borderColor,
-            backgroundColor: borderColor.withOpacity(0.25), // Text color
+            backgroundColor: borderColor.withOpacity(0.17), // Text color
             padding: const EdgeInsets.symmetric(
                 vertical: 15.0), // Padding inside button
             shape: RoundedRectangleBorder(
@@ -32,10 +32,9 @@ class SignInButton extends StatelessWidget {
             ),
           ),
           child: Text(
-            text,
+            text.toUpperCase(),
             style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontSize: 13,
               color: Colors.white, // Text color
             ),
           ),

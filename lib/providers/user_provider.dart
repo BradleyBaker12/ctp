@@ -212,7 +212,11 @@ class UserProvider extends ChangeNotifier {
           await FirebaseFirestore.instance
               .collection('users')
               .doc(_user!.uid)
-              .update({'dislikedVehicles': _dislikedVehicles});
+              .update({
+            'dislikedVehicles': FieldValue.arrayUnion([
+              vehicleId
+            ]), // Use arrayUnion to add the vehicleId to the array
+          });
           print(
               'Updated dislikedVehicles in Firestore successfully'); // Debugging statement
           notifyListeners();
@@ -226,6 +230,36 @@ class UserProvider extends ChangeNotifier {
       }
     } else {
       print('User is not authenticated'); // Debugging statement
+    }
+  }
+
+  Future<void> clearLikedVehicles() async {
+    if (_user != null) {
+      _likedVehicles.clear(); // Clear the list locally
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({'likedVehicles': []}); // Clear the list in Firestore
+        notifyListeners();
+      } catch (e) {
+        print('Error clearing likedVehicles in Firestore: $e');
+      }
+    }
+  }
+
+  Future<void> clearDislikedVehicles() async {
+    if (_user != null) {
+      _dislikedVehicles.clear(); // Clear the list locally
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({'dislikedVehicles': []}); // Clear the list in Firestore
+        notifyListeners();
+      } catch (e) {
+        print('Error clearing dislikedVehicles in Firestore: $e');
+      }
     }
   }
 

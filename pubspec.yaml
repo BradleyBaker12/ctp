@@ -1,5 +1,5 @@
 name: ctp
-description: "A new Flutter project."
+description: "A Truck Trading application"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -92,18 +92,36 @@ flutter:
     - lib/assets/country-by-name.json
     - lib/assets/Layer_1.png
     - lib/assets/Layer_2.png
-    - lib/assets/Logo/DAF-removebg-preview.png
-    - lib/assets/Logo/Freightliner_Trucks_Red-removebg-preview.png
+    - lib/assets/Logo/ashok-leyland-logo-2.png
+    - lib/assets/Logo/CNHTC.png
+    - lib/assets/Logo/daf-2.png
+    - lib/assets/Logo/DAYUN.png
+    - lib/assets/Logo/eicher-logo.png
+    - lib/assets/Logo/EVQzwvJI_400x400.png
+    - lib/assets/Logo/FAW.png
+    - lib/assets/Logo/fiat-3.png
+    - lib/assets/Logo/ford-8.png
+    - lib/assets/Logo/Foton.png
+    - lib/assets/Logo/fuso-1.png
+    - lib/assets/Logo/hino.png
+    - lib/assets/Logo/hyundai-motor-company-2.png
+    - lib/assets/Logo/image2vector.png
+    - lib/assets/Logo/isuzu-2.png
+    - lib/assets/Logo/iveco.png
+    - lib/assets/Logo/JAC.png
+    - lib/assets/Logo/Joylong.png
+    - lib/assets/Logo/man-logo.png
+    - lib/assets/Logo/mercedes-benz-9.png
+    - lib/assets/Logo/peugeot-8.png
+    - lib/assets/Logo/renault-2.png
+    - lib/assets/Logo/scania-6.png
+    - lib/assets/Logo/tata-logo.png
+    - lib/assets/Logo/toyota-7.png
+    - lib/assets/Logo/ud-trucks-1.png
+    - lib/assets/Logo/volkswagen-10.png
+    - lib/assets/Logo/volvo.png
     - lib/assets/Logo/Globe Emoji.png
-    - lib/assets/Logo/Iveco 2023 New.png
-    - lib/assets/Logo/kenworth-red-logo-7q7yvcad0c7g543b-removebg-preview.png
-    - lib/assets/Logo/Mack Trucks.png
-    - lib/assets/Logo/Peterbilt.png
-    - lib/assets/Logo/png-clipart-man-truck-bus-scania-ab-logo-man-se-truck-angle-text-removebg-preview.png
-    - lib/assets/Logo/Scania Emblem.png
-    - lib/assets/Logo/Volvo_Icon-removebg-preview.png
-    - lib/assets/Logo/Mercedes Benz 3D Star.png
-    - lib/assets/Logo/Western Star Trucks.png
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
   # For details regarding adding assets from package dependencies, see

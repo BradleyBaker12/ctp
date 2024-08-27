@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -8,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'final_inspection_approval_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/custom_back_button.dart'; // Import your custom back button
 
 class ConfirmationPage extends StatefulWidget {
   final String offerId;
@@ -64,6 +66,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
 
   @override
   Widget build(BuildContext context) {
+    var screenSize = MediaQuery.of(context).size;
     final userProvider = Provider.of<UserProvider>(context);
     final profilePictureUrl = userProvider.getProfileImageUrl.isNotEmpty
         ? userProvider.getProfileImageUrl
@@ -84,83 +87,120 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                     children: [
                       Align(
                         alignment: Alignment.topLeft,
-                        child: IconButton(
-                          icon:
-                              const Icon(Icons.arrow_back, color: Colors.white),
+                        child: CustomBackButton(
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Image.asset('lib/assets/CTPLogo.png'),
-                      const SizedBox(height: 16),
-                      const Text(
+                      SizedBox(
+                          child: Image.asset('lib/assets/CTPLogo.png',
+                              width: screenSize.width * 0.22,
+                              height: screenSize.height * 0.22)),
+                      Text(
                         'WAITING ON FINAL INSPECTION',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                        style: GoogleFonts.montserrat(
+                          fontSize: screenSize.height * 0.023,
+                          fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
                       CircleAvatar(
                         radius: 40,
                         backgroundImage: NetworkImage(profilePictureUrl),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
                       Text(
-                        widget.makeModel,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                        widget.makeModel.toUpperCase(),
+                        style: GoogleFonts.montserrat(
+                          fontSize: screenSize.height * 0.023,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
+                      const SizedBox(height: 32),
+                      Text(
                         'OFFER',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
+                        style: GoogleFonts.montserrat(
+                            fontSize: screenSize.height * 0.02,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        widget.offerAmount,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      // Offer Amount Box
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white),
+                          borderRadius: BorderRadius.circular(8.0),
                         ),
-                        textAlign: TextAlign.center,
+                        child: Text(
+                          widget.offerAmount,
+                          style: GoogleFonts.montserrat(
+                            fontSize: screenSize.height * 0.023,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'DATE: ${widget.date.toLocal().toString().split(' ')[0]}', // Format date as YYYY-MM-DD
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
+                      // Date Box
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white),
+                          borderRadius: BorderRadius.circular(8.0),
                         ),
-                        textAlign: TextAlign.center,
+                        child: Text(
+                          'DATE: ${widget.date.toLocal().toString().split(' ')[0]}', // Format date as YYYY-MM-DD
+                          style: GoogleFonts.montserrat(
+                              fontSize: screenSize.height * 0.023,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'TIME: ${widget.time}',
-                        style:
-                            const TextStyle(fontSize: 16, color: Colors.white),
-                        textAlign: TextAlign.center,
+                      // Time Box
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white),
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Text(
+                          'TIME: ${widget.time}',
+                          style: GoogleFonts.montserrat(
+                              fontSize: screenSize.height * 0.023,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        widget.address,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      // Location Box
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white),
+                          borderRadius: BorderRadius.circular(8.0),
                         ),
-                        textAlign: TextAlign.center,
+                        child: Text(
+                          widget.address,
+                          style: GoogleFonts.montserrat(
+                            fontSize: screenSize.height * 0.023,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ],
                   ),

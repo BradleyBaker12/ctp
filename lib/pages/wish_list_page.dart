@@ -1,7 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ctp/components/wish_card.dart';
@@ -9,6 +9,7 @@ import 'vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/offer_provider.dart'; // Import OfferProvider
+import 'package:ctp/components/gradient_background.dart'; // Import GradientBackground
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
@@ -22,6 +23,8 @@ class _WishlistPageState extends State<WishlistPage> {
   String profileImageUrl = '';
   late Future<void> _fetchOffersFuture;
   late OfferProvider _offerProvider;
+
+  String _selectedTab = 'Trucks';
 
   @override
   void initState() {
@@ -82,162 +85,188 @@ class _WishlistPageState extends State<WishlistPage> {
     }
   }
 
+  List<DocumentSnapshot> _getFilteredVehicles() {
+    return _wishlistVehicles.where((vehicleDoc) {
+      Map<String, dynamic>? data = vehicleDoc.data() as Map<String, dynamic>?;
+
+      // Adjust the condition to check for vehicle types that fall under trucks or trailers
+      if (_selectedTab == 'Trucks') {
+        // Assuming you have different vehicle types that are considered trucks
+        return data != null &&
+            (data['vehicleType'] == 'truck' ||
+                data['vehicleType'] == 'pickup' ||
+                data['vehicleType'] ==
+                    'lorry'); // add more truck types if needed
+      } else if (_selectedTab == 'Trailers') {
+        // Assuming you have different vehicle types that are considered trailers
+        return data != null &&
+            (data['vehicleType'] == 'trailer' ||
+                data['vehicleType'] ==
+                    'semi-trailer'); // add more trailer types if needed
+      }
+      return false;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     final vehicleProvider = Provider.of<VehicleProvider>(context);
     final offerProvider = _offerProvider;
 
+    final filteredVehicles = _getFilteredVehicles();
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: const BlurryAppBar(),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
+      body: GradientBackground(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        SizedBox(height: screenSize.height * 0.02),
-                        Image.asset(
-                          'lib/assets/CTPLogo.png',
-                          height: screenSize.height * 0.2,
-                          width: screenSize.height * 0.2,
-                          fit: BoxFit.cover,
-                        ),
-                        SizedBox(height: screenSize.height * 0.07),
-                        const Text(
-                          'WISHLIST',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        FutureBuilder<void>(
-                          future: _fetchOffersFuture,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const CircularProgressIndicator();
-                            } else if (snapshot.hasError) {
-                              return const Text(
-                                'Error fetching offers',
-                                style: TextStyle(color: Colors.red),
-                              );
-                            } else {
-                              return ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _wishlistVehicles.length,
-                                itemBuilder: (context, index) {
-                                  DocumentSnapshot vehicleDoc =
-                                      _wishlistVehicles[index];
-                                  Map<String, dynamic>? data = vehicleDoc.data()
-                                      as Map<String, dynamic>?;
-                                  Vehicle vehicle = vehicleProvider.vehicles
-                                      .firstWhere((v) => v.id == vehicleDoc.id,
-                                          orElse: () => Vehicle(
-                                              id: vehicleDoc.id,
-                                              accidentFree: 'N/A',
-                                              application: 'N/A',
-                                              bookValue: 'N/A',
-                                              damageDescription: '',
-                                              damagePhotos: [],
-                                              dashboardPhoto: null,
-                                              engineNumber: 'N/A',
-                                              expectedSellingPrice: 'N/A',
-                                              faultCodesPhoto: null,
-                                              firstOwner: 'N/A',
-                                              hydraulics: 'N/A',
-                                              licenceDiskUrl: null,
-                                              listDamages: 'N/A',
-                                              maintenance: 'N/A',
-                                              makeModel: 'Unknown',
-                                              mileage: 'N/A',
-                                              mileageImage: null,
-                                              oemInspection: 'N/A',
-                                              mainImageUrl: null,
-                                              photos: [],
-                                              rc1NatisFile: null,
-                                              registrationNumber: 'N/A',
-                                              roadWorthy: 'N/A',
-                                              settleBeforeSelling: 'N/A',
-                                              settlementAmount: 'N/A',
-                                              settlementLetterFile: null,
-                                              spareTyre: 'N/A',
-                                              suspension: 'N/A',
-                                              transmission: 'N/A',
-                                              treadLeft: null,
-                                              tyrePhoto1: null,
-                                              tyrePhoto2: null,
-                                              tyreType: 'N/A',
-                                              userId: 'N/A',
-                                              vehicleType: 'N/A',
-                                              vinNumber: 'N/A',
-                                              warranty: 'N/A',
-                                              warrantyType: 'N/A',
-                                              weightClass: 'N/A',
-                                              year: 'N/A',
-                                              createdAt:
-                                                  (vehicleDoc['createdAt']
-                                                          as Timestamp)
-                                                      .toDate()));
-
-                                  String imageUrl = data != null &&
-                                          data.containsKey('mainImageUrl') &&
-                                          data['mainImageUrl'] != null
-                                      ? data['mainImageUrl']
-                                      : 'lib/assets/default_vehicle_image.png';
-
-                                  // Check if there's an offer for this vehicle
-                                  bool hasOffer = offerProvider.offers.any(
-                                      (offer) => offer.vehicleId == vehicle.id);
-
-                                  return WishCard(
-                                    vehicleMakeModel: vehicle.makeModel,
-                                    vehicleImageUrl: imageUrl,
-                                    size: screenSize,
-                                    customFont: (double fontSize,
-                                        FontWeight fontWeight, Color color) {
-                                      return TextStyle(
-                                        fontSize: fontSize,
-                                        fontWeight: fontWeight,
-                                        color: color,
-                                        fontFamily: 'Montserrat',
-                                      );
-                                    },
-                                    hasOffer: hasOffer,
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              VehicleDetailsPage(
-                                                  vehicle: vehicle),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-                            }
-                          },
-                        ),
-                      ],
+                  SizedBox(height: screenSize.height * 0.02),
+                  Image.asset(
+                    'lib/assets/CTPLogo.png',
+                    height: screenSize.height * 0.2,
+                    width: screenSize.height * 0.2,
+                    fit: BoxFit.cover,
+                  ),
+                  SizedBox(height: screenSize.height * 0.05),
+                  const Text(
+                    'WISHLIST',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
                     ),
+                  ),
+                  SizedBox(height: screenSize.height * 0.03),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildTab('Trucks'),
+                      SizedBox(width: screenSize.width * 0.06),
+                      _buildTab('Trailers'),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Expanded(
+              child: FutureBuilder<void>(
+                future: _fetchOffersFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return const Center(
+                      child: Text(
+                        'Error fetching offers',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    );
+                  } else {
+                    return ListView.builder(
+                      itemCount: filteredVehicles.length,
+                      itemBuilder: (context, index) {
+                        DocumentSnapshot vehicleDoc = filteredVehicles[index];
+                        Map<String, dynamic>? data =
+                            vehicleDoc.data() as Map<String, dynamic>?;
+                        Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
+                          (v) => v.id == vehicleDoc.id,
+                          orElse: () => Vehicle(
+                            id: vehicleDoc.id,
+                            accidentFree: 'N/A',
+                            application: 'N/A',
+                            bookValue: 'N/A',
+                            damageDescription: '',
+                            damagePhotos: [],
+                            dashboardPhoto: null,
+                            engineNumber: 'N/A',
+                            expectedSellingPrice: 'N/A',
+                            faultCodesPhoto: null,
+                            firstOwner: 'N/A',
+                            hydraulics: 'N/A',
+                            licenceDiskUrl: null,
+                            listDamages: 'N/A',
+                            maintenance: 'N/A',
+                            makeModel: 'Unknown',
+                            mileage: 'N/A',
+                            mileageImage: null,
+                            oemInspection: 'N/A',
+                            mainImageUrl: null,
+                            photos: [],
+                            rc1NatisFile: null,
+                            registrationNumber: 'N/A',
+                            roadWorthy: 'N/A',
+                            settleBeforeSelling: 'N/A',
+                            settlementAmount: 'N/A',
+                            settlementLetterFile: null,
+                            spareTyre: 'N/A',
+                            suspension: 'N/A',
+                            transmission: 'N/A',
+                            treadLeft: null,
+                            tyrePhoto1: null,
+                            tyrePhoto2: null,
+                            tyreType: 'N/A',
+                            userId: 'N/A',
+                            vehicleType: _selectedTab.toLowerCase(),
+                            vinNumber: 'N/A',
+                            warranty: 'N/A',
+                            warrantyType: 'N/A',
+                            weightClass: 'N/A',
+                            year: 'N/A',
+                            createdAt:
+                                (vehicleDoc['createdAt'] as Timestamp).toDate(),
+                          ),
+                        );
+
+                        String imageUrl = data != null &&
+                                data.containsKey('mainImageUrl') &&
+                                data['mainImageUrl'] != null
+                            ? data['mainImageUrl']
+                            : 'lib/assets/default_vehicle_image.png';
+
+                        // Check if there's an offer for this vehicle
+                        bool hasOffer = offerProvider.offers
+                            .any((offer) => offer.vehicleId == vehicle.id);
+
+                        return WishCard(
+                          vehicleMakeModel: vehicle.makeModel,
+                          vehicleImageUrl: imageUrl,
+                          size: screenSize,
+                          customFont: (double fontSize, FontWeight fontWeight,
+                              Color color) {
+                            return TextStyle(
+                              fontSize: fontSize,
+                              fontWeight: fontWeight,
+                              color: color,
+                              fontFamily: 'Montserrat',
+                            );
+                          },
+                          hasOffer: hasOffer,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    VehicleDetailsPage(vehicle: vehicle),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: CustomBottomNavigation(
         selectedIndex: 2,
@@ -246,6 +275,37 @@ class _WishlistPageState extends State<WishlistPage> {
             // Handle navigation here
           });
         },
+      ),
+    );
+  }
+
+  Widget _buildTab(String tabName) {
+    final isSelected = _selectedTab == tabName;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedTab = tabName;
+        });
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            tabName.toUpperCase(),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.blue : Colors.white,
+            ),
+          ),
+          if (isSelected)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              height: 2,
+              width: 40,
+              color: const Color(0xFFFF4E00),
+            ),
+        ],
       ),
     );
   }

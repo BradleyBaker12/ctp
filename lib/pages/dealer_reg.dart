@@ -12,7 +12,6 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as path;
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter/services.dart'; // Import the services package for input formatters
@@ -246,7 +245,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
                               style: GoogleFonts.montserrat(
                                 fontSize: screenSize.height * 0.018,
                                 color: Colors.white,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -258,6 +257,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
                               style: GoogleFonts.montserrat(
                                 fontSize: screenSize.height * 0.015,
                                 color: Colors.white,
+                                fontWeight: FontWeight.w500,
                               ),
                               textAlign: TextAlign.center,
                             ),

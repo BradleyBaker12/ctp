@@ -81,12 +81,20 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   SizedBox(height: screenSize.height * 0.01),
                                   Text(
-                                    'Navigate with Confidence, Drive with Ease.\nYour trusted partner on the road.',
+                                    'Navigate with Confidence, Drive with Ease.',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.montserrat(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                    ),
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700),
+                                  ),
+                                  Text(
+                                    'Your trusted partner on the road.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.montserrat(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500),
                                   ),
                                   SizedBox(height: screenSize.height * 0.02),
                                   SignInButton(
@@ -124,6 +132,7 @@ class _LoginPageState extends State<LoginPage> {
                                         'Trouble Signing In?',
                                         style: GoogleFonts.montserrat(
                                           color: Colors.white,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                       GestureDetector(
@@ -135,7 +144,7 @@ class _LoginPageState extends State<LoginPage> {
                                           'Sign Up',
                                           style: GoogleFonts.montserrat(
                                             color: orange,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w900,
                                           ),
                                         ),
                                       ),

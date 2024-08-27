@@ -100,9 +100,9 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 32),
                   Image.asset('lib/assets/CTPLogo.png'),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 100),
                   const Text(
                     'PAYMENT PENDING',
                     style: TextStyle(
@@ -112,23 +112,27 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   const Text(
                     "You're almost there!",
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
+                  const SizedBox(height: 32),
+                  const SizedBox(
+                    width: 350,
+                    child: Text(
+                      'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

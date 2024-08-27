@@ -119,29 +119,32 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             onPressed: () => Navigator.of(context).pop(),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        Image.asset('lib/assets/CTPLogo.png'),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                            width: 100,
+                            height: 100,
+                            child: Image.asset('lib/assets/CTPLogo.png')),
+                        const SizedBox(height: 32),
                         const Text(
                           'PAYMENT APPROVED',
                           style: TextStyle(
                             fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
                             color: Colors.white,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 32),
                         CircleAvatar(
-                          radius: 50,
+                          radius: 60,
                           backgroundImage: mainImageUrl.isNotEmpty
                               ? NetworkImage(mainImageUrl)
                               : const AssetImage('lib/assets/truck_image.png')
                                   as ImageProvider,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 32),
                         Text(
-                          truckName,
+                          truckName.toUpperCase(),
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -149,16 +152,17 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 32),
                         const Text(
                           'READY FOR COLLECTION',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,
+                            fontWeight: FontWeight.bold,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(16.0),
@@ -171,6 +175,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             style: const TextStyle(
                               fontSize: 16,
                               color: Colors.white,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -188,6 +193,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             style: const TextStyle(
                               fontSize: 16,
                               color: Colors.white,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -205,6 +211,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             style: const TextStyle(
                               fontSize: 16,
                               color: Colors.white,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),

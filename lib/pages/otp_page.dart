@@ -4,7 +4,6 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:pinput/pinput.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -144,9 +143,9 @@ class _OTPScreenState extends State<OTPScreen> {
                               Text(
                                 'We will send you a six digit code',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
+                                    fontSize: 16,
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontWeight: FontWeight.w500),
                               ),
                               const SizedBox(height: 20),
                               Pinput(
@@ -181,6 +180,7 @@ class _OTPScreenState extends State<OTPScreen> {
                                     color: Colors.white,
                                     fontSize: 16,
                                     decoration: TextDecoration.underline,
+                                    decorationColor: Colors.white,
                                   ),
                                 ),
                               ),

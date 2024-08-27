@@ -134,6 +134,53 @@ class OfferProvider extends ChangeNotifier {
 
   List<Offer> get offers => _offers;
 
+  // Method to fetch a specific offer by its ID
+  Future<void> fetchOfferById(String offerId) async {
+    try {
+      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(offerId)
+          .get();
+
+      if (offerSnapshot.exists) {
+        Offer offer = Offer.fromFirestore(offerSnapshot);
+        _offers.add(offer);
+        await offer.fetchVehicleDetails(); // Fetch related vehicle details
+      } else {
+        print('No offer found with ID $offerId');
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching offer: $e');
+    }
+  }
+
+  // Method to get a specific offer by its ID from the cached offers
+  Offer? getOfferById(String offerId) {
+    return _offers.firstWhere(
+      (offer) => offer.offerId == offerId,
+    );
+  }
+
+  // Method to update the offer amount
+  Future<void> updateOfferAmount(String offerId, double newAmount) async {
+    try {
+      Offer? offer = getOfferById(offerId);
+      if (offer != null) {
+        offer.offerAmount = newAmount; // Update local value
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(offerId)
+            .update({'offerAmount': newAmount});
+        notifyListeners(); // Notify listeners after updating
+      } else {
+        print('Offer not found for update');
+      }
+    } catch (e) {
+      print('Error updating offer amount: $e');
+    }
+  }
+
   Future<void> fetchOffers(String userId, String userRole) async {
     try {
       print('Fetching offers for user $userId with role $userRole');

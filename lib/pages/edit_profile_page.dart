@@ -8,6 +8,9 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:path/path.dart' as path;
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -110,13 +113,63 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _pickProfileImage() async {
-    FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.image);
-    if (result != null) {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final ImagePicker _picker = ImagePicker();
+      final XFile? pickedFile =
+          await _picker.pickImage(source: ImageSource.gallery);
+
+      if (pickedFile != null) {
+        File? croppedFile = await _cropImage(File(pickedFile.path));
+        if (croppedFile != null) {
+          final compressedFile = await _compressImageFile(croppedFile);
+          setState(() {
+            _profileImageFile = compressedFile;
+          });
+        }
+      }
+    } finally {
       setState(() {
-        _profileImageFile = File(result.files.single.path!);
+        _isLoading = false;
       });
     }
+  }
+
+  Future<File?> _cropImage(File imageFile) async {
+    CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: imageFile.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop and Fit',
+          toolbarColor: Colors.deepOrange,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: 'Crop and Fit',
+        ),
+      ],
+    );
+
+    if (croppedFile != null) {
+      return File(croppedFile.path);
+    }
+    return null;
+  }
+
+  Future<File> _compressImageFile(File file) async {
+    final compressedFile = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      file.absolute.path.replaceAll('.jpg', '_compressed.jpg'),
+      quality: 70,
+    );
+
+    return compressedFile != null ? File(compressedFile.path) : file;
   }
 
   IconData _getIconForFileType(String fileName) {
@@ -179,14 +232,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                         : null,
                                   ),
                                 ),
-                                const Positioned(
+                                Positioned(
                                   bottom: 0,
                                   right: 0,
-                                  child: CircleAvatar(
-                                    backgroundColor: Colors.white,
-                                    radius: 18,
-                                    child:
-                                        Icon(Icons.edit, color: Colors.black),
+                                  child: GestureDetector(
+                                    onTap: _pickProfileImage,
+                                    child: const CircleAvatar(
+                                      backgroundColor: Colors.white,
+                                      radius: 18,
+                                      child:
+                                          Icon(Icons.edit, color: Colors.black),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -194,7 +250,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             const SizedBox(height: 20),
                             _buildTextField('First Name', _firstNameController),
                             _buildTextField(
-                                'Middle Name', _middleNameController),
+                                'Middle Name', _middleNameController,
+                                isRequired: false),
                             _buildTextField('Last Name', _lastNameController),
                             _buildTextField('Email', _emailController),
                             _buildTextField(
@@ -206,7 +263,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             _buildTextField(
                                 'Address Line 1', _addressLine1Controller),
                             _buildTextField(
-                                'Address Line 2', _addressLine2Controller),
+                                'Address Line 2', _addressLine2Controller,
+                                isRequired: false),
                             _buildTextField('City', _cityController),
                             _buildTextField(
                                 'State/Province/Region', _stateController),
@@ -260,7 +318,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
             Container(
               color: Colors.black.withOpacity(0.5),
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(
+                  color: Color(0xFFFF4E00),
+                ),
               ),
             ),
         ],
@@ -268,7 +328,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(String label, TextEditingController controller,
+      {bool isRequired = true}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
@@ -287,7 +348,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
         style: const TextStyle(color: Colors.white),
         validator: (value) {
-          if (value == null || value.isEmpty) {
+          if (isRequired && (value == null || value.isEmpty)) {
             return 'Please enter $label';
           }
           return null;
@@ -325,16 +386,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
             child: Center(
               child: fileUrl == null
                   ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
-                  : Row(
+                  : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(_getIconForFileType(fileUrl),
-                            color: Colors.white, size: 40),
-                        const SizedBox(width: 10),
+                        Icon(
+                          _getIconForFileType(fileUrl),
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                        const SizedBox(height: 5),
                         Flexible(
                           child: Text(
-                            path.basename(fileUrl),
+                            _getFileNameFromUrl(
+                                fileUrl), // Extracting the file name from URL or path
                             style: const TextStyle(color: Colors.white),
+                            textAlign: TextAlign.center,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -375,6 +441,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
       ],
     );
+  }
+
+  String _getFileNameFromUrl(String url) {
+    // Use Uri to parse the URL and get the last segment
+    try {
+      Uri uri = Uri.parse(url);
+      return path.basename(uri.path);
+    } catch (e) {
+      // If parsing fails, fall back to the original fileUrl
+      return path.basename(url);
+    }
   }
 
   Future<void> _saveProfile() async {

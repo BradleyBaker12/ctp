@@ -83,6 +83,7 @@ class TradingCategoryPage extends StatelessWidget {
                             style: GoogleFonts.montserrat(
                               fontSize: 14,
                               color: Colors.white,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),

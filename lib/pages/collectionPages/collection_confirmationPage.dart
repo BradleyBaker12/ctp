@@ -148,28 +148,32 @@ class _CollectionConfirmationPageState
                       child: CustomBackButton(
                           onPressed: () => Navigator.of(context).pop()),
                     ),
-                    const SizedBox(height: 16),
-                    Image.asset('lib/assets/CTPLogo.png'),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 50),
+                    SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Image.asset('lib/assets/CTPLogo.png')),
+                    const SizedBox(height: 32),
                     const Text(
                       'LOCATION CONFIRMATION',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
                         color: Colors.white,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 32),
                     const Text(
                       'Meeting information:',
                       style: TextStyle(
                         fontSize: 18,
                         color: Colors.white,
+                        fontWeight: FontWeight.w700,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 32),
                     Text(
                       widget.address,
                       style: const TextStyle(
@@ -179,12 +183,13 @@ class _CollectionConfirmationPageState
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 32),
                     Text(
                       '${widget.date.day} ${_getMonthName(widget.date.month)} ${widget.date.year}',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -197,7 +202,7 @@ class _CollectionConfirmationPageState
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 32),
                     if (_latLng != null)
                       Container(
                         height: 300,

@@ -163,9 +163,9 @@ class _FirstNamePageState extends State<FirstNamePage> {
                           Text(
                             'This is the name that will appear to other users in the app',
                             style: GoogleFonts.montserrat(
-                              fontSize: screenSize.width * 0.035,
-                              color: Colors.white.withOpacity(0.7),
-                            ),
+                                fontSize: screenSize.width * 0.035,
+                                color: Colors.white.withOpacity(0.7),
+                                fontWeight: FontWeight.w600),
                             textAlign: TextAlign.center,
                           ),
                           SizedBox(height: screenSize.height * 0.03),

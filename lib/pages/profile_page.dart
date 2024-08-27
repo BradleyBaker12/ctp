@@ -117,12 +117,18 @@ class ProfilePage extends StatelessWidget {
                       '${userProvider.getState ?? ''}\n'
                       '${userProvider.getPostalCode ?? ''}'),
               const SizedBox(height: 20),
-              const Text(
-                'DOCUMENTS',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              const Padding(
+                padding: EdgeInsets.only(left: 16.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'DOCUMENTS',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
               const Divider(color: Colors.white),
