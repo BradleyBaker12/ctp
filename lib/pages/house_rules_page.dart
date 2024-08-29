@@ -94,7 +94,7 @@ class _HouseRulesPageState extends State<HouseRulesPage> {
                                       0.15), // 25% of screen height
                               SizedBox(
                                   height: screenSize.height *
-                                      0.06), // 6% of screen height
+                                      0.08), // 6% of screen height
                               Text(
                                 'Please follow these House Rules',
                                 style: GoogleFonts.montserrat(

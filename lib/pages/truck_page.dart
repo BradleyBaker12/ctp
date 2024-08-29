@@ -9,7 +9,9 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class TruckPage extends StatefulWidget {
-  const TruckPage({super.key});
+  final String vehicleType;
+
+  const TruckPage({super.key, required this.vehicleType});
 
   @override
   _TruckPageState createState() => _TruckPageState();
@@ -41,6 +43,8 @@ class _TruckPageState extends State<TruckPage> {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
+      vehicleProvider.fetchVehicles(userProvider,
+          vehicleType: widget.vehicleType);
       setState(() {
         displayedVehicles = vehicleProvider.vehicles
             .where((vehicle) =>
@@ -311,12 +315,12 @@ class _TruckPageState extends State<TruckPage> {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-      await userProvider.clearLikedVehicles();
+      // await userProvider.clearLikedVehicles();
       await userProvider.clearDislikedVehicles();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Liked and disliked vehicles have been cleared.'),
+          content: Text('disliked vehicles have been cleared.'),
         ),
       );
 
@@ -444,7 +448,7 @@ class _TruckPageState extends State<TruckPage> {
                   ),
                 ),
           Positioned(
-            top: 16,
+            top: 25,
             left: 16,
             right: 16,
             child: Row(
@@ -541,199 +545,221 @@ class _TruckPageState extends State<TruckPage> {
           );
         }
       },
-      child: Container(
-        width: size.width,
-        height: size.height -
-            AppBar().preferredSize.height -
-            80, // Adjust for app bar and bottom navigation
-        margin: const EdgeInsets.symmetric(
-            horizontal: 2, vertical: 10), // Margin for spacing between cards
-        decoration: BoxDecoration(
-          color: Colors.white, // White background for the card
-          borderRadius: BorderRadius.circular(10),
-          border:
-              Border.all(color: Colors.white, width: 0.5), // Thin white border
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(
-              10), // Ensure the child content respects the border radius
-          child: Stack(
-            children: [
-              // Image Section
-              Positioned.fill(
-                top: 0,
-                bottom: size.height *
-                    0.23, // Set to 0 to allow the image to fill the entire height
-                child: Stack(
-                  children: [
-                    // The vehicle image or placeholder
-                    Center(
-                      child: vehicle.mainImageUrl != null &&
-                              vehicle.mainImageUrl!.isNotEmpty
-                          ? Image.network(
-                              vehicle.mainImageUrl!,
-                              fit: BoxFit
-                                  .fitHeight, // Use cover to ensure it fills the available height
-                              width: double.infinity,
-                              height:
-                                  double.infinity, // Fill the available height
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'lib/assets/default_vehicle_image.png',
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                );
-                              },
-                            )
-                          : Image.asset(
-                              'lib/assets/default_vehicle_image.png',
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                            ),
-                    ),
-
-                    // Gradient overlay on top of the image
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.black.withOpacity(0.2), // Start color
-                            Colors.black.withOpacity(0.2), // End color
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          stops: const [1.0, 1.0],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Container(
+          width: size.width,
+          height: size.height -
+              AppBar().preferredSize.height -
+              80, // Adjust for app bar and bottom navigation
+          margin: const EdgeInsets.symmetric(
+              horizontal: 2, vertical: 10), // Margin for spacing between cards
+          decoration: BoxDecoration(
+            color: Colors.white, // White background for the card
+            borderRadius: BorderRadius.circular(10),
+            border:
+                Border.all(color: Colors.white, width: 1), // Thin white border
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
               ),
-              // Container for buttons and info cards
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  color: Colors
-                      .black, // Black background for buttons and info cards
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(
+                10), // Ensure the child content respects the border radius
+            child: Stack(
+              children: [
+                // Image Section
+                Positioned.fill(
+                  top: 0,
+                  bottom: size.height *
+                      0.23, // Set to 0 to allow the image to fill the entire height
+                  child: Stack(
                     children: [
-                      // SizedBox(height: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 2.0),
-                            child: Text(
-                              "GAUTENG, PRETORIA", // Add location text above the name
-                              style: _customFont(
-                                size.height * 0.015,
-                                FontWeight.w600,
-                                Colors.white,
+                      // The vehicle image or placeholder
+                      Center(
+                        child: vehicle.mainImageUrl != null &&
+                                vehicle.mainImageUrl!.isNotEmpty
+                            ? Image.network(
+                                vehicle.mainImageUrl!,
+                                fit: BoxFit
+                                    .fitHeight, // Use cover to ensure it fills the available height
+                                width: double.infinity,
+                                height: double
+                                    .infinity, // Fill the available height
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    'lib/assets/default_vehicle_image.png',
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                'lib/assets/default_vehicle_image.png',
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
                               ),
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(left: 2.0),
-                                child: Text(
-                                  vehicle.makeModel.length > 16
-                                      ? '${vehicle.makeModel.substring(0, 15)}...'
-                                      : vehicle.makeModel,
-                                  style: _customFont(
-                                    size.height * 0.03,
-                                    FontWeight.w900,
-                                    Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(
-                                  width:
-                                      8), // Add some spacing between the text and the icon
-                              Image.asset(
-                                'lib/assets/verified_Icon.png',
-                                width: size.width * 0.05,
-                                height: size.height * 0.05,
-                              ),
+                      ),
+
+                      // Gradient overlay on top of the image
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.2), // Start color
+                              Colors.black.withOpacity(0.2), // End color
                             ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            stops: const [1.0, 1.0],
                           ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildInfoContainer('YEAR',
-                              vehicle.year.isNotEmpty ? vehicle.year : "N/A"),
-                          const SizedBox(width: 8),
-                          _buildInfoContainer(
-                              'MILEAGE',
-                              vehicle.mileage.isNotEmpty
-                                  ? vehicle.mileage
-                                  : "N/A"),
-                          const SizedBox(width: 8),
-                          _buildInfoContainer(
-                              'GEARBOX',
-                              vehicle.transmission.isNotEmpty
-                                  ? vehicle.transmission
-                                  : "N/A"),
-                          const SizedBox(width: 8),
-                          _buildInfoContainer(
-                              'TYPE',
-                              vehicle.vehicleType.isNotEmpty
-                                  ? vehicle.vehicleType
-                                  : "N/A"),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildIconButton(Icons.close, const Color(0xFF2F7FFF),
-                              controller, 'left', vehicle),
-                          _buildCenterButton(controller),
-                          _buildIconButton(
-                              Icons.favorite,
-                              const Color(0xFFFF4E00),
-                              controller,
-                              'right',
-                              vehicle),
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-
-              // Honesty Bar and Other Overlays
-              Positioned(
-                top: 100,
-                right: 12,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, // Adjust for shrink-wrapping
-                  children: [
-                    _buildHonestyBar(honestyPercentage),
-                    const SizedBox(height: 8),
-                    Text(
-                      "${honestyPercentage.toStringAsFixed(0)}/100",
-                      style: _customFont(
-                          size.height * 0.015, FontWeight.bold, Colors.white),
+                // Container for buttons and info cards
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    color: Colors
+                        .black, // Black background for buttons and info cards
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      children: [
+                        // SizedBox(height: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 2.0),
+                              child: Text(
+                                "GAUTENG, PRETORIA", // Add location text above the name
+                                style: _customFont(
+                                  size.height * 0.015,
+                                  FontWeight.w600,
+                                  Colors.white,
+                                ),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 2.0, bottom: 10),
+                                  child: Text(
+                                    vehicle.makeModel.length > 16
+                                        ? '${vehicle.makeModel.substring(0, 15).toUpperCase()}...'
+                                        : vehicle.makeModel,
+                                    style: _customFont(
+                                      size.height * 0.03,
+                                      FontWeight.w900,
+                                      Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(
+                                    width:
+                                        60), // Add some spacing between the text and the icon
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Image.asset(
+                                    'lib/assets/verified_Icon.png',
+                                    width: size.width * 0.05,
+                                    height: size.height * 0.05,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: 30,
+                                )
+                              ],
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            SizedBox(
+                              height: 10,
+                            ),
+                            _buildInfoContainer('YEAR',
+                                vehicle.year.isNotEmpty ? vehicle.year : "N/A"),
+                            const SizedBox(width: 8),
+                            _buildInfoContainer(
+                                'MILEAGE',
+                                vehicle.mileage.isNotEmpty
+                                    ? vehicle.mileage
+                                    : "N/A"),
+                            const SizedBox(width: 8),
+                            _buildInfoContainer(
+                                'GEARBOX',
+                                vehicle.transmission.isNotEmpty
+                                    ? vehicle.transmission
+                                    : "N/A"),
+                            const SizedBox(width: 8),
+                            _buildInfoContainer(
+                                'TYPE',
+                                vehicle.vehicleType.isNotEmpty
+                                    ? vehicle.vehicleType
+                                    : "N/A"),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildIconButton(
+                                Icons.close,
+                                const Color(0xFF2F7FFF),
+                                controller,
+                                'left',
+                                vehicle),
+                            _buildCenterButton(controller),
+                            _buildIconButton(
+                                Icons.favorite,
+                                const Color(0xFFFF4E00),
+                                controller,
+                                'right',
+                                vehicle),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+
+                // Honesty Bar and Other Overlays
+                Positioned(
+                    top: 52,
+                    right: 12,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment
+                          .end, // Aligns everything to the right
+                      children: [
+                        _buildHonestyBar(honestyPercentage),
+                        const SizedBox(height: 10),
+                        Text(
+                          "${honestyPercentage.toStringAsFixed(0)}/100",
+                          style: _customFont(
+                            size.height * 0.015,
+                            FontWeight.bold,
+                            Colors.white,
+                          ),
+                        ),
+                      ],
+                    )),
+              ],
+            ),
           ),
         ),
       ),
@@ -757,7 +783,7 @@ class _TruckPageState extends State<TruckPage> {
 
     return Flexible(
       child: Container(
-        height: screenSize.height * 0.08,
+        height: screenSize.height * 0.06,
         width: screenSize.width * 0.22,
         padding: EdgeInsets.symmetric(
           vertical: screenSize.height * 0.005, // Adjust the vertical padding
@@ -792,12 +818,12 @@ class _TruckPageState extends State<TruckPage> {
   Widget _buildHonestyBar(double percentage) {
     final size = MediaQuery.of(context).size;
     return Container(
-      width: size.height * 0.02, // Reduced the width to make it smaller
+      width: size.height * 0.018, // Reduced the width to make it smaller
       height: size.height *
-          0.52, // Reduced the height so it doesn't interfere with the bell icon
+          0.49, // Reduced the height so it doesn't interfere with the bell icon
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(0),
         border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: Stack(
@@ -806,11 +832,11 @@ class _TruckPageState extends State<TruckPage> {
             child: Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                height: ((size.height * 0.52) * percentage) /
+                height: ((size.height * 0.51) * percentage) /
                     100, // Adjust the height calculation based on the new height
                 decoration: BoxDecoration(
                   color: const Color(0xFF2F7FFF),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(0),
                 ),
               ),
             ),

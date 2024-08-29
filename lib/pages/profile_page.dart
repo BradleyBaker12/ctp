@@ -58,7 +58,8 @@ class ProfilePage extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  userProvider.getUserName ?? 'Profile Name',
+                                  userProvider.getUserName.toUpperCase() ??
+                                      'Profile Name',
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
@@ -77,8 +78,8 @@ class ProfilePage extends StatelessWidget {
                                     ),
                                   );
                                 },
-                                child: const Text(
-                                  'Edit Profile',
+                                child: Text(
+                                  'Edit Profile'.toUpperCase(),
                                   style: TextStyle(
                                       fontSize: 16,
                                       color: Colors.white,
@@ -188,7 +189,7 @@ class ProfilePage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            title,
+            title.toUpperCase(),
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -197,11 +198,11 @@ class ProfilePage extends StatelessWidget {
           ),
           Flexible(
             child: Text(
-              value,
+              value.toUpperCase(),
               style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-              ),
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600),
               textAlign: TextAlign.right,
             ),
           ),

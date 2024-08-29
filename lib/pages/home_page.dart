@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/offer_card.dart';
+import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -56,9 +57,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Provider.of<VehicleProvider>(context, listen: false);
 
     try {
+      // Fetch user data first
       await userProvider.fetchUserData();
-      await vehicleProvider.fetchVehicles();
 
+      // Fetch vehicles after ensuring user data is ready
+      await vehicleProvider.fetchVehicles(userProvider);
+
+      // Ensure recent vehicles are also loaded after fetching all vehicles
       recentVehicles = await vehicleProvider.fetchRecentVehicles();
       displayedVehiclesNotifier.value = recentVehicles.take(5).toList();
 
@@ -77,6 +82,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       );
       await FirebaseCrashlytics.instance.recordError(e, stackTrace);
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initialization =
+        _initializeData(); // Re-initialize data whenever dependencies change
   }
 
   Future<void> _checkPaymentStatusForOffers() async {
@@ -116,19 +128,39 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  void _loadInitialVehicles() {
+  void _loadInitialVehicles() async {
     try {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final initialVehicles = vehicleProvider.vehicles
+
+      // Ensure user data is fetched before filtering vehicles
+      await userProvider.fetchUserData();
+
+      // Fetch and filter vehicles
+      final allVehicles = vehicleProvider.vehicles
           .where((vehicle) =>
               !userProvider.getLikedVehicles.contains(vehicle.id) &&
               !userProvider.getDislikedVehicles.contains(vehicle.id))
-          .take(5)
           .toList();
-      displayedVehiclesNotifier.value = initialVehicles;
-      loadedVehicleIndex = initialVehicles.length;
+
+      // Take the first 5 vehicles to display
+      final initialVehicles = allVehicles.take(5).toList();
+
+      // Check if there are no vehicles to display after filtering
+      if (initialVehicles.isEmpty) {
+        // Set the notifier value to an empty list and show the no vehicles message
+        displayedVehiclesNotifier.value = [];
+        _showEndMessage = true;
+      } else {
+        // Update the displayed vehicles notifier with the filtered and limited list
+        displayedVehiclesNotifier.value = initialVehicles;
+        loadedVehicleIndex = initialVehicles.length;
+      }
+
+      // Print currently showing vehicles
+      print(
+          'Currently Showing Vehicles: ${displayedVehiclesNotifier.value.map((v) => v.id).toList()}');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -146,11 +178,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final nextVehicle = vehicleProvider.vehicles[loadedVehicleIndex];
       if (!userProvider.getLikedVehicles.contains(nextVehicle.id) &&
           !userProvider.getDislikedVehicles.contains(nextVehicle.id)) {
+        // Print the vehicle that will be displayed next
+        print('Next Vehicle to show: ${nextVehicle.id}');
+
         displayedVehiclesNotifier.value = [
           ...displayedVehiclesNotifier.value,
           nextVehicle
         ];
         loadedVehicleIndex++;
+
+        // Print the vehicles currently showing
+        print(
+            'Currently Showing Vehicles: ${displayedVehiclesNotifier.value.map((v) => v.id).toList()}');
         return;
       }
       loadedVehicleIndex++;
@@ -174,7 +213,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (activity.direction == AxisDirection.right) {
         await _likeVehicle(vehicleId);
       } else if (activity.direction == AxisDirection.left) {
-        // await _dislikeVehicle(vehicleId);
+        await _dislikeVehicle(vehicleId);
       }
     }
 
@@ -208,8 +247,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Future<void> _dislikeVehicle(String vehicleId) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     try {
-      // await userProvider.dislikeVehicle(vehicleId);
-      // dislikedVehicles.add(vehicleId);
+      await userProvider.dislikeVehicle(vehicleId);
+      dislikedVehicles.add(vehicleId);
     } catch (e, stackTrace) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -244,12 +283,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
             child: Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.grey.withOpacity(0.1),
             ),
           ),
         ),
         leading: Padding(
-          padding: EdgeInsets.all(size.width * 0.02),
+          padding: EdgeInsets.only(left: 20),
           child: Image.asset('lib/assets/CTPLogo.png'),
         ),
         actions: [
@@ -271,7 +310,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ],
       ),
       body: FutureBuilder<void>(
-        future: _initializeData(),
+        future: _initialization,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -283,6 +322,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: Text('Error loading data',
                     style: _customFont(16, FontWeight.normal, Colors.white)));
           } else {
+            // Once data is loaded, build the HomePage content
             return _buildHomePageContent(context, size, imageHeight, orange);
           }
         },
@@ -297,14 +337,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildHomePageContent(
       BuildContext context, Size size, double imageHeight, Color orange) {
     final userProvider = Provider.of<UserProvider>(context);
-    final vehicleProvider = Provider.of<VehicleProvider>(context);
-
     final userRole = userProvider.getUserRole;
-
-    final vehiclesWithOffers = vehicleProvider.vehicles.where((vehicle) {
-      return _offerProvider.offers
-          .any((offer) => offer.vehicleId == vehicle.id);
-    }).toList();
 
     // Get the 5 most recent offers
     final recentOffers = _offerProvider.offers.take(5).toList();
@@ -330,9 +363,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     child: Column(
                       children: [
                         Text(
-                          'Welcome ${userProvider.getUserName}',
+                          'Welcome ${userProvider.getUserName.toUpperCase()}'
+                              .toUpperCase(),
                           style: const TextStyle(
-                              fontSize: 34,
+                              fontSize: 24,
                               fontWeight: FontWeight.w900,
                               color: Color(0xFFFF4E00)),
                         ),
@@ -340,8 +374,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         Text(
                           "Ready to steer your trading journey to success?",
                           textAlign: TextAlign.center,
-                          style:
-                              _customFont(16, FontWeight.normal, Colors.white),
+                          style: _customFont(
+                            14,
+                            FontWeight.w500,
+                            Colors.white,
+                          ),
                         ),
                       ],
                     ),
@@ -352,7 +389,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: size.width * 0.05),
                   child: _buildVehicleTypeSelection(userRole, size),
@@ -384,6 +421,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ValueListenableBuilder<List<Vehicle>>(
                     valueListenable: displayedVehiclesNotifier,
                     builder: (context, displayedVehicles, child) {
+                      // Use displayedVehiclesNotifier to ensure the correct vehicles are shown
                       if (displayedVehicles.isEmpty && _hasReachedEnd) {
                         return Text(
                           "You have swiped through all the available trucks.",
@@ -465,17 +503,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
                 // Directly displaying the 5 most recent offers
-                if (recentOffers.isNotEmpty)
-                  const SizedBox(
-                    height: 10,
+                if (recentOffers.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Column(
+                    children: recentOffers.map((offer) {
+                      return OfferCard(
+                        offer: offer,
+                      );
+                    }).toList(),
                   ),
-                Column(
-                  children: recentOffers.map((offer) {
-                    return OfferCard(
-                      offer: offer,
-                    );
-                  }).toList(),
-                ),
+                ],
               ],
             ),
           ],
@@ -509,13 +546,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     if (userRole == 'transporter') {
                       Navigator.pushNamed(
                         context,
-                        '/firstTruckForm',
+                        '/truckPage',
                         arguments: {'vehicleType': 'truck'},
                       );
                     } else if (userRole == 'dealer') {
-                      Navigator.pushNamed(
+                      Navigator.push(
                         context,
-                        '/searchTruck',
+                        MaterialPageRoute(
+                          builder: (context) => TruckPage(vehicleType: 'truck'),
+                        ),
                       );
                     }
                   },
@@ -537,9 +576,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         arguments: {'vehicleType': 'trailer'},
                       );
                     } else if (userRole == 'dealer') {
-                      Navigator.pushNamed(
+                      Navigator.push(
                         context,
-                        '/searchTrailer',
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              TruckPage(vehicleType: 'trailer'),
+                        ),
                       );
                     }
                   },

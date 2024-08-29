@@ -1,3 +1,5 @@
+27/08/2024
+
 Updated Logo for all truck brands
 Add better spacing between the text
 Fix the truck cards on the truck page to look more like a card
@@ -8,3 +10,12 @@ The file change, the icon sits on top of the file name now
 The user can edit their new updated profile image to fix the rotation and size of to crop as well
 Added blue box on the sides of the truck cards on the home page
 The adjust offer page functionality is working now, but still needs a few design adjustments
+
+28/08/2024
+
+Fixed the spacing on the offer cards
+Fixed the spacing on the wishlist cards
+Waiting to see if the API for google maps android has been reset takes about 24h hours, can check again tomorrow at 12ish.
+Fixed the designs for the report an issue and thank you pages
+Updated report issue pages
+Fixed sapcing on certain pages to look more like designs

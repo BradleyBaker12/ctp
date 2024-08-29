@@ -130,7 +130,7 @@ class _OTPScreenState extends State<OTPScreen> {
                               const SizedBox(height: 20),
                               Image.asset('lib/assets/CTPLogo.png',
                                   height: 200), // Adjust the height as needed
-                              const SizedBox(height: 50),
+                              const SizedBox(height: 100),
                               const Text(
                                 'MY CODE IS',
                                 style: TextStyle(
@@ -139,7 +139,6 @@ class _OTPScreenState extends State<OTPScreen> {
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 10),
                               Text(
                                 'We will send you a six digit code',
                                 style: TextStyle(
@@ -147,13 +146,13 @@ class _OTPScreenState extends State<OTPScreen> {
                                     color: Colors.white.withOpacity(0.7),
                                     fontWeight: FontWeight.w500),
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 10),
                               Pinput(
                                 length: 6,
                                 controller: _otpController,
                                 defaultPinTheme: PinTheme(
-                                  width: 56,
-                                  height: 56,
+                                  width: 40,
+                                  height: 40,
                                   textStyle: const TextStyle(
                                     fontSize: 20,
                                     color: Colors.white,

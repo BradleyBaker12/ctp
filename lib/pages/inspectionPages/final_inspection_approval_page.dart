@@ -205,7 +205,9 @@ class _FinalInspectionApprovalPageState
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const ReportIssuePage(),
+                                  builder: (context) => ReportIssuePage(
+                                    offerId: widget.offerId,
+                                  ),
                                 ),
                               );
                             },

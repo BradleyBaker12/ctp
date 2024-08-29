@@ -226,7 +226,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
                                 height: screenSize.height *
                                     0.12), // Adjust the height as needed
                           ),
-                          SizedBox(height: screenSize.height * 0.04),
+                          SizedBox(height: screenSize.height * 0.09),
                           Center(
                             child: Text(
                               'DEALER REGISTRATION',
@@ -243,7 +243,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
                             child: Text(
                               'Fill out the form carefully to register.',
                               style: GoogleFonts.montserrat(
-                                fontSize: screenSize.height * 0.018,
+                                fontSize: screenSize.height * 0.015,
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -262,12 +262,19 @@ class _DealerRegPageState extends State<DealerRegPage> {
                               textAlign: TextAlign.center,
                             ),
                           ),
-                          SizedBox(height: screenSize.height * 0.02),
+                          SizedBox(height: screenSize.height * 0.05),
                           Form(
                             key: _formKey,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Text(
+                                  'Company Details *'.toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _companyNameController,
                                     focusNode: _companyNameFocusNode,
@@ -629,7 +636,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
             ),
             child: Center(
               child: fileName == null
-                  ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
+                  ? const Icon(Icons.drive_folder_upload_outlined,
+                      color: Colors.blue, size: 40)
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

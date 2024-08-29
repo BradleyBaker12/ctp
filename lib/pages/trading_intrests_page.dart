@@ -96,26 +96,26 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                             children: [
                               SizedBox(
                                   height: screenSize.height *
-                                      0.05), // Adjust the space so the content starts below the image
+                                      0.1), // Adjust the space so the content starts below the image
                               Text(
                                 'COMMERCIAL TRADER PORTAL',
                                 style: GoogleFonts.montserrat(
-                                  fontSize: screenSize.height * 0.022,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: screenSize.height * 0.023,
+                                  fontWeight: FontWeight.w900,
                                   color: Colors.white,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              SizedBox(height: screenSize.height * 0.02),
+                              SizedBox(height: screenSize.height * 0.01),
                               Text(
                                 'What are you interested in?',
                                 style: GoogleFonts.montserrat(
                                     fontSize: screenSize.height * 0.017,
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w500),
+                                    fontWeight: FontWeight.bold),
                                 textAlign: TextAlign.center,
                               ),
-                              SizedBox(height: screenSize.height * 0.03),
+                              SizedBox(height: screenSize.height * 0.05),
                               CustomButton(
                                 text: 'TRUCKS',
                                 borderColor: Colors.white,
@@ -145,11 +145,11 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                   ),
                 ],
               ),
-              Positioned(
-                top: screenSize.height * 0.15,
-                left: screenSize.width * 0.05,
-                child: const CustomBackButton(),
-              ),
+              // Positioned(
+              //   top: screenSize.height * 0.15,
+              //   left: screenSize.width * 0.05,
+              //   child: const CustomBackButton(),
+              // ),
               if (_isLoading) const LoadingScreen(),
             ],
           ),

@@ -69,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  SizedBox(height: screenSize.height * 0.02),
+                                  SizedBox(height: screenSize.height * 0),
                                   Text(
                                     'COMMERCIAL TRADER PORTAL',
                                     style: GoogleFonts.montserrat(
@@ -96,7 +96,7 @@ class _LoginPageState extends State<LoginPage> {
                                         color: Colors.white,
                                         fontWeight: FontWeight.w500),
                                   ),
-                                  SizedBox(height: screenSize.height * 0.02),
+                                  SizedBox(height: screenSize.height * 0.025),
                                   SignInButton(
                                     text: 'Sign In with Apple',
                                     onPressed: () {
@@ -150,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: screenSize.height * 0.07),
+                                  // SizedBox(height: screenSize.height * 0.07),
                                 ],
                               ),
                             ),

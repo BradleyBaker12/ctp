@@ -301,6 +301,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
+  String _formatNumberWithSpaces(String number) {
+    return number.replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -320,7 +325,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             Row(
               children: [
                 Text(
-                  widget.vehicle.makeModel ?? 'Unknown',
+                  widget.vehicle.makeModel.toUpperCase() ?? 'Unknown',
                   style: GoogleFonts.montserrat(
                     fontSize: 20, // Adjust the font size as needed
                     fontWeight: FontWeight.bold,
@@ -451,7 +456,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               controller: _controller,
                               cursorColor: const Color(0xFFFF4E00),
                               decoration: InputDecoration(
-                                hintText: '102 000 000',
+                                hintText: 'R 102 000 000',
                                 hintStyle: _customFont(
                                     24, FontWeight.normal, Colors.grey),
                                 enabledBorder: const OutlineInputBorder(
@@ -475,7 +480,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 setState(() {
                                   if (value.isNotEmpty) {
                                     try {
-                                      _offerAmount = double.parse(value);
+                                      // Format the input value
+                                      String formattedValue =
+                                          _formatNumberWithSpaces(value);
+                                      _controller.value =
+                                          _controller.value.copyWith(
+                                        text: formattedValue,
+                                        selection: TextSelection.collapsed(
+                                            offset: formattedValue.length),
+                                      );
+
+                                      // Remove spaces for calculation
+                                      _offerAmount = double.parse(
+                                          value.replaceAll(' ', ''));
                                       _totalCost =
                                           _calculateTotalCost(_offerAmount);
                                     } catch (e) {
@@ -501,7 +518,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text(
-                                  "R ${_totalCost.toStringAsFixed(2)}",
+                                  "R ${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}",
                                   style: _customFont(
                                       18, FontWeight.bold, Colors.white),
                                 ),
@@ -510,6 +527,40 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                   "including commission and VAT",
                                   style: _customFont(
                                       15, FontWeight.normal, Colors.white),
+                                ),
+                                const SizedBox(height: 8),
+                                // Breakdown of the total cost
+                                Text(
+                                  "Breakdown:",
+                                  style: _customFont(
+                                      16, FontWeight.bold, Colors.white),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Base Price: R ${_formatNumberWithSpaces(_offerAmount.toStringAsFixed(0))}",
+                                  style: _customFont(
+                                      14, FontWeight.normal, Colors.white),
+                                ),
+                                Text(
+                                  "Flat Rate Fee: R 12 500",
+                                  style: _customFont(
+                                      14, FontWeight.normal, Colors.white),
+                                ),
+                                Text(
+                                  "Subtotal: R ${_formatNumberWithSpaces((_offerAmount + 12500.0).toStringAsFixed(0))}",
+                                  style: _customFont(
+                                      14, FontWeight.normal, Colors.white),
+                                ),
+                                Text(
+                                  "VAT (15%): R ${_formatNumberWithSpaces(((_offerAmount + 12500.0) * 0.15).toStringAsFixed(0))}",
+                                  style: _customFont(
+                                      14, FontWeight.normal, Colors.white),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Total Cost: R ${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}",
+                                  style: _customFont(
+                                      14, FontWeight.bold, Colors.white),
                                 ),
                               ],
                             ),
@@ -541,7 +592,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 20, FontWeight.bold, const Color(0xFFFF4E00)),
                           ),
                         ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 40),
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -557,18 +608,34 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               child: Icon(
                                 Icons.arrow_right,
                                 color: const Color(0xFFFF4E00),
-                                size: screenSize.height * 0.03,
+                                size: screenSize.height * 0.04,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 0),
                             Text('ADDITIONAL INFO',
                                 style: _customFont(
                                     20, FontWeight.bold, Colors.blue)),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
                       if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
+                      SizedBox(height: 30),
+                      Text(
+                        "Discover the Power and Performance You Need: Our Semi Trucks Are Built to Drive Your Success Forward!",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5),
+                      ),
+                      SizedBox(height: 25),
+                      Text(
+                        "Looking for reliability, efficiency, and cutting-edge technology in your next semi-truck purchase? Look no further! Our fleet of semi trucks offers top-of-the-line performance to meet the demands of your toughest routes and deliver your cargo on time, every time.",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w400,
+                            fontSize: 13.5),
+                      )
                     ],
                   ),
                 ),
@@ -597,7 +664,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     var screenSize = MediaQuery.of(context).size;
     return Flexible(
       child: Container(
-        height: screenSize.height * 0.08,
+        height: screenSize.height * 0.07,
         width: screenSize.width * 0.22,
         padding: EdgeInsets.all(screenSize.height * 0.01),
         decoration: BoxDecoration(

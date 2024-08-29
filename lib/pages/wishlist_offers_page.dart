@@ -102,7 +102,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                   CrossAxisAlignment.center, // Center the headings
               children: [
                 const Text(
-                  'WHISHLIST AND OFFERS',
+                  'WISHLIST AND OFFERS',
                   style: TextStyle(
                     color: Color(0xFFFF4E00),
                     fontSize: 24,
@@ -150,7 +150,10 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
           } else if (index == 1) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const TruckPage()),
+              MaterialPageRoute(
+                  builder: (context) => const TruckPage(
+                        vehicleType: '',
+                      )),
             );
           } else if (index == 2) {
             Navigator.pushReplacement(

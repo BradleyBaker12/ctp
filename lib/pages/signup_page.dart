@@ -161,10 +161,10 @@ class _SignUpPageState extends State<SignUpPage> {
                                   color: orange,
                                 ),
                               ),
-                              SizedBox(height: screenSize.height * 0.05),
+                              SizedBox(height: screenSize.height * 0.06),
                               Image.asset('lib/assets/CTPLogo.png',
-                                  height: screenSize.height * 0.15),
-                              SizedBox(height: screenSize.height * 0.05),
+                                  height: 150),
+                              SizedBox(height: screenSize.height * 0.06),
                               Text(
                                 'SIGN-UP',
                                 style: GoogleFonts.montserrat(
@@ -173,7 +173,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(height: screenSize.height * 0.05),
+                              SizedBox(height: screenSize.height * 0.07),
                               CustomTextField(
                                 hintText: 'USERNAME OR EMAIL',
                                 controller: _emailController,
@@ -192,7 +192,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                             ],
                           ),
-                          SizedBox(height: screenSize.height * 0.05),
+                          SizedBox(height: screenSize.height * 0.07),
                           CustomButton(
                             text: 'SIGN-UP',
                             borderColor: const Color(0xFF2F7FFF),

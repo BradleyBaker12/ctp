@@ -99,8 +99,12 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                               fit: BoxFit.cover,
                             ),
                             SizedBox(height: screenSize.height * 0.03),
-                            const ProgressBar(progress: 0.80),
-                            SizedBox(height: screenSize.height * 0.04),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 64.0),
+                              child: const ProgressBar(progress: 0.80),
+                            ),
+                            SizedBox(height: screenSize.height * 0.06),
                             Text(
                               'PREFERRED BRANDS',
                               style: GoogleFonts.montserrat(
@@ -158,7 +162,7 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                 },
                               ),
                             ),
-                            SizedBox(height: screenSize.height * 0.02),
+                            // SizedBox(height: screenSize.height * 0.02),
                             // Text(
                             //   'There are more truck brands when you edit you prefered ',
                             //   style: GoogleFonts.montserrat(
@@ -168,7 +172,7 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                             //   ),
                             //   textAlign: TextAlign.center,
                             // ),
-                            SizedBox(height: screenSize.height * 0.02),
+                            // SizedBox(height: screenSize.height * 0.02),
                             CustomButton(
                               text: 'CONTINUE',
                               borderColor: blue,

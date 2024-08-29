@@ -179,8 +179,12 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                                 fit: BoxFit.cover,
                               ), // Adjust the height as needed
                               SizedBox(height: screenSize.height * 0.07),
-                              const ProgressBar(progress: 1),
-                              SizedBox(height: screenSize.height * 0.05),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 64.0),
+                                child: const ProgressBar(progress: 1),
+                              ),
+                              SizedBox(height: screenSize.height * 0.06),
                               Text(
                                 'PREVIEW',
                                 style: GoogleFonts.montserrat(
@@ -190,10 +194,10 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              SizedBox(height: screenSize.height * 0.05),
+                              SizedBox(height: screenSize.height * 0.06),
                               if (!_isLoading)
                                 CircleAvatar(
-                                  radius: screenSize.height * 0.08,
+                                  radius: 60,
                                   backgroundImage: _croppedFile != null
                                       ? FileImage(_croppedFile!)
                                       : const AssetImage(

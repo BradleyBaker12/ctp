@@ -30,76 +30,79 @@ class WishCard extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(15),
-          child: Row(
-            children: [
-              Container(
-                width: 8,
-                height:
-                    120, // Set a fixed height to avoid infinite height issue
-                color: Colors.blue, // Set a color to indicate the wishlist item
-              ),
-              Container(
-                width: 90,
-                height:
-                    120, // Set a fixed height to avoid infinite height issue
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: vehicleImageUrl.isNotEmpty
-                        ? NetworkImage(vehicleImageUrl)
-                        : const AssetImage(
-                                'lib/assets/default_vehicle_image.png')
-                            as ImageProvider,
-                    fit: BoxFit.cover,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              double imageWidth = constraints.maxWidth * 0.25;
+              double cardHeight = 120.0;
+
+              return Row(
+                children: [
+                  Container(
+                    width: constraints.maxWidth * 0.06,
+                    height: cardHeight,
+                    color: Colors.blue,
                   ),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10.0),
-                  height:
-                      120, // Set a fixed height to avoid infinite height issue
-                  color: Colors.blue, // Set background color to blue
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        vehicleMakeModel,
-                        style: customFont(
-                            18, FontWeight.bold, Colors.white), // White text
+                  Container(
+                    width: imageWidth,
+                    height: cardHeight,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: vehicleImageUrl.isNotEmpty
+                            ? NetworkImage(vehicleImageUrl)
+                            : const AssetImage(
+                                    'lib/assets/default_vehicle_image.png')
+                                as ImageProvider,
+                        fit: BoxFit.cover,
                       ),
-                      const SizedBox(height: 5),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              Container(
-                width: 90,
-                height:
-                    120, // Set a fixed height to avoid infinite height issue
-                color: hasOffer
-                    ? const Color(0xFFFF4E00)
-                    : Colors.green, // Change color based on offer status
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (!hasOffer) // Hide the arrow if an offer is made
-                        const Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      const SizedBox(height: 4),
-                      Text(
-                        hasOffer ? 'Offer Made' : 'Make Offer',
-                        style: const TextStyle(color: Colors.white),
+                  Expanded(
+                    child: Container(
+                      color: Colors.blue,
+                      padding: const EdgeInsets.all(10.0),
+                      height: cardHeight,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            vehicleMakeModel.toUpperCase(),
+                            style:
+                                customFont(15, FontWeight.bold, Colors.white),
+                          ),
+                          const SizedBox(height: 5),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
+                  Container(
+                    width: constraints.maxWidth * 0.24,
+                    height: cardHeight,
+                    color: hasOffer ? const Color(0xFFFF4E00) : Colors.green,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (!hasOffer)
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 38,
+                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasOffer ? 'Offer Made' : 'Make Offer',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

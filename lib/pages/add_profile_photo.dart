@@ -107,9 +107,13 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                 width: screenSize.height * 0.2,
                                 fit: BoxFit.cover,
                               ),
-                              SizedBox(height: screenSize.height * 0.07),
-                              const ProgressBar(progress: 0.90),
-                              SizedBox(height: screenSize.height * 0.05),
+                              SizedBox(height: screenSize.height * 0.09),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 64.0),
+                                child: const ProgressBar(progress: 0.90),
+                              ),
+                              SizedBox(height: screenSize.height * 0.045),
                               Text(
                                 'ADD A PROFILE PHOTO',
                                 style: GoogleFonts.montserrat(
@@ -119,7 +123,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              SizedBox(height: screenSize.height * 0.04),
+                              SizedBox(height: screenSize.height * 0.09),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [

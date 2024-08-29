@@ -211,7 +211,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                               const SizedBox(height: 20),
                               Image.asset('lib/assets/CTPLogo.png',
                                   height: 200), // Adjust the height as needed
-                              const SizedBox(height: 50),
+                              const SizedBox(height: 100),
                               Text(
                                 'MY NUMBER IS',
                                 style: GoogleFonts.montserrat(
@@ -220,7 +220,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 0),
                               Row(
                                 children: [
                                   SizedBox(

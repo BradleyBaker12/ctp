@@ -35,7 +35,10 @@ class CustomBottomNavigation extends StatelessWidget {
           if (userRole == 'dealer') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const TruckPage()),
+              MaterialPageRoute(
+                  builder: (context) => const TruckPage(
+                        vehicleType: '',
+                      )),
             );
           } else if (userRole == 'transporter') {
             Navigator.pushReplacement(

@@ -115,12 +115,16 @@ class _FirstNamePageState extends State<FirstNamePage> {
                           SizedBox(height: screenSize.height * 0.02),
                           Image.asset(
                             'lib/assets/CTPLogo.png',
-                            height: screenSize.height * 0.2,
+                            height: 200,
                             width: screenSize.height * 0.2,
                             fit: BoxFit.cover,
                           ),
-                          SizedBox(height: screenSize.height * 0.07),
-                          const ProgressBar(progress: 0.30),
+                          SizedBox(height: screenSize.height * 0.1),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 64.0),
+                            child: const ProgressBar(progress: 0.30),
+                          ),
                           SizedBox(height: screenSize.height * 0.07),
                           Text(
                             'MY FIRST NAME IS',
@@ -131,42 +135,48 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: screenSize.height * 0.02),
-                          TextField(
-                            controller: _firstNameController,
-                            textAlign: TextAlign.center,
-                            cursorColor: orange,
-                            decoration: InputDecoration(
-                              hintText: '',
-                              hintStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
+                          // SizedBox(height: screenSize.height * 0.02),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 64.0),
+                            child: TextField(
+                              controller: _firstNameController,
+                              textAlign: TextAlign.center,
+                              cursorColor: orange,
+                              decoration: InputDecoration(
+                                hintText: '',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                                filled: true,
+                                fillColor: Colors.transparent,
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: blue),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: blue),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: screenSize.height * 0.02,
+                                  horizontal: screenSize.width * 0.04,
+                                ),
                               ),
-                              filled: true,
-                              fillColor: Colors.transparent,
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: blue),
+                              style: GoogleFonts.montserrat(
+                                color: Colors.white,
+                                fontSize: screenSize.width * 0.04,
                               ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: blue),
-                              ),
-                              contentPadding: EdgeInsets.symmetric(
-                                vertical: screenSize.height * 0.02,
-                                horizontal: screenSize.width * 0.04,
-                              ),
-                            ),
-                            style: GoogleFonts.montserrat(
-                              color: Colors.white,
-                              fontSize: screenSize.width * 0.04,
                             ),
                           ),
                           SizedBox(height: screenSize.height * 0.05),
-                          Text(
-                            'This is the name that will appear to other users in the app',
-                            style: GoogleFonts.montserrat(
-                                fontSize: screenSize.width * 0.035,
-                                color: Colors.white.withOpacity(0.7),
-                                fontWeight: FontWeight.w600),
-                            textAlign: TextAlign.center,
+                          SizedBox(
+                            child: Text(
+                              'This is the name that will appear to other users in the app',
+                              style: GoogleFonts.montserrat(
+                                  fontSize: screenSize.width * 0.025,
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontWeight: FontWeight.w600),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                           SizedBox(height: screenSize.height * 0.03),
                           TextButton(
@@ -177,7 +187,7 @@ class _FirstNamePageState extends State<FirstNamePage> {
                               'Name changes will have to be approved',
                               style: GoogleFonts.montserrat(
                                 color: Colors.white,
-                                fontSize: screenSize.width * 0.035,
+                                fontSize: screenSize.width * 0.03,
                                 decoration: TextDecoration.underline,
                                 decorationColor: Colors.white,
                               ),

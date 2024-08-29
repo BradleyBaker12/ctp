@@ -239,7 +239,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ReportIssuePage(),
+                                builder: (context) => ReportIssuePage(offerId: widget.offerId,),
                               ),
                             );
                           },

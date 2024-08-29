@@ -1,5 +1,9 @@
+// VehicleProvider Class Implementation
+
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 
 class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
@@ -12,7 +16,7 @@ class VehicleProvider with ChangeNotifier {
   ValueNotifier<List<Vehicle>> vehicleListenable = ValueNotifier([]);
 
   VehicleProvider() {
-    fetchVehicles(); // Fetch vehicles as usual
+    fetchVehicles(UserProvider()); // Fetch vehicles as usual
   }
 
   void addVehicle(Vehicle vehicle) {
@@ -27,24 +31,33 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchVehicles() async {
+  Future<void> fetchVehicles(UserProvider userProvider,
+      {String? vehicleType}) async {
     try {
       _isLoading = true;
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .limit(10) // Limit the initial fetch to 10 documents
-          .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        _lastFetchedDocument =
-            querySnapshot.docs.last; // Keep track of the last fetched document
+      Query query = FirebaseFirestore.instance.collection('vehicles').limit(10);
+
+      if (vehicleType != null) {
+        query = query.where('vehicleType', isEqualTo: vehicleType);
       }
 
-      _vehicles = querySnapshot.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id;
-        return Vehicle.fromFirestore(data);
-      }).toList();
+      QuerySnapshot querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastFetchedDocument = querySnapshot.docs.last;
+      }
+
+      _vehicles = querySnapshot.docs
+          .map((doc) {
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return Vehicle.fromFirestore(data);
+          })
+          .where((vehicle) =>
+              !userProvider.getLikedVehicles.contains(vehicle.id) &&
+              !userProvider.getDislikedVehicles.contains(vehicle.id))
+          .toList();
 
       _isLoading = false;
       vehicleListenable.value = List.from(_vehicles);

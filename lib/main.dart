@@ -23,8 +23,10 @@ import 'package:ctp/pages/truckForms/vehcileUpload_form5.dart';
 import 'package:ctp/pages/truckForms/vehcileUpload_form6.dart';
 import 'package:ctp/pages/truckForms/vehcileUpload_form7.dart';
 import 'package:ctp/pages/truckForms/vehcileUpload_form8.dart';
+import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/tutorial_page.dart';
 import 'package:ctp/pages/tutorial_started.dart';
+import 'package:ctp/providers/complaints_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
@@ -49,6 +51,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => UserProvider()),
         ChangeNotifierProvider(create: (context) => VehicleProvider()),
         ChangeNotifierProvider(create: (context) => OfferProvider()),
+        ChangeNotifierProvider(create: (context) => ComplaintsProvider()),
       ],
       child: const MyApp(),
     ),
@@ -95,6 +98,9 @@ class MyApp extends StatelessWidget {
         '/seventhTruckForm': (context) => const SeventhFormPage(),
         '/eighthTruckForm': (context) => const EighthFormPage(),
         '/pendingOffers': (context) => const PendingOffersPage(),
+        '/truckPage': (context) => const TruckPage(
+              vehicleType: '',
+            ),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
