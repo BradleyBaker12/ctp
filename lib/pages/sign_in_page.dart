@@ -91,6 +91,27 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    if (_emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address')),
+      );
+      return;
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: _emailController.text);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent!')),
+      );
+    } on FirebaseAuthException catch (e) {
+      print("Error: ${e.toString()}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.message}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -98,11 +119,16 @@ class _SignInPageState extends State<SignInPage> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: const BlurryAppBar(),
       body: Stack(
         children: [
+          // Gradient background should be the first widget in the Stack
           GradientBackground(
-            child: Column(
+            child: Container(),
+          ),
+          Scaffold(
+            appBar: const BlurryAppBar(),
+            backgroundColor: Colors.transparent, // Make scaffold transparent
+            body: Column(
               children: [
                 Expanded(
                   child: SingleChildScrollView(
@@ -151,7 +177,21 @@ class _SignInPageState extends State<SignInPage> {
                               ),
                             ],
                           ),
-                          SizedBox(height: screenSize.height * 0.05),
+                          SizedBox(height: screenSize.height * 0.03),
+                          TextButton(
+                            onPressed: _resetPassword,
+                            child: Text(
+                              'Forgot Password?',
+                              style: GoogleFonts.montserrat(
+                                color: Colors.white,
+                                fontSize: screenSize.height * 0.016,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: screenSize.height * 0.03),
                           CustomButton(
                             text: 'SIGN IN',
                             borderColor: const Color(0xFF2F7FFF),

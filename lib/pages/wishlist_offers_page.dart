@@ -152,7 +152,6 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
               context,
               MaterialPageRoute(
                   builder: (context) => const TruckPage(
-                        vehicleType: '',
                       )),
             );
           } else if (index == 2) {

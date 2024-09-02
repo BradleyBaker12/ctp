@@ -19,7 +19,7 @@ class ComplaintsProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error fetching complaints: $e');
-      print('${_complaints}');
+      print('$_complaints');
     }
   }
 

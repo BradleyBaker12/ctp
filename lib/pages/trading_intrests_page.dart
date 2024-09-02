@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -51,110 +50,95 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        var screenSize = MediaQuery.of(context).size;
-        var blue = const Color(0xFF2F7FFF);
-        var orange = const Color(0xFFFF4E00);
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          var screenSize = MediaQuery.of(context).size;
 
-        return Scaffold(
-          body: Stack(
+          return Stack(
             children: [
-              Container(
-                color: Colors
-                    .black, // Set the background color of the body to black
-              ),
               Column(
                 children: [
-                  const BlurryAppBar(),
-                  SizedBox(
-                    height: screenSize.height * 0.35, // Constrain the height
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: 0, // Slightly move the image up
-                          left: 0,
-                          right: 0,
-                          child: Image.asset(
-                            'lib/assets/truckSelectImage.png',
-                            fit: BoxFit.cover,
-                            height: screenSize.height * 0.35,
-                          ),
-                        ),
-                      ],
+                  Container(
+                    width: double.infinity,
+                    height: constraints.maxHeight * 0.5, // Adjust to your needs
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('lib/assets/truckSelectImage.png'),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   Expanded(
                     child: GradientBackground(
-                      child: SingleChildScrollView(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: screenSize.width *
-                                0.05, // Horizontal padding for responsiveness
-                          ),
-                          child: Column(
-                            children: [
-                              SizedBox(
-                                  height: screenSize.height *
-                                      0.1), // Adjust the space so the content starts below the image
-                              Text(
-                                'COMMERCIAL TRADER PORTAL',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: screenSize.height * 0.023,
-                                  fontWeight: FontWeight.w900,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: constraints.maxWidth * 0.05,
+                          vertical: constraints.maxHeight * 0.02,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              'COMMERCIAL TRADER PORTAL',
+                              style: GoogleFonts.montserrat(
+                                fontSize: constraints.maxHeight * 0.024,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: constraints.maxHeight * 0.01),
+                            Text(
+                              'What are you interested in?',
+                              style: GoogleFonts.montserrat(
+                                  fontSize: constraints.maxHeight * 0.017,
                                   color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(height: screenSize.height * 0.01),
-                              Text(
-                                'What are you interested in?',
-                                style: GoogleFonts.montserrat(
-                                    fontSize: screenSize.height * 0.017,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(height: screenSize.height * 0.05),
-                              CustomButton(
-                                text: 'TRUCKS',
-                                borderColor: Colors.white,
-                                onPressed: () =>
-                                    _updateTradingInterest(context, 'trucks'),
-                              ),
-                              SizedBox(height: screenSize.height * 0.01),
-                              CustomButton(
-                                text: 'TRAILERS',
-                                borderColor: Colors.white,
-                                onPressed: () =>
-                                    _updateTradingInterest(context, 'trailers'),
-                              ),
-                              SizedBox(height: screenSize.height * 0.01),
-                              CustomButton(
-                                text: 'BOTH',
-                                borderColor: orange,
-                                onPressed: () =>
-                                    _updateTradingInterest(context, 'both'),
-                              ),
-                              SizedBox(height: screenSize.height * 0.03),
-                            ],
-                          ),
+                                  fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: constraints.maxHeight * 0.05),
+                            CustomButton(
+                              text: 'TRUCKS',
+                              borderColor: Colors.white,
+                              onPressed: () =>
+                                  _updateTradingInterest(context, 'trucks'),
+                            ),
+                            SizedBox(height: constraints.maxHeight * 0.01),
+                            CustomButton(
+                              text: 'TRAILERS',
+                              borderColor: Colors.white,
+                              onPressed: () =>
+                                  _updateTradingInterest(context, 'trailers'),
+                            ),
+                            SizedBox(height: constraints.maxHeight * 0.01),
+                            CustomButton(
+                              text: 'BOTH',
+                              borderColor: const Color(0xFFFF4E00),
+                              onPressed: () =>
+                                  _updateTradingInterest(context, 'both'),
+                            ),
+                            SizedBox(height: constraints.maxHeight * 0.03),
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
-              // Positioned(
-              //   top: screenSize.height * 0.15,
-              //   left: screenSize.width * 0.05,
-              //   child: const CustomBackButton(),
-              // ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: BlurryAppBar(// Adjust as needed
+                    ),
+              ),
               if (_isLoading) const LoadingScreen(),
             ],
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

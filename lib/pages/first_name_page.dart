@@ -111,19 +111,19 @@ class _FirstNamePageState extends State<FirstNamePage> {
                         vertical: screenSize.height * 0.02,
                       ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           SizedBox(height: screenSize.height * 0.02),
                           Image.asset(
                             'lib/assets/CTPLogo.png',
-                            height: 200,
-                            width: screenSize.height * 0.2,
-                            fit: BoxFit.cover,
+                            height: screenSize.height * 0.2,
+                            fit: BoxFit.contain,
                           ),
                           SizedBox(height: screenSize.height * 0.1),
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 64.0),
-                            child: const ProgressBar(progress: 0.30),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: screenSize.width * 0.15),
+                            child: const ProgressBar(progress: 0.20),
                           ),
                           SizedBox(height: screenSize.height * 0.07),
                           Text(
@@ -135,10 +135,10 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          // SizedBox(height: screenSize.height * 0.02),
+                          SizedBox(height: screenSize.height * 0.02),
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 64.0),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: screenSize.width * 0.15),
                             child: TextField(
                               controller: _firstNameController,
                               textAlign: TextAlign.center,
@@ -168,15 +168,14 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             ),
                           ),
                           SizedBox(height: screenSize.height * 0.05),
-                          SizedBox(
-                            child: Text(
-                              'This is the name that will appear to other users in the app',
-                              style: GoogleFonts.montserrat(
-                                  fontSize: screenSize.width * 0.025,
-                                  color: Colors.white.withOpacity(0.7),
-                                  fontWeight: FontWeight.w600),
-                              textAlign: TextAlign.center,
+                          Text(
+                            'This is the name that will appear to other users in the app',
+                            style: GoogleFonts.montserrat(
+                              fontSize: screenSize.width * 0.025,
+                              color: Colors.white.withOpacity(0.7),
+                              fontWeight: FontWeight.w600,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                           SizedBox(height: screenSize.height * 0.03),
                           TextButton(
@@ -199,7 +198,7 @@ class _FirstNamePageState extends State<FirstNamePage> {
                             borderColor: blue,
                             onPressed: _continue,
                           ),
-                          // SizedBox(height: screenSize.height * 0.04),
+                          SizedBox(height: screenSize.height * 0.04),
                         ],
                       ),
                     ),

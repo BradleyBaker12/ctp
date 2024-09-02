@@ -118,9 +118,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      final ImagePicker _picker = ImagePicker();
+      final ImagePicker picker = ImagePicker();
       final XFile? pickedFile =
-          await _picker.pickImage(source: ImageSource.gallery);
+          await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
         File? croppedFile = await _cropImage(File(pickedFile.path));

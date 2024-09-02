@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pinput/pinput.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -119,87 +120,83 @@ class _OTPScreenState extends State<OTPScreen> {
                 const BlurryAppBar(),
                 Expanded(
                   child: SingleChildScrollView(
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: screenSize.width,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 8.0),
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 20),
-                              Image.asset('lib/assets/CTPLogo.png',
-                                  height: 200), // Adjust the height as needed
-                              const SizedBox(height: 100),
-                              const Text(
-                                'MY CODE IS',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                'We will send you a six digit code',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontWeight: FontWeight.w500),
-                              ),
-                              const SizedBox(height: 10),
-                              Pinput(
-                                length: 6,
-                                controller: _otpController,
-                                defaultPinTheme: PinTheme(
-                                  width: 40,
-                                  height: 40,
-                                  textStyle: const TextStyle(
-                                    fontSize: 20,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: blue,
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              TextButton(
-                                onPressed: () {
-                                  _resendCode(phoneNumber);
-                                },
-                                child: const Text(
-                                  'Resend code',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 150),
-                              CustomButton(
-                                text: 'CONTINUE',
-                                borderColor: blue,
-                                onPressed: () =>
-                                    _verifyOTP(verificationId, userId),
-                              ),
-                              const SizedBox(height: 30),
-                            ],
+                    child: Container(
+                      width: screenSize.width,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenSize.width * 0.05,
+                        vertical: screenSize.height * 0.02,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(height: screenSize.height * 0.03),
+                          Image.asset(
+                            'lib/assets/CTPLogo.png',
+                            height: screenSize.height * 0.23,
                           ),
-                        ),
-                        // const Positioned(
-                        //   top: 40,
-                        //   left: 16,
-                        //   child: CustomBackButton(),
-                        // ),
-                      ],
+                          SizedBox(height: screenSize.height * 0.1),
+                          Text(
+                            'MY CODE IS',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'We will send you a six digit code',
+                            style: GoogleFonts.montserrat(
+                              fontSize: screenSize.height * 0.02,
+                              color: Colors.white.withOpacity(0.7),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: screenSize.height * 0.01),
+                          Pinput(
+                            length: 6,
+                            controller: _otpController,
+                            defaultPinTheme: PinTheme(
+                              width: screenSize.width * 0.1,
+                              height: screenSize.height * 0.07,
+                              textStyle: GoogleFonts.montserrat(
+                                fontSize: screenSize.height * 0.025,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: blue,
+                                    width: 2.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: screenSize.height * 0.03),
+                          TextButton(
+                            onPressed: () {
+                              _resendCode(phoneNumber);
+                            },
+                            child: Text(
+                              'Resend code',
+                              style: GoogleFonts.montserrat(
+                                color: Colors.white,
+                                fontSize: 16,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: screenSize.height * 0.15),
+                          CustomButton(
+                            text: 'CONTINUE',
+                            borderColor: blue,
+                            onPressed: () => _verifyOTP(verificationId, userId),
+                          ),
+                          SizedBox(height: screenSize.height * 0.03),
+                        ],
+                      ),
                     ),
                   ),
                 ),

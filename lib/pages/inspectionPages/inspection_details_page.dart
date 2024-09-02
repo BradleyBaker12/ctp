@@ -202,13 +202,26 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           ),
                           const SizedBox(height: 16),
                           const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Great news! You have a potential buyer.',
+                                'Great news!',
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(
+                                width: 5,
+                              ),
+                              Text(
+                                'You have a potential buyer.',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w400,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -421,7 +434,8 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          if (_selectedDay != null)
+                          if (_selectedDay !=
+                              null) // Ensure the text appears only if a date is selected
                             Text(
                               'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
                               style: const TextStyle(
@@ -433,15 +447,18 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           const SizedBox(height: 32),
                           if (_selectedDay != null &&
                               _availableTimes.isNotEmpty) ...[
-                            const Text(
-                              'AVAILABLE TIMES',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                            Align(
+                              alignment: Alignment
+                                  .centerLeft, // Aligns the heading to the left
+                              child: const Text(
+                                'AVAILABLE TIMES',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.start,
                               ),
-                              //TODO: The heading needs to be aligned to the left
-                              textAlign: TextAlign.start,
                             ),
                             const SizedBox(height: 8),
                             Column(

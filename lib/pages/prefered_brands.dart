@@ -1,5 +1,5 @@
-import 'package:ctp/components/progress_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -18,19 +18,19 @@ class PreferredBrandsPage extends StatefulWidget {
 }
 
 class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
-  final List<String> semiTruckBrands = [
-    'DAF',
-    'FUSO',
-    'HINO',
-    'ISUZU',
-    'IVECO',
-    'MAN',
-    'MERCEDES-BENZ',
-    'SCANIA',
-    'UD TRUCKS',
-    'VOLVO',
-    'FORD',
-    'TOYOTA',
+  final List<Map<String, String>> semiTruckBrands = [
+    {'name': 'DAF', 'path': 'lib/assets/Logo/DAF.png'}, // Replace with PNG
+    {'name': 'FUSO', 'path': 'lib/assets/Logo/FUSO.png'},
+    {'name': 'HINO', 'path': 'lib/assets/Logo/HINO.png'},
+    {'name': 'ISUZU', 'path': 'lib/assets/Logo/ISUZU.png'},
+    {'name': 'IVECO', 'path': 'lib/assets/Logo/IVECO.png'},
+    {'name': 'MAN', 'path': 'lib/assets/Logo/MAN.png'},
+    {'name': 'MERCEDES BENZ', 'path': 'lib/assets/Logo/MERCEDES BENZ.png'},
+    {'name': 'SCANIA', 'path': 'lib/assets/Logo/SCANIA.png'},
+    {'name': 'UD TRUCKS', 'path': 'lib/assets/Logo/UD TRUCKS.png'},
+    {'name': 'VOLVO', 'path': 'lib/assets/Logo/VOLVO.png'},
+    {'name': 'FORD', 'path': 'lib/assets/Logo/FORD.png'},
+    {'name': 'TOYOTA', 'path': 'lib/assets/Logo/TOYOTA.png'},
   ];
 
   final Set<String> selectedBrands = {};
@@ -126,11 +126,12 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                   crossAxisSpacing: screenSize.width * 0.02,
                                   mainAxisSpacing: screenSize.height * 0.01,
                                   childAspectRatio:
-                                      isPortrait ? 3.5 / 1 : 5 / 1,
+                                      isPortrait ? 1 : 1, // Square aspect ratio
                                 ),
                                 itemCount: semiTruckBrands.length,
                                 itemBuilder: (BuildContext context, int index) {
-                                  final brand = semiTruckBrands[index];
+                                  final brand = semiTruckBrands[index]['name']!;
+                                  final path = semiTruckBrands[index]['path']!;
                                   final isSelected =
                                       selectedBrands.contains(brand);
                                   return GestureDetector(
@@ -146,33 +147,35 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
                                         borderRadius:
                                             BorderRadius.circular(8.0),
                                       ),
-                                      child: Center(
-                                        child: Text(
-                                          brand,
-                                          textAlign: TextAlign.center,
-                                          style: GoogleFonts.montserrat(
-                                            fontSize: screenSize.height * 0.012,
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Expanded(
+                                            child: Image.asset(
+                                              path,
+                                              fit: BoxFit.contain,
+                                            ),
                                           ),
-                                        ),
+                                          SizedBox(
+                                              height: screenSize.height * 0.01),
+                                          Text(
+                                            brand,
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.montserrat(
+                                              fontSize:
+                                                  screenSize.height * 0.012,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   );
                                 },
                               ),
                             ),
-                            // SizedBox(height: screenSize.height * 0.02),
-                            // Text(
-                            //   'There are more truck brands when you edit you prefered ',
-                            //   style: GoogleFonts.montserrat(
-                            //     fontSize: screenSize.height * 0.016,
-                            //     color: Colors.white,
-                            //     fontWeight: FontWeight.w400,
-                            //   ),
-                            //   textAlign: TextAlign.center,
-                            // ),
-                            // SizedBox(height: screenSize.height * 0.02),
                             CustomButton(
                               text: 'CONTINUE',
                               borderColor: blue,

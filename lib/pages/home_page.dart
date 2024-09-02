@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -276,38 +277,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            child: Container(
-              color: Colors.grey.withOpacity(0.1),
+      appBar: PreferredSize(
+        preferredSize:
+            Size.fromHeight(size.height * 0.07), // Set the desired height here
+        child: AppBar(
+          automaticallyImplyLeading: false, // This removes the back button
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          flexibleSpace: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: Colors.grey.withOpacity(0.1),
+              ),
             ),
           ),
-        ),
-        leading: Padding(
-          padding: EdgeInsets.only(left: 20),
-          child: Image.asset('lib/assets/CTPLogo.png'),
-        ),
-        actions: [
-          Padding(
-            padding: EdgeInsets.all(size.width * 0.02),
-            child: Consumer<UserProvider>(
-              builder: (context, userProvider, _) {
-                final profileImageUrl = userProvider.getProfileImageUrl;
-                return CircleAvatar(
-                  radius: 20,
-                  backgroundImage: profileImageUrl.isNotEmpty
-                      ? NetworkImage(profileImageUrl)
-                      : const AssetImage('lib/assets/default-profile-photo.jpg')
-                          as ImageProvider,
-                );
-              },
-            ),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 35.0), // Space on the left
+                child: Image.asset(
+                  'lib/assets/CTPLogo.png',
+                  width: 60,
+                  height: 60,
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.only(right: 25.0), // Space on the right
+                child: Consumer<UserProvider>(
+                  builder: (context, userProvider, _) {
+                    final profileImageUrl = userProvider.getProfileImageUrl;
+                    return CircleAvatar(
+                      radius: 26,
+                      backgroundImage: profileImageUrl.isNotEmpty
+                          ? NetworkImage(profileImageUrl)
+                          : const AssetImage(
+                                  'lib/assets/default-profile-photo.jpg')
+                              as ImageProvider,
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       body: FutureBuilder<void>(
         future: _initialization,
@@ -533,8 +548,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Text(
             userRole == 'transporter'
                 ? "I’m selling a".toUpperCase()
-                : "I’m looking for".toLowerCase(),
-            style: _customFont(18, FontWeight.bold, Colors.white),
+                : "I’m looking for".toUpperCase(),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -543,47 +562,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    if (userRole == 'transporter') {
-                      Navigator.pushNamed(
-                        context,
-                        '/truckPage',
-                        arguments: {'vehicleType': 'truck'},
-                      );
-                    } else if (userRole == 'dealer') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TruckPage(vehicleType: 'truck'),
-                        ),
-                      );
-                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TruckPage(vehicleType: 'truck'),
+                      ),
+                    );
                   },
                   child: _buildVehicleTypeCard(
                       size,
                       'lib/assets/truck_image.png',
                       "TRUCKS",
-                      Color(0xFF2F7FFF)),
+                      const Color(0xFF2F7FFF)),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    if (userRole == 'transporter') {
-                      Navigator.pushNamed(
-                        context,
-                        '/firstTruckForm',
-                        arguments: {'vehicleType': 'trailer'},
-                      );
-                    } else if (userRole == 'dealer') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              TruckPage(vehicleType: 'trailer'),
-                        ),
-                      );
-                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TruckPage(vehicleType: 'trailer'),
+                      ),
+                    );
                   },
                   child: _buildVehicleTypeCard(
                       size,
@@ -629,7 +631,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 label,
-                style: _customFont(18, FontWeight.bold, borderColor),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: borderColor,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -725,49 +731,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       String logoPath;
                       switch (brand) {
                         case 'DAF':
-                          logoPath = 'lib/assets/Logo/daf-2.png';
+                          logoPath = 'lib/assets/Logo/DAF.png';
                           break;
                         case 'IVECO':
-                          logoPath = 'lib/assets/Logo/iveco.png';
-                          break;
+                          return Icon(
+                            Icons.image_outlined,
+                            color: Colors.white,
+                            size: 40,
+                          );
                         case 'MAN':
-                          logoPath = 'lib/assets/Logo/man-logo.png';
+                          logoPath = 'lib/assets/Logo/MAN.png';
                           break;
                         case 'MERCEDES-BENZ':
-                          logoPath = 'lib/assets/Logo/mercedes-benz-9.png';
+                          logoPath = 'lib/assets/Logo/MERCEDES BENZ.png';
                           break;
                         case 'VOLVO':
-                          logoPath = 'lib/assets/Logo/volvo.png';
+                          logoPath = 'lib/assets/Logo/VOLVO.png';
                           break;
                         case 'SCANIA':
-                          logoPath = 'lib/assets/Logo/scania-6.png';
+                          logoPath = 'lib/assets/Logo/SCANIA.png';
                           break;
                         case 'FUSO':
-                          logoPath = 'lib/assets/Logo/fuso-1.png';
+                          logoPath = 'lib/assets/Logo/FUSO.png';
                           break;
                         case 'HINO':
-                          logoPath = 'lib/assets/Logo/hino.png';
+                          logoPath = 'lib/assets/Logo/HINO.png';
                           break;
                         case 'ISUZU':
-                          logoPath = 'lib/assets/Logo/isuzu-2.png';
+                          logoPath = 'lib/assets/Logo/ISUZU.png';
                           break;
                         case 'UD TRUCKS':
-                          logoPath = 'lib/assets/Logo/ud-trucks-1.png';
+                          logoPath = 'lib/assets/Logo/UD TRUCKS.png';
                           break;
                         case 'VW':
-                          logoPath = 'lib/assets/Logo/volkswagen-10.png';
+                          logoPath = 'lib/assets/Logo/VW.png';
                           break;
                         case 'FORD':
-                          logoPath = 'lib/assets/Logo/ford-8.png';
+                          logoPath = 'lib/assets/Logo/FORD.png';
                           break;
                         case 'TOYOTA':
-                          logoPath = 'lib/assets/Logo/toyota-7.png';
+                          logoPath = 'lib/assets/Logo/TOYOTA.png';
                           break;
                         case 'CNHTC':
                           logoPath = 'lib/assets/Logo/CNHTC.png';
                           break;
                         case 'EICHER':
-                          logoPath = 'lib/assets/Logo/eicher-logo.png';
+                          logoPath = 'lib/assets/Logo/EICHER.png';
                           break;
                         case 'FAW':
                           logoPath = 'lib/assets/Logo/FAW.png';
@@ -776,43 +785,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           logoPath = 'lib/assets/Logo/JAC.png';
                           break;
                         case 'POWERSTAR':
-                          logoPath = 'lib/assets/Logo/EVQzwvJI_400x400.png';
+                          logoPath = 'lib/assets/Logo/POWERSTAR.png';
                           break;
                         case 'RENAULT':
-                          logoPath = 'lib/assets/Logo/renault-2.png';
+                          logoPath = 'lib/assets/Logo/RENAULT.png';
                           break;
                         case 'TATA':
-                          logoPath = 'lib/assets/Logo/tata-logo.png';
+                          logoPath = 'lib/assets/Logo/TATA.png';
                           break;
                         case 'ASHOK LEYLAND':
-                          logoPath = 'lib/assets/Logo/ashok-leyland-logo-2.png';
+                          logoPath = 'lib/assets/Logo/ASHOK LEYLAND.png';
                           break;
                         case 'DAYUN':
                           logoPath = 'lib/assets/Logo/DAYUN.png';
                           break;
                         case 'FIAT':
-                          logoPath = 'lib/assets/Logo/fiat-3.png';
+                          logoPath = 'lib/assets/Logo/FIAT.png';
                           break;
                         case 'FOTON':
-                          logoPath = 'lib/assets/Logo/Foton.png';
+                          logoPath = 'lib/assets/Logo/FOTON.png';
                           break;
                         case 'HYUNDAI':
-                          logoPath =
-                              'lib/assets/Logo/hyundai-motor-company-2.png';
+                          logoPath = 'lib/assets/Logo/HYUNDAI.png';
                           break;
                         case 'JOYLONG':
-                          logoPath = 'lib/assets/Logo/Joylong.png';
+                          logoPath = 'lib/assets/Logo/JOYLONG.png';
                           break;
                         case 'PEUGEOT':
-                          logoPath = 'lib/assets/Logo/peugeot-8.png';
+                          logoPath = 'lib/assets/Logo/PEUGEOT.png';
                           break;
                         case 'US TRUCKS':
-                          logoPath = 'lib/assets/Logo/image2vector.png';
-                          break;
-                        case 'MAKE':
+                          return Icon(
+                            Icons.image_outlined,
+                            color: Colors.white,
+                            size: 40,
+                          );
                         default:
-                          logoPath = 'lib/assets/Logo/Globe Emoji.png';
-                          break;
+                          return const Icon(Icons.image_outlined);
                       }
 
                       return Padding(
@@ -832,24 +841,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildBrandLogo(String logoPath) {
-    try {
-      return Image.asset(
-        logoPath,
-        height: 50,
-        width: 50,
-        fit: BoxFit.contain,
-      );
-    } catch (e) {
-      return Image.asset(
-        'lib/assets/default_logo.png', // Provide a default image path here
-        height: 50,
-        width: 50,
-        fit: BoxFit.contain,
-      );
-    }
-  }
-
   void _showEditBrandsDialog(UserProvider userProvider) {
     final availableBrands = [
       'DAF',
@@ -865,7 +856,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'VOLVO',
       'FORD',
       'TOYOTA',
-      'MAKE',
       'CNHTC',
       'EICHER',
       'FAW',
@@ -1050,83 +1040,98 @@ class SwiperWidget extends StatelessWidget {
                 width: 2.0, // Border width
               ),
             ),
-            child: Column(
+            child: Stack(
               children: [
-                // Image section
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(10)),
-                    child: vehicle.mainImageUrl != null
-                        ? Image.network(
-                            vehicle.mainImageUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          )
-                        : Image.asset(
-                            'lib/assets/default_vehicle_image.png',
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
-                  ),
-                ),
-                // Text section
-                Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8.0),
-                            child: Text(
-                              vehicle.makeModel,
-                              style: const TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
+                Column(
+                  children: [
+                    // Image section
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10)),
+                        child: vehicle.mainImageUrl != null
+                            ? Image.network(
+                                vehicle.mainImageUrl!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                              )
+                            : Image.asset(
+                                'lib/assets/default_vehicle_image.png',
+                                fit: BoxFit.cover,
+                                width: double.infinity,
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Image.asset(
-                            'lib/assets/verified_Icon.png',
-                            width: 20,
-                            height: 20,
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    ),
+                    // Text section
+                    Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildBlurryContainer('YEAR', vehicle.year),
-                          _buildBlurryContainer('MILEAGE', vehicle.mileage),
-                          _buildBlurryContainer(
-                              'GEARBOX', vehicle.transmission),
-                          _buildBlurryContainer('CONFIG', 'N/A'),
+                          Row(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Text(
+                                  vehicle.makeModel,
+                                  style: const TextStyle(
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Image.asset(
+                                'lib/assets/verified_Icon.png',
+                                width: 20,
+                                height: 20,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildBlurryContainer('YEAR', vehicle.year),
+                              _buildBlurryContainer('MILEAGE', vehicle.mileage),
+                              _buildBlurryContainer(
+                                  'GEARBOX', vehicle.transmission),
+                              _buildBlurryContainer('CONFIG', 'N/A'),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                // Buttons section
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 15.0, vertical: 10.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildIconButton(Icons.close, Color(0xFF2F7FFF),
-                          controller, 'left', vehicle),
-                      SizedBox(
-                        width: 10,
+                    ),
+                    // Buttons section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15.0, vertical: 10.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildIconButton(Icons.close, Color(0xFF2F7FFF),
+                              controller, 'left', vehicle),
+                          const SizedBox(width: 10),
+                          _buildIconButton(
+                              Icons.favorite,
+                              const Color(0xFFFF4E00),
+                              controller,
+                              'right',
+                              vehicle),
+                        ],
                       ),
-                      _buildIconButton(Icons.favorite, const Color(0xFFFF4E00),
-                          controller, 'right', vehicle),
-                    ],
+                    ),
+                  ],
+                ),
+                // Honesty Bar Widget
+                Positioned(
+                  top: 52,
+                  right: 12,
+                  child: HonestyBarWidget(
+                    vehicle: vehicle,
+                    heightFactor: 0.34,
                   ),
                 ),
               ],

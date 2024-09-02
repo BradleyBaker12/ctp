@@ -98,9 +98,7 @@ class MyApp extends StatelessWidget {
         '/seventhTruckForm': (context) => const SeventhFormPage(),
         '/eighthTruckForm': (context) => const EighthFormPage(),
         '/pendingOffers': (context) => const PendingOffersPage(),
-        '/truckPage': (context) => const TruckPage(
-              vehicleType: '',
-            ),
+        '/truckPage': (context) => const TruckPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
@@ -132,11 +130,24 @@ class AuthWrapper extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasData) {
-          return const HomePage();
+          return _navigateToHome(
+              context); // Navigate to HomePage with removal of previous screens
         } else {
           return const LoginPage();
         }
       },
     );
+  }
+
+  // Function to navigate to HomePage and remove previous routes
+  Widget _navigateToHome(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => false, // This removes all previous routes
+      );
+    });
+    return Container(); // Return an empty container as a placeholder
   }
 }

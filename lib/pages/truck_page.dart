@@ -1,4 +1,5 @@
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/honesty_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
@@ -9,9 +10,9 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class TruckPage extends StatefulWidget {
-  final String vehicleType;
+  final String? vehicleType; // Optional vehicleType, null means show all
 
-  const TruckPage({super.key, required this.vehicleType});
+  const TruckPage({super.key, this.vehicleType});
 
   @override
   _TruckPageState createState() => _TruckPageState();
@@ -25,6 +26,7 @@ class _TruckPageState extends State<TruckPage> {
   List<String> swipedDirections = []; // Track swipe directions for undo
   int loadedVehicleIndex = 0; // Index to track loaded vehicles
   bool _hasReachedEnd = false; // Track if all cards are swiped
+  bool _isLoading = true; // Track loading state
   String? selectedMakeModel;
   String? selectedYear;
   String? selectedTransmission;
@@ -38,21 +40,20 @@ class _TruckPageState extends State<TruckPage> {
     });
   }
 
-  void _loadInitialVehicles() {
+  void _loadInitialVehicles() async {
     try {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      vehicleProvider.fetchVehicles(userProvider,
+
+      // Fetch vehicles based on the selected vehicleType
+      await vehicleProvider.fetchVehicles(userProvider,
           vehicleType: widget.vehicleType);
+
       setState(() {
-        displayedVehicles = vehicleProvider.vehicles
-            .where((vehicle) =>
-                !userProvider.getLikedVehicles.contains(vehicle.id) &&
-                !userProvider.getDislikedVehicles.contains(vehicle.id))
-            .take(5)
-            .toList();
+        displayedVehicles = vehicleProvider.vehicles.take(5).toList();
         loadedVehicleIndex = displayedVehicles.length;
+        _isLoading = false; // Loading complete
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,7 +112,6 @@ class _TruckPageState extends State<TruckPage> {
     int filledFields = 0;
 
     try {
-      // List of fields to check
       final fieldsToCheck = [
         vehicle.accidentFree,
         vehicle.application,
@@ -143,14 +143,12 @@ class _TruckPageState extends State<TruckPage> {
         vehicle.vehicleType,
       ];
 
-      // Increment filledFields for each non-empty string field
       for (var field in fieldsToCheck) {
         if (field.isNotEmpty) {
           filledFields++;
         }
       }
 
-      // Check nullable fields
       final nullableFieldsToCheck = [
         vehicle.dashboardPhoto,
         vehicle.faultCodesPhoto,
@@ -163,21 +161,18 @@ class _TruckPageState extends State<TruckPage> {
         vehicle.tyrePhoto2,
       ];
 
-      // Increment filledFields for each non-null field
       for (var field in nullableFieldsToCheck) {
         if (field != null) {
           filledFields++;
         }
       }
 
-      // Checking each photo in the photos array
       for (var photo in vehicle.photos) {
         if (photo != null && photo.isNotEmpty) {
           filledFields++;
         }
       }
 
-      // Calculate honesty percentage
       double honestyPercentage = (filledFields / totalFields) * 100;
 
       return honestyPercentage;
@@ -213,6 +208,9 @@ class _TruckPageState extends State<TruckPage> {
                 matchesTransmission &&
                 !isLikedOrDisliked;
           })
+          .where((vehicle) =>
+              widget.vehicleType == null ||
+              vehicle.vehicleType == widget.vehicleType)
           .take(5)
           .toList();
       loadedVehicleIndex = displayedVehicles.length;
@@ -315,16 +313,14 @@ class _TruckPageState extends State<TruckPage> {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-      // await userProvider.clearLikedVehicles();
       await userProvider.clearDislikedVehicles();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('disliked vehicles have been cleared.'),
+          content: Text('Disliked vehicles have been cleared.'),
         ),
       );
 
-      // Reload the vehicles after clearing the lists
       _loadInitialVehicles();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -344,109 +340,116 @@ class _TruckPageState extends State<TruckPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          displayedVehicles.isNotEmpty
-              ? !_hasReachedEnd
-                  ? AppinioSwiper(
-                      key: ValueKey(
-                          displayedVehicles.length), // Ensure unique key
-                      controller: controller,
-                      swipeOptions: const SwipeOptions.symmetric(
-                          vertical: false, horizontal: false),
-                      cardCount: displayedVehicles.length,
-                      cardBuilder: (BuildContext context, int index) {
-                        if (index < displayedVehicles.length) {
-                          return _buildTruckCard(context, controller,
-                              displayedVehicles[index], size);
-                        } else {
-                          return const SizedBox.shrink();
-                        }
-                      },
-                      onSwipeEnd: (int previousIndex, int? targetIndex,
-                          direction) async {
-                        try {
-                          if (direction == AxisDirection.left ||
-                              direction == AxisDirection.right) {
-                            final vehicle = displayedVehicles[previousIndex];
-                            setState(() {
-                              swipedVehicles.add(vehicle);
-                              swipedDirections.add(
-                                  direction == AxisDirection.right
-                                      ? 'right'
-                                      : 'left');
-                              displayedVehicles.removeAt(previousIndex);
-                            });
-                            _loadNextVehicle();
-
-                            final userProvider = Provider.of<UserProvider>(
-                                context,
-                                listen: false);
-                            if (direction == AxisDirection.right) {
-                              await userProvider.likeVehicle(vehicle.id);
-                            } else if (direction == AxisDirection.left) {
-                              await userProvider.dislikeVehicle(vehicle.id);
+          _isLoading
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFFF4E00),
+                  ),
+                )
+              : displayedVehicles.isNotEmpty
+                  ? !_hasReachedEnd
+                      ? AppinioSwiper(
+                          key: ValueKey(displayedVehicles.length),
+                          controller: controller,
+                          swipeOptions: const SwipeOptions.symmetric(
+                              vertical: false, horizontal: false),
+                          cardCount: displayedVehicles.length,
+                          cardBuilder: (BuildContext context, int index) {
+                            if (index < displayedVehicles.length) {
+                              return _buildTruckCard(context, controller,
+                                  displayedVehicles[index], size);
+                            } else {
+                              return const SizedBox.shrink();
                             }
-                          }
-                          if (targetIndex == null) {
+                          },
+                          onSwipeEnd: (int previousIndex, int? targetIndex,
+                              direction) async {
+                            try {
+                              if (direction == AxisDirection.left ||
+                                  direction == AxisDirection.right) {
+                                final vehicle =
+                                    displayedVehicles[previousIndex];
+                                setState(() {
+                                  swipedVehicles.add(vehicle);
+                                  swipedDirections.add(
+                                      direction == AxisDirection.right
+                                          ? 'right'
+                                          : 'left');
+                                  displayedVehicles.removeAt(previousIndex);
+                                });
+                                _loadNextVehicle();
+
+                                final userProvider = Provider.of<UserProvider>(
+                                    context,
+                                    listen: false);
+                                if (direction == AxisDirection.right) {
+                                  await userProvider.likeVehicle(vehicle.id);
+                                } else if (direction == AxisDirection.left) {
+                                  await userProvider.dislikeVehicle(vehicle.id);
+                                }
+                              }
+                              if (targetIndex == null) {
+                                setState(() {
+                                  _hasReachedEnd = true;
+                                });
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'An error occurred while processing your swipe.'),
+                                ),
+                              );
+                            }
+                          },
+                          onEnd: () {
                             setState(() {
                               _hasReachedEnd = true;
                             });
-                          }
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'An error occurred while processing your swipe.'),
-                            ),
-                          );
-                        }
-                      },
-                      onEnd: () {
-                        setState(() {
-                          _hasReachedEnd = true;
-                        });
-                      },
-                    )
+                          },
+                        )
+                      : Center(
+                          child: Text(
+                            "You've seen all the vehicles!",
+                            style: _customFont(
+                                16, FontWeight.normal, Colors.white),
+                          ),
+                        )
                   : Center(
-                      child: Text(
-                        "You've seen all the vehicles!",
-                        style: _customFont(16, FontWeight.normal, Colors.white),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "No vehicles available",
+                            style: _customFont(
+                                16, FontWeight.normal, Colors.white),
+                          ),
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20.0),
+                            child: Text(
+                              "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the the database",
+                              style: _customFont(
+                                  16, FontWeight.normal, Colors.white),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _clearLikedAndDislikedVehicles,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: Text(
+                              'Clear Disliked Vehicles',
+                              style: _customFont(
+                                  14, FontWeight.bold, Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-              : Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "No vehicles available",
-                        style: _customFont(16, FontWeight.normal, Colors.white),
-                      ),
-                      const SizedBox(
-                          height: 16), // Spacing between text and button
-                      //Todo: Remove this button and text once the testing phase is complete
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: Text(
-                          "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the the database",
-                          style:
-                              _customFont(16, FontWeight.normal, Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _clearLikedAndDislikedVehicles,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.red, // Set button color to red
-                        ),
-                        child: Text(
-                          'Clear Liked and Disliked Vehicles',
-                          style: _customFont(14, FontWeight.bold, Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
           Positioned(
             top: 25,
             left: 16,
@@ -455,8 +458,8 @@ class _TruckPageState extends State<TruckPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Image.asset(
-                  'lib/assets/CTPLogo.png', // Replace with your logo asset path
-                  width: size.width * 0.15, // Adjust the size as needed
+                  'lib/assets/CTPLogo.png',
+                  width: size.width * 0.15,
                 ),
                 Row(
                   children: [
@@ -524,255 +527,229 @@ class _TruckPageState extends State<TruckPage> {
 
   Widget _buildTruckCard(BuildContext context,
       AppinioSwiperController controller, Vehicle vehicle, Size size) {
-    double honestyPercentage = _calculateHonestyPercentage(vehicle);
-    int filledFields = (honestyPercentage / 100 * (35 + 18)).round();
-
     return GestureDetector(
-      onDoubleTap: () {
-        try {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-            ),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('Failed to load vehicle details. Please try again.'),
-            ),
-          );
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Container(
-          width: size.width,
-          height: size.height -
-              AppBar().preferredSize.height -
-              80, // Adjust for app bar and bottom navigation
-          margin: const EdgeInsets.symmetric(
-              horizontal: 2, vertical: 10), // Margin for spacing between cards
-          decoration: BoxDecoration(
-            color: Colors.white, // White background for the card
-            borderRadius: BorderRadius.circular(10),
-            border:
-                Border.all(color: Colors.white, width: 1), // Thin white border
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
+        onDoubleTap: () {
+          try {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VehicleDetailsPage(vehicle: vehicle),
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(
-                10), // Ensure the child content respects the border radius
-            child: Stack(
-              children: [
-                // Image Section
-                Positioned.fill(
-                  top: 0,
-                  bottom: size.height *
-                      0.23, // Set to 0 to allow the image to fill the entire height
-                  child: Stack(
-                    children: [
-                      // The vehicle image or placeholder
-                      Center(
-                        child: vehicle.mainImageUrl != null &&
-                                vehicle.mainImageUrl!.isNotEmpty
-                            ? Image.network(
-                                vehicle.mainImageUrl!,
-                                fit: BoxFit
-                                    .fitHeight, // Use cover to ensure it fills the available height
-                                width: double.infinity,
-                                height: double
-                                    .infinity, // Fill the available height
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset(
-                                    'lib/assets/default_vehicle_image.png',
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                  );
-                                },
-                              )
-                            : Image.asset(
-                                'lib/assets/default_vehicle_image.png',
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                              ),
-                      ),
+            );
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Failed to load vehicle details. Please try again.'),
+              ),
+            );
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Container(
+            width: size.width,
+            height: size.height -
+                AppBar().preferredSize.height -
+                80, // Adjust for app bar and bottom navigation
+            margin: const EdgeInsets.symmetric(
+                horizontal: 2,
+                vertical: 10), // Margin for spacing between cards
+            decoration: BoxDecoration(
+              color: Colors.white, // White background for the card
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: Colors.white, width: 1), // Thin white border
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(
+                  10), // Ensure the child content respects the border radius
+              child: Stack(
+                children: [
+                  // Image Section
+                  Positioned.fill(
+                    top: 0,
+                    bottom: size.height *
+                        0.23, // Set to 0 to allow the image to fill the entire height
+                    child: Stack(
+                      children: [
+                        // The vehicle image or placeholder
+                        Center(
+                          child: vehicle.mainImageUrl != null &&
+                                  vehicle.mainImageUrl!.isNotEmpty
+                              ? Image.network(
+                                  vehicle.mainImageUrl!,
+                                  fit: BoxFit.fitHeight,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      'lib/assets/default_vehicle_image.png',
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
+                                  'lib/assets/default_vehicle_image.png',
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                ),
+                        ),
 
-                      // Gradient overlay on top of the image
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withOpacity(0.2), // Start color
-                              Colors.black.withOpacity(0.2), // End color
-                            ],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            stops: const [1.0, 1.0],
+                        // Gradient overlay on top of the image
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.black.withOpacity(0.2), // Start color
+                                Colors.black.withOpacity(0.2), // End color
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              stops: const [1.0, 1.0],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Container for buttons and info cards
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    color: Colors
-                        .black, // Black background for buttons and info cards
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        // SizedBox(height: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(left: 2.0),
-                              child: Text(
-                                "GAUTENG, PRETORIA", // Add location text above the name
-                                style: _customFont(
-                                  size.height * 0.015,
-                                  FontWeight.w600,
-                                  Colors.white,
-                                ),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      left: 2.0, bottom: 10),
-                                  child: Text(
-                                    vehicle.makeModel.length > 16
-                                        ? '${vehicle.makeModel.substring(0, 15).toUpperCase()}...'
-                                        : vehicle.makeModel,
-                                    style: _customFont(
-                                      size.height * 0.03,
-                                      FontWeight.w900,
-                                      Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(
-                                    width:
-                                        60), // Add some spacing between the text and the icon
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Image.asset(
-                                    'lib/assets/verified_Icon.png',
-                                    width: size.width * 0.05,
-                                    height: size.height * 0.05,
-                                  ),
-                                ),
-                                SizedBox(
-                                  height: 30,
-                                )
-                              ],
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            SizedBox(
-                              height: 10,
-                            ),
-                            _buildInfoContainer('YEAR',
-                                vehicle.year.isNotEmpty ? vehicle.year : "N/A"),
-                            const SizedBox(width: 8),
-                            _buildInfoContainer(
-                                'MILEAGE',
-                                vehicle.mileage.isNotEmpty
-                                    ? vehicle.mileage
-                                    : "N/A"),
-                            const SizedBox(width: 8),
-                            _buildInfoContainer(
-                                'GEARBOX',
-                                vehicle.transmission.isNotEmpty
-                                    ? vehicle.transmission
-                                    : "N/A"),
-                            const SizedBox(width: 8),
-                            _buildInfoContainer(
-                                'TYPE',
-                                vehicle.vehicleType.isNotEmpty
-                                    ? vehicle.vehicleType
-                                    : "N/A"),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildIconButton(
-                                Icons.close,
-                                const Color(0xFF2F7FFF),
-                                controller,
-                                'left',
-                                vehicle),
-                            _buildCenterButton(controller),
-                            _buildIconButton(
-                                Icons.favorite,
-                                const Color(0xFFFF4E00),
-                                controller,
-                                'right',
-                                vehicle),
-                          ],
-                        ),
-                        const SizedBox(height: 15),
                       ],
                     ),
                   ),
-                ),
+                  // Container for buttons and info cards
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      color: Colors
+                          .black, // Black background for buttons and info cards
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 2.0),
+                                child: Text(
+                                  "GAUTENG, PRETORIA", // Add location text above the name
+                                  style: _customFont(
+                                    size.height * 0.015,
+                                    FontWeight.w600,
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        left: 2.0, bottom: 10),
+                                    child: Text(
+                                      vehicle.makeModel.length > 16
+                                          ? '${vehicle.makeModel.substring(0, 15).toUpperCase()}...'
+                                          : vehicle.makeModel,
+                                      style: _customFont(
+                                        size.height * 0.03,
+                                        FontWeight.w900,
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 60),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Image.asset(
+                                      'lib/assets/verified_Icon.png',
+                                      width: size.width * 0.05,
+                                      height: size.height * 0.05,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 30)
+                                ],
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const SizedBox(height: 10),
+                              _buildInfoContainer(
+                                  'YEAR',
+                                  vehicle.year.isNotEmpty
+                                      ? vehicle.year
+                                      : "N/A"),
+                              const SizedBox(width: 8),
+                              _buildInfoContainer(
+                                  'MILEAGE',
+                                  vehicle.mileage.isNotEmpty
+                                      ? vehicle.mileage
+                                      : "N/A"),
+                              const SizedBox(width: 8),
+                              _buildInfoContainer(
+                                  'GEARBOX',
+                                  vehicle.transmission.isNotEmpty
+                                      ? vehicle.transmission
+                                      : "N/A"),
+                              const SizedBox(width: 8),
+                              _buildInfoContainer(
+                                  'TYPE',
+                                  vehicle.vehicleType.isNotEmpty
+                                      ? vehicle.vehicleType
+                                      : "N/A"),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildIconButton(
+                                  Icons.close,
+                                  const Color(0xFF2F7FFF),
+                                  controller,
+                                  'left',
+                                  vehicle),
+                              _buildCenterButton(controller),
+                              _buildIconButton(
+                                  Icons.favorite,
+                                  const Color(0xFFFF4E00),
+                                  controller,
+                                  'right',
+                                  vehicle),
+                            ],
+                          ),
+                          const SizedBox(height: 15),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                // Honesty Bar and Other Overlays
-                Positioned(
+                  // Honesty Bar Widget
+                  Positioned(
                     top: 52,
                     right: 12,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment
-                          .end, // Aligns everything to the right
-                      children: [
-                        _buildHonestyBar(honestyPercentage),
-                        const SizedBox(height: 10),
-                        Text(
-                          "${honestyPercentage.toStringAsFixed(0)}/100",
-                          style: _customFont(
-                            size.height * 0.015,
-                            FontWeight.bold,
-                            Colors.white,
-                          ),
-                        ),
-                      ],
-                    )),
-              ],
+                    child: HonestyBarWidget(vehicle: vehicle),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 
   Widget _buildInfoContainer(String title, String? value) {
     var screenSize = MediaQuery.of(context).size;
 
-    // Normalize the input value for better matching
     String normalizedValue = value?.trim().toLowerCase() ?? '';
 
-    // Check if the title is 'GEARBOX' and handle 'Automatic' or 'Manual' with leniency for user input
     String displayValue = (title == 'GEARBOX' && value != null)
         ? (normalizedValue.contains('auto')
             ? 'AUTO'
@@ -785,10 +762,7 @@ class _TruckPageState extends State<TruckPage> {
       child: Container(
         height: screenSize.height * 0.06,
         width: screenSize.width * 0.22,
-        padding: EdgeInsets.symmetric(
-          vertical: screenSize.height * 0.005, // Adjust the vertical padding
-          horizontal: screenSize.width * 0.01, // Adjust the horizontal padding
-        ),
+        
         decoration: BoxDecoration(
           color: Colors.grey[900],
           borderRadius: BorderRadius.circular(10),
@@ -802,8 +776,7 @@ class _TruckPageState extends State<TruckPage> {
               style: _customFont(
                   screenSize.height * 0.012, FontWeight.w500, Colors.grey),
             ),
-            const SizedBox(
-                height: 4), // Adjust the spacing between title and value
+            const SizedBox(height: 4),
             Text(
               displayValue,
               style: _customFont(
@@ -818,9 +791,8 @@ class _TruckPageState extends State<TruckPage> {
   Widget _buildHonestyBar(double percentage) {
     final size = MediaQuery.of(context).size;
     return Container(
-      width: size.height * 0.018, // Reduced the width to make it smaller
-      height: size.height *
-          0.49, // Reduced the height so it doesn't interfere with the bell icon
+      width: size.height * 0.018,
+      height: size.height * 0.49,
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.5),
         borderRadius: BorderRadius.circular(0),
@@ -832,8 +804,7 @@ class _TruckPageState extends State<TruckPage> {
             child: Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                height: ((size.height * 0.51) * percentage) /
-                    100, // Adjust the height calculation based on the new height
+                height: ((size.height * 0.51) * percentage) / 100,
                 decoration: BoxDecoration(
                   color: const Color(0xFF2F7FFF),
                   borderRadius: BorderRadius.circular(0),
@@ -948,14 +919,13 @@ class _TruckPageState extends State<TruckPage> {
               final userProvider =
                   Provider.of<UserProvider>(context, listen: false);
 
-              // Remove the vehicle from liked or disliked list in the database
               if (lastDirection == 'right') {
                 await userProvider.removeLikedVehicle(lastVehicle.id);
               } else if (lastDirection == 'left') {
                 await userProvider.removeDislikedVehicle(lastVehicle.id);
               }
 
-              controller.unswipe(); // Attempt to unswipe the last swiped card
+              controller.unswipe();
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

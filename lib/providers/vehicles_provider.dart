@@ -1,9 +1,6 @@
-// VehicleProvider Class Implementation
-
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 
 class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
@@ -15,8 +12,10 @@ class VehicleProvider with ChangeNotifier {
 
   ValueNotifier<List<Vehicle>> vehicleListenable = ValueNotifier([]);
 
-  VehicleProvider() {
-    fetchVehicles(UserProvider()); // Fetch vehicles as usual
+  VehicleProvider();
+
+  void initialize(UserProvider userProvider) {
+    fetchVehicles(userProvider); // Fetch vehicles as usual
   }
 
   void addVehicle(Vehicle vehicle) {
@@ -77,14 +76,12 @@ class VehicleProvider with ChangeNotifier {
 
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
-          .startAfterDocument(
-              _lastFetchedDocument!) // Start fetching after the last fetched document
-          .limit(10) // Limit to next 10 documents
+          .startAfterDocument(_lastFetchedDocument!)
+          .limit(10)
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        _lastFetchedDocument =
-            querySnapshot.docs.last; // Update the last fetched document
+        _lastFetchedDocument = querySnapshot.docs.last;
       }
 
       final moreVehicles = querySnapshot.docs.map((doc) {
@@ -104,9 +101,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  // Method to get unique makeModels from the vehicle list
   List<String> getAllMakeModels() {
-    // List of brand names to filter by
     final List<String> brands = [
       'DAF',
       'FUSO',
@@ -115,7 +110,7 @@ class VehicleProvider with ChangeNotifier {
       'IVECO',
       'MAN',
       'MERCEDES-BENZ',
-      'SSCANIA',
+      'SCANIA',
       'UD TRUCKS',
       'VW',
       'VOLVO',
@@ -145,7 +140,7 @@ class VehicleProvider with ChangeNotifier {
       for (var brand in brands) {
         if (vehicle.makeModel.toLowerCase().contains(brand.toLowerCase())) {
           matchedBrands.add(brand);
-          break; // No need to check other brands if one is matched
+          break;
         }
       }
     }
@@ -153,7 +148,6 @@ class VehicleProvider with ChangeNotifier {
     return ['All', ...matchedBrands];
   }
 
-  // Method to check if a vehicle's makeModel contains a specific brand
   bool doesMakeModelContainBrand(String makeModel, String? brand) {
     if (brand == null || brand == 'All') {
       return true;
@@ -166,7 +160,6 @@ class VehicleProvider with ChangeNotifier {
         _vehicles.map((vehicle) => vehicle.year).toSet().toList();
 
     years.sort((a, b) {
-      // Handle cases where year might be "N/A" or non-numeric
       if (a == 'N/A') return 1;
       if (b == 'N/A') return -1;
       return int.parse(a).compareTo(int.parse(b));
@@ -175,7 +168,6 @@ class VehicleProvider with ChangeNotifier {
     return ['All', ...years];
   }
 
-  // Method to get unique transmissions from the vehicle list with normalization
   List<String> getAllTransmissions() {
     final Set<String> normalizedTransmissions = {};
 
@@ -186,7 +178,6 @@ class VehicleProvider with ChangeNotifier {
       }
     }
 
-    // Add 'All' as the first option and remove duplicates
     return [
       'All',
       ...normalizedTransmissions
@@ -194,7 +185,6 @@ class VehicleProvider with ChangeNotifier {
     ];
   }
 
-  // Helper method to normalize transmission names
   String _normalizeTransmission(String transmission) {
     transmission = transmission.toLowerCase();
     if (transmission == 'auto' || transmission == 'automatic') {
@@ -202,16 +192,15 @@ class VehicleProvider with ChangeNotifier {
     } else if (transmission == 'manual') {
       return 'Manual';
     }
-    return transmission; // Return as is for other values, like "n/a"
+    return transmission;
   }
 
-  // New method to fetch 5 most recently added vehicles
   Future<List<Vehicle>> fetchRecentVehicles() async {
     try {
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
-          .orderBy('createdAt', descending: true) // Order by createdAt field
-          .limit(5) // Limit to 5 most recent vehicles
+          .orderBy('createdAt', descending: true)
+          .limit(5)
           .get();
 
       final recentVehicles = querySnapshot.docs.map((doc) {

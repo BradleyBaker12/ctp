@@ -21,7 +21,7 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: GradientBackground(
-        child: Container(
+        child: SizedBox(
           height: MediaQuery.of(context).size.height,
           child: SingleChildScrollView(
             child: Padding(

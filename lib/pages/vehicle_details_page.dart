@@ -427,10 +427,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _buildInfoContainer('YEAR', widget.vehicle.year),
+                          SizedBox(
+                            width: 5,
+                          ),
                           _buildInfoContainer(
                               'MILEAGE', widget.vehicle.mileage),
+                          SizedBox(
+                            width: 5,
+                          ),
                           _buildInfoContainer(
                               'GEARBOX', widget.vehicle.transmission),
+                          SizedBox(
+                            width: 5,
+                          ),
                           _buildInfoContainer('CONFIG', widget.vehicle.config),
                         ],
                       ),
@@ -646,7 +655,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             Container(
               color: Colors.black54,
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(color: Color(0xFFFF4E00)),
               ),
             ),
         ],
@@ -662,11 +671,25 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   Widget _buildInfoContainer(String title, String? value) {
     var screenSize = MediaQuery.of(context).size;
+
+    String normalizedValue = value?.trim().toLowerCase() ?? '';
+
+    String displayValue = (title == 'GEARBOX' && value != null)
+        ? (normalizedValue.contains('auto')
+            ? 'AUTO'
+            : normalizedValue.contains('manual')
+                ? 'MANUAL'
+                : value.toUpperCase())
+        : value?.toUpperCase() ?? 'N/A';
+
     return Flexible(
       child: Container(
         height: screenSize.height * 0.07,
         width: screenSize.width * 0.22,
-        padding: EdgeInsets.all(screenSize.height * 0.01),
+        padding: EdgeInsets.symmetric(
+          vertical: screenSize.height * 0.005,
+          horizontal: screenSize.width * 0.01,
+        ),
         decoration: BoxDecoration(
           color: Colors.grey[900],
           borderRadius: BorderRadius.circular(10),
@@ -678,13 +701,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             Text(
               title,
               style: _customFont(
-                  screenSize.height * 0.011, FontWeight.w500, Colors.grey),
+                  screenSize.height * 0.012, FontWeight.w500, Colors.grey),
             ),
             const SizedBox(height: 6),
             Text(
-              value?.toUpperCase() ?? 'UNKNOWN',
+              displayValue,
               style: _customFont(
-                  screenSize.height * 0.012, FontWeight.bold, Colors.white),
+                  screenSize.height * 0.017, FontWeight.bold, Colors.white),
             ),
           ],
         ),

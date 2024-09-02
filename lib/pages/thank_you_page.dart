@@ -9,7 +9,7 @@ class ThankYouPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: GradientBackground(
-        child: Container(
+        child: SizedBox(
           height: MediaQuery.of(context)
               .size
               .height, // Ensure the gradient fills the screen height

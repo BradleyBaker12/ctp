@@ -462,17 +462,15 @@ class _DealerRegPageState extends State<DealerRegPage> {
             hintText: 'Select Country',
             hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
             filled: true,
-            fillColor: Colors.black
-                .withOpacity(0.4), // Black background for the dropdown field
+            fillColor: Colors.grey.withOpacity(0.2), // Set grey background
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10.0),
-              borderSide: const BorderSide(
-                  color: Colors.white), // White border when not focused
+              borderSide: const BorderSide(color: Colors.white), // White border
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10.0),
-              borderSide: const BorderSide(
-                  color: Color(0xFFFF4E00)), // Orange border when focused
+              borderSide:
+                  const BorderSide(color: Color(0xFFFF4E00)), // Orange border
             ),
           ),
         ),
@@ -493,9 +491,9 @@ class _DealerRegPageState extends State<DealerRegPage> {
         ),
         popupProps: PopupProps.menu(
           showSearchBox: true, // Enable search box
-          menuProps: const MenuProps(
+          menuProps: MenuProps(
             backgroundColor:
-                Colors.black, // Black background for the dropdown menu
+                Colors.grey[900], // Black background for the dropdown menu
           ),
           searchFieldProps: TextFieldProps(
             style: const TextStyle(
@@ -503,11 +501,12 @@ class _DealerRegPageState extends State<DealerRegPage> {
             cursorColor: const Color(0xFFFF4E00), // Orange cursor
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.black, // Black background for search bar
+              fillColor: Colors.grey
+                  .withOpacity(0.2), // Grey background for search bar
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10.0),
-                borderSide:
-                    const BorderSide(color: Colors.black), // Black border
+                borderSide: BorderSide(
+                    color: Colors.grey.withOpacity(0.2)), // Black border
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10.0),
@@ -528,8 +527,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
           fit: FlexFit.loose,
           itemBuilder: (context, item, isSelected) => Container(
             color: isSelected
-                ? Colors.black.withOpacity(0.2)
-                : Colors.black, // Highlight selected item
+                ? Colors.grey[850]
+                : Colors.grey[900], // Highlight selected item
             child: ListTile(
               title: Text(
                 item,
@@ -561,7 +560,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
         hintText: hintText,
         hintStyle: GoogleFonts.montserrat(color: Colors.white70),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.3),
+        fillColor:
+            Colors.grey.withOpacity(0.2), // Set the background to a grey color
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(4.0),
           borderSide:
@@ -597,6 +597,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
   }
 
   Widget _buildUploadButton(String fieldName, String? fileName) {
+    var screenSize = MediaQuery.of(context).size;
     return Stack(
       children: [
         GestureDetector(
@@ -630,14 +631,27 @@ class _DealerRegPageState extends State<DealerRegPage> {
             height: 100,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.grey.withOpacity(0.2), // Set grey background
               borderRadius: BorderRadius.circular(10.0),
               border: Border.all(color: Colors.white70, width: 1),
             ),
             child: Center(
               child: fileName == null
-                  ? const Icon(Icons.drive_folder_upload_outlined,
-                      color: Colors.blue, size: 40)
+                  ? Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(Icons.folder_outlined,
+                            color: Colors.blue, size: 40),
+                        Positioned(
+                          bottom: screenSize.height * 0.009,
+                          child: Icon(
+                            Icons.arrow_upward,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    )
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

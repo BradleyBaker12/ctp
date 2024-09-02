@@ -111,7 +111,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 64.0),
-                                child: const ProgressBar(progress: 0.90),
+                                child: const ProgressBar(progress: 0.9),
                               ),
                               SizedBox(height: screenSize.height * 0.045),
                               Text(

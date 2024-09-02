@@ -42,23 +42,24 @@ dependencies:
     sdk: flutter
   flutter_image_compress: ^2.3.0
   flutter_pdfview: ^1.3.2
+  flutter_svg: ^2.0.10+1
   geocoding: ^3.0.0
   google_fonts: ^6.2.1
   google_maps_flutter: ^2.8.0
   google_sign_in: ^6.2.1
+  http: any
   image_cropper: ^8.0.1
   image_picker: ^1.1.2
   intl: ^0.19.0
+  path: any
   path_provider: ^2.1.4
   pdf: ^3.11.0
   permission_handler: ^11.3.1
   pinput: ^5.0.0
   provider: ^6.1.2
-  services: ^0.0.1
   share_plus: ^10.0.0
   table_calendar: ^3.1.2
   url_launcher: ^6.3.0
-
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_test:
@@ -94,35 +95,33 @@ flutter:
     - lib/assets/country-by-name.json
     - lib/assets/Layer_1.png
     - lib/assets/Layer_2.png
-    - lib/assets/Logo/ashok-leyland-logo-2.png
+    - lib/assets/Logo/ASHOK LEYLAND.png
     - lib/assets/Logo/CNHTC.png
-    - lib/assets/Logo/daf-2.png
+    - lib/assets/Logo/DAF.png
     - lib/assets/Logo/DAYUN.png
-    - lib/assets/Logo/eicher-logo.png
-    - lib/assets/Logo/EVQzwvJI_400x400.png
+    - lib/assets/Logo/EICHER.png
     - lib/assets/Logo/FAW.png
-    - lib/assets/Logo/fiat-3.png
-    - lib/assets/Logo/ford-8.png
-    - lib/assets/Logo/Foton.png
-    - lib/assets/Logo/fuso-1.png
-    - lib/assets/Logo/hino.png
-    - lib/assets/Logo/hyundai-motor-company-2.png
-    - lib/assets/Logo/image2vector.png
-    - lib/assets/Logo/isuzu-2.png
-    - lib/assets/Logo/iveco.png
+    - lib/assets/Logo/FIAT.png
+    - lib/assets/Logo/FORD.png
+    - lib/assets/Logo/FOTON.png
+    - lib/assets/Logo/FUSO.png
+    - lib/assets/Logo/HINO.png
+    - lib/assets/Logo/HYUNDAI.png
+    - lib/assets/Logo/ISUZU.png
+    - lib/assets/Logo/IVECO.png
     - lib/assets/Logo/JAC.png
-    - lib/assets/Logo/Joylong.png
-    - lib/assets/Logo/man-logo.png
-    - lib/assets/Logo/mercedes-benz-9.png
-    - lib/assets/Logo/peugeot-8.png
-    - lib/assets/Logo/renault-2.png
-    - lib/assets/Logo/scania-6.png
-    - lib/assets/Logo/tata-logo.png
-    - lib/assets/Logo/toyota-7.png
-    - lib/assets/Logo/ud-trucks-1.png
-    - lib/assets/Logo/volkswagen-10.png
-    - lib/assets/Logo/volvo.png
-    - lib/assets/Logo/Globe Emoji.png
+    - lib/assets/Logo/JOYLONG.png
+    - lib/assets/Logo/MAN.png
+    - lib/assets/Logo/MERCEDES BENZ.png
+    - lib/assets/Logo/PEUGEOT.png
+    - lib/assets/Logo/POWERSTAR.png
+    - lib/assets/Logo/RENAULT.png
+    - lib/assets/Logo/SCANIA.png
+    - lib/assets/Logo/TATA.png
+    - lib/assets/Logo/TOYOTA.png
+    - lib/assets/Logo/UD TRUCKS.png
+    - lib/assets/Logo/VOLVO.png
+    - lib/assets/Logo/VW.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
   # For details regarding adding assets from package dependencies, see

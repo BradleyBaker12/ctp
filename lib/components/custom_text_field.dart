@@ -37,8 +37,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black
-            .withOpacity(0.1), // Background color for the text input
+        color: Colors.grey
+            .withOpacity(0.18), // Background color for the text input
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: TextField(

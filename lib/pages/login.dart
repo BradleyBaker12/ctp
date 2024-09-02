@@ -49,8 +49,8 @@ class _LoginPageState extends State<LoginPage> {
                     Column(
                       children: [
                         Container(
-                          width: screenSize.width,
-                          height: screenSize.height * 0.5,
+                          width: double.infinity,
+                          height: constraints.maxHeight * 0.5,
                           decoration: const BoxDecoration(
                             image: DecorationImage(
                               image: AssetImage(
@@ -63,40 +63,44 @@ class _LoginPageState extends State<LoginPage> {
                           child: GradientBackground(
                             child: Padding(
                               padding: EdgeInsets.symmetric(
-                                horizontal: screenSize.width * 0.05,
-                                vertical: screenSize.height * 0.02,
+                                horizontal: constraints.maxWidth * 0.05,
+                                vertical: constraints.maxHeight * 0.02,
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  SizedBox(height: screenSize.height * 0),
                                   Text(
                                     'COMMERCIAL TRADER PORTAL',
                                     style: GoogleFonts.montserrat(
-                                      fontSize: screenSize.height * 0.024,
+                                      fontSize: constraints.maxHeight * 0.024,
                                       fontWeight: FontWeight.w900,
                                       color: Colors.white,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  SizedBox(height: screenSize.height * 0.01),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.01),
                                   Text(
                                     'Navigate with Confidence, Drive with Ease.',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.montserrat(
-                                        fontSize: 16,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700),
+                                      fontSize: constraints.maxHeight * 0.015,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                   Text(
                                     'Your trusted partner on the road.',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.montserrat(
-                                        fontSize: 16,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500),
+                                      fontSize: constraints.maxHeight * 0.018,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                  SizedBox(height: screenSize.height * 0.025),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.025),
                                   SignInButton(
                                     text: 'Sign In with Apple',
                                     onPressed: () {
@@ -123,7 +127,8 @@ class _LoginPageState extends State<LoginPage> {
                                     },
                                     borderColor: orange,
                                   ),
-                                  SizedBox(height: screenSize.height * 0.02),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.02),
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
@@ -150,7 +155,6 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ],
                                   ),
-                                  // SizedBox(height: screenSize.height * 0.07),
                                 ],
                               ),
                             ),
@@ -160,7 +164,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     Positioned(
                       child: BlurryAppBar(
-                        height: screenSize.height * 0.001,
+                        height: constraints.maxHeight * 0.001,
                       ),
                     ),
                   ],

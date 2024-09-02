@@ -240,11 +240,20 @@ class _OfferCardState extends State<OfferCard> {
     // Fetch complaints related to this offer
     await complaintsProvider.fetchComplaints(widget.offer.offerId);
 
+    // Debugging: Log fetched complaints
+    print(
+        "Fetched complaints for offer ${widget.offer.offerId}: ${complaintsProvider.complaints}");
+
     // Check if there's a resolved complaint
     final resolvedComplaint =
         complaintsProvider.getResolvedComplaint(widget.offer.offerId);
 
-    if (resolvedComplaint != null) {
+    // Debugging: Log the resolved complaint
+    print(
+        "Resolved complaint for offer ${widget.offer.offerId}: $resolvedComplaint");
+
+    if (resolvedComplaint != null &&
+        resolvedComplaint['complaintStatus'] == 'resolved') {
       // If there's a resolved complaint, update the offer status to "resolved"
       await FirebaseFirestore.instance
           .collection('offers')
@@ -254,10 +263,15 @@ class _OfferCardState extends State<OfferCard> {
       // Refresh offers in the provider to reflect the updated status
       await offerProvider.refreshOffers(userProvider.userId!, userRole);
 
+      // Debugging: Confirm status update
+      print("Offer ${widget.offer.offerId} status updated to resolved.");
+
       // Navigate based on the previousStep from the resolved complaint
       String? previousStep = resolvedComplaint['previousStep'];
 
       if (previousStep != null) {
+        print(
+            "Navigating based on previous step: $previousStep"); // Debugging: Log navigation step
         switch (previousStep) {
           case 'accepted':
             Navigator.push(
@@ -426,37 +440,65 @@ class _OfferCardState extends State<OfferCard> {
             break;
         }
       }
-    }
-
-    // Fallback: Navigate based on current offer status
-    if (userRole == 'transporter') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OfferDetailsPage(
-            offerId: widget.offer.offerId,
-            vehicleName: widget.offer.vehicleMakeModel ?? 'Unknown',
-            offerAmount: formatOfferAmount(widget.offer.offerAmount),
-            images: widget.offer.vehicleImages,
-            additionalInfo: widget.offer.additionalInfo,
-            year: widget.offer.vehicleYear,
-            mileage: widget.offer.vehicleMileage,
-            transmission: widget.offer.vehicleTransmission,
-            onAccept: () async {
-              await _updateOfferStatus('accepted');
-              Navigator.of(context).pop();
-            },
-            onReject: () async {
-              await _updateOfferStatus('rejected');
-              Navigator.of(context).pop();
-            },
-            offerStatus: widget.offer.offerStatus ?? 'Unknown',
-          ),
-        ),
-      );
     } else {
-      // Existing navigation logic based on current offer status
-      // Add the current status-based navigation here (as it was before)
+      // Debugging: No resolved complaint found or complaint status is not resolved
+      print(
+          "No resolved complaint found or complaint status is not resolved for offer ${widget.offer.offerId}.");
+
+      // Continue with the original logic based on offer status
+      switch (widget.offer.offerStatus) {
+        case 'accepted':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InspectionDetailsPage(
+                offerId: widget.offer.offerId,
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              ),
+            ),
+          );
+          break;
+        case 'in-progress':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ConfirmationPage(
+                offerId: widget.offer.offerId,
+                location:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                address:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                date: widget.offer.dealerSelectedInspectionDate!,
+                time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+                latLng: LatLng(
+                  widget.offer.latLng?.latitude ?? 0,
+                  widget.offer.latLng?.longitude ?? 0,
+                ),
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              ),
+            ),
+          );
+          break;
+        case 'set location and time':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InspectionDetailsPage(
+                offerId: widget.offer.offerId,
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              ),
+            ),
+          );
+          break;
+        // Handle other statuses...
+        default:
+          print(
+              "Offer status not handled: ${widget.offer.offerStatus}"); // Debugging
+          break;
+      }
     }
   }
 
@@ -538,8 +580,7 @@ class _OfferCardState extends State<OfferCard> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        widget.offer.vehicleMakeModel ??
-                            'Unknown',
+                        widget.offer.vehicleMakeModel ?? 'Unknown',
                         style: customFont(screenSize.height * 0.017,
                             FontWeight.w800, Colors.white),
                       ),
