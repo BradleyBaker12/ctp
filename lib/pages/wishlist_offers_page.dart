@@ -1,9 +1,10 @@
-import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/pending_offers_page.dart'; // Import PendingOffersPage
+import 'package:ctp/pages/wish_list_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,6 +14,7 @@ import 'vehicle_details_page.dart'; // Import the VehicleDetailsPage
 import 'package:ctp/providers/vehicles_provider.dart'; // Import the VehicleProvider
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:ctp/providers/offer_provider.dart'; // Import OfferProvider
+import 'dart:ui'; // Required for the AppBar's blur effect
 
 class WishlistOffersPage extends StatefulWidget {
   const WishlistOffersPage({super.key});
@@ -80,64 +82,119 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
     final userRole = userProvider.getUserRole;
 
     return Scaffold(
+      extendBodyBehindAppBar: true, // Extend the body behind the app bar
       backgroundColor: Colors.black,
-      appBar: const BlurryAppBar(), // Use BlurryAppBar as background
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            height: 300, // Increased height for larger image
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(
-                    'lib/assets/WishListImage.png'), // Add your header image path here
-                fit: BoxFit.cover,
+      appBar: PreferredSize(
+        preferredSize:
+            Size.fromHeight(size.height * 0.07), // Set desired height
+        child: AppBar(
+          automaticallyImplyLeading: false, // This removes the back button
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          flexibleSpace: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: Colors.grey.withOpacity(0.1),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.center, // Center the headings
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(left: 35.0), // Space on the left
+                child: Image.asset(
+                  'lib/assets/CTPLogo.png',
+                  width: 60,
+                  height: 60,
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.only(right: 25.0), // Space on the right
+                child: Consumer<UserProvider>(
+                  builder: (context, userProvider, _) {
+                    final profileImageUrl = userProvider.getProfileImageUrl;
+                    return CircleAvatar(
+                      radius: 26,
+                      backgroundImage: profileImageUrl.isNotEmpty
+                          ? NetworkImage(profileImageUrl)
+                          : const AssetImage(
+                                  'lib/assets/default-profile-photo.jpg')
+                              as ImageProvider,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Stack(
               children: [
-                const Text(
-                  'WISHLIST AND OFFERS',
-                  style: TextStyle(
-                    color: Color(0xFFFF4E00),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
+                Container(
+                  width: double.infinity,
+                  height: 450, // Height for your image
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(
+                          'lib/assets/WishListImage.png'), // Your header image path here
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'View your wish listed trucks and track your pending offers made.',
-                  style: TextStyle(
-                    color: Colors.white, // Adjust the color to match the design
-                    fontSize: 16,
+                Positioned(
+                  bottom: 50, // Adjust the vertical alignment as necessary
+                  left: 16,
+                  right: 16,
+                  child: const Text(
+                    'WISHLIST AND OFFERS',
+                    style: TextStyle(
+                      color: Color(0xFFFF4E00),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildTabWithIcon(
-                        'Pending Offers', 'lib/assets/shaking_hands.png'),
-                    const SizedBox(width: 16),
-                    _buildTabWithIcon('Wishlist', 'lib/assets/HeartVector.png'),
-                  ],
+                Positioned(
+                  bottom: 0, // Adjust the vertical alignment as necessary
+                  left: 16,
+                  right: 16,
+                  child: const SizedBox(
+                    width: 350,
+                    child: Text(
+                      'View your wish listed trucks and track your pending offers made.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _selectedTab == 'Pending Offers'
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildTabWithIcon(
+                    'Pending Offers', 'lib/assets/shaking_hands.png'),
+                const SizedBox(width: 16),
+                _buildTabWithIcon('Wishlist', 'lib/assets/HeartVector.png'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _selectedTab == 'Pending Offers'
                 ? _buildPendingOffersSection()
                 : _buildWishlistSection(size, vehicleProvider, userRole),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: CustomBottomNavigation(
         selectedIndex: 2, // Ensure the heart icon is selected
@@ -150,9 +207,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
           } else if (index == 1) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                  builder: (context) => const TruckPage(
-                      )),
+              MaterialPageRoute(builder: (context) => const TruckPage()),
             );
           } else if (index == 2) {
             Navigator.pushReplacement(
@@ -193,16 +248,48 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
         } else {
           // Limit the offers to the 3 most recent
           final latestOffers = _offerProvider.offers.take(3).toList();
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: latestOffers.length,
-            itemBuilder: (context, index) {
-              Offer offer = latestOffers[index];
-              return OfferCard(
-                offer: offer,
-              );
-            },
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        // Navigate to PendingOffersPage
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const PendingOffersPage()),
+                        );
+                      },
+                      child: Row(
+                        children: const [
+                          Text(
+                            'View All',
+                            style: TextStyle(
+                              color: Colors.white,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Colors.white,
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_right,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...latestOffers.map((offer) {
+                return OfferCard(
+                  offer: offer,
+                );
+              }).toList(),
+            ],
           );
         }
       },
@@ -230,88 +317,129 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
             style: _customFont(16, FontWeight.normal, Colors.white),
           );
         } else {
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _wishlistVehicles.length,
-            itemBuilder: (context, index) {
-              DocumentSnapshot vehicleDoc = _wishlistVehicles[index];
-              Map<String, dynamic>? data =
-                  vehicleDoc.data() as Map<String, dynamic>?;
-              Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        // Navigate to WishlistPage
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const WishlistPage()),
+                        );
+                      },
+                      child: Row(
+                        children: const [
+                          Text(
+                            'View All',
+                            style: TextStyle(
+                              color: Colors.white,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Colors.white,
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_right,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ..._wishlistVehicles.map((vehicleDoc) {
+                Map<String, dynamic>? data =
+                    vehicleDoc.data() as Map<String, dynamic>?;
+
+                // Ensure you check for makeModel in the Firestore document directly
+                String makeModel = data != null &&
+                        data.containsKey('makeModel') &&
+                        data['makeModel'] != null
+                    ? data['makeModel']
+                    : 'Unknown';
+
+                Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
                   (v) => v.id == vehicleDoc.id,
                   orElse: () => Vehicle(
-                      id: 'default',
-                      accidentFree: 'N/A',
-                      application: 'N/A',
-                      bookValue: 'N/A',
-                      damageDescription: '',
-                      damagePhotos: [],
-                      engineNumber: 'N/A',
-                      expectedSellingPrice: 'N/A',
-                      firstOwner: 'N/A',
-                      hydraulics: 'N/A',
-                      listDamages: 'N/A',
-                      maintenance: 'N/A',
-                      makeModel: 'Unknown',
-                      mileage: 'N/A',
-                      oemInspection: 'N/A',
-                      photos: [],
-                      registrationNumber: 'N/A',
-                      roadWorthy: 'N/A',
-                      settleBeforeSelling: 'N/A',
-                      settlementAmount: 'N/A',
-                      spareTyre: 'N/A',
-                      suspension: 'N/A',
-                      transmission: 'N/A',
-                      tyreType: 'N/A',
-                      userId: 'N/A',
-                      vehicleType: 'N/A',
-                      vinNumber: 'N/A',
-                      warranty: 'N/A',
-                      warrantyType: 'N/A',
-                      weightClass: 'N/A',
-                      year: 'N/A',
-                      createdAt: (vehicleDoc['createdAt'] as Timestamp)
-                          .toDate())); // Default if not found
+                    id: vehicleDoc.id,
+                    accidentFree: 'N/A',
+                    application: 'N/A',
+                    bookValue: 'N/A',
+                    damageDescription: '',
+                    damagePhotos: [],
+                    engineNumber: 'N/A',
+                    expectedSellingPrice: 'N/A',
+                    firstOwner: 'N/A',
+                    hydraulics: 'N/A',
+                    listDamages: 'N/A',
+                    maintenance: 'N/A',
+                    makeModel:
+                        makeModel, // Use the makeModel directly from Firestore
+                    mileage: 'N/A',
+                    oemInspection: 'N/A',
+                    mainImageUrl: null,
+                    photos: [],
+                    registrationNumber: 'N/A',
+                    roadWorthy: 'N/A',
+                    settleBeforeSelling: 'N/A',
+                    settlementAmount: 'N/A',
+                    suspension: 'N/A',
+                    transmission: 'N/A',
+                    tyreType: 'N/A',
+                    userId: 'N/A',
+                    vehicleType: 'N/A',
+                    vinNumber: 'N/A',
+                    warranty: 'N/A',
+                    warrantyType: 'N/A',
+                    weightClass: 'N/A',
+                    year: 'N/A',
+                    createdAt: (vehicleDoc['createdAt'] as Timestamp).toDate(),
+                    spareTyre: 'N/A',
+                  ),
+                );
 
-              String imageUrl = data != null &&
-                      data.containsKey('mainImageUrl') &&
-                      data['mainImageUrl'] != null
-                  ? data['mainImageUrl']
-                  : 'lib/assets/default_vehicle_image.png';
+                String imageUrl = data != null &&
+                        data.containsKey('mainImageUrl') &&
+                        data['mainImageUrl'] != null
+                    ? data['mainImageUrl']
+                    : 'lib/assets/default_vehicle_image.png';
 
-              // Check if an offer exists for this vehicle
-              bool hasOffer = _offerProvider.offers
-                  .any((offer) => offer.vehicleId == vehicle.id);
+                // Check if an offer exists for this vehicle
+                bool hasOffer = _offerProvider.offers
+                    .any((offer) => offer.vehicleId == vehicle.id);
 
-              return WishCard(
-                vehicleMakeModel: data != null && data.containsKey('makeModel')
-                    ? data['makeModel']
-                    : 'Unknown',
-                vehicleImageUrl: imageUrl,
-                size: size,
-                customFont:
-                    (double fontSize, FontWeight fontWeight, Color color) {
-                  return TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: fontWeight,
-                    color: color,
-                    fontFamily: 'Montserrat',
-                  );
-                },
-                hasOffer: hasOffer, // Pass the hasOffer value
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          VehicleDetailsPage(vehicle: vehicle),
-                    ),
-                  );
-                },
-              );
-            },
+                return WishCard(
+                  vehicleMakeModel: vehicle.makeModel,
+                  vehicleImageUrl: imageUrl,
+                  size: size,
+                  customFont:
+                      (double fontSize, FontWeight fontWeight, Color color) {
+                    return TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: fontWeight,
+                      color: color,
+                      fontFamily: 'Montserrat',
+                    );
+                  },
+                  hasOffer: hasOffer, // Pass the hasOffer value
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            VehicleDetailsPage(vehicle: vehicle),
+                      ),
+                    );
+                  },
+                );
+              }).toList(),
+            ],
           );
         }
       },

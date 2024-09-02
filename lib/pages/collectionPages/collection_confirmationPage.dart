@@ -61,14 +61,14 @@ class _CollectionConfirmationPageState
         'offerStatus': 'Collection Location Confirmation',
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Offer status updated to Collection Location Confirmation')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //       content: Text(
+      //           'Offer status updated to Collection Location Confirmation')),
+      // );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update offer status: $e')),
+        SnackBar(content: Text('An Unexpected error has ocured')),
       );
     } finally {
       setState(() {

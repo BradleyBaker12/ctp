@@ -1,5 +1,6 @@
 import 'package:ctp/firebase_options.dart';
 import 'package:ctp/pages/add_profile_photo.dart';
+import 'package:ctp/pages/add_profile_photo_transporter.dart';
 import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/first_name_page.dart';
 import 'package:ctp/pages/home_page.dart';
@@ -80,6 +81,8 @@ class MyApp extends StatelessWidget {
         '/firstName': (context) => const FirstNamePage(),
         '/tradingCategory': (context) => const TradingCategoryPage(),
         '/addProfilePhoto': (context) => const AddProfilePhotoPage(),
+        '/addProfilePhotoTransporter': (context) =>
+            const AddProfilePhotoPageTransporter(),
         '/transporterRegister': (context) =>
             const TransporterRegistrationPage(),
         '/dealerRegister': (context) => const DealerRegPage(),

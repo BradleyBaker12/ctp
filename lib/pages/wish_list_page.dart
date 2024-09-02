@@ -8,8 +8,8 @@ import 'package:ctp/components/wish_card.dart';
 import 'vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/offer_provider.dart'; // Import OfferProvider
-import 'package:ctp/components/gradient_background.dart'; // Import GradientBackground
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/components/gradient_background.dart';
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
@@ -81,7 +81,7 @@ class _WishlistPageState extends State<WishlistPage> {
       final userRole = userProvider.getUserRole;
 
       await _offerProvider.fetchOffers(user.uid, userRole);
-      setState(() {}); // Ensure state updates after fetching offers
+      setState(() {});
     }
   }
 
@@ -89,20 +89,15 @@ class _WishlistPageState extends State<WishlistPage> {
     return _wishlistVehicles.where((vehicleDoc) {
       Map<String, dynamic>? data = vehicleDoc.data() as Map<String, dynamic>?;
 
-      // Adjust the condition to check for vehicle types that fall under trucks or trailers
       if (_selectedTab == 'Trucks') {
-        // Assuming you have different vehicle types that are considered trucks
         return data != null &&
             (data['vehicleType'] == 'truck' ||
                 data['vehicleType'] == 'pickup' ||
-                data['vehicleType'] ==
-                    'lorry'); // add more truck types if needed
+                data['vehicleType'] == 'lorry');
       } else if (_selectedTab == 'Trailers') {
-        // Assuming you have different vehicle types that are considered trailers
         return data != null &&
             (data['vehicleType'] == 'trailer' ||
-                data['vehicleType'] ==
-                    'semi-trailer'); // add more trailer types if needed
+                data['vehicleType'] == 'semi-trailer');
       }
       return false;
     }).toList();
@@ -185,33 +180,25 @@ class _WishlistPageState extends State<WishlistPage> {
                             bookValue: 'N/A',
                             damageDescription: '',
                             damagePhotos: [],
-                            dashboardPhoto: null,
                             engineNumber: 'N/A',
                             expectedSellingPrice: 'N/A',
-                            faultCodesPhoto: null,
                             firstOwner: 'N/A',
                             hydraulics: 'N/A',
-                            licenceDiskUrl: null,
                             listDamages: 'N/A',
                             maintenance: 'N/A',
-                            makeModel: 'Unknown',
+                            makeModel: data != null && data['makeModel'] != null
+                                ? data['makeModel']
+                                : 'Unknown',
                             mileage: 'N/A',
-                            mileageImage: null,
                             oemInspection: 'N/A',
                             mainImageUrl: null,
                             photos: [],
-                            rc1NatisFile: null,
                             registrationNumber: 'N/A',
                             roadWorthy: 'N/A',
                             settleBeforeSelling: 'N/A',
                             settlementAmount: 'N/A',
-                            settlementLetterFile: null,
-                            spareTyre: 'N/A',
                             suspension: 'N/A',
                             transmission: 'N/A',
-                            treadLeft: null,
-                            tyrePhoto1: null,
-                            tyrePhoto2: null,
                             tyreType: 'N/A',
                             userId: 'N/A',
                             vehicleType: _selectedTab.toLowerCase(),
@@ -222,6 +209,7 @@ class _WishlistPageState extends State<WishlistPage> {
                             year: 'N/A',
                             createdAt:
                                 (vehicleDoc['createdAt'] as Timestamp).toDate(),
+                            spareTyre: 'N/A',
                           ),
                         );
 

@@ -202,6 +202,12 @@ class _SignUpPageState extends State<SignUpPage> {
                                 onPressed: _signUp,
                               ),
                               SizedBox(height: constraints.maxHeight * 0.02),
+                              CustomButton(
+                                text: 'CANCLE',
+                                borderColor: const Color(0xFFFF4E00),
+                                onPressed: _signUp,
+                              ),
+                              SizedBox(height: constraints.maxHeight * 0.02),
                             ],
                           ),
                         ),

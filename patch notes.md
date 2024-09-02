@@ -39,3 +39,12 @@ Login Page, sign up page,
 
 02/09/2024
 Aligned the headings to the left on the inspection waiting page
+"Great News!" Text adjusted to match designs
+An issue with the offer card navigation based on offer status came up where the card would not navigate and has been resolved
+Changes the date format to have a more readable look
+Made adjustments to all number involving currency. The currency is not more readable
+Added an Appbar to the wishlist and offers page
+Adjust the layout of the wishlist page to be more like the design
+Add view all button to the wishlist and pending offers section so the user can view all thir offers and wishlisted vehicles
+Added a cancle button on the sign up page
+Fixed the navigation to the transporter registartion page

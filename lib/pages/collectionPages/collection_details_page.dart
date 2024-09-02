@@ -23,16 +23,12 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   int _selectedTimeSlot = 0;
-  int _selectedIndex =
-      0; // Variable to keep track of the selected bottom nav item
-
+  int _selectedIndex = 0;
   bool _isLoading = false;
 
   final List<String> _locations = ['Vereeniging', 'Meyerton', 'Springs'];
-
   final List<String> _addresses = ['Vereenging', 'Meyerton', 'Springs'];
-
-  final List<LatLng> _latLngs = []; // Initialize as empty list
+  final List<LatLng> _latLngs = [];
 
   final Map<int, List<DateTime>> _locationDates = {
     0: [
@@ -99,8 +95,23 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _updateOfferStatus(); // Update the offer status when the page loads
-    _convertAddressesToLatLng(); // Convert addresses to LatLng
+    _updateOfferStatus();
+    _convertAddressesToLatLng();
+
+    // Find the first available date across all locations
+    DateTime? firstAvailableDate;
+    for (var dates in _locationDates.values) {
+      for (var date in dates) {
+        if (date.isAfter(DateTime.now()) &&
+            (firstAvailableDate == null || date.isBefore(firstAvailableDate))) {
+          firstAvailableDate = date;
+        }
+      }
+    }
+
+    // Set the focused day and selected day to the first available date or the current date if none found
+    _focusedDay = firstAvailableDate ?? DateTime.now();
+    _selectedDay = _focusedDay;
   }
 
   Future<void> _updateOfferStatus() async {
@@ -109,8 +120,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           .collection('offers')
           .doc(widget.offerId)
           .update({'offerStatus': 'Confirm Collection'});
-
-      print('Offer status updated to Confirm Collection Details');
     } catch (e) {
       print('Error updating offer status: $e');
     }
@@ -128,8 +137,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           final location = locations.first;
           _latLngs.add(LatLng(location.latitude, location.longitude));
         } else {
-          _latLngs
-              .add(const LatLng(0, 0)); // Use a placeholder if conversion fails
+          _latLngs.add(const LatLng(0, 0));
         }
       }
     } catch (e) {
@@ -166,12 +174,12 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => CollectionConfirmationPage(
-            offerId: widget.offerId, // Pass the offerId
+            offerId: widget.offerId,
             location: _locations[_selectedLocation],
             address: _addresses[_selectedLocation],
             date: _selectedDay!,
             time: _availableTimes[_selectedTimeSlot],
-            latLng: _latLngs[_selectedLocation], // Pass the LatLng
+            latLng: _latLngs[_selectedLocation],
           ),
         ),
       );
@@ -194,6 +202,22 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Array to get the name of the month
+    final List<String> monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+
     return Scaffold(
       body: GradientBackground(
         child: Material(
@@ -227,13 +251,29 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
-                      const Text(
-                        'Great news! You have a potential buyer.',
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600),
-                        textAlign: TextAlign.center,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Text(
+                            'Great news!',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(
+                            width: 5,
+                          ),
+                          Text(
+                            'You have a potential buyer.',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w400),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 32),
                       const Text(
@@ -266,8 +306,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             ),
                             value: idx,
                             groupValue: _selectedLocation,
-                            activeColor: const Color(
-                                0xFFFF4E00), // Active color set here
+                            activeColor: const Color(0xFFFF4E00),
                             onChanged: (value) {
                               setState(() {
                                 _selectedLocation = value!;
@@ -290,8 +329,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                       ),
                       const SizedBox(height: 32),
                       Container(
-                        margin: const EdgeInsets.only(
-                            top: 20.0), // Adds space between days and calendar
+                        margin: const EdgeInsets.only(top: 20.0),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(15),
@@ -315,8 +353,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                                 isDateAvailable(day);
                           },
                           calendarStyle: CalendarStyle(
-                            cellMargin: const EdgeInsets.all(
-                                4.0), // Adding space between cells
+                            cellMargin: const EdgeInsets.all(4.0),
                             selectedDecoration: const BoxDecoration(
                               color: Colors.blue,
                               shape: BoxShape.rectangle,
@@ -412,10 +449,20 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      if (_selectedDay != null) // Display the selected date
+                        Text(
+                          'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFFF4E00),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
                       if (_selectedDay != null &&
                           _availableTimes.isNotEmpty) ...[
                         const Text(
-                          'AVAIABLE TIMES',
+                          'AVAILABLE TIMES',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -436,8 +483,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                               ),
                               value: idx,
                               groupValue: _selectedTimeSlot,
-                              activeColor: const Color(
-                                  0xFFFF4E00), // Active color set here
+                              activeColor: const Color(0xFFFF4E00),
                               onChanged: (value) {
                                 setState(() {
                                   _selectedTimeSlot = value!;
@@ -462,7 +508,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   color: Colors.black54,
                   child: const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
                     ),
                   ),
                 ),

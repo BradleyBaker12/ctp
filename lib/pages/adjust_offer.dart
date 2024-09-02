@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -39,33 +40,43 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
   }
 
   void _updateDiscount(double oldOfferValue) {
-    double newOffer =
-        double.tryParse(_newOfferController.text.replaceAll(' ', '')) ?? 0.0;
+    int newOffer =
+        int.tryParse(_newOfferController.text.replaceAll(' ', '')) ?? 0;
 
-    setState(() {
-      discount = oldOfferValue - newOffer;
-    });
+    // Ensure the new offer is not greater than the old offer
+    if (newOffer > oldOfferValue) {
+      // Show a message to the user
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('New offer cannot be higher than the old offer.'),
+        ),
+      );
+
+      // Set the discount to zero to prevent negative values
+      setState(() {
+        discount = 0.0;
+      });
+
+      // Optionally, clear the input field or reset it to the old offer value
+      _newOfferController
+          .clear(); // or _newOfferController.text = oldOfferValue.toString();
+    } else {
+      setState(() {
+        discount = oldOfferValue - newOffer;
+      });
+    }
   }
 
   String formatWithSpacing(String number) {
     number = number.replaceAll(RegExp(r'\s+'), ''); // Remove existing spaces
-    List<String> parts =
-        number.split('.'); // Split the number by the decimal point
-    String integerPart = parts[0]; // Get the integer part of the number
-    String decimalPart = parts.length > 1
-        ? '.${parts[1]}'
-        : ''; // Get the decimal part if it exists
-
     String formatted = '';
-    for (int i = 0; i < integerPart.length; i++) {
-      if (i > 0 && (integerPart.length - i) % 3 == 0) {
+    for (int i = 0; i < number.length; i++) {
+      if (i > 0 && (number.length - i) % 3 == 0) {
         formatted += ' '; // Add a space every 3 digits
       }
-      formatted += integerPart[i];
+      formatted += number[i];
     }
-
-    return formatted +
-        decimalPart; // Concatenate the formatted integer part with the decimal part
+    return formatted;
   }
 
   @override
@@ -96,9 +107,9 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 30),
                   Image.asset('lib/assets/CTPLogo.png'),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 30),
                   Text(
                     'ADJUST OFFER',
                     style: GoogleFonts.montserrat(
@@ -108,13 +119,13 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 30),
                   Text(
                     'Not happy with your offer after inspection?',
                     style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
@@ -126,7 +137,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 32),
                   Text(
                     offer.vehicleMakeModel ?? 'Unknown Vehicle',
                     style: GoogleFonts.montserrat(
@@ -136,28 +147,28 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 26),
                   _buildOfferLabel('OLD OFFER'),
                   _buildOfferRow(
-                      'R ${formatWithSpacing(offer.offerAmount?.toString() ?? '0')}',
+                      'R ${formatWithSpacing(offer.offerAmount?.toInt().toString() ?? '0')}',
                       const Color(0xFF2F7FFF)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 25),
                   _buildOfferLabel('NEW OFFER'),
                   _buildNewOfferInput(offer.offerAmount ?? 0.0),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 25),
                   _buildOfferLabel('DISCOUNT'),
                   _buildOfferRow(
-                      'R ${formatWithSpacing(discount.toStringAsFixed(2))}',
+                      'R ${formatWithSpacing(discount.toStringAsFixed(0))}',
                       const Color(0xFFFF4E00)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 25),
                   CustomButton(
                     text: 'Submit',
                     borderColor: const Color(0xFFFF4E00),
                     onPressed: () async {
                       // Check if the new offer is a valid number
-                      double newOfferValue = double.tryParse(
+                      int newOfferValue = int.tryParse(
                               _newOfferController.text.replaceAll(' ', '')) ??
-                          0.0;
+                          0;
                       if (newOfferValue <= 0) {
                         // Show some error message or feedback to the user
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,8 +186,8 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
                             .collection('offers')
                             .doc(widget.offerId)
                             .update({
-                          'oldOfferAmount':
-                              offer.offerAmount, // Save the old offer amount
+                          'oldOfferAmount': offer.offerAmount
+                              ?.toInt(), // Save the old offer amount
                           'offerAmount':
                               newOfferValue, // Update to the new offer amount
                           'offerStatus':
@@ -260,8 +271,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
 
   Widget _buildNewOfferInput(double oldOfferValue) {
     return Container(
-      height: 60.0, // Set a fixed height for consistency
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 1.0, horizontal: 16.0),
       decoration: BoxDecoration(
         color: Colors.grey
             .withOpacity(0.2), // Add background color with some transparency
@@ -279,6 +289,29 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
         textAlign: TextAlign.center,
         textAlignVertical:
             TextAlignVertical.center, // Ensure hint text is centered vertically
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly, // Allow only digits
+          // Add a custom TextInputFormatter to add spaces
+          TextInputFormatter.withFunction((oldValue, newValue) {
+            // Remove spaces
+            String newText = newValue.text.replaceAll(' ', '');
+
+            // Add spaces every 3 digits
+            String formattedText = '';
+            for (int i = 0; i < newText.length; i++) {
+              if (i > 0 && (newText.length - i) % 3 == 0) {
+                formattedText += ' ';
+              }
+              formattedText += newText[i];
+            }
+
+            // Return the formatted value
+            return TextEditingValue(
+              text: formattedText,
+              selection: TextSelection.collapsed(offset: formattedText.length),
+            );
+          }),
+        ],
         decoration: const InputDecoration(
           border: InputBorder.none,
           hintText: 'Enter new offer',

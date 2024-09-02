@@ -10,6 +10,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'final_inspection_approval_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_back_button.dart'; // Import your custom back button
+import 'package:intl/intl.dart'; // Import the intl package
 
 class ConfirmationPage extends StatefulWidget {
   final String offerId;
@@ -45,7 +46,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     FirebaseFirestore.instance
         .collection('offers')
         .doc(widget.offerId)
-        .update({'offerStatus': 'Inspection Pending'});
+        .update({'offerStatus': 'inspection pending'});
   }
 
   @override
@@ -151,17 +152,21 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                       // Date Box
                       Container(
                         width: double.infinity,
+                        constraints: BoxConstraints(
+                          minHeight:
+                              screenSize.height * 0.05, // Set a minimum height
+                        ),
                         padding: const EdgeInsets.all(8.0),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
-                          'DATE: ${widget.date.toLocal().toString().split(' ')[0]}', // Format date as YYYY-MM-DD
+                          'DATE: ${DateFormat('d MMMM yyyy').format(widget.date)}', // Format date as 25 September 2024
                           style: GoogleFonts.montserrat(
-                              fontSize: screenSize.height * 0.023,
+                              fontSize: screenSize.height * 0.018,
                               color: Colors.white,
-                              fontWeight: FontWeight.w700),
+                              fontWeight: FontWeight.w500),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -169,6 +174,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                       // Time Box
                       Container(
                         width: double.infinity,
+                        constraints: BoxConstraints(
+                          minHeight:
+                              screenSize.height * 0.05, // Set a minimum height
+                        ),
                         padding: const EdgeInsets.all(8.0),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white),
@@ -177,9 +186,9 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                         child: Text(
                           'TIME: ${widget.time}',
                           style: GoogleFonts.montserrat(
-                              fontSize: screenSize.height * 0.023,
+                              fontSize: screenSize.height * 0.018,
                               color: Colors.white,
-                              fontWeight: FontWeight.w700),
+                              fontWeight: FontWeight.w500),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -187,6 +196,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                       // Location Box
                       Container(
                         width: double.infinity,
+                        constraints: BoxConstraints(
+                          minHeight:
+                              screenSize.height * 0.05, // Set a minimum height
+                        ),
                         padding: const EdgeInsets.all(8.0),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white),
@@ -195,8 +208,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                         child: Text(
                           widget.address,
                           style: GoogleFonts.montserrat(
-                            fontSize: screenSize.height * 0.023,
-                            fontWeight: FontWeight.bold,
+                            fontSize: screenSize.height * 0.018,
+                            fontWeight: FontWeight.w500,
                             color: Colors.white,
                           ),
                           textAlign: TextAlign.center,

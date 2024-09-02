@@ -22,9 +22,7 @@ class TradingCategoryPage extends StatelessWidget {
     if (role == 'dealer') {
       Navigator.pushReplacementNamed(context, '/preferedBrands');
     } else if (role == 'transporter') {
-      Navigator.pushReplacementNamed(context, '/addProfilePhoto');
-    } else {
-      Navigator.pushReplacementNamed(context, '/addProfilePhoto');
+      Navigator.pushReplacementNamed(context, '/addProfilePhotoTransporter');
     }
   }
 

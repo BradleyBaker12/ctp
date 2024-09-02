@@ -67,8 +67,11 @@ class WishCard extends StatelessWidget {
                         children: [
                           Text(
                             vehicleMakeModel.toUpperCase(),
-                            style:
-                                customFont(15, FontWeight.bold, Colors.white),
+                            style: customFont(
+                              15,
+                              FontWeight.w800,
+                              Colors.white,
+                            ),
                           ),
                           const SizedBox(height: 5),
                         ],

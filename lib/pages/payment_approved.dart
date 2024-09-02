@@ -17,8 +17,7 @@ class PaymentApprovedPage extends StatefulWidget {
 }
 
 class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
-  int _selectedIndex =
-      0; // Variable to keep track of the selected bottom nav item
+  int _selectedIndex = 0;
 
   Future<Map<String, dynamic>> _fetchOfferData(String offerId) async {
     final offerSnapshot = await FirebaseFirestore.instance
@@ -56,7 +55,6 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Update the offer status to "Payment Approved"
     FirebaseFirestore.instance
         .collection('offers')
         .doc(widget.offerId)
@@ -96,7 +94,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                 final mainImageUrl = vehicleData['mainImageUrl'] ?? '';
                 final readyDate =
                     offerData['dealerSelectedCollectionDate'] != null
-                        ? DateFormat('dd / MM / yyyy').format(
+                        ? DateFormat('d MMMM yyyy').format(
                             offerData['dealerSelectedCollectionDate'].toDate())
                         : 'Unknown Date';
                 final readyTime =
@@ -207,7 +205,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Text(
-                            location,
+                            location.toUpperCase(),
                             style: const TextStyle(
                               fontSize: 16,
                               color: Colors.white,
@@ -239,7 +237,9 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ReportIssuePage(offerId: widget.offerId,),
+                                builder: (context) => ReportIssuePage(
+                                  offerId: widget.offerId,
+                                ),
                               ),
                             );
                           },
