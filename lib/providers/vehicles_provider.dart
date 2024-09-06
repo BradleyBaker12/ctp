@@ -6,9 +6,18 @@ class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
   bool _isLoading = true;
   DocumentSnapshot? _lastFetchedDocument;
+  String? _vehicleId; // Field to store the vehicleId
 
   List<Vehicle> get vehicles => _vehicles;
   bool get isLoading => _isLoading;
+
+  String? get vehicleId => _vehicleId; // Getter for vehicleId
+
+  // Setter for vehicleId
+  void setVehicleId(String id) {
+    _vehicleId = id;
+    notifyListeners(); // Notifies listeners when vehicleId changes
+  }
 
   ValueNotifier<List<Vehicle>> vehicleListenable = ValueNotifier([]);
 

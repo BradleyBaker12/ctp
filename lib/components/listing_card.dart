@@ -55,7 +55,7 @@ class ListingCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(10.0),
                   height: 120, // Fixed height to avoid layout issues
-                  color: Colors.black87, // Background color
+                  color: Colors.blue, // Background color
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,

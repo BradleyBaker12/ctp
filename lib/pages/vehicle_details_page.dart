@@ -387,7 +387,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                   },
                                 ),
                               ),
-                              Positioned.fill(
+                              IgnorePointer(
                                 child: Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(

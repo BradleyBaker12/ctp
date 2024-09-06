@@ -7,6 +7,8 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:provider/provider.dart'; // Import for Provider
+import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
 
 class FourthFormPage extends StatefulWidget {
   const FourthFormPage({super.key});
@@ -37,7 +39,7 @@ class _FourthFormPageState extends State<FourthFormPage> {
     }
   }
 
-  Future<void> _submitForm(String docId, File? imageFile) async {
+  Future<void> _submitForm(File? imageFile) async {
     setState(() {
       _isLoading = true;
     });
@@ -45,36 +47,44 @@ class _FourthFormPageState extends State<FourthFormPage> {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
       final FirebaseStorage storage = FirebaseStorage.instance;
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      String? vehicleId = vehicleProvider.vehicleId;
 
-      String? rc1NatisFileUrl;
-      if (_rc1NatisFile != null) {
-        // Upload the RC1/NATIS file to Firebase Storage
-        final ref = storage.ref().child('vehicles/$docId/rc1NatisFile.jpg');
-        final uploadTask = ref.putFile(File(_rc1NatisFile!));
-        final snapshot = await uploadTask;
-        rc1NatisFileUrl = await snapshot.ref.getDownloadURL();
+      if (vehicleId != null) {
+        String? rc1NatisFileUrl;
+        if (_rc1NatisFile != null) {
+          // Upload the RC1/NATIS file to Firebase Storage
+          final ref =
+              storage.ref().child('vehicles/$vehicleId/rc1NatisFile.jpg');
+          final uploadTask = ref.putFile(File(_rc1NatisFile!));
+          final snapshot = await uploadTask;
+          rc1NatisFileUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        // Save the file URL to Firestore
+        await firestore.collection('vehicles').doc(vehicleId).update({
+          'rc1NatisFile': rc1NatisFileUrl,
+        });
+
+        print("Form submitted successfully!");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Form submitted successfully!')),
+        );
+
+        // Navigate to the FifthFormPage
+        Navigator.pushNamed(
+          context,
+          '/fifthTruckForm',
+          arguments: {
+            'docId': vehicleId,
+            'image': imageFile,
+          },
+        );
+      } else {
+        print('Error: vehicleId is null');
       }
-
-      // Save the file URL to Firestore
-      await firestore.collection('vehicles').doc(docId).update({
-        'rc1NatisFile': rc1NatisFileUrl,
-      });
-
-      print("Form submitted successfully!");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form submitted successfully!')),
-      );
-
-      // Navigate to the FifthFormPage
-      Navigator.pushNamed(
-        context,
-        '/fifthTruckForm',
-        arguments: {
-          'docId': docId,
-          'image': imageFile,
-        },
-      );
     } catch (e) {
       print("Error submitting form: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,9 +102,8 @@ class _FourthFormPageState extends State<FourthFormPage> {
     final Map<String, dynamic>? args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final File? imageFile = args?['image'] as File?;
-    final String? docId = args?['docId'] as String?;
 
-    if (args == null || docId == null) {
+    if (args == null) {
       return const Scaffold(
         body: Center(
           child: Text(
@@ -223,7 +232,7 @@ class _FourthFormPageState extends State<FourthFormPage> {
                                 borderColor: const Color(0xFFFF4E00),
                                 onPressed: _isLoading
                                     ? () {}
-                                    : () => _submitForm(docId, imageFile),
+                                    : () => _submitForm(imageFile),
                               ),
                             ),
                             const SizedBox(height: 10),

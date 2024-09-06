@@ -100,14 +100,27 @@ class _SignInPageState extends State<SignInPage> {
     }
 
     try {
-      await _auth.sendPasswordResetEmail(email: _emailController.text);
+      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password reset email sent!')),
       );
     } on FirebaseAuthException catch (e) {
-      print("Error: ${e.toString()}");
+      String errorMessage;
+
+      switch (e.code) {
+        case 'invalid-email':
+          errorMessage =
+              'The email address is not valid. Please check it and try again.';
+          break;
+        case 'user-not-found':
+          errorMessage = 'No user found with that email address.';
+          break;
+        default:
+          errorMessage = e.message ?? 'An unknown error occurred.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.message}')),
+        SnackBar(content: Text(errorMessage)),
       );
     }
   }

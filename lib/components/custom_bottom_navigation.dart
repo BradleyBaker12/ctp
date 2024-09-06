@@ -1,3 +1,4 @@
+import 'package:ctp/pages/offersPage.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/profile_page.dart';
@@ -32,31 +33,46 @@ class CustomBottomNavigation extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const HomePage()),
           );
         } else if (index == 1) {
-          if (userRole == 'dealer') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const TruckPage(
-                      )),
-            );
-          } else if (userRole == 'transporter') {
+          if (userRole == 'transporter') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const VehiclesListPage()),
             );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const TruckPage()),
+            );
           }
         } else if (index == 2) {
+          if (userRole == 'transporter') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const OffersPage()),
+            );
+          }
+        } else if (index == 3 && userRole != 'transporter') {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const WishlistOffersPage()),
           );
-        } else if (index == 3) {
+        } else if (index == 4) {
+          if (userRole == 'dealer') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const OffersPage()),
+            );
+          }
+        } else if (index == 5 && userRole != 'dealer') {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const ProfilePage()),
           );
         }
-        onItemTapped(index);
+
+        if (!(userRole == 'dealer' && index == 3)) {
+          onItemTapped(index);
+        }
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -79,6 +95,9 @@ class CustomBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userRole = userProvider.getUserRole;
+
     return Container(
       height: 80,
       color: const Color(0xFF2F7FFF),
@@ -89,8 +108,14 @@ class CustomBottomNavigation extends StatelessWidget {
           _buildNavBarItem(context, Icons.home, selectedIndex == 0, 0),
           _buildNavBarItem(
               context, Icons.local_shipping, selectedIndex == 1, 1),
-          _buildNavBarItem(context, Icons.favorite, selectedIndex == 2, 2),
-          _buildNavBarItem(context, Icons.person, selectedIndex == 3, 3),
+          if (userRole == 'transporter')
+            _buildNavBarItem(context, Icons.handshake, selectedIndex == 2, 2),
+          if (userRole != 'transporter')
+            _buildNavBarItem(context, Icons.favorite, selectedIndex == 3, 3),
+          if (userRole == 'dealer')
+            _buildNavBarItem(context, Icons.handshake, selectedIndex == 4, 4),
+          if (userRole != 'dealer')
+            _buildNavBarItem(context, Icons.person, selectedIndex == 5, 5),
         ],
       ),
     );

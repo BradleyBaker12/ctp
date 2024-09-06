@@ -1,5 +1,6 @@
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
+import 'package:ctp/pages/transport_offer_details_page.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
@@ -256,6 +257,59 @@ class _OfferCardState extends State<OfferCard> {
     final resolvedComplaint =
         complaintsProvider.getResolvedComplaint(widget.offer.offerId);
 
+    // Check user role and navigate accordingly
+    if (userRole == 'transporter') {
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      Vehicle? vehicle;
+
+      try {
+        vehicle = vehicleProvider.vehicles.firstWhere(
+          (v) => v.id == widget.offer.vehicleId,
+          orElse: () => throw Exception('Vehicle not found in provider'),
+        );
+      } catch (e) {
+        try {
+          DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+              .collection('vehicles')
+              .doc(widget.offer.vehicleId)
+              .get();
+
+          if (vehicleSnapshot.exists) {
+            vehicle = Vehicle.fromDocument(vehicleSnapshot);
+            vehicleProvider.addVehicle(vehicle); // Add to provider
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Vehicle details not found.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error fetching vehicle details: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TransporterOfferDetailsPage(
+            offer: widget.offer,
+            vehicle: vehicle!,
+          ),
+        ),
+      );
+      return;
+    }
+
     if (resolvedComplaint != null &&
         resolvedComplaint['complaintStatus'] == 'resolved') {
       // Handle resolved complaints
@@ -463,7 +517,8 @@ class _OfferCardState extends State<OfferCard> {
 
   Widget _buildDealerCard(Color statusColor, BoxConstraints constraints) {
     var screenSize = MediaQuery.of(context).size;
-    double cardHeight = 120.0; // Set a fixed height for consistency
+    double cardHeight =
+        screenSize.height * 0.13; // Set a fixed height for consistency
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -609,46 +664,100 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
-    return Row(
+    var screenSize = MediaQuery.of(context).size;
+    double cardHeight = screenSize.height * 0.13; // Same as dealer card height
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: constraints.maxWidth * 0.02,
-          color: Colors.green,
-        ),
-        Expanded(
-          child: Container(
-            color: Colors.blue,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'OFFER OF ${formatOfferAmount(widget.offer.offerAmount)}'
-                      .toUpperCase(),
-                  style: customFont(18, FontWeight.bold, Colors.white),
-                ),
-                const SizedBox(height: 8),
-              ],
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () => navigateBasedOnStatus(context),
+              child: Container(
+                width: constraints.maxWidth * 0.06, // Same side indicator width
+                height: cardHeight, // Fixed height
+                color: Colors.green,
+              ),
             ),
-          ),
-        ),
-        Container(
-          width: constraints.maxWidth * 0.2,
-          height: 120,
-          color: Colors.green,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.remove_red_eye, color: Colors.white),
-                const SizedBox(height: 8),
-                Text(
-                  'View',
-                  style: customFont(16, FontWeight.bold, Colors.white),
+            GestureDetector(
+              onTap: () => navigateToVehicleDetails(),
+              child: Container(
+                width:
+                    constraints.maxWidth * 0.22, // Same image container width
+                height: cardHeight, // Fixed height
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: widget.offer.vehicleMainImage != null
+                        ? NetworkImage(widget.offer.vehicleMainImage!)
+                        : const AssetImage(
+                                'lib/assets/default_vehicle_image.png')
+                            as ImageProvider,
+                    fit: BoxFit.cover,
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => navigateToVehicleDetails(),
+                child: Container(
+                  color: Colors.blue,
+                  padding: const EdgeInsets.all(10.0), // Same padding as dealer
+                  height: cardHeight, // Fixed height
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        (widget.offer.vehicleMakeModel ?? 'Unknown')
+                            .toUpperCase(),
+                        style: customFont(screenSize.height * 0.016,
+                            FontWeight.w800, Colors.white),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'Offer of ${formatOfferAmount(widget.offer.offerAmount)}'
+                            .toUpperCase(),
+                        style: customFont(screenSize.height * 0.015,
+                            FontWeight.w800, Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () => navigateBasedOnStatus(context),
+              child: Container(
+                width: constraints.maxWidth *
+                    0.23, // Same as dealer status section
+                height: cardHeight, // Fixed height
+                color: Colors.green, // Always green
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.remove_red_eye, // Always the eye icon
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          'View', // Always "View"
+                          style: customFont(screenSize.height * 0.016,
+                              FontWeight.bold, Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

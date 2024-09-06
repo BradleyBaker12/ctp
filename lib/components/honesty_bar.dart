@@ -8,7 +8,7 @@ class HonestyBarWidget extends StatelessWidget {
   const HonestyBarWidget({
     super.key,
     required this.vehicle,
-    this.heightFactor = 0.49, // Default height factor
+    this.heightFactor = 0.422, // Default height factor
   });
 
   double _calculateHonestyPercentage() {

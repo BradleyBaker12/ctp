@@ -67,8 +67,6 @@ class _EighthFormPageState extends State<EighthFormPage> {
       );
     }
 
-    var screenSize = MediaQuery.of(context).size;
-    var blue = const Color(0xFF2F7FFF);
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
@@ -135,17 +133,6 @@ class _EighthFormPageState extends State<EighthFormPage> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            const Center(
-                              child: Text(
-                                'Form Progress',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
                             const Center(
                               child: Text(
                                 'Form Complete!',

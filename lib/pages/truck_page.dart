@@ -1,3 +1,4 @@
+import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/honesty_bar.dart';
 import 'package:flutter/material.dart';
@@ -6,8 +7,8 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui'; // Required for the AppBar's blur effect
 
 class TruckPage extends StatefulWidget {
   final String? vehicleType; // Optional vehicleType, null means show all
@@ -51,7 +52,17 @@ class _TruckPageState extends State<TruckPage> {
           vehicleType: widget.vehicleType);
 
       setState(() {
-        displayedVehicles = vehicleProvider.vehicles.take(5).toList();
+        // Filter vehicles based on preferred brands
+        displayedVehicles = vehicleProvider.vehicles
+            .where((vehicle) {
+              return userProvider.getPreferredBrands.any((brand) => vehicle
+                  .makeModel
+                  .toLowerCase()
+                  .contains(brand.toLowerCase()));
+            })
+            .take(5)
+            .toList();
+
         loadedVehicleIndex = displayedVehicles.length;
         _isLoading = false; // Loading complete
       });
@@ -189,6 +200,10 @@ class _TruckPageState extends State<TruckPage> {
     setState(() {
       displayedVehicles = vehicleProvider.vehicles
           .where((vehicle) {
+            bool matchesPreferredBrand = userProvider.getPreferredBrands.any(
+                (brand) => vehicle.makeModel
+                    .toLowerCase()
+                    .contains(brand.toLowerCase()));
             bool matchesMakeModel = makeModel == null ||
                 makeModel == 'All' ||
                 vehicleProvider.doesMakeModelContainBrand(
@@ -203,7 +218,8 @@ class _TruckPageState extends State<TruckPage> {
                 userProvider.getLikedVehicles.contains(vehicle.id) ||
                     userProvider.getDislikedVehicles.contains(vehicle.id);
 
-            return matchesMakeModel &&
+            return matchesPreferredBrand &&
+                matchesMakeModel &&
                 matchesYear &&
                 matchesTransmission &&
                 !isLikedOrDisliked;
@@ -336,7 +352,7 @@ class _TruckPageState extends State<TruckPage> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      appBar: const BlurryAppBar(),
+      appBar: CustomAppBar(),
       backgroundColor: Colors.black,
       body: Stack(
         children: [
@@ -455,12 +471,9 @@ class _TruckPageState extends State<TruckPage> {
             left: 16,
             right: 16,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment:
+                  MainAxisAlignment.end, // Adjusted to remove the logo
               children: [
-                Image.asset(
-                  'lib/assets/CTPLogo.png',
-                  width: size.width * 0.15,
-                ),
                 Row(
                   children: [
                     IconButton(
@@ -638,7 +651,8 @@ class _TruckPageState extends State<TruckPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(left: 2.0),
+                                padding:
+                                    EdgeInsets.only(left: size.width * 0.005),
                                 child: Text(
                                   "GAUTENG, PRETORIA", // Add location text above the name
                                   style: _customFont(
@@ -650,21 +664,23 @@ class _TruckPageState extends State<TruckPage> {
                               ),
                               Row(
                                 children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                        left: 2.0, bottom: 10),
-                                    child: Text(
-                                      vehicle.makeModel.length > 16
-                                          ? '${vehicle.makeModel.substring(0, 15).toUpperCase()}...'
-                                          : vehicle.makeModel,
-                                      style: _customFont(
-                                        size.height * 0.03,
-                                        FontWeight.w900,
-                                        Colors.white,
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                          left: size.width * 0.005,
+                                          bottom: size.height * 0.009),
+                                      child: Text(
+                                        vehicle.makeModel.length > 16
+                                            ? '${vehicle.makeModel.substring(0, 15).toUpperCase()}...'
+                                            : vehicle.makeModel,
+                                        style: _customFont(
+                                          size.height * 0.03,
+                                          FontWeight.w900,
+                                          Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 60),
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: Image.asset(
@@ -673,7 +689,6 @@ class _TruckPageState extends State<TruckPage> {
                                       height: size.height * 0.05,
                                     ),
                                   ),
-                                  const SizedBox(height: 30)
                                 ],
                               ),
                             ],
@@ -726,7 +741,7 @@ class _TruckPageState extends State<TruckPage> {
                                   vehicle),
                             ],
                           ),
-                          const SizedBox(height: 15),
+                          SizedBox(height: size.height * 0.015),
                         ],
                       ),
                     ),
@@ -734,8 +749,9 @@ class _TruckPageState extends State<TruckPage> {
 
                   // Honesty Bar Widget
                   Positioned(
-                    top: 52,
-                    right: 12,
+                    top: size.height *
+                        0.055, // Dynamically adjusted based on screen size
+                    right: size.width * 0.03, // Dynamically adjusted
                     child: HonestyBarWidget(vehicle: vehicle),
                   ),
                 ],
@@ -762,7 +778,6 @@ class _TruckPageState extends State<TruckPage> {
       child: Container(
         height: screenSize.height * 0.06,
         width: screenSize.width * 0.22,
-        
         decoration: BoxDecoration(
           color: Colors.grey[900],
           borderRadius: BorderRadius.circular(10),

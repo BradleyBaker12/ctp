@@ -26,8 +26,16 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   int _selectedIndex = 0;
   bool _isLoading = false;
 
-  final List<String> _locations = ['Vereeniging', 'Meyerton', 'Springs'];
-  final List<String> _addresses = ['Vereenging', 'Meyerton', 'Springs'];
+  final List<String> _locations = [
+    'Vereeniging, South Africa',
+    'Meyerton, South Africa',
+    'Springs, South Africa'
+  ];
+  final List<String> _addresses = [
+    'Vereenging, South Africa',
+    'Meyerton, South Africa',
+    'Springs, South Africa'
+  ];
   final List<LatLng> _latLngs = [];
 
   final Map<int, List<DateTime>> _locationDates = {

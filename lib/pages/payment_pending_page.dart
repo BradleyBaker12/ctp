@@ -85,89 +85,96 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
     return Scaffold(
       body: GradientBackground(
         child: Container(
-          height: MediaQuery.of(context).size.height,
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Image.asset('lib/assets/CTPLogo.png'),
-                  const SizedBox(height: 100),
-                  const Text(
-                    'PAYMENT PENDING',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "You're almost there!",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  const SizedBox(
-                    width: 350,
-                    child: Text(
-                      'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: IconButton(
+                          icon:
+                              const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                children: [
-                  CustomButton(
-                    text: 'UPLOAD PROOF OF PAYMENT',
-                    borderColor: Colors.blue,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              UploadProofOfPaymentPage(offerId: widget.offerId),
+                      const SizedBox(height: 32),
+                      Image.asset('lib/assets/CTPLogo.png'),
+                      const SizedBox(height: 100),
+                      const Text(
+                        'PAYMENT PENDING',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                      );
-                    },
-                  ),
-                  CustomButton(
-                    text: 'REPORT AN ISSUE',
-                    borderColor: const Color(0xFFFF4E00),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ReportIssuePage(
-                            offerId: widget.offerId,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "You're almost there!",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      const SizedBox(
+                        width: 350,
+                        child: Text(
+                          'Full payment needs to reflect before arranging collection. If payment is not made within 3 days, the transaction will be cancelled and other dealers will be able to offer again.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                      );
-                    },
+                      ),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      CustomButton(
+                        text: 'UPLOAD PROOF OF PAYMENT',
+                        borderColor: Colors.blue,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UploadProofOfPaymentPage(
+                                  offerId: widget.offerId),
+                            ),
+                          );
+                        },
+                      ),
+                      CustomButton(
+                        text: 'REPORT AN ISSUE',
+                        borderColor: const Color(0xFFFF4E00),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ReportIssuePage(
+                                offerId: widget.offerId,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),

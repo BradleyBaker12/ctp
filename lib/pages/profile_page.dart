@@ -174,7 +174,7 @@ class ProfilePage extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: 3, // Index for the profile tab
+        selectedIndex: 5, // Index for the profile tab
         onItemTapped: (index) {
           // Handle navigation
         },

@@ -79,7 +79,6 @@ class _TransporterRegistrationPageState
     });
   }
 
-
   Future<void> _pickFile(String fieldName) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles();
@@ -220,6 +219,28 @@ class _TransporterRegistrationPageState
                                   fontSize: 16,
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          Center(
+                            child: Text(
+                              'CTP Offers a way for you to sell your vehicle to multiple dealers in SA',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          Center(
+                            child: Text(
+                              'CTP’s fees are R12500,00 flat fee',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -381,7 +402,9 @@ class _TransporterRegistrationPageState
             Container(
               color: Colors.black.withOpacity(0.5),
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(
+                  color: Color(0xFFFF4E00),
+                ),
               ),
             ),
         ],

@@ -67,9 +67,11 @@ class _LoginPageState extends State<LoginPage> {
                                 vertical: constraints.maxHeight * 0.02,
                               ),
                               child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
+                                  SizedBox(
+                                    height: constraints.maxHeight * 0.01,
+                                  ),
                                   Text(
                                     'COMMERCIAL TRADER PORTAL',
                                     style: GoogleFonts.montserrat(

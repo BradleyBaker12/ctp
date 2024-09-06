@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:provider/provider.dart'; // Import for Provider
+import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
 
 class FifthFormPage extends StatefulWidget {
   const FifthFormPage({super.key});
@@ -54,7 +56,7 @@ class _FifthFormPageState extends State<FifthFormPage> {
     });
   }
 
-  Future<void> _submitForm(String docId, File? imageFile) async {
+  Future<void> _submitForm(File? imageFile) async {
     setState(() {
       _isLoading = true;
     });
@@ -62,61 +64,68 @@ class _FifthFormPageState extends State<FifthFormPage> {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
       final FirebaseStorage storage = FirebaseStorage.instance;
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      String? vehicleId = vehicleProvider.vehicleId;
 
-      // Function to upload file to Firebase Storage
-      Future<String> uploadFile(File file, String fileName) async {
-        final ref = storage.ref().child('vehicles/$docId/$fileName');
-        final task = ref.putFile(file);
-        final snapshot = await task;
-        return await snapshot.ref.getDownloadURL();
-      }
-
-      // Upload images and get URLs
-      String? dashboardPhotoUrl;
-      if (_dashboardPhoto != null) {
-        dashboardPhotoUrl =
-            await uploadFile(_dashboardPhoto!, 'dashboard_photo.jpg');
-      }
-
-      String? faultCodesPhotoUrl;
-      if (_faultCodesPhoto != null) {
-        faultCodesPhotoUrl =
-            await uploadFile(_faultCodesPhoto!, 'fault_codes_photo.jpg');
-      }
-
-      List<String?> damagePhotoUrls =
-          await Future.wait(_damagePhotos.map((file) async {
-        if (file != null) {
-          return await uploadFile(
-              file, 'damage_photo_${_damagePhotos.indexOf(file)}.jpg');
+      if (vehicleId != null) {
+        // Function to upload file to Firebase Storage
+        Future<String> uploadFile(File file, String fileName) async {
+          final ref = storage.ref().child('vehicles/$vehicleId/$fileName');
+          final task = ref.putFile(file);
+          final snapshot = await task;
+          return await snapshot.ref.getDownloadURL();
         }
-        return null;
-      }).toList());
 
-      // Update Firestore with URLs
-      await firestore.collection('vehicles').doc(docId).update({
-        'listDamages': _listDamages,
-        'damageDescription': _damageDescriptionController.text,
-        'dashboardPhoto': dashboardPhotoUrl,
-        'faultCodesPhoto': faultCodesPhotoUrl,
-        'damagePhotos': damagePhotoUrls,
-      });
+        // Upload images and get URLs
+        String? dashboardPhotoUrl;
+        if (_dashboardPhoto != null) {
+          dashboardPhotoUrl =
+              await uploadFile(_dashboardPhoto!, 'dashboard_photo.jpg');
+        }
 
-      print("Form submitted successfully!");
+        String? faultCodesPhotoUrl;
+        if (_faultCodesPhoto != null) {
+          faultCodesPhotoUrl =
+              await uploadFile(_faultCodesPhoto!, 'fault_codes_photo.jpg');
+        }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form submitted successfully!')),
-      );
+        List<String?> damagePhotoUrls =
+            await Future.wait(_damagePhotos.map((file) async {
+          if (file != null) {
+            return await uploadFile(
+                file, 'damage_photo_${_damagePhotos.indexOf(file)}.jpg');
+          }
+          return null;
+        }).toList());
 
-      // Navigate to the SixthFormPage
-      Navigator.pushNamed(
-        context,
-        '/sixthTruckForm',
-        arguments: {
-          'docId': docId,
-          'image': imageFile,
-        },
-      );
+        // Update Firestore with URLs
+        await firestore.collection('vehicles').doc(vehicleId).update({
+          'listDamages': _listDamages,
+          'damageDescription': _damageDescriptionController.text,
+          'dashboardPhoto': dashboardPhotoUrl,
+          'faultCodesPhoto': faultCodesPhotoUrl,
+          'damagePhotos': damagePhotoUrls,
+        });
+
+        print("Form submitted successfully!");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Form submitted successfully!')),
+        );
+
+        // Navigate to the SixthFormPage
+        Navigator.pushNamed(
+          context,
+          '/sixthTruckForm',
+          arguments: {
+            'docId': vehicleId,
+            'image': imageFile,
+          },
+        );
+      } else {
+        print('Error: vehicleId is null');
+      }
     } catch (e) {
       print("Error submitting form: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,18 +143,6 @@ class _FifthFormPageState extends State<FifthFormPage> {
     final Map<String, dynamic>? args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final File? imageFile = args?['image'] as File?;
-    final String? docId = args?['docId'] as String?;
-
-    if (args == null || docId == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text(
-            'Invalid or missing arguments. Please try again.',
-            style: TextStyle(color: Colors.red),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       body: Stack(
@@ -383,7 +380,7 @@ class _FifthFormPageState extends State<FifthFormPage> {
                                 borderColor: const Color(0xFFFF4E00),
                                 onPressed: _isLoading
                                     ? () {}
-                                    : () => _submitForm(docId, imageFile),
+                                    : () => _submitForm(imageFile),
                               ),
                             ),
                             const SizedBox(height: 10),

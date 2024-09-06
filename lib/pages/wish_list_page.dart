@@ -226,7 +226,7 @@ class _WishlistPageState extends State<WishlistPage> {
                         return WishCard(
                           vehicleMakeModel: vehicle.makeModel,
                           vehicleImageUrl: imageUrl,
-                          size: screenSize,
+                          size: screenSize, // Use screenSize instead of size
                           customFont: (double fontSize, FontWeight fontWeight,
                               Color color) {
                             return TextStyle(
@@ -236,7 +236,7 @@ class _WishlistPageState extends State<WishlistPage> {
                               fontFamily: 'Montserrat',
                             );
                           },
-                          hasOffer: hasOffer,
+                          hasOffer: hasOffer, // Pass offer status to WishCard
                           onTap: () {
                             Navigator.push(
                               context,
@@ -246,6 +246,37 @@ class _WishlistPageState extends State<WishlistPage> {
                               ),
                             );
                           },
+                          onDelete: () async {
+                            // Remove the vehicle from Firestore 'likedVehicles' list
+                            User? user = FirebaseAuth.instance.currentUser;
+                            if (user != null) {
+                              DocumentReference userDocRef = FirebaseFirestore
+                                  .instance
+                                  .collection('users')
+                                  .doc(user.uid);
+
+                              await userDocRef.update({
+                                'likedVehicles': FieldValue.arrayRemove([
+                                  vehicleDoc.id
+                                ]), // Remove vehicle ID from the array
+                              });
+
+                              // Remove the vehicle from the local wishlist
+                              setState(() {
+                                _wishlistVehicles.remove(
+                                    vehicleDoc); // Remove vehicle locally
+                              });
+
+                              // Show a confirmation snackbar
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      '${vehicle.makeModel} removed from wishlist.'),
+                                ),
+                              );
+                            }
+                          },
+                          vehicleId: vehicle.id,
                         );
                       },
                     );
@@ -257,7 +288,7 @@ class _WishlistPageState extends State<WishlistPage> {
         ),
       ),
       bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: 2,
+        selectedIndex: 3,
         onItemTapped: (index) {
           setState(() {
             // Handle navigation here

@@ -7,10 +7,12 @@ import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/house_rules_page.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
 import 'package:ctp/pages/login.dart';
+import 'package:ctp/pages/offersPage.dart';
 import 'package:ctp/pages/otp_page.dart';
 import 'package:ctp/pages/pending_offers_page.dart';
 import 'package:ctp/pages/phone_number_page.dart';
 import 'package:ctp/pages/prefered_brands.dart';
+import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/sign_in_page.dart';
 import 'package:ctp/pages/signup_page.dart';
 import 'package:ctp/pages/trading_category_page.dart';
@@ -102,6 +104,8 @@ class MyApp extends StatelessWidget {
         '/eighthTruckForm': (context) => const EighthFormPage(),
         '/pendingOffers': (context) => const PendingOffersPage(),
         '/truckPage': (context) => const TruckPage(),
+        '/offers': (context) => const OffersPage(),
+        '/profile': (context) => const ProfilePage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
@@ -126,15 +130,16 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    return FutureBuilder(
+      future: userProvider.fetchUserData(), // Ensure user data is fetched
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasData) {
-          return _navigateToHome(
-              context); // Navigate to HomePage with removal of previous screens
+        if (snapshot.hasData || userProvider.getUser != null) {
+          return _navigateToHome(context);
         } else {
           return const LoginPage();
         }
@@ -142,13 +147,12 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 
-  // Function to navigate to HomePage and remove previous routes
   Widget _navigateToHome(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
-        (route) => false, // This removes all previous routes
+        (route) => false,
       );
     });
     return Container(); // Return an empty container as a placeholder

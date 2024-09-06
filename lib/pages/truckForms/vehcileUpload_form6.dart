@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:provider/provider.dart'; // Import for Provider
+import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
 
 class SixthFormPage extends StatefulWidget {
   const SixthFormPage({super.key});
@@ -20,12 +22,13 @@ class _SixthFormPageState extends State<SixthFormPage> {
 
   String _tyreType = 'virgin';
   String _spareTyre = 'yes';
-  File? _tyrePhoto1;
-  File? _tyrePhoto2;
+  File? _frontRightTyre;
+  File? _frontLeftTyre;
+  File? _spareWheelTyre;
   String? _treadLeft;
   bool _isLoading = false;
 
-  final List<String> _treadOptions = ['Option 1', 'Option 2', 'Option 3'];
+  final List<String> _treadOptions = ['10% - 50%', '51% - 79%', '80% - 100%'];
 
   Future<void> _pickImage(ImageSource source, {required int index}) async {
     try {
@@ -33,9 +36,11 @@ class _SixthFormPageState extends State<SixthFormPage> {
       if (pickedFile != null) {
         setState(() {
           if (index == 1) {
-            _tyrePhoto1 = File(pickedFile.path);
+            _frontRightTyre = File(pickedFile.path);
           } else if (index == 2) {
-            _tyrePhoto2 = File(pickedFile.path);
+            _frontLeftTyre = File(pickedFile.path);
+          } else if (index == 3) {
+            _spareWheelTyre = File(pickedFile.path);
           }
         });
       }
@@ -47,7 +52,7 @@ class _SixthFormPageState extends State<SixthFormPage> {
     }
   }
 
-  Future<void> _submitForm(String docId, File? imageFile) async {
+  Future<void> _submitForm(File? imageFile) async {
     setState(() {
       _isLoading = true;
     });
@@ -55,47 +60,58 @@ class _SixthFormPageState extends State<SixthFormPage> {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
       final FirebaseStorage storage = FirebaseStorage.instance;
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      String? vehicleId = vehicleProvider.vehicleId;
 
-      // Function to upload file to Firebase Storage
-      Future<String> uploadFile(String filePath, String fileName) async {
-        final ref = storage.ref().child('vehicles/$docId/$fileName');
-        final task = ref.putFile(File(filePath));
-        final snapshot = await task;
-        return await snapshot.ref.getDownloadURL();
+      if (vehicleId != null) {
+        // Function to upload file to Firebase Storage
+        Future<String> uploadFile(String filePath, String fileName) async {
+          final ref = storage.ref().child('vehicles/$vehicleId/$fileName');
+          final task = ref.putFile(File(filePath));
+          final snapshot = await task;
+          return await snapshot.ref.getDownloadURL();
+        }
+
+        // Upload images and get URLs
+        final frontRightTyreUrl = _frontRightTyre != null
+            ? await uploadFile(_frontRightTyre!.path, 'front_right_tyre.jpg')
+            : null;
+        final frontLeftTyreUrl = _frontLeftTyre != null
+            ? await uploadFile(_frontLeftTyre!.path, 'front_left_tyre.jpg')
+            : null;
+        final spareWheelTyreUrl = _spareWheelTyre != null
+            ? await uploadFile(_spareWheelTyre!.path, 'spare_wheel_tyre.jpg')
+            : null;
+
+        // Update Firestore with URLs
+        await firestore.collection('vehicles').doc(vehicleId).update({
+          'tyreType': _tyreType,
+          'spareTyre': _spareTyre,
+          'frontRightTyre': frontRightTyreUrl,
+          'frontLeftTyre': frontLeftTyreUrl,
+          'spareWheelTyre': spareWheelTyreUrl,
+          'treadLeft': _treadLeft,
+        });
+
+        print("Form submitted successfully!");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Form submitted successfully!')),
+        );
+
+        // Navigate to the SeventhFormPage
+        Navigator.pushNamed(
+          context,
+          '/seventhTruckForm',
+          arguments: {
+            'docId': vehicleId,
+            'image': imageFile,
+          },
+        );
+      } else {
+        print('Error: vehicleId is null');
       }
-
-      // Upload images and get URLs
-      final tyrePhoto1Url = _tyrePhoto1 != null
-          ? await uploadFile(_tyrePhoto1!.path, 'tyre_photo1.jpg')
-          : null;
-      final tyrePhoto2Url = _tyrePhoto2 != null
-          ? await uploadFile(_tyrePhoto2!.path, 'tyre_photo2.jpg')
-          : null;
-
-      // Update Firestore with URLs
-      await firestore.collection('vehicles').doc(docId).update({
-        'tyreType': _tyreType,
-        'spareTyre': _spareTyre,
-        'tyrePhoto1': tyrePhoto1Url,
-        'tyrePhoto2': tyrePhoto2Url,
-        'treadLeft': _treadLeft,
-      });
-
-      print("Form submitted successfully!");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form submitted successfully!')),
-      );
-
-      // Navigate to the SeventhFormPage
-      Navigator.pushNamed(
-        context,
-        '/seventhTruckForm',
-        arguments: {
-          'docId': docId,
-          'image': imageFile,
-        },
-      );
     } catch (e) {
       print("Error submitting form: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,22 +129,6 @@ class _SixthFormPageState extends State<SixthFormPage> {
     final Map<String, dynamic>? args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final File? imageFile = args?['image'] as File?;
-    final String? docId = args?['docId'] as String?;
-
-    if (args == null || docId == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text(
-            'Invalid or missing arguments. Please try again.',
-            style: TextStyle(color: Colors.red),
-          ),
-        ),
-      );
-    }
-
-    var screenSize = MediaQuery.of(context).size;
-    var blue = const Color(0xFF2F7FFF);
-    var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
       body: Stack(
@@ -252,89 +252,9 @@ class _SixthFormPageState extends State<SixthFormPage> {
                               },
                             ),
                             const SizedBox(height: 20),
-                            Center(
-                              child: GestureDetector(
-                                onTap: () => _pickImageDialog(1),
-                                child: Container(
-                                  height: 100,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    border: Border.all(
-                                        color: Colors.white70, width: 1),
-                                  ),
-                                  child: Center(
-                                    child: _tyrePhoto1 == null
-                                        ? const Icon(Icons.add,
-                                            color: Colors.blue, size: 40)
-                                        : ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.file(
-                                              _tyrePhoto1!,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Center(
-                              child: Text(
-                                'Picture of Tyre',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                            _buildTyreImageUploadBlock(1, 'Front Right Tyre'),
                             const SizedBox(height: 20),
-                            Center(
-                              child: GestureDetector(
-                                onTap: () => _pickImageDialog(2),
-                                child: Container(
-                                  height: 100,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    border: Border.all(
-                                        color: Colors.white70, width: 1),
-                                  ),
-                                  child: Center(
-                                    child: _tyrePhoto2 == null
-                                        ? const Icon(Icons.add,
-                                            color: Colors.blue, size: 40)
-                                        : ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.file(
-                                              _tyrePhoto2!,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Center(
-                              child: Text(
-                                'Picture of Tyre',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                            _buildTyreImageUploadBlock(2, 'Front Left Tyre'),
                             const SizedBox(height: 20),
                             const Center(
                               child: Text(
@@ -366,13 +286,15 @@ class _SixthFormPageState extends State<SixthFormPage> {
                               ],
                             ),
                             const SizedBox(height: 20),
+                            _buildTyreImageUploadBlock(3, 'Spare Wheel Tyre'),
+                            const SizedBox(height: 20),
                             Center(
                               child: CustomButton(
                                 text: 'CONTINUE',
-                                borderColor: orange,
+                                borderColor: const Color(0xFFFF4E00),
                                 onPressed: _isLoading
                                     ? () {}
-                                    : () => _submitForm(docId, imageFile),
+                                    : () => _submitForm(imageFile),
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -408,6 +330,58 @@ class _SixthFormPageState extends State<SixthFormPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTyreImageUploadBlock(int index, String label) {
+    File? tyreImage;
+    if (index == 1) {
+      tyreImage = _frontRightTyre;
+    } else if (index == 2) {
+      tyreImage = _frontLeftTyre;
+    } else if (index == 3) {
+      tyreImage = _spareWheelTyre;
+    }
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: () => _pickImageDialog(index),
+          child: Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: Colors.white70, width: 1),
+            ),
+            child: Center(
+              child: tyreImage == null
+                  ? const Icon(Icons.add, color: Colors.blue, size: 40)
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(10.0),
+                      child: Image.file(
+                        tyreImage,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
     );
   }
 

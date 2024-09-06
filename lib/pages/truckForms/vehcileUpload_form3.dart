@@ -1,3 +1,4 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
@@ -8,6 +9,8 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
+import 'package:intl/intl.dart'; // Import for number formatting
 
 class ThirdFormPage extends StatefulWidget {
   const ThirdFormPage({super.key});
@@ -23,6 +26,10 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
   String _settleBeforeSelling = 'yes';
   String? _settlementLetterFile;
   bool _isLoading = false;
+  bool _showCurrencySymbol = false; // To control when to show "R" symbol
+
+  // NumberFormat with commas, which will be replaced with spaces in the onChanged handler
+  final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
 
   Future<void> _pickFile() async {
     try {
@@ -40,7 +47,7 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
     }
   }
 
-  Future<void> _submitForm(String docId, Map<String, dynamic> args) async {
+  Future<void> _submitForm(Map<String, dynamic> args) async {
     if (!_formKey.currentState!.validate()) {
       print("Form validation failed.");
       return;
@@ -52,48 +59,59 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
 
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      final FirebaseStorage storage = FirebaseStorage.instance;
       final userId = Provider.of<UserProvider>(context, listen: false).userId;
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      String? vehicleId = vehicleProvider.vehicleId;
 
-      print("userId: $userId");
-      print("settleBeforeSelling: $_settleBeforeSelling");
-      print("settlementAmount: ${_amountController.text}");
-      print("settlementLetterFile: $_settlementLetterFile");
+      if (vehicleId != null) {
+        String? settlementLetterUrl;
 
-      if (userId == null) {
-        print("User ID is null. User is not logged in.");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('User not logged in. Please log in and try again.')),
-        );
-        setState(() {
-          _isLoading = false;
+        // Check if a settlement letter file was uploaded
+        if (_settlementLetterFile != null) {
+          String fileName =
+              _settlementLetterFile!.split('/').last; // Get file name
+          String fileExtension =
+              fileName.split('.').last; // Get file extension (e.g., jpg, pdf)
+
+          // Define the storage path based on the file extension
+          final ref = storage
+              .ref()
+              .child('vehicles/$vehicleId/settlementLetter.$fileExtension');
+          final uploadTask = ref.putFile(File(_settlementLetterFile!));
+          final snapshot = await uploadTask;
+          settlementLetterUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        // Update the existing vehicle document using vehicleId
+        await firestore.collection('vehicles').doc(vehicleId).update({
+          'settleBeforeSelling': _settleBeforeSelling,
+          'settlementAmount': _amountController.text
+              .replaceAll(" ", ""), // Remove spaces for saving
+          'settlementLetterFile': settlementLetterUrl ?? '', // Save file URL
+          'userId': userId,
         });
-        return;
+
+        print("Form submitted successfully!");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Form submitted successfully!')),
+        );
+
+        // Navigate to the FourthFormPage
+        Navigator.pushNamed(
+          context,
+          '/fourthTruckForm',
+          arguments: {
+            'docId': vehicleId,
+            'image': args['image'], // Pass along any required arguments
+          },
+        );
+      } else {
+        // Handle the case when vehicleId is null (if needed)
+        print('Error: vehicleId is null');
       }
-
-      await firestore.collection('vehicles').doc(docId).update({
-        'settleBeforeSelling': _settleBeforeSelling,
-        'settlementAmount': _amountController.text,
-        'settlementLetterFile': _settlementLetterFile ?? '', // Handle null case
-        'userId': userId,
-      });
-
-      print("Form submitted successfully!");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form submitted successfully!')),
-      );
-
-      // Navigate to the FourthFormPage
-      Navigator.pushNamed(
-        context,
-        '/fourthTruckForm',
-        arguments: {
-          'docId': docId,
-          'image': args['image'], // Pass along any required arguments
-        },
-      );
     } catch (e) {
       print("Error submitting form: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,9 +129,8 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
     final Map<String, dynamic>? args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final File? imageFile = args?['image'] as File?;
-    final String? docId = args?['docId'] as String?;
 
-    if (args == null || docId == null) {
+    if (args == null) {
       return const Scaffold(
         body: Center(
           child: Text(
@@ -125,7 +142,6 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
     }
 
     var screenSize = MediaQuery.of(context).size;
-    var blue = const Color(0xFF2F7FFF);
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
@@ -194,7 +210,7 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'Do you require the truck to be settled before selling?',
+                                'Bank Settlement Amount',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.white,
@@ -282,7 +298,7 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                                   const SizedBox(height: 20),
                                   const Center(
                                     child: Text(
-                                      'Please fill in our settlement amount',
+                                      'Settlement Amount',
                                       style: TextStyle(
                                         fontSize: 16,
                                         color: Colors.white,
@@ -304,7 +320,7 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                                 borderColor: orange,
                                 onPressed: _isLoading
                                     ? () {}
-                                    : () => _submitForm(docId, args),
+                                    : () => _submitForm(args),
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -339,14 +355,22 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
     );
   }
 
+  // Text field with number formatting, orange cursor, and conditional currency symbol (R)
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
   }) {
     return TextFormField(
       controller: controller,
+      keyboardType: TextInputType.number,
+      cursorColor: const Color(0xFFFF4E00), // Orange cursor color
       decoration: InputDecoration(
         hintText: hintText,
+        prefixText: _showCurrencySymbol
+            ? 'R '
+            : '', // Show "R" only if user starts typing
+        prefixStyle:
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
         fillColor: Colors.white.withOpacity(0.2),
@@ -356,8 +380,31 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
             color: Colors.white.withOpacity(0.5),
           ),
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: const BorderSide(
+            color: Color(0xFFFF4E00), // Orange border when focused
+            width: 2.0,
+          ),
+        ),
       ),
       style: const TextStyle(color: Colors.white),
+      onChanged: (value) {
+        setState(() {
+          _showCurrencySymbol = value.isNotEmpty;
+        });
+
+        if (value.isNotEmpty) {
+          // Format number with spaces
+          final formattedValue = _numberFormat
+              .format(int.parse(value.replaceAll(" ", "")))
+              .replaceAll(",", " ");
+          controller.value = TextEditingValue(
+            text: formattedValue,
+            selection: TextSelection.collapsed(offset: formattedValue.length),
+          );
+        }
+      },
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Please enter $hintText';
