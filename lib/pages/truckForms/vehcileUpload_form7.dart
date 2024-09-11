@@ -283,8 +283,13 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
             ),
           ),
           if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
+            SizedBox(
+              child: const Center(
+              
+                child: CircularProgressIndicator(
+                  color: Color(0xFFFF4E00),
+                ),
+              ),
             ),
           const Positioned(
             top: 40,

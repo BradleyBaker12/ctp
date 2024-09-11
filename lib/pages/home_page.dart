@@ -258,10 +258,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         future: _initialization,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
+            // Replace with the CTP loading GIF
             return const Center(
-                child: CircularProgressIndicator(
-              color: Color(0xFFFF4E00),
-            ));
+              child: Image(
+                image: AssetImage('lib/assets/Loading_Logo_CTP.gif'),
+                width: 100, // Adjust the width and height as needed
+                height: 100,
+              ),
+            );
           } else if (snapshot.hasError) {
             return Center(
                 child: Text('Error loading data',

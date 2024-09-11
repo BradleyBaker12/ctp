@@ -126,7 +126,13 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
               // Offer cards
               Expanded(
                 child: offerProvider.offers.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(
+                        child: Image.asset(
+                          'lib/assets/Loading_Logo_CTP.gif',
+                          width: 100, // Adjust size as needed
+                          height: 100,
+                        ),
+                      )
                     : ListView.builder(
                         itemCount: filteredOffers.length,
                         itemBuilder: (context, index) {

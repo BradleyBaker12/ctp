@@ -1,3 +1,4 @@
+import 'package:ctp/pages/setup_inspection.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
@@ -196,6 +197,7 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     var orange = const Color(0xFFFF4E00);
+    var blue = const Color(0xFF2F7FFF);
 
     return Scaffold(
       body: Stack(
@@ -408,6 +410,43 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                                         ),
                                       ),
                                     ),
+                                    const SizedBox(height: 20),
+
+                                    // Inspection and collection buttons are hidden here
+                                    /*
+                                    Center(
+                                      child: Column(
+                                        children: [
+                                          CustomButton(
+                                            text: 'Setup Inspection',
+                                            borderColor: blue,
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        SetupInspectionPage()),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
+                                          CustomButton(
+                                            text: 'Setup Collection',
+                                            borderColor: blue,
+                                            onPressed: () {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        'Setup Collection clicked')),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    */
+
                                     const SizedBox(height: 20),
                                     Center(
                                       child: CustomButton(

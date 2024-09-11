@@ -72,3 +72,19 @@ Fixed missing fiedls from the transporter upload truck forms
 Fixed the dropdown list to show the hint text before the user selects their options
 Add conditional rendering based on a yes/no selection from the user which will show text boxes for either reasoning or more informaiton
 Changes the warranty title to "Is it under a warranty"
+
+06/09/2024
+Fixed the issue were the data wasn't being pulled properly on the wish card
+
+09/09/2024
+Adjusting the wishlist card so that vehilce with offers will say that they have an offer
+Trying to fix image's not loading on wishcard lists
+Starting to add new CTP Loader to all pages
+
+10/09/2024
+Added inspection setup button and form for transporter to setup the locaiton , date and time for inspection
+
+11/09/2024
+Some vehilce were not showing on the vehicle list page, fixed that issue
+Images were not showing on the vehilce details page, fixed that as well
+Styled the vehilce listing page to look more like the designs

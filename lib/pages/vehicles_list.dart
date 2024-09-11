@@ -4,9 +4,9 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart'; // Import the custom bottom navigation
 import 'package:ctp/pages/vehicle_details_page.dart'; // Import the VehicleDetailsPage
+import 'package:ctp/components/custom_app_bar.dart'; // Import the custom app bar
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
@@ -33,40 +33,64 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
     // Fetch the current user's ID from the UserProvider
     final currentUserId = userProvider.userId;
 
-    // Filter vehicles by userId
-    final userVehicles = vehicleProvider.vehicles.where((vehicle) {
-      return vehicle.userId == currentUserId;
-    }).toList();
+    // Check if currentUserId is null
+    if (currentUserId == null) {
+      return Scaffold(
+        appBar: CustomAppBar(), // Use the custom app bar here
+        body: Center(
+          child: Text('User ID is not available.'),
+        ),
+      );
+    }
 
-    return Scaffold(
-      appBar: const BlurryAppBar(),
-      body: GradientBackground(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+    // Get the filtered vehicles by current userId
+    final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
+
+    // Debugging: Print how many vehicles are being displayed for the user
+    print(
+        'Total vehicles to be displayed for user $currentUserId: ${userVehicles.length}');
+
+    return GradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: CustomAppBar(), // Use the custom app bar here
+        body: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(
-                child: Image(
-                  image: AssetImage(
-                      'lib/assets/CTPLogo.png'), // Add your logo path here
-                  height: 100, // Adjust the height of the logo as needed
+            const SizedBox(height: 40), // Same padding as in the OffersPage
+            // Styled heading
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons
+                      .local_shipping, // Built-in truck icon from Flutter's Icons library
+                  color: Color(0xFFFF4E00), // You can customize the color
+                  size: 30, // Adjust the size of the icon as needed
                 ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Center(
-                child: Text(
-                  'Vehicle Listing',
+                SizedBox(width: 8), // Space between image and text
+                Text(
+                  'VEHICLE LISTING',
                   style: TextStyle(
+                    color: Color(0xFFFF4E00),
                     fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
                   ),
+                  textAlign: TextAlign.center,
                 ),
+              ],
+            ),
+            const SizedBox(
+              width: 350,
+              child: Text(
+                'Browse the list of available vehicles.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
+            const SizedBox(height: 24),
             Expanded(
               child: userVehicles.isEmpty
                   ? const Center(child: Text('No vehicles available.'))
@@ -96,10 +120,10 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
+        bottomNavigationBar: CustomBottomNavigation(
+          selectedIndex: _selectedIndex,
+          onItemTapped: _onItemTapped,
+        ),
       ),
     );
   }

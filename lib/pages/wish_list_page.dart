@@ -156,7 +156,14 @@ class _WishlistPageState extends State<WishlistPage> {
                 future: _fetchOffersFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(
+                      child: Image.asset(
+                        'lib/assets/Loading_Logo_CTP.gif',
+                        width:
+                            100, // You can adjust the width and height as needed
+                        height: 100,
+                      ),
+                    );
                   } else if (snapshot.hasError) {
                     return const Center(
                       child: Text(
@@ -222,6 +229,10 @@ class _WishlistPageState extends State<WishlistPage> {
                         // Check if there's an offer for this vehicle
                         bool hasOffer = offerProvider.offers
                             .any((offer) => offer.vehicleId == vehicle.id);
+
+                        // Debugging statement to check the offer status
+                        print(
+                            'Vehicle ID: ${vehicle.id}, Has Offer: $hasOffer');
 
                         return WishCard(
                           vehicleMakeModel: vehicle.makeModel,

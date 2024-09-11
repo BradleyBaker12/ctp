@@ -30,73 +30,83 @@ class ListingCard extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(15),
-          child: Row(
-            children: [
-              Container(
-                width: 8,
-                height: 120, // Fixed height to avoid layout issues
-                color: Colors.blue, // Indicator color
-              ),
-              Container(
-                width: 90,
-                height: 120, // Fixed height to avoid layout issues
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: vehicleImageUrl.isNotEmpty
-                        ? NetworkImage(vehicleImageUrl)
-                        : const AssetImage(
-                                'lib/assets/default_vehicle_image.png')
-                            as ImageProvider,
-                    fit: BoxFit.cover,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              double imageWidth = constraints.maxWidth * 0.25;
+              double cardHeight = 130.0; // Fixed height to avoid layout issues
+
+              return Row(
+                children: [
+                  Container(
+                    width: constraints.maxWidth * 0.06,
+                    height: cardHeight,
+                    color: Colors.blue, // Indicator color
                   ),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10.0),
-                  height: 120, // Fixed height to avoid layout issues
-                  color: Colors.blue, // Background color
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        vehicleMakeModel,
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
+                  Container(
+                    width: imageWidth,
+                    height: cardHeight,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: vehicleImageUrl.isNotEmpty &&
+                                Uri.tryParse(vehicleImageUrl)
+                                        ?.hasAbsolutePath ==
+                                    true
+                            ? NetworkImage(vehicleImageUrl)
+                            : const AssetImage(
+                                    'lib/assets/default_vehicle_image.png')
+                                as ImageProvider,
+                        fit: BoxFit.cover,
                       ),
-                      const SizedBox(height: 5),
-                      Text(
-                        'Year: $vehicleYear',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      Text(
-                        'Mileage: $vehicleMileage',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      Text(
-                        'Transmission: $vehicleTransmission',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              Container(
-                width: 90,
-                height: 120, // Fixed height to avoid layout issues
-                color: Colors.green, // Action color
-                child: const Center(
-                  child: Icon(
-                    Icons.arrow_forward,
-                    color: Colors.white,
-                    size: 30,
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10.0),
+                      height: cardHeight,
+                      color: Colors.blue,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            vehicleMakeModel.toUpperCase(),
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Year: $vehicleYear',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          Text(
+                            'Mileage: $vehicleMileage',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          Text(
+                            'Transmission: $vehicleTransmission',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ],
+                  Container(
+                    width: constraints.maxWidth * 0.24,
+                    height: cardHeight,
+                    color: Colors.green,
+                    child: const Center(
+                      child: Icon(
+                        Icons.arrow_forward,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

@@ -27,6 +27,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   bool _isAdditionalInfoExpanded = true; // State to track the dropdown
   List<String> allPhotos = [];
   late PageController _pageController;
+  String _offerStatus = 'in-progress'; // default status for the offer
 
   @override
   void initState() {
@@ -34,21 +35,40 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     _checkIfOfferMade();
 
     try {
-      allPhotos = [
-        if (widget.vehicle.mainImageUrl != null) widget.vehicle.mainImageUrl!,
-        ...widget.vehicle.photos.where((photo) => photo != null).cast<String>(),
-        if (widget.vehicle.dashboardPhoto != null)
-          widget.vehicle.dashboardPhoto!,
-        if (widget.vehicle.faultCodesPhoto != null)
-          widget.vehicle.faultCodesPhoto!,
-        if (widget.vehicle.licenceDiskUrl != null)
-          widget.vehicle.licenceDiskUrl!,
-        if (widget.vehicle.tyrePhoto1 != null) widget.vehicle.tyrePhoto1!,
-        if (widget.vehicle.tyrePhoto2 != null) widget.vehicle.tyrePhoto2!,
-        ...widget.vehicle.damagePhotos
-            .where((photo) => photo != null)
-            .cast<String>(),
-      ];
+      allPhotos = [];
+
+      // Ensure the main image is added first
+      if (widget.vehicle.mainImageUrl != null &&
+          widget.vehicle.mainImageUrl!.isNotEmpty) {
+        allPhotos.add(widget.vehicle.mainImageUrl!);
+        print('Main Image Added: ${widget.vehicle.mainImageUrl}');
+      }
+
+      // Additional photo fields
+      _addPhotoIfExists(widget.vehicle.bed_bunk, 'Bed Bunk Photo');
+      _addPhotoIfExists(widget.vehicle.dashboard, 'Dashboard Photo');
+      _addPhotoIfExists(widget.vehicle.door_panels, 'Door Panels Photo');
+      _addPhotoIfExists(
+          widget.vehicle.front_tyres_tread, 'Front Tyres Tread Photo');
+      _addPhotoIfExists(widget.vehicle.front_view, 'Front View Photo');
+      _addPhotoIfExists(widget.vehicle.left_front_45, 'Left Front 45° Photo');
+      _addPhotoIfExists(widget.vehicle.left_rear_45, 'Left Rear 45° Photo');
+      _addPhotoIfExists(widget.vehicle.left_side_view, 'Left Side View Photo');
+      _addPhotoIfExists(widget.vehicle.licenceDiskUrl, 'Licence Disk Photo');
+      _addPhotoIfExists(widget.vehicle.license_disk, 'License Disk Photo');
+      _addPhotoIfExists(widget.vehicle.mileageImage, 'Mileage Image');
+      _addPhotoIfExists(
+          widget.vehicle.rear_tyres_tread, 'Rear Tyres Tread Photo');
+      _addPhotoIfExists(widget.vehicle.rear_view, 'Rear View Photo');
+      _addPhotoIfExists(widget.vehicle.right_front_45, 'Right Front 45° Photo');
+      _addPhotoIfExists(widget.vehicle.right_rear_45, 'Right Rear 45° Photo');
+      _addPhotoIfExists(
+          widget.vehicle.right_side_view, 'Right Side View Photo');
+      _addPhotoIfExists(widget.vehicle.roof, 'Roof Photo');
+      _addPhotoIfExists(widget.vehicle.seats, 'Seats Photo');
+      _addPhotoIfExists(widget.vehicle.spare_wheel, 'Spare Wheel Photo');
+
+      print('Total photos added: ${allPhotos.length}');
 
       _pageController = PageController();
     } catch (e) {
@@ -59,6 +79,17 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+
+// Helper function to add photo if it exists
+  void _addPhotoIfExists(String? photoUrl, String photoType) {
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      allPhotos.add(photoUrl);
+      print('$photoType Added: $photoUrl');
+    } else {
+      print('$photoType is null or empty');
     }
   }
 
@@ -77,7 +108,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           .get();
 
       setState(() {
-        _hasMadeOffer = offersSnapshot.docs.isNotEmpty;
+        if (offersSnapshot.docs.isNotEmpty) {
+          _hasMadeOffer = true;
+          _offerStatus = offersSnapshot.docs.first['offerStatus'] ?? 'pending';
+        }
       });
     } catch (e) {
       print('Error checking if offer is made: $e');
@@ -148,6 +182,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         _totalCost = 0.0;
         _offerAmount = 0.0;
         _hasMadeOffer = true;
+        _offerStatus = 'in-progress';
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -304,6 +339,36 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   String _formatNumberWithSpaces(String number) {
     return number.replaceAllMapped(
         RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+  }
+
+  String getDisplayStatus(String? offerStatus) {
+    switch (offerStatus) {
+      case 'in-progress':
+        return 'In Progress';
+      case 'select location and time':
+        return 'Set Location and Time';
+      case 'accepted':
+        return 'Accepted';
+      case 'set location and time':
+        return 'Setup Inspection';
+      case 'confirm location':
+        return 'Confirm Location';
+      case 'inspection pending':
+        return 'Inspection Pending';
+      case '3/4':
+        return 'Step 3 of 4';
+      case 'paid':
+        return 'Paid';
+      case 'Issue reported':
+        return 'Issue Reported';
+      case 'resolved':
+        return 'Resolved';
+      case 'done':
+      case 'Done':
+        return 'Done';
+      default:
+        return offerStatus ?? 'Unknown';
+    }
   }
 
   @override
@@ -596,7 +661,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       else if (!isTransporter)
                         Center(
                           child: Text(
-                            "Offer Pending",
+                            "Offer Status: ${getDisplayStatus(_offerStatus)}", // Display offer status
                             style: _customFont(
                                 20, FontWeight.bold, const Color(0xFFFF4E00)),
                           ),

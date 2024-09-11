@@ -358,8 +358,10 @@ class _TruckPageState extends State<TruckPage> {
         children: [
           _isLoading
               ? Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFFFF4E00),
+                  child: Image.asset(
+                    'lib/assets/Loading_Logo_CTP.gif',
+                    width: 100, // Adjust width and height as needed
+                    height: 100,
                   ),
                 )
               : displayedVehicles.isNotEmpty

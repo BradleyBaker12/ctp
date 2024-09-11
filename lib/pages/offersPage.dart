@@ -168,13 +168,11 @@ class _OffersPageState extends State<OffersPage> {
       future: _fetchOffersFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: SizedBox(
-              width: 50,
-              height: 50,
-              child: CircularProgressIndicator(
-                  color: Color(
-                      0xFFFF4E00)), // Ensure the loading icon isn't stretched
+          return Center(
+            child: Image.asset(
+              'lib/assets/Loading_Logo_CTP.gif',
+              width: 100,
+              height: 100,
             ),
           );
         } else if (snapshot.hasError) {

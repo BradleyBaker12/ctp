@@ -11,8 +11,8 @@ class WishCard extends StatelessWidget {
   final TextStyle Function(double, FontWeight, Color) customFont;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-  final bool hasOffer;
-  final String vehicleId; // Add vehicleId to the constructor
+  final bool hasOffer; // Add hasOffer parameter
+  final String vehicleId;
 
   const WishCard({
     super.key,
@@ -22,8 +22,8 @@ class WishCard extends StatelessWidget {
     required this.customFont,
     required this.onTap,
     required this.onDelete,
-    required this.hasOffer,
-    required this.vehicleId, // Add vehicleId to the constructor
+    required this.hasOffer, // Include hasOffer in the constructor
+    required this.vehicleId,
   });
 
   @override
@@ -71,7 +71,10 @@ class WishCard extends StatelessWidget {
                       height: cardHeight,
                       decoration: BoxDecoration(
                         image: DecorationImage(
-                          image: vehicleImageUrl.isNotEmpty
+                          image: vehicleImageUrl.isNotEmpty &&
+                                  Uri.tryParse(vehicleImageUrl)
+                                          ?.hasAbsolutePath ==
+                                      true
                               ? NetworkImage(vehicleImageUrl)
                               : const AssetImage(
                                       'lib/assets/default_vehicle_image.png')
@@ -98,6 +101,7 @@ class WishCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 5),
+                            _buildOfferStatus(), // Build the offer status widget
                           ],
                         ),
                       ),
@@ -110,12 +114,6 @@ class WishCard extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (!hasOffer)
-                              const Icon(
-                                Icons.arrow_forward,
-                                color: Colors.white,
-                                size: 38,
-                              ),
                             const SizedBox(height: 4),
                             Text(
                               hasOffer ? 'Offer Made' : 'Make Offer',
@@ -149,7 +147,6 @@ class WishCard extends StatelessWidget {
         orElse: () => throw Exception('Vehicle not found in provider'),
       );
     } catch (e) {
-      // If the vehicle is not found in the provider, fetch it from Firestore
       try {
         DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
             .collection('vehicles')
@@ -186,4 +183,93 @@ class WishCard extends StatelessWidget {
       ),
     );
   }
+
+  // Build the offer status widget based on the offer details
+  Widget _buildOfferStatus() {
+    return Text(
+      hasOffer ? 'Offer Status: Offer Made' : '',
+      style: customFont(14, FontWeight.bold, Colors.white),
+    );
+  }
+}
+
+// A FutureBuilder implementation that fetches the offer status
+FutureBuilder buildWishCard(
+    String vehicleId,
+    BuildContext context,
+    Size size,
+    TextStyle Function(double, FontWeight, Color) customFont,
+    VoidCallback onDelete) {
+  return FutureBuilder<Vehicle?>(
+    future: getVehicleFromProvider(
+        context, vehicleId), // Fetch vehicle details from provider
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.done) {
+        if (snapshot.hasData && snapshot.data != null) {
+          Vehicle vehicle = snapshot.data!;
+
+          return WishCard(
+            vehicleMakeModel: vehicle.makeModel, // Use makeModel from vehicle
+            vehicleImageUrl:
+                vehicle.mainImageUrl ?? '', // Use mainImageUrl from vehicle
+            size: size,
+            customFont: customFont,
+            onTap: () {
+              // Define onTap here
+            },
+            onDelete: onDelete,
+            hasOffer: false, // You can modify this to check for offer status
+            vehicleId: vehicleId,
+          );
+        } else {
+          return const Center(child: Text('Vehicle not found.'));
+        }
+      } else {
+        return const Center(
+            child: CircularProgressIndicator()); // Loading indicator
+      }
+    },
+  );
+}
+
+Future<Vehicle?> getVehicleFromProvider(
+    BuildContext context, String vehicleId) async {
+  final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
+  try {
+    // Check if vehicle is already in the provider
+    Vehicle? vehicle = vehicleProvider.vehicles.firstWhere(
+      (v) => v.id == vehicleId,
+      orElse: () => throw Exception('Vehicle not found in provider'),
+    );
+    return vehicle;
+  } catch (e) {
+    // If not found, try fetching the vehicle from Firebase
+    try {
+      DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(vehicleId)
+          .get();
+
+      if (vehicleSnapshot.exists) {
+        Vehicle vehicle = Vehicle.fromDocument(vehicleSnapshot);
+        vehicleProvider.addVehicle(vehicle); // Add to provider
+        return vehicle;
+      }
+    } catch (e) {
+      print('Error fetching vehicle: $e');
+      return null;
+    }
+  }
+  return null;
+}
+
+// Example function to fetch offer status
+Future<bool> getOfferStatus(String vehicleId) async {
+  QuerySnapshot offerSnapshot = await FirebaseFirestore.instance
+      .collection('offers')
+      .where('vehicleId', isEqualTo: vehicleId)
+      .limit(1)
+      .get();
+
+  return offerSnapshot.docs.isNotEmpty;
 }

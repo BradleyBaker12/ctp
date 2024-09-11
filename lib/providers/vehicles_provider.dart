@@ -39,22 +39,31 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // New method to fetch vehicles by userId
+  List<Vehicle> getVehiclesByUserId(String userId) {
+    return _vehicles.where((vehicle) => vehicle.userId == userId).toList();
+  }
+
   Future<void> fetchVehicles(UserProvider userProvider,
-      {String? vehicleType}) async {
+      {String? vehicleType, String? userId}) async {
     try {
       _isLoading = true;
 
-      Query query = FirebaseFirestore.instance.collection('vehicles').limit(10);
+      Query query = FirebaseFirestore.instance.collection('vehicles');
 
       if (vehicleType != null) {
         query = query.where('vehicleType', isEqualTo: vehicleType);
       }
 
+      if (userId != null) {
+        query = query.where('userId', isEqualTo: userId);
+      }
+
       QuerySnapshot querySnapshot = await query.get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        _lastFetchedDocument = querySnapshot.docs.last;
-      }
+      // Print the total number of vehicles retrieved from the database
+      print(
+          'Total vehicles fetched from database: ${querySnapshot.docs.length}');
 
       _vehicles = querySnapshot.docs
           .map((doc) {
@@ -66,6 +75,9 @@ class VehicleProvider with ChangeNotifier {
               !userProvider.getLikedVehicles.contains(vehicle.id) &&
               !userProvider.getDislikedVehicles.contains(vehicle.id))
           .toList();
+
+      // Print the total number of vehicles after filtering
+      print('Total vehicles after filtering: ${_vehicles.length}');
 
       _isLoading = false;
       vehicleListenable.value = List.from(_vehicles);
@@ -271,6 +283,25 @@ class Vehicle {
   final String year;
   final DateTime createdAt;
 
+  // New fields for additional photos
+  final String? bed_bunk;
+  final String? dashboard;
+  final String? door_panels;
+  final String? front_tyres_tread;
+  final String? front_view;
+  final String? left_front_45;
+  final String? left_rear_45;
+  final String? left_side_view;
+  final String? license_disk;
+  final String? rear_tyres_tread;
+  final String? rear_view;
+  final String? right_front_45;
+  final String? right_rear_45;
+  final String? right_side_view;
+  final String? roof;
+  final String? seats;
+  final String? spare_wheel;
+
   Vehicle({
     required this.id,
     required this.accidentFree,
@@ -315,6 +346,23 @@ class Vehicle {
     required this.weightClass,
     required this.year,
     required this.createdAt,
+    this.bed_bunk,
+    this.dashboard,
+    this.door_panels,
+    this.front_tyres_tread,
+    this.front_view,
+    this.left_front_45,
+    this.left_rear_45,
+    this.left_side_view,
+    this.license_disk,
+    this.rear_tyres_tread,
+    this.rear_view,
+    this.right_front_45,
+    this.right_rear_45,
+    this.right_side_view,
+    this.roof,
+    this.seats,
+    this.spare_wheel,
   });
 
   factory Vehicle.fromFirestore(Map<String, dynamic> data) {
@@ -361,6 +409,23 @@ class Vehicle {
       weightClass: data['weightClass'] ?? 'N/A',
       year: data['year'] ?? 'N/A',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      bed_bunk: data['bed_bunk'],
+      dashboard: data['dashboard'],
+      door_panels: data['door_panels'],
+      front_tyres_tread: data['front_tyres_tread'],
+      front_view: data['front_view'],
+      left_front_45: data['left_front_45'],
+      left_rear_45: data['left_rear_45'],
+      left_side_view: data['left_side_view'],
+      license_disk: data['license_disk'],
+      rear_tyres_tread: data['rear_tyres_tread'],
+      rear_view: data['rear_view'],
+      right_front_45: data['right_front_45'],
+      right_rear_45: data['right_rear_45'],
+      right_side_view: data['right_side_view'],
+      roof: data['roof'],
+      seats: data['seats'],
+      spare_wheel: data['spare_wheel'],
     );
   }
 

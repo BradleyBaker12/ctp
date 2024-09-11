@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 class SecondFormPage extends StatefulWidget {
   const SecondFormPage({super.key});
@@ -26,6 +27,9 @@ class _SecondFormPageState extends State<SecondFormPage> {
   final TextEditingController _expectedSellingPriceController =
       TextEditingController();
   final TextEditingController _warrantyTypeController = TextEditingController();
+
+  final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
+  bool _showCurrencySymbol = false; // To control when to show "R" symbol
 
   String _maintenance = 'yes';
   String _oemInspection = 'yes';
@@ -229,9 +233,10 @@ class _SecondFormPageState extends State<SecondFormPage> {
                                     hintText: 'Registration No.',
                                     inputFormatter: [UpperCaseTextFormatter()]),
                                 const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _expectedSellingPriceController,
-                                    hintText: 'Expected Selling Price'),
+                                _buildSellingPriceTextField(
+                                  controller: _expectedSellingPriceController,
+                                  hintText: 'Expected Selling Price',
+                                ),
                                 const SizedBox(height: 15),
                                 _buildRadioButtonHeading('Hydraulics'),
                                 Row(
@@ -484,6 +489,62 @@ class _SecondFormPageState extends State<SecondFormPage> {
       style: const TextStyle(color: Colors.white),
       inputFormatters:
           inputFormatter, // Uppercase formatter for specific fields
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter $hintText';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildSellingPriceTextField({
+    required TextEditingController controller,
+    required String hintText,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      cursorColor: const Color(0xFFFF4E00), // Orange cursor color
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixText: _showCurrencySymbol
+            ? 'R '
+            : '', // Show "R" only if user starts typing
+        prefixStyle:
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        hintStyle: const TextStyle(color: Colors.white70),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.2),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: const BorderSide(
+            color: Color(0xFFFF4E00), // Orange border when focused
+            width: 2.0,
+          ),
+        ),
+      ),
+      style: const TextStyle(color: Colors.white),
+      onChanged: (value) {
+        setState(() {
+          _showCurrencySymbol = value.isNotEmpty;
+        });
+
+        if (value.isNotEmpty) {
+          // Format number with spaces
+          final formattedValue = _numberFormat
+              .format(int.parse(value.replaceAll(" ", "")))
+              .replaceAll(",", " ");
+          controller.value = TextEditingValue(
+            text: formattedValue,
+            selection: TextSelection.collapsed(offset: formattedValue.length),
+          );
+        }
+      },
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Please enter $hintText';
