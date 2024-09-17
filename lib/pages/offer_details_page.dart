@@ -139,7 +139,7 @@ class _OfferDetailsPageState extends State<OfferDetailsPage> {
               children: [
                 Text(title,
                     style: _customFont(14, FontWeight.normal, Colors.white)),
-                Text(value ?? 'Unknown',
+                Text(value,
                     style: _customFont(14, FontWeight.bold, Colors.white)),
               ],
             ),

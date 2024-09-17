@@ -10,10 +10,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
+import 'package:ctp/providers/form_data_provider.dart'; // Import FormDataProvider
 import 'package:intl/intl.dart'; // Import for number formatting
+import 'package:path/path.dart' as path; // Import path package
 
 class ThirdFormPage extends StatefulWidget {
-  const ThirdFormPage({super.key});
+  const ThirdFormPage({Key? key}) : super(key: key);
 
   @override
   _ThirdFormPageState createState() => _ThirdFormPageState();
@@ -31,13 +33,29 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
   // NumberFormat with commas, which will be replaced with spaces in the onChanged handler
   final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
 
+  // FormDataProvider instance
+  late FormDataProvider formDataProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    formDataProvider = Provider.of<FormDataProvider>(context);
+  }
+
   Future<void> _pickFile() async {
+    print("Initiating file picker...");
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles();
       if (result != null) {
         setState(() {
           _settlementLetterFile = result.files.single.path;
+          // Update provider
+          formDataProvider
+              .setSettlementLetterFile(File(_settlementLetterFile!));
         });
+        print("File selected: $_settlementLetterFile");
+      } else {
+        print("No file selected.");
       }
     } catch (e) {
       print("Error picking file: $e");
@@ -47,7 +65,8 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
     }
   }
 
-  Future<void> _submitForm(Map<String, dynamic> args) async {
+  Future<void> _submitForm() async {
+    print("Submitting form...");
     if (!_formKey.currentState!.validate()) {
       print("Form validation failed.");
       return;
@@ -60,36 +79,58 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
       final FirebaseStorage storage = FirebaseStorage.instance;
-      final userId = Provider.of<UserProvider>(context, listen: false).userId;
+
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
+
+      String? userId = userProvider.userId;
       String? vehicleId = vehicleProvider.vehicleId;
+      File? selectedMainImage = formDataProvider.selectedMainImage;
+
+      print("User ID: $userId");
+      print("Vehicle ID: $vehicleId");
+      print("Selected Main Image: $selectedMainImage");
+
+      if (userId == null) {
+        print("Error: userId is null");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: User not logged in.')),
+        );
+        return;
+      }
 
       if (vehicleId != null) {
         String? settlementLetterUrl;
 
         // Check if a settlement letter file was uploaded
-        if (_settlementLetterFile != null) {
+        if (formDataProvider.settlementLetterFile != null) {
+          print("Uploading settlement letter file...");
           String fileName =
-              _settlementLetterFile!.split('/').last; // Get file name
-          String fileExtension =
-              fileName.split('.').last; // Get file extension (e.g., jpg, pdf)
+              path.basename(formDataProvider.settlementLetterFile!.path);
+          String fileExtension = fileName.split('.').last; // Get file extension
 
-          // Define the storage path based on the file extension
+          // Define the storage path
           final ref = storage
               .ref()
               .child('vehicles/$vehicleId/settlementLetter.$fileExtension');
-          final uploadTask = ref.putFile(File(_settlementLetterFile!));
+
+          final uploadTask =
+              ref.putFile(formDataProvider.settlementLetterFile!);
           final snapshot = await uploadTask;
           settlementLetterUrl = await snapshot.ref.getDownloadURL();
+
+          print("Settlement letter uploaded. URL: $settlementLetterUrl");
+        } else {
+          print("No settlement letter file to upload.");
         }
 
         // Update the existing vehicle document using vehicleId
+        print("Updating Firestore document for vehicle...");
         await firestore.collection('vehicles').doc(vehicleId).update({
-          'settleBeforeSelling': _settleBeforeSelling,
-          'settlementAmount': _amountController.text
-              .replaceAll(" ", ""), // Remove spaces for saving
-          'settlementLetterFile': settlementLetterUrl ?? '', // Save file URL
+          'settleBeforeSelling': formDataProvider.settleBeforeSelling ?? '',
+          'settlementAmount': formDataProvider.settlementAmount ?? '',
+          'settlementLetterFile': settlementLetterUrl ?? '',
           'userId': userId,
         });
 
@@ -99,21 +140,17 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
           const SnackBar(content: Text('Form submitted successfully!')),
         );
 
-        // Navigate to the FourthFormPage
-        Navigator.pushNamed(
-          context,
-          '/fourthTruckForm',
-          arguments: {
-            'docId': vehicleId,
-            'image': args['image'], // Pass along any required arguments
-          },
-        );
+        // Update the form index or navigate to the next form
+        formDataProvider.incrementFormIndex();
       } else {
-        // Handle the case when vehicleId is null (if needed)
         print('Error: vehicleId is null');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Vehicle ID is null.')),
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print("Error submitting form: $e");
+      print("Stack trace: $stackTrace");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error submitting form: $e')),
       );
@@ -126,22 +163,27 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic>? args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final File? imageFile = args?['image'] as File?;
+    print("Building ThirdFormPage...");
 
-    if (args == null) {
+    final File? selectedMainImage = formDataProvider.selectedMainImage;
+
+    if (selectedMainImage != null) {
+      print("Selected Main Image is provided from provider.");
+    } else {
+      print("Selected Main Image is null in provider.");
+    }
+
+    if (selectedMainImage == null) {
       return const Scaffold(
         body: Center(
           child: Text(
-            'Invalid or missing arguments. Please try again.',
+            'No image selected. Please go back and select an image.',
             style: TextStyle(color: Colors.red),
           ),
         ),
       );
     }
 
-    var screenSize = MediaQuery.of(context).size;
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
@@ -173,24 +215,15 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                                       color: Colors.black.withOpacity(0.3),
                                       borderRadius: BorderRadius.circular(10.0),
                                     ),
-                                    child: imageFile == null
-                                        ? const Text(
-                                            'No image selected',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                            ),
-                                          )
-                                        : ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.file(
-                                              imageFile,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      child: Image.file(
+                                        selectedMainImage,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -228,6 +261,11 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                                   setState(() {
                                     _settleBeforeSelling = value!;
                                   });
+                                  print(
+                                      "Settle before selling changed to: $_settleBeforeSelling");
+                                  // Update provider
+                                  formDataProvider
+                                      .setSettleBeforeSelling(value!);
                                 }),
                                 const SizedBox(width: 20),
                                 _buildRadioButton('No', 'no',
@@ -236,6 +274,11 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                                   setState(() {
                                     _settleBeforeSelling = value!;
                                   });
+                                  print(
+                                      "Settle before selling changed to: $_settleBeforeSelling");
+                                  // Update provider
+                                  formDataProvider
+                                      .setSettleBeforeSelling(value!);
                                 }),
                               ],
                             ),
@@ -316,18 +359,25 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
                             ),
                             Center(
                               child: CustomButton(
-                                text: 'CONTINUE',
+                                text: _isLoading ? 'Submitting...' : 'CONTINUE',
                                 borderColor: orange,
                                 onPressed: _isLoading
-                                    ? () {}
-                                    : () => _submitForm(args),
+                                    ? () {
+                                        print(
+                                            "Submit button pressed while loading.");
+                                      }
+                                    : () {
+                                        print("Submit button pressed.");
+                                        _submitForm();
+                                      },
                               ),
                             ),
                             const SizedBox(height: 10),
                             Center(
                               child: TextButton(
                                 onPressed: () {
-                                  // Handle cancel action
+                                  print("Cancel button pressed.");
+                                  Navigator.pop(context);
                                 },
                                 child: const Text(
                                   'CANCEL',
@@ -394,20 +444,35 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
           _showCurrencySymbol = value.isNotEmpty;
         });
 
+        print("Amount field changed: $value");
+
         if (value.isNotEmpty) {
-          // Format number with spaces
-          final formattedValue = _numberFormat
-              .format(int.parse(value.replaceAll(" ", "")))
-              .replaceAll(",", " ");
-          controller.value = TextEditingValue(
-            text: formattedValue,
-            selection: TextSelection.collapsed(offset: formattedValue.length),
-          );
+          try {
+            // Format number with spaces
+            final formattedValue = _numberFormat
+                .format(int.parse(value.replaceAll(" ", "")))
+                .replaceAll(",", " ");
+            controller.value = TextEditingValue(
+              text: formattedValue,
+              selection: TextSelection.collapsed(offset: formattedValue.length),
+            );
+            print("Formatted amount: $formattedValue");
+            // Update provider
+            formDataProvider
+                .setSettlementAmount(formattedValue.replaceAll(" ", ""));
+          } catch (e) {
+            print("Error formatting amount: $e");
+          }
+        } else {
+          // Update provider
+          formDataProvider.setSettlementAmount('');
         }
       },
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter $hintText';
+        if (_settleBeforeSelling == 'yes') {
+          if (value == null || value.isEmpty) {
+            return 'Please enter $hintText';
+          }
         }
         return null;
       },
@@ -421,7 +486,11 @@ class _ThirdFormPageState extends State<ThirdFormPage> {
         Radio<String>(
           value: value,
           groupValue: groupValue,
-          onChanged: onChanged,
+          onChanged: (val) {
+            onChanged(val);
+            // Update provider
+            formDataProvider.setSettleBeforeSelling(val!);
+          },
           activeColor: const Color(0xFFFF4E00),
         ),
         Text(

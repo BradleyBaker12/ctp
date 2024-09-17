@@ -53,7 +53,7 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          var screenSize = MediaQuery.of(context).size;
+          // var screenSize = MediaQuery.of(context).size;
 
           return Stack(
             children: [

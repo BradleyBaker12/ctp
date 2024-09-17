@@ -7,12 +7,12 @@ import 'package:table_calendar/table_calendar.dart';
 // import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart'; // Import intl package to handle custom date formats
 
-class SetupInspectionPage extends StatefulWidget {
+class SetupCollectionPage extends StatefulWidget {
   @override
-  _SetupInspectionPageState createState() => _SetupInspectionPageState();
+  _SetupCollectionPageState createState() => _SetupCollectionPageState();
 }
 
-class _SetupInspectionPageState extends State<SetupInspectionPage> {
+class _SetupCollectionPageState extends State<SetupCollectionPage> {
   DateTime _focusedDay = DateTime.now();
   List<DateTime> _selectedDays = [];
   DateTime? _selectedDay;
@@ -50,7 +50,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
   // Store information for multiple locations
   List<Map<String, dynamic>> _locations = [];
-  int? _editIndex; // Store the index of the location being edited
+  int? _editIndex;
 
   // Controllers for address input fields
   final TextEditingController _addressLine1Controller = TextEditingController();
@@ -172,56 +172,15 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     );
   }
 
-  Future<void> _editLocation(int index) async {
-    setState(() {
-      _editIndex = index;
-
-      // Load the selected location's data back into the form
-      Map<String, dynamic> location = _locations[index];
-      List<String> dates = List<String>.from(location['dates']);
-      List<Map<String, dynamic>> timeSlots =
-          List<Map<String, dynamic>>.from(location['timeSlots']);
-
-      // Populate address fields
-      List<String> addressParts = location['address'].split(', ');
-      _addressLine1Controller.text = addressParts[0];
-      _addressLine2Controller.text =
-          addressParts.length > 1 ? addressParts[1] : '';
-      _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
-      _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
-      _postalCodeController.text =
-          addressParts.length > 4 ? addressParts[4] : '';
-
-      // Parse the dates using DateFormat
-      DateFormat dateFormat = DateFormat('d-M-yyyy'); // Custom date format
-      _selectedDays = dates
-          .map((dateStr) => dateFormat
-              .parse(dateStr)) // Convert custom date format to DateTime
-          .toList();
-
-      // Populate the times for the selected dates
-      for (var date in _selectedDays) {
-        List<String> times = timeSlots
-            .firstWhere((slot) => slot['date'] == date.toShortString())['times']
-            .cast<String>();
-        _dateTimeSlots[date] = times
-            .map((timeStr) => TimeOfDay(
-                hour: int.parse(timeStr.split(':')[0]),
-                minute: int.parse(timeStr.split(':')[1].split(' ')[0])))
-            .toList();
-      }
-    });
-  }
-
-  Future<void> _saveInspectionDetails() async {
+  Future<void> _saveCollectionDetails() async {
     if (_locations.isNotEmpty) {
       // Prepare the data to pass back
-      Map<String, dynamic> inspectionDetails = {
+      Map<String, dynamic> collectionDetails = {
         'locations': _locations,
       };
 
-      // Return the inspection details to the previous page
-      Navigator.pop(context, inspectionDetails);
+      // Return the collection details to the previous page
+      Navigator.pop(context, collectionDetails);
     } else {
       _showErrorDialog('Please save at least one location.');
     }
@@ -235,7 +194,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     }
 
     if (_addressLine1Controller.text.isEmpty) {
-      _showErrorDialog('Please enter the inspection location.');
+      _showErrorDialog('Please enter the collection location.');
       return;
     }
 
@@ -276,6 +235,47 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       _cityController.clear();
       _stateController.clear();
       _postalCodeController.clear();
+    });
+  }
+
+  Future<void> _editLocation(int index) async {
+    setState(() {
+      _editIndex = index;
+
+      // Load the selected location's data back into the form
+      Map<String, dynamic> location = _locations[index];
+      List<String> dates = List<String>.from(location['dates']);
+      List<Map<String, dynamic>> timeSlots =
+          List<Map<String, dynamic>>.from(location['timeSlots']);
+
+      // Populate address fields
+      List<String> addressParts = location['address'].split(', ');
+      _addressLine1Controller.text = addressParts[0];
+      _addressLine2Controller.text =
+          addressParts.length > 1 ? addressParts[1] : '';
+      _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
+      _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
+      _postalCodeController.text =
+          addressParts.length > 4 ? addressParts[4] : '';
+
+      // Parse the dates using DateFormat
+      DateFormat dateFormat = DateFormat('d-M-yyyy'); // Custom date format
+      _selectedDays = dates
+          .map((dateStr) => dateFormat
+              .parse(dateStr)) // Convert custom date format to DateTime
+          .toList();
+
+      // Populate the times for the selected dates
+      for (var date in _selectedDays) {
+        List<String> times = timeSlots
+            .firstWhere((slot) => slot['date'] == date.toShortString())['times']
+            .cast<String>();
+        _dateTimeSlots[date] = times
+            .map((timeStr) => TimeOfDay(
+                hour: int.parse(timeStr.split(':')[0]),
+                minute: int.parse(timeStr.split(':')[1].split(' ')[0])))
+            .toList();
+      }
     });
   }
 
@@ -323,7 +323,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                           ),
                           const SizedBox(height: 35),
                           const Text(
-                            'SETUP INSPECTION DETAILS',
+                            'SETUP COLLECTION DETAILS',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -331,36 +331,9 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 35),
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Text(
-                              //   'Great news!',
-                              //   style: TextStyle(
-                              //     fontSize: 18,
-                              //     color: Colors.white,
-                              //     fontWeight: FontWeight.w800,
-                              //   ),
-                              //   textAlign: TextAlign.center,
-                              // ),
-                              SizedBox(width: 5),
-                              SizedBox(
-                                child: Text(
-                                  'Provide a details for the potential dealer',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
                           const SizedBox(height: 30),
                           const Text(
-                            'Now, let\'s set up a meeting with the potential seller to inspect the vehicle. Your careful selection ensures a smooth process ahead.',
+                            'Please provide the necessary details for the collection of the vehicle. Your careful selection ensures a smooth process ahead.',
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.white,
@@ -368,10 +341,10 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 30),
 
                           const Text(
-                            'ENTER INSPECTION LOCATION',
+                            'ENTER COLLECTION LOCATION',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -403,7 +376,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                           const SizedBox(height: 32),
 
                           const Text(
-                            'SELECT AVAILABLE DATES AND TIMES',
+                            'SELECT AVAILABLE DATES AND TIMES FOR COLLECTION',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -608,22 +581,19 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                             ),
                           const SizedBox(height: 16),
 
-                          // Add Another Location button moved up
                           CustomButton(
-                            text: 'Add Another Location',
+                            text: 'Save Collection Details',
                             borderColor: Colors.blue,
                             onPressed: _saveLocation,
                           ),
 
                           const SizedBox(height: 16),
 
-                          // Confirm Meeting button moved down
                           CustomButton(
                             text: 'Back to Form',
-                            borderColor: Colors.blue,
+                            borderColor: Color(0xFFFF4E00),
                             onPressed: () async {
-                              // Pass saved locations to previous page
-                              await _saveInspectionDetails();
+                              await _saveCollectionDetails();
                             },
                           ),
                         ],
@@ -637,13 +607,13 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                 ),
               ],
             ),
-            // Positioned(
-            //   top: 120,
-            //   left: 16,
-            //   child: CustomBackButton(
-            //     onPressed: () => Navigator.of(context).pop(),
-            //   ),
-            // ),
+            Positioned(
+              top: 120,
+              left: 16,
+              child: CustomBackButton(
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
           ],
         ),
       ),

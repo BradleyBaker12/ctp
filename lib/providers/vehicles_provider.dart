@@ -1,6 +1,7 @@
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart'; // Ensure this import for ValueListenableBuilder
 
 class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
@@ -44,6 +45,7 @@ class VehicleProvider with ChangeNotifier {
     return _vehicles.where((vehicle) => vehicle.userId == userId).toList();
   }
 
+  // Existing fetchVehicles method (where you are filtering and logging vehicle details)
   Future<void> fetchVehicles(UserProvider userProvider,
       {String? vehicleType, String? userId}) async {
     try {
@@ -65,19 +67,28 @@ class VehicleProvider with ChangeNotifier {
       print(
           'Total vehicles fetched from database: ${querySnapshot.docs.length}');
 
-      _vehicles = querySnapshot.docs
-          .map((doc) {
-            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            data['id'] = doc.id;
-            return Vehicle.fromFirestore(data);
-          })
-          .where((vehicle) =>
-              !userProvider.getLikedVehicles.contains(vehicle.id) &&
-              !userProvider.getDislikedVehicles.contains(vehicle.id))
-          .toList();
+      querySnapshot.docs.forEach((doc) {
+        print('Fetched Vehicle ID from Firestore: ${doc.id}');
+      });
+
+      _vehicles = querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return Vehicle.fromFirestore(data);
+      }).where((vehicle) {
+        // Debugging: Log vehicle before filtering
+        print(
+            'Before Filtering: Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}, UserId: ${vehicle.userId}');
+        return !userProvider.getLikedVehicles.contains(vehicle.id) &&
+            !userProvider.getDislikedVehicles.contains(vehicle.id);
+      }).toList();
 
       // Print the total number of vehicles after filtering
       print('Total vehicles after filtering: ${_vehicles.length}');
+      _vehicles.forEach((vehicle) {
+        print(
+            'After Filtering: Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}, UserId: ${vehicle.userId}');
+      });
 
       _isLoading = false;
       vehicleListenable.value = List.from(_vehicles);

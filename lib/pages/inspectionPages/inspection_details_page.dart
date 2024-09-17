@@ -6,18 +6,21 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'location_confirmation_page.dart';
+import 'package:intl/intl.dart'; // Import for date parsing
 
 class InspectionDetailsPage extends StatefulWidget {
   final String offerId;
   final String makeModel;
   final String offerAmount;
+  final String vehicleId; // Add vehicleId to fetch vehicle data
 
   const InspectionDetailsPage({
-    super.key,
+    Key? key,
     required this.offerId,
     required this.makeModel,
     required this.offerAmount,
-  });
+    required this.vehicleId,
+  }) : super(key: key);
 
   @override
   _InspectionDetailsPageState createState() => _InspectionDetailsPageState();
@@ -28,79 +31,208 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   int _selectedTimeSlot = 0;
+  bool _isLoading = true;
+
+  List<String> _locations = [];
+  List<String> _addresses = [];
+  List<List<DateTime>> _locationDates = [];
+  List<List<Map<String, dynamic>>> _locationTimeSlots = [];
 
   @override
   void initState() {
     super.initState();
-
-    // Find the first available date across all locations
-    DateTime? firstAvailableDate;
-    for (var dates in _locationDates.values) {
-      for (var date in dates) {
-        if (date.isAfter(DateTime.now()) &&
-            (firstAvailableDate == null || date.isBefore(firstAvailableDate))) {
-          firstAvailableDate = date;
-        }
-      }
-    }
-
-    // Set the focused day to the first available date or the current date if none found
-    _focusedDay = firstAvailableDate ?? DateTime.now();
-    _selectedDay = _focusedDay;
-
-    // Update the offer status to "set location and time" when the page loads
-    FirebaseFirestore.instance
-        .collection('offers')
-        .doc(widget.offerId)
-        .update({'offerStatus': 'set location and time'});
+    _fetchInspectionLocations();
   }
 
-  final List<String> _locations = ['Cape Town', 'Pretoria', 'Sandton'];
+  Future<void> _fetchInspectionLocations() async {
+    try {
+      // Get the vehicle document
+      DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
 
-  final List<String> _addresses = ['Cape Town', 'Pretoria', 'Sandton'];
+      if (vehicleSnapshot.exists) {
+        print('Vehicle Document Data: ${vehicleSnapshot.data()}');
 
-  final Map<int, List<DateTime>> _locationDates = {
-    0: [
-      DateTime(2024, 09, 13),
-      DateTime(2024, 09, 18),
-      DateTime(2024, 09, 25),
-    ],
-    1: [
-      DateTime(2024, 09, 15),
-      DateTime(2024, 09, 20),
-      DateTime(2024, 09, 27),
-    ],
-    2: [
-      DateTime(2024, 09, 09),
-      DateTime(2024, 09, 17),
-      DateTime(2024, 09, 24),
-    ],
-  };
+        // Check if 'inspectionLocations' field exists
+        Map<String, dynamic>? vehicleData =
+            vehicleSnapshot.data() as Map<String, dynamic>?;
 
-  final Map<int, Map<DateTime, List<String>>> _locationTimes = {
-    0: {
-      DateTime(2024, 09, 13): ['12:00', '13:45'],
-      DateTime(2024, 09, 18): ['13:45', '15:00'],
-      DateTime(2024, 09, 25): ['12:00', '15:00'],
-    },
-    1: {
-      DateTime(2024, 09, 15): ['12:00'],
-      DateTime(2024, 09, 20): ['13:45'],
-      DateTime(2024, 09, 27): ['15:00'],
-    },
-    2: {
-      DateTime(2024, 09, 09): ['12:00', '15:00'],
-      DateTime(2024, 09, 17): ['13:45'],
-      DateTime(2024, 09, 24): ['12:00', '13:45', '15:00'],
-    },
-  };
+        // Use null-aware operators to safely access the field
+        var inspectionLocations =
+            vehicleData?['inspectionLocations'] as List<dynamic>?;
+
+        // Check for null or empty inspectionLocations
+        if (inspectionLocations == null || inspectionLocations.isEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'No inspection locations available for this vehicle ${widget.vehicleId}.'),
+            ),
+          );
+          return;
+        }
+
+        print('Inspection Locations Data: $inspectionLocations');
+
+        List<String> locations = [];
+        List<String> addresses = [];
+        List<List<DateTime>> locationDates = [];
+        List<List<Map<String, dynamic>>> locationTimeSlots = [];
+
+        for (var locationEntry in inspectionLocations) {
+          if (locationEntry == null) continue; // Skip if null
+
+          String address = locationEntry['address'] ?? '';
+          List<dynamic> timeSlots = locationEntry['timeSlots'] ?? [];
+
+          if (address.isEmpty || timeSlots.isEmpty) {
+            continue; // Skip if data is missing
+          }
+
+          print('Processing location: $address');
+
+          // Lists to hold dates and time slots for this location
+          List<DateTime> dates = [];
+          List<Map<String, dynamic>> timeSlotsList = [];
+
+          for (var timeSlot in timeSlots) {
+            if (timeSlot == null) continue; // Skip if null
+
+            String? dateString = timeSlot['date']; // e.g., "18-9-2024"
+            if (dateString == null) continue; // Skip if date is missing
+
+            DateTime date;
+            try {
+              date = DateFormat('d-M-yyyy').parse(dateString);
+              print('Parsed dateString $dateString to date $date');
+            } catch (e) {
+              print('Error parsing date: $dateString');
+              continue; // Skip this timeSlot if date parsing fails
+            }
+
+            // Add the date to the dates list if not already present
+            if (!dates.contains(date)) {
+              dates.add(date);
+            }
+
+            // Add the times
+            List<dynamic> times = timeSlot['times'] ?? []; // List<String>
+            if (times.isEmpty) {
+              continue; // Skip if times are missing
+            }
+
+            print('Date: $date, Times: $times');
+
+            // Store the date and times together
+            timeSlotsList.add({
+              'date': date,
+              'times': times,
+            });
+          }
+
+          if (dates.isEmpty || timeSlotsList.isEmpty) {
+            continue; // Skip this location if no valid dates or times
+          }
+
+          // Add the address
+          locations.add(address);
+          addresses.add(address);
+
+          // Add the dates and time slots
+          locationDates.add(dates);
+          locationTimeSlots.add(timeSlotsList);
+        }
+
+        // Check if any valid locations were found
+        if (locations.isEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'No valid inspection locations found for this vehicle ${widget.vehicleId}.'),
+            ),
+          );
+          return;
+        }
+
+        // For debugging, print the populated data
+        print('Final Locations: $locations');
+        print('Final Addresses: $addresses');
+        print('Final Location Dates: $locationDates');
+        print('Final Location Time Slots: $locationTimeSlots');
+
+        // Find the first available date across all locations
+        DateTime? firstAvailableDate;
+        for (var dates in locationDates) {
+          for (var date in dates) {
+            if (date.isAfter(DateTime.now()) &&
+                (firstAvailableDate == null ||
+                    date.isBefore(firstAvailableDate))) {
+              firstAvailableDate = date;
+            }
+          }
+        }
+
+        // Set the focused day to the first available date or the current date if none found
+        _focusedDay = firstAvailableDate ?? DateTime.now();
+        _selectedDay = _focusedDay;
+
+        setState(() {
+          _locations = locations;
+          _addresses = addresses;
+          _locationDates = locationDates;
+          _locationTimeSlots = locationTimeSlots;
+          _isLoading = false;
+        });
+
+        // Update the offer status to "set location and time"
+        FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .update({'offerStatus': 'set location and time'});
+      } else {
+        // Handle the case where the vehicle document does not exist
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vehicle not found for ${widget.vehicleId}')),
+        );
+      }
+    } catch (e, stacktrace) {
+      print('Error fetching inspection locations: $e');
+      print(stacktrace);
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load data: $e')),
+      );
+    }
+  }
 
   List<String> get _availableTimes {
-    if (_selectedDay != null && _locationTimes.containsKey(_selectedLocation)) {
+    if (_selectedDay != null &&
+        _locationTimeSlots.isNotEmpty &&
+        _selectedLocation < _locationTimeSlots.length) {
       final normalizedSelectedDay = _normalizeDate(_selectedDay!);
-      if (_locationTimes[_selectedLocation]!
-          .containsKey(normalizedSelectedDay)) {
-        return _locationTimes[_selectedLocation]![normalizedSelectedDay]!;
+      List<Map<String, dynamic>> timeSlots =
+          _locationTimeSlots[_selectedLocation];
+
+      for (var timeSlot in timeSlots) {
+        DateTime date = _normalizeDate(timeSlot['date']);
+        if (date.isAtSameMomentAs(normalizedSelectedDay)) {
+          List<dynamic> times = timeSlot['times']; // List<String>
+          print('Available times for $_selectedDay: $times');
+          return times.cast<String>();
+        }
       }
     }
     return [];
@@ -111,8 +243,15 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
   }
 
   bool isDateAvailable(DateTime day) {
+    if (_locationDates.isEmpty ||
+        _selectedLocation >= _locationDates.length ||
+        _locationDates[_selectedLocation].isEmpty) {
+      return false;
+    }
+
     DateTime checkDay = _normalizeDate(day);
-    for (var date in _locationDates[_selectedLocation]!) {
+    List<DateTime> dates = _locationDates[_selectedLocation];
+    for (var date in dates) {
       DateTime availableDate = _normalizeDate(date);
       if (checkDay.isAtSameMomentAs(availableDate)) {
         return true;
@@ -134,6 +273,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
         'dealerSelectedInspectionDate': _selectedDay,
         'dealerSelectedInspectionTime': _availableTimes[_selectedTimeSlot],
         'dealerSelectedInspectionLocation': _locations[_selectedLocation],
+        'dealerSelectedInspectionAddress': _addresses[_selectedLocation],
       }, SetOptions(merge: true));
 
       // Optionally, show a confirmation or navigate to the next page
@@ -167,6 +307,38 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
       'December'
     ];
 
+    if (_isLoading) {
+      return GradientBackground(
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_locations.isEmpty) {
+      return GradientBackground(
+        child: Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              Center(
+                child: Text(
+                  'No inspection locations available.',
+                  style: TextStyle(color: Colors.white, fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Positioned(
+                top: 120,
+                left: 16,
+                child: CustomBackButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return GradientBackground(
       child: Material(
         color: Colors.transparent,
@@ -181,8 +353,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(
-                              height: 80), // Adjust the height as needed
+                          const SizedBox(height: 80),
                           SizedBox(
                             width: 100,
                             height: 100,
@@ -227,7 +398,6 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 16),
                           const Text(
                             'Now, let\'s set up a meeting with the potential seller to inspect the vehicle. Your careful selection ensures a smooth process ahead.',
@@ -306,9 +476,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           ),
                           const SizedBox(height: 8),
                           Container(
-                            margin: const EdgeInsets.only(
-                                top:
-                                    20.0), // Adds space between days and calendar
+                            margin: const EdgeInsets.only(top: 20.0),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(15),
@@ -332,8 +500,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                     isDateAvailable(day);
                               },
                               calendarStyle: CalendarStyle(
-                                cellMargin: const EdgeInsets.all(
-                                    4.0), // Adding space between cells
+                                cellMargin: const EdgeInsets.all(4.0),
                                 selectedDecoration: const BoxDecoration(
                                   color: Colors.blue,
                                   shape: BoxShape.rectangle,
@@ -371,8 +538,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                   shape: BoxShape.rectangle,
                                 ),
                                 disabledTextStyle: const TextStyle(
-                                  color: Color.fromARGB(255, 54, 54,
-                                      54), // Dull color for unavailable dates
+                                  color: Color.fromARGB(255, 54, 54, 54),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
@@ -391,8 +557,8 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                       child: Text(
                                         '${day.day}',
                                         style: const TextStyle(
-                                          color: Color.fromARGB(255, 54, 54,
-                                              54), // Dull color for unavailable dates
+                                          color:
+                                              Color.fromARGB(255, 54, 54, 54),
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
                                         ),
@@ -428,14 +594,12 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              // Disable horizontal swipe
                               shouldFillViewport: false,
                               availableGestures: AvailableGestures.none,
                             ),
                           ),
                           const SizedBox(height: 16),
-                          if (_selectedDay !=
-                              null) // Ensure the text appears only if a date is selected
+                          if (_selectedDay != null)
                             Text(
                               'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
                               style: const TextStyle(
@@ -448,8 +612,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           if (_selectedDay != null &&
                               _availableTimes.isNotEmpty) ...[
                             Align(
-                              alignment: Alignment
-                                  .centerLeft, // Aligns the heading to the left
+                              alignment: Alignment.centerLeft,
                               child: const Text(
                                 'AVAILABLE TIMES',
                                 style: TextStyle(
@@ -487,24 +650,31 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                           CustomButton(
                             text: 'CONFIRM MEETING',
                             borderColor: Colors.blue,
-                            onPressed: () async {
-                              await _saveInspectionDetails();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      LocationConfirmationPage(
-                                    offerId: widget.offerId,
-                                    location: _locations[_selectedLocation],
-                                    address: _addresses[_selectedLocation],
-                                    date: _selectedDay!,
-                                    time: _availableTimes[_selectedTimeSlot],
-                                    makeModel: widget.makeModel,
-                                    offerAmount: widget.offerAmount,
-                                  ),
-                                ),
-                              );
-                            },
+                            onPressed: (_selectedDay != null &&
+                                    _availableTimes.isNotEmpty)
+                                ? () async {
+                                    await _saveInspectionDetails();
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            LocationConfirmationPage(
+                                          offerId: widget.offerId,
+                                          location:
+                                              _locations[_selectedLocation],
+                                          address:
+                                              _addresses[_selectedLocation],
+                                          date: _selectedDay!,
+                                          time: _availableTimes[
+                                              _selectedTimeSlot],
+                                          makeModel: widget.makeModel,
+                                          offerAmount: widget.offerAmount,
+                                          vehicleId: widget.vehicleId,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
                           ),
                         ],
                       ),
@@ -512,7 +682,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                   ),
                 ),
                 CustomBottomNavigation(
-                  selectedIndex: 1, // Set the appropriate selectedIndex here
+                  selectedIndex: 1,
                   onItemTapped: (index) {
                     setState(() {
                       // Handle navigation logic if necessary
@@ -522,9 +692,8 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
               ],
             ),
             Positioned(
-              top: 120, // Adjust this value to move the back button up or down
-              left:
-                  16, // Adjust this value if you need to change the horizontal position
+              top: 120,
+              left: 16,
               child: CustomBackButton(
                 onPressed: () => Navigator.of(context).pop(),
               ),

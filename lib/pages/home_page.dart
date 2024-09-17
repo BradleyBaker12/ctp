@@ -96,17 +96,38 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     // Ensure user data is fetched before filtering vehicles
     await userProvider.fetchUserData();
 
-    // Get the current user's ID
+    // Fetch offers before processing vehicles
     final userId = userProvider.userId;
+    await offerProvider.fetchOffers(userId!, userProvider.getUserRole);
 
-    // Filter the vehicles that were uploaded by the current user and have offers on them
+    // Debug: Ensure that all offers are being fetched correctly
+    for (var offer in offerProvider.offers) {
+      print('Offer ID: ${offer.offerId}, Vehicle ID: ${offer.vehicleId}');
+    }
+
+    // Filter the vehicles that were uploaded by the current user and have at least one offer on them
     final transporterVehicles = vehicleProvider.vehicles.where((vehicle) {
-      return vehicle.userId == userId &&
+      final hasOffers =
           offerProvider.offers.any((offer) => offer.vehicleId == vehicle.id);
+      print(
+          'Vehicle ID: ${vehicle.id} | Uploaded by User: ${vehicle.userId == userId} | Has Offers: $hasOffers');
+
+      // Only return vehicles that have offers and were uploaded by the current user
+      return vehicle.userId == userId && hasOffers;
     }).toList();
+
+    // Ensure all vehicles with offers are listed
+    print(
+        'Total transporter vehicles with offers: ${transporterVehicles.length}');
 
     // Update the notifier with the filtered list
     displayedVehiclesNotifier.value = transporterVehicles;
+
+    // Debug: Log the vehicles being displayed
+    for (var vehicle in transporterVehicles) {
+      print(
+          'Displaying vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}');
+    }
   }
 
   Future<void> _checkPaymentStatusForOffers() async {
@@ -408,6 +429,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ValueListenableBuilder<List<Vehicle>>(
                     valueListenable: displayedVehiclesNotifier,
                     builder: (context, displayedVehicles, child) {
+                      final offerProvider =
+                          Provider.of<OfferProvider>(context, listen: false);
+
+                      // Debug: Log the number of displayed vehicles
+                      print(
+                          'Total displayed vehicles: ${displayedVehicles.length}');
+                      print('Total offers: ${offerProvider.offers.length}');
+
                       return SizedBox(
                         height: size.height * 0.3,
                         child: ListView.builder(
@@ -415,7 +444,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           itemCount: displayedVehicles.length,
                           itemBuilder: (context, index) {
                             final vehicle = displayedVehicles[index];
-                            return _buildTransporterVehicleCard(vehicle, size);
+
+                            // Debug: Log vehicle details
+                            print(
+                                'Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}');
+
+                            // Check if the vehicle has offers
+                            final hasOffers = offerProvider.offers
+                                .any((offer) => offer.vehicleId == vehicle.id);
+
+                            // Debug: Log whether the vehicle has offers or not
+                            if (hasOffers) {
+                              print('Vehicle ID: ${vehicle.id} has offers.');
+                              return _buildTransporterVehicleCard(
+                                  vehicle, size);
+                            } else {
+                              print(
+                                  'Vehicle ID: ${vehicle.id} does not have any offers.');
+                              return const SizedBox
+                                  .shrink(); // Return an empty widget if no offers
+                            }
                           },
                         ),
                       );
@@ -504,10 +552,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => FirstTruckForm(
-                            vehicleType: 'truck',
-                          ),
-                        ),
+                            builder: (context) => FirstTruckForm(
+                                  vehicleType: 'truck',
+                                )),
                       );
                     } else {
                       Navigator.push(
@@ -611,9 +658,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       width: size.width * 0.7,
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: Colors.grey[900], // Temporarily change to red for visibility
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Color(0xFF2F7FFF), width: 2),
+        border: Border.all(color: const Color(0xFF2F7FFF), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,10 +670,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(10)),
               child: vehicle.mainImageUrl != null
-                  ? Image.network(vehicle.mainImageUrl!,
-                      width: double.infinity, fit: BoxFit.cover)
-                  : Image.asset('lib/assets/default_vehicle_image.png',
-                      width: double.infinity, fit: BoxFit.cover),
+                  ? Image.network(
+                      vehicle.mainImageUrl!,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.asset(
+                      'lib/assets/default_vehicle_image.png',
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
           Padding(
@@ -637,7 +690,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Text(vehicle.makeModel,
                     style: _customFont(18, FontWeight.bold, Colors.white)),
                 const SizedBox(height: 4),
-                Text(vehicle.year ?? 'Unknown Year',
+                Text(vehicle.year,
                     style: _customFont(14, FontWeight.normal, Colors.grey)),
               ],
             ),
@@ -977,6 +1030,7 @@ class SwiperWidget extends StatelessWidget {
               final parentState =
                   parentContext.findAncestorStateOfType<_HomePageState>();
               parentState?._showEndMessage = true;
+              // ignore: invalid_use_of_protected_member
               parentState?.setState(() {});
             },
           ),

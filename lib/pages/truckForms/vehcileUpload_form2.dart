@@ -5,14 +5,16 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
+import 'package:ctp/providers/form_data_provider.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class SecondFormPage extends StatefulWidget {
-  const SecondFormPage({super.key});
+  const SecondFormPage({Key? key}) : super(key: key);
 
   @override
   _SecondFormPageState createState() => _SecondFormPageState();
@@ -29,24 +31,46 @@ class _SecondFormPageState extends State<SecondFormPage> {
   final TextEditingController _warrantyTypeController = TextEditingController();
 
   final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
-  bool _showCurrencySymbol = false; // To control when to show "R" symbol
+  bool _showCurrencySymbol = false;
 
   String _maintenance = 'yes';
   String _oemInspection = 'yes';
-  String _warranty =
-      'yes'; // Initial value 'yes' to show the textbox by default
+  String _warranty = 'yes';
   String _firstOwner = 'yes';
   String _accidentFree = 'yes';
   String _roadWorthy = 'yes';
-  String _transmission = 'Manual'; // Default for Transmission Dropdown
-  String _suspension = 'Steel'; // Default for Suspension Dropdown
-  String _hydraulics = 'no'; // Default for Hydraulics
+  String _transmission = 'Manual';
+  String _suspension = 'Steel';
+  String _hydraulics = 'no';
   bool _isLoading = false;
 
-  Future<void> _submitForm(Map<String, dynamic> args) async {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
+      print("Form validation failed.");
       return;
     }
+
+    print("Submitting SecondFormPage form...");
+
+    // Save form data to the provider before submission
+    final formDataProvider =
+        Provider.of<FormDataProvider>(context, listen: false);
+
+    formDataProvider.setApplication(_applicationController.text);
+    formDataProvider.setTransmission(_transmission);
+    formDataProvider.setEngineNumber(_engineNumberController.text);
+    formDataProvider.setSuspension(_suspension);
+    formDataProvider.setRegistrationNumber(_registrationNumberController.text);
+    formDataProvider
+        .setExpectedSellingPrice(_expectedSellingPriceController.text);
+    formDataProvider.setHydraulics(_hydraulics);
+    formDataProvider.setMaintenance(_maintenance);
+    formDataProvider.setOemInspection(_oemInspection);
+    formDataProvider.setWarranty(_warranty);
+    formDataProvider.setWarrantyType(_warrantyTypeController.text);
+    formDataProvider.setFirstOwner(_firstOwner);
+    formDataProvider.setAccidentFree(_accidentFree);
+    formDataProvider.setRoadWorthy(_roadWorthy);
 
     setState(() {
       _isLoading = true;
@@ -59,8 +83,15 @@ class _SecondFormPageState extends State<SecondFormPage> {
           Provider.of<VehicleProvider>(context, listen: false);
       String? vehicleId = vehicleProvider.vehicleId;
 
+      print("User ID: $userId");
+      print("Vehicle ID: $vehicleId");
+
       if (vehicleId != null) {
-        // Update the existing vehicle document using vehicleId
+        // Set vehicleId in FormDataProvider
+        formDataProvider.setVehicleId(vehicleId);
+        print(
+            'SecondFormPage: vehicleId set in FormDataProvider: ${formDataProvider.vehicleId}');
+
         await firestore.collection('vehicles').doc(vehicleId).update({
           'application': _applicationController.text,
           'transmission': _transmission,
@@ -68,7 +99,8 @@ class _SecondFormPageState extends State<SecondFormPage> {
           'suspension': _suspension,
           'registrationNumber': _registrationNumberController.text,
           'hydraulics': _hydraulics,
-          'expectedSellingPrice': _expectedSellingPriceController.text,
+          'expectedSellingPrice':
+              _expectedSellingPriceController.text.replaceAll(" ", ""),
           'warrantyType': _warrantyTypeController.text,
           'maintenance': _maintenance,
           'oemInspection': _oemInspection,
@@ -83,17 +115,19 @@ class _SecondFormPageState extends State<SecondFormPage> {
           const SnackBar(content: Text('Form submitted successfully!')),
         );
 
-        Navigator.pushNamed(
-          context,
-          '/thirdTruckForm',
-          arguments: {'image': args['image'], 'docId': vehicleId},
-        );
+        print("SecondFormPage form submitted successfully!");
+
+        // Navigate to the next form or update the form index
+        formDataProvider.incrementFormIndex();
       } else {
-        // Handle the case when vehicleId is null (if needed)
         print('Error: vehicleId is null');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Vehicle ID is null.')),
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print("Error submitting form: $e");
+      print("Stack trace: $stackTrace");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error submitting form: $e')),
       );
@@ -105,10 +139,28 @@ class _SecondFormPageState extends State<SecondFormPage> {
   }
 
   @override
+  void dispose() {
+    // Dispose controllers to free up resources
+    _applicationController.dispose();
+    _engineNumberController.dispose();
+    _registrationNumberController.dispose();
+    _expectedSellingPriceController.dispose();
+    _warrantyTypeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic> args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    final File? imageFile = args['image'];
+    print("Building SecondFormPage...");
+
+    final formDataProvider = Provider.of<FormDataProvider>(context);
+    final File? imageFile = formDataProvider.selectedMainImage;
+
+    if (imageFile != null) {
+      print("Image file is provided from provider.");
+    } else {
+      print("Image file is null in provider.");
+    }
 
     var screenSize = MediaQuery.of(context).size;
     var orange = const Color(0xFFFF4E00);
@@ -177,7 +229,7 @@ class _SecondFormPageState extends State<SecondFormPage> {
                           const SizedBox(height: 10),
                           const Center(
                             child: Text(
-                              'Form Progress',
+                              'FORM PROGRESS',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.white,
@@ -191,15 +243,22 @@ class _SecondFormPageState extends State<SecondFormPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildTextField(
-                                    controller: _applicationController,
-                                    hintText: 'Application of Use'),
+                                _buildTextArea(
+                                  controller: _applicationController,
+                                  hintText: 'Application of Use',
+                                  maxLines:
+                                      5, // Adjust this number based on how large you want the text area to be
+                                ),
                                 const SizedBox(height: 15),
+                                Text(
+                                  "Transmission",
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(height: 5),
                                 _buildDropdown(
-                                  value: _transmission == 'Manual' ||
-                                          _transmission == 'Automatic'
-                                      ? _transmission
-                                      : null,
+                                  value: _transmission,
                                   items: ['Manual', 'Automatic'],
                                   hintText: 'Transmission',
                                   onChanged: (value) {
@@ -214,11 +273,15 @@ class _SecondFormPageState extends State<SecondFormPage> {
                                     hintText: 'Engine No.',
                                     inputFormatter: [UpperCaseTextFormatter()]),
                                 const SizedBox(height: 15),
+                                Text(
+                                  "Suspension",
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(height: 5),
                                 _buildDropdown(
-                                  value: _suspension == 'Steel' ||
-                                          _suspension == 'Air'
-                                      ? _suspension
-                                      : null,
+                                  value: _suspension,
                                   items: ['Steel', 'Air'],
                                   hintText: 'Suspension',
                                   onChanged: (value) {
@@ -337,10 +400,8 @@ class _SecondFormPageState extends State<SecondFormPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 15),
-                                // Use the Visibility widget to toggle the warranty type text field
                                 Visibility(
-                                  visible: _warranty ==
-                                      'yes', // Show when 'Yes' is selected
+                                  visible: _warranty == 'yes',
                                   child: _buildTextField(
                                     controller: _warrantyTypeController,
                                     hintText:
@@ -418,18 +479,21 @@ class _SecondFormPageState extends State<SecondFormPage> {
                                 const SizedBox(height: 20),
                                 Center(
                                   child: CustomButton(
-                                    text: 'CONTINUE',
+                                    text: _isLoading
+                                        ? 'Submitting...'
+                                        : 'CONTINUE',
                                     borderColor: orange,
                                     onPressed: _isLoading
                                         ? () {}
-                                        : () => _submitForm(args),
+                                        : () => _submitForm(),
                                   ),
                                 ),
                                 const SizedBox(height: 10),
                                 Center(
                                   child: TextButton(
                                     onPressed: () {
-                                      // Handle cancel action
+                                      print("Cancel button pressed.");
+                                      Navigator.pop(context);
                                     },
                                     child: const Text(
                                       'CANCEL',
@@ -459,14 +523,16 @@ class _SecondFormPageState extends State<SecondFormPage> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildTextArea({
     required TextEditingController controller,
     required String hintText,
-    List<TextInputFormatter>? inputFormatter,
+    int maxLines = 5,
   }) {
     return TextFormField(
       controller: controller,
-      cursorColor: const Color(0xFFFF4E00), // Orange cursor
+      cursorColor: const Color(0xFFFF4E00),
+      maxLines: maxLines, // Enables multi-line input
+      minLines: 3, // Ensures at least 3 lines are shown
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
@@ -481,14 +547,50 @@ class _SecondFormPageState extends State<SecondFormPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
           borderSide: const BorderSide(
-            color: Color(0xFFFF4E00), // Orange border when focused
+            color: Color(0xFFFF4E00),
             width: 2.0,
           ),
         ),
       ),
       style: const TextStyle(color: Colors.white),
-      inputFormatters:
-          inputFormatter, // Uppercase formatter for specific fields
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter $hintText';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    List<TextInputFormatter>? inputFormatter,
+  }) {
+    return TextFormField(
+      controller: controller,
+      cursorColor: const Color(0xFFFF4E00),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: const TextStyle(color: Colors.white70),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.2),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: BorderSide(
+            color: Colors.white.withOpacity(0.5),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: const BorderSide(
+            color: Color(0xFFFF4E00),
+            width: 2.0,
+          ),
+        ),
+      ),
+      style: const TextStyle(color: Colors.white),
+      inputFormatters: inputFormatter,
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Please enter $hintText';
@@ -505,14 +607,17 @@ class _SecondFormPageState extends State<SecondFormPage> {
     return TextFormField(
       controller: controller,
       keyboardType: TextInputType.number,
-      cursorColor: const Color(0xFFFF4E00), // Orange cursor color
+      cursorColor: const Color(0xFFFF4E00),
       decoration: InputDecoration(
         hintText: hintText,
         prefixText: _showCurrencySymbol
             ? 'R '
             : '', // Show "R" only if user starts typing
-        prefixStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        prefixStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16, // Match font size to input text
+        ),
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
         fillColor: Colors.white.withOpacity(0.2),
@@ -523,26 +628,32 @@ class _SecondFormPageState extends State<SecondFormPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
           borderSide: const BorderSide(
-            color: Color(0xFFFF4E00), // Orange border when focused
+            color: Color(0xFFFF4E00),
             width: 2.0,
           ),
         ),
       ),
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16, // Match this font size to prefix
+      ),
       onChanged: (value) {
         setState(() {
           _showCurrencySymbol = value.isNotEmpty;
         });
 
         if (value.isNotEmpty) {
-          // Format number with spaces
-          final formattedValue = _numberFormat
-              .format(int.parse(value.replaceAll(" ", "")))
-              .replaceAll(",", " ");
-          controller.value = TextEditingValue(
-            text: formattedValue,
-            selection: TextSelection.collapsed(offset: formattedValue.length),
-          );
+          try {
+            final formattedValue = _numberFormat
+                .format(int.parse(value.replaceAll(" ", "")))
+                .replaceAll(",", " ");
+            controller.value = TextEditingValue(
+              text: formattedValue,
+              selection: TextSelection.collapsed(offset: formattedValue.length),
+            );
+          } catch (e) {
+            print("Error formatting selling price: $e");
+          }
         }
       },
       validator: (value) {
@@ -555,22 +666,23 @@ class _SecondFormPageState extends State<SecondFormPage> {
   }
 
   Widget _buildDropdown({
-    required String? value, // Nullable String so no preselected value
+    required String? value,
     required List<String> items,
     required String hintText,
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value == '' || value == 'None' ? null : value,
+      value: value == '' || value == 'None'
+          ? null
+          : value, // Ensure null value to show hint initially
       onChanged: onChanged,
       decoration: InputDecoration(
-        hintText: hintText, // Keep the hint text
-        hintStyle:
-            const TextStyle(color: Colors.white70), // Keep your hint text style
+        hintText: hintText,
+        hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.2), // Keep your style
+        fillColor: Colors.white.withOpacity(0.2),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10.0), // Keep your border style
+          borderRadius: BorderRadius.circular(10.0),
           borderSide: BorderSide(
             color: Colors.white.withOpacity(0.5),
           ),
@@ -578,27 +690,25 @@ class _SecondFormPageState extends State<SecondFormPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
           borderSide: const BorderSide(
-            color: Color(0xFFFF4E00), // Orange border when focused
+            color: Color(0xFFFF4E00),
             width: 2.0,
           ),
         ),
       ),
-      dropdownColor:
-          Colors.black.withOpacity(0.7), // Keep your dropdown background color
       hint: Text(
         hintText,
-        style: const TextStyle(color: Colors.white70), // Hint text color
+        style: const TextStyle(color: Colors.white70),
       ),
       items: items.map((String item) {
         return DropdownMenuItem<String>(
           value: item,
           child: Text(
             item,
-            style: const TextStyle(
-                color: Colors.white), // Maintain your style for the options
+            style: const TextStyle(color: Colors.white),
           ),
         );
       }).toList(),
+      dropdownColor: Colors.black.withOpacity(0.7),
     );
   }
 
@@ -611,36 +721,36 @@ class _SecondFormPageState extends State<SecondFormPage> {
             onChanged(value);
           },
           child: Container(
-            width: 24, // Width of outer circle
-            height: 24, // Height of outer circle
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.white, // White outer ring
-                width: 3.0, // Thickness of outer ring
+                color: Colors.white,
+                width: 3.0,
               ),
             ),
             child: Center(
               child: Container(
-                width: 12, // Size of inner orange dot
+                width: 12,
                 height: 12,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: value == groupValue
                       ? const Color(0xFFFF4E00)
-                      : Colors.transparent, // Orange inner dot if selected
+                      : Colors.transparent,
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 10), // Space between radio button and label
+        const SizedBox(width: 10),
         Text(
           label,
           style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
-          ), // Adjust text size if needed
+          ),
         ),
       ],
     );

@@ -1,9 +1,9 @@
-import 'package:ctp/pages/setup_inspection.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:flutter/material.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/pages/form_navigation.dart';
+import 'package:ctp/pages/setup_inspection.dart';
+import 'package:ctp/pages/setup_collection.dart'; // Import your collection setup page
+// import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,11 +13,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/providers/form_data_provider.dart'; // Import FormDataProvider
 
 class FirstTruckForm extends StatefulWidget {
   final String vehicleType;
 
-  const FirstTruckForm({super.key, required this.vehicleType});
+  const FirstTruckForm({Key? key, required this.vehicleType}) : super(key: key);
 
   @override
   _FirstTruckFormState createState() => _FirstTruckFormState();
@@ -38,6 +39,12 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
   bool _isLoading = false;
   String? _selectedMileage;
 
+  // Variables to store inspection and collection details
+  List<String>? _inspectionDates;
+  List<Map<String, dynamic>>? _inspectionLocations;
+  List<String>? _collectionDates;
+  List<Map<String, dynamic>>? _collectionLocations;
+
   final List<String> _mileageOptions = [
     '0+',
     '10,001+',
@@ -53,6 +60,12 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
   void initState() {
     super.initState();
     _vehicleType = widget.vehicleType; // Set initial vehicle type
+
+    // Defer setting vehicle type until after the first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<FormDataProvider>(context, listen: false)
+          .setVehicleType(_vehicleType);
+    });
   }
 
   Future<void> _pickImage(ImageSource source,
@@ -63,8 +76,12 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         setState(() {
           if (isLicenceDisk) {
             _selectedLicenceDiskImage = File(pickedFile.path);
+            Provider.of<FormDataProvider>(context, listen: false)
+                .setSelectedLicenceDiskImage(_selectedLicenceDiskImage);
           } else {
             _selectedMainImage = File(pickedFile.path);
+            Provider.of<FormDataProvider>(context, listen: false)
+                .setSelectedMainImage(_selectedMainImage);
           }
         });
       }
@@ -76,43 +93,23 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
     }
   }
 
-  Future<void> _showImageSourceDialog({required bool isLicenceDisk}) async {
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Choose Image Source'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.camera_alt),
-                  title: const Text('Camera'),
-                  onTap: () {
-                    Navigator.of(context).pop(); // Close the dialog
-                    _pickImage(ImageSource.camera,
-                        isLicenceDisk: isLicenceDisk);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: const Text('Gallery'),
-                  onTap: () {
-                    Navigator.of(context).pop(); // Close the dialog
-                    _pickImage(ImageSource.gallery,
-                        isLicenceDisk: isLicenceDisk);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Validate inspection and collection setup
+    if (!_isInspectionSetupComplete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete the inspection setup')),
+      );
+      return;
+    }
+
+    if (!_isCollectionSetupComplete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete the collection setup')),
+      );
       return;
     }
 
@@ -120,33 +117,38 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
       _isLoading = true;
     });
 
+    // Save form data to provider
+    final formDataProvider =
+        Provider.of<FormDataProvider>(context, listen: false);
+    formDataProvider.setYear(_yearController.text);
+    formDataProvider.setMakeModel(_makeModelController.text);
+    formDataProvider.setSellingPrice(_sellingPriceController.text);
+    formDataProvider.setVinNumber(_vinNumberController.text);
+    formDataProvider.setMileage(_selectedMileage ?? '');
+    formDataProvider.setInspectionDates(_inspectionDates);
+    formDataProvider.setInspectionLocations(_inspectionLocations);
+    formDataProvider.setCollectionDates(_collectionDates);
+    formDataProvider.setCollectionLocations(_collectionLocations);
+
     try {
       final userId = Provider.of<UserProvider>(context, listen: false).userId!;
       final FirebaseStorage storage = FirebaseStorage.instance;
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
-      final vehicleProvider =
-          Provider.of<VehicleProvider>(context, listen: false);
 
-      String? vehicleId = vehicleProvider.vehicleId;
+      // Create a new vehicle entry
+      final docRef = await firestore.collection('vehicles').add({
+        'year': _yearController.text,
+        'makeModel': _makeModelController.text,
+        'mileage': _selectedMileage,
+        'sellingPrice': _sellingPriceController.text,
+        'vinNumber': _vinNumberController.text,
+        'vehicleType': _vehicleType,
+        'weightClass': _weightClass,
+        'userId': userId,
+        'createdAt': FieldValue.serverTimestamp(), // Add timestamp
+      });
 
-      if (vehicleId == null) {
-        // Create a new vehicle entry if the vehicleId doesn't exist
-        final docRef = await firestore.collection('vehicles').add({
-          'year': _yearController.text,
-          'makeModel': _makeModelController.text,
-          'mileage': _selectedMileage,
-          'sellingPrice': _sellingPriceController.text,
-          'vinNumber': _vinNumberController.text,
-          'vehicleType': _vehicleType,
-          'weightClass': _weightClass,
-          'userId': userId,
-          'createdAt': FieldValue.serverTimestamp(), // Add timestamp
-        });
-
-        vehicleId = docRef.id;
-        vehicleProvider
-            .setVehicleId(vehicleId); // Store the vehicle ID in the provider
-      }
+      final String vehicleId = docRef.id;
 
       Future<String> uploadFile(String filePath, String fileName) async {
         final ref = storage.ref().child('vehicles/$vehicleId/$fileName');
@@ -164,22 +166,54 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
               _selectedLicenceDiskImage!.path, 'licence_disk.jpg')
           : null;
 
+      // Update the vehicle document with the main image, license disk URL, and inspection/collection details
       await firestore.collection('vehicles').doc(vehicleId).update({
         'mainImageUrl': mainImageUrl,
         'licenceDiskUrl': licenceDiskUrl,
+        // Save inspection and collection details into Firestore
+        'inspectionDates': _inspectionDates,
+        'inspectionLocations': _inspectionLocations
+            ?.map((location) => {
+                  'address': location['address'],
+                  'timeSlots': location['timeSlots']
+                      ?.map((timeSlot) => {
+                            'date': timeSlot['date'], // Date for the time slot
+                            'times': timeSlot[
+                                'times'], // List of times for that date
+                          })
+                      .toList(),
+                })
+            .toList(),
+        'collectionDates': _collectionDates,
+        'collectionLocations': _collectionLocations
+            ?.map((location) => {
+                  'address': location['address'],
+                  'timeSlots': location['timeSlots']
+                      ?.map((timeSlot) => {
+                            'date': timeSlot['date'], // Date for the time slot
+                            'times': timeSlot[
+                                'times'], // List of times for that date
+                          })
+                      .toList(),
+                })
+            .toList(),
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Form submitted successfully!')),
       );
 
-      Navigator.pushNamed(
+      // Save vehicleId and main image in FormDataProvider
+      formDataProvider.setVehicleId(vehicleId);
+      formDataProvider.setSelectedMainImage(_selectedMainImage);
+
+      // Navigate to FormNavigationPage after successful submission
+      formDataProvider.setCurrentFormIndex(0); // Start at the second form
+      Navigator.push(
         context,
-        '/secondTruckForm',
-        arguments: {
-          'docId': vehicleId,
-          'image': _selectedMainImage,
-        },
+        MaterialPageRoute(
+          builder: (context) => FormNavigationPage(),
+        ),
       );
     } catch (e) {
       print("Error submitting form: $e");
@@ -193,11 +227,96 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
     }
   }
 
+  Future<void> _setupInspection() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SetupInspectionPage(),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        _inspectionDates =
+            result['dates'] != null ? List<String>.from(result['dates']) : [];
+        _inspectionLocations = result['locations'] != null
+            ? List<Map<String, dynamic>>.from(result['locations'])
+            : [];
+      });
+
+      Provider.of<FormDataProvider>(context, listen: false)
+          .setInspectionDates(_inspectionDates);
+      Provider.of<FormDataProvider>(context, listen: false)
+          .setInspectionLocations(_inspectionLocations);
+    }
+  }
+
+  Future<void> _setupCollection() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SetupCollectionPage(),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        _collectionDates =
+            result['dates'] != null ? List<String>.from(result['dates']) : [];
+        _collectionLocations = result['locations'] != null
+            ? List<Map<String, dynamic>>.from(result['locations'])
+            : [];
+      });
+
+      Provider.of<FormDataProvider>(context, listen: false)
+          .setCollectionDates(_collectionDates);
+      Provider.of<FormDataProvider>(context, listen: false)
+          .setCollectionLocations(_collectionLocations);
+    }
+  }
+
+  // Helper method to check if the inspection details are set
+  bool get _isInspectionSetupComplete {
+    bool hasValidLocations =
+        _inspectionLocations != null && _inspectionLocations!.isNotEmpty;
+
+    bool allLocationsValid = _inspectionLocations != null &&
+        _inspectionLocations!.every((location) {
+          return location['timeSlots'] != null &&
+              location['timeSlots'].isNotEmpty &&
+              location['timeSlots'].every((timeSlot) =>
+                  timeSlot['date'] != null &&
+                  timeSlot['times'] != null &&
+                  timeSlot['times'].isNotEmpty);
+        });
+
+    return hasValidLocations && allLocationsValid;
+  }
+
+  // Helper method to check if the collection details are set
+  bool get _isCollectionSetupComplete {
+    bool hasValidLocations =
+        _collectionLocations != null && _collectionLocations!.isNotEmpty;
+
+    bool allLocationsValid = _collectionLocations != null &&
+        _collectionLocations!.every((location) {
+          return location['timeSlots'] != null &&
+              location['timeSlots'].isNotEmpty &&
+              location['timeSlots'].every((timeSlot) =>
+                  timeSlot['date'] != null &&
+                  timeSlot['times'] != null &&
+                  timeSlot['times'].isNotEmpty);
+        });
+
+    return hasValidLocations && allLocationsValid;
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     var orange = const Color(0xFFFF4E00);
     var blue = const Color(0xFF2F7FFF);
+    var green = const Color(0xFF4CAF50); // Define green color for the button
 
     return Scaffold(
       body: Stack(
@@ -205,18 +324,16 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
           GradientBackground(
             child: Column(
               children: [
-                const BlurryAppBar(),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 20),
-                        // Full-width image section with no padding
+                        const SizedBox(height: 60),
                         Center(
                           child: GradientBackground(
                             child: Container(
-                              width: screenSize.width, // Full screen width
+                              width: screenSize.width,
                               height: 300,
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.3),
@@ -256,9 +373,8 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                                         const Text(
                                           'NEW PHOTO OR UPLOAD FROM GALLERY',
                                           style: TextStyle(
-                                            fontSize: 16,
-                                            color: Colors.white,
-                                          ),
+                                              fontSize: 16,
+                                              color: Colors.white),
                                         ),
                                       ],
                                     )
@@ -283,12 +399,11 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                             children: [
                               const Center(
                                 child: Text(
-                                  'TRUCK/TRAILER FORM',
+                                  'MANDATORY INFORMATION',
                                   style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -297,9 +412,7 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                                 child: Text(
                                   'Please fill out the required details below\nYour trusted partner on the road.',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white,
-                                  ),
+                                      fontSize: 14, color: Colors.white),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -351,21 +464,18 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                                     _buildMileageDropdown(),
                                     const SizedBox(height: 15),
                                     _buildSellingPriceTextField(
-                                      controller: _sellingPriceController,
-                                      hintText: 'Selling Price',
-                                    ),
+                                        controller: _sellingPriceController,
+                                        hintText: 'Selling Price'),
                                     const SizedBox(height: 15),
                                     _buildVinTextField(
-                                      controller: _vinNumberController,
-                                      hintText: 'VIN Number',
-                                    ),
+                                        controller: _vinNumberController,
+                                        hintText: 'VIN Number'),
                                     const SizedBox(height: 20),
                                     Center(
                                       child: GestureDetector(
                                         onTap: () {
                                           _showImageSourceDialog(
-                                              isLicenceDisk:
-                                                  true); // Ask for camera or gallery
+                                              isLicenceDisk: true);
                                         },
                                         child: Container(
                                           height: 100,
@@ -402,51 +512,39 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                                     ),
                                     const SizedBox(height: 10),
                                     const Center(
-                                      child: Text(
-                                        'UPLOAD LICENCE DISK',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                      child: Text('UPLOAD LICENCE DISK',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white)),
                                     ),
                                     const SizedBox(height: 20),
-
-                                    // Inspection and collection buttons are hidden here
-                                    /*
                                     Center(
                                       child: Column(
                                         children: [
                                           CustomButton(
-                                            text: 'Setup Inspection',
-                                            borderColor: blue,
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        SetupInspectionPage()),
-                                              );
-                                            },
+                                            text: _isInspectionSetupComplete
+                                                ? 'Inspection Setup Complete'
+                                                : 'Setup Inspection',
+                                            borderColor:
+                                                _isInspectionSetupComplete
+                                                    ? green
+                                                    : blue,
+                                            onPressed: _setupInspection,
                                           ),
                                           const SizedBox(height: 10),
                                           CustomButton(
-                                            text: 'Setup Collection',
-                                            borderColor: blue,
-                                            onPressed: () {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content: Text(
-                                                        'Setup Collection clicked')),
-                                              );
-                                            },
+                                            text: _isCollectionSetupComplete
+                                                ? 'Collection Setup Complete'
+                                                : 'Setup Collection',
+                                            borderColor:
+                                                _isCollectionSetupComplete
+                                                    ? green
+                                                    : blue,
+                                            onPressed: _setupCollection,
                                           ),
                                         ],
                                       ),
                                     ),
-                                    */
-
                                     const SizedBox(height: 20),
                                     Center(
                                       child: CustomButton(
@@ -462,10 +560,9 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                                         onPressed: () {
                                           Navigator.pushNamed(context, '/home');
                                         },
-                                        child: const Text(
-                                          'CANCEL',
-                                          style: TextStyle(color: Colors.white),
-                                        ),
+                                        child: const Text('CANCEL',
+                                            style:
+                                                TextStyle(color: Colors.white)),
                                       ),
                                     ),
                                     const SizedBox(height: 30),
@@ -482,18 +579,11 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
               ],
             ),
           ),
-          const Positioned(
-            top: 40,
-            left: 16,
-            child: CustomBackButton(),
-          ),
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.8),
               child: const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFFFF4E00),
-                ),
+                child: CircularProgressIndicator(color: Color(0xFFFF4E00)),
               ),
             ),
         ],
@@ -502,7 +592,7 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
   }
 
   final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
-  bool _showCurrencySymbol = false; // To control when to show "R" symbol
+  bool _showCurrencySymbol = false;
 
   Widget _buildSellingPriceTextField({
     required TextEditingController controller,
@@ -511,12 +601,10 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
     return TextFormField(
       controller: controller,
       keyboardType: TextInputType.number,
-      cursorColor: const Color(0xFFFF4E00), // Orange cursor color
+      cursorColor: const Color(0xFFFF4E00),
       decoration: InputDecoration(
         hintText: hintText,
-        prefixText: _showCurrencySymbol
-            ? 'R '
-            : '', // Show "R" only if user starts typing
+        prefixText: _showCurrencySymbol ? 'R ' : '',
         prefixStyle:
             const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         hintStyle: const TextStyle(color: Colors.white70),
@@ -528,10 +616,7 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(
-            color: Color(0xFFFF4E00), // Orange border when focused
-            width: 2.0,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFFF4E00), width: 2.0),
         ),
       ),
       style: const TextStyle(color: Colors.white),
@@ -541,7 +626,6 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         });
 
         if (value.isNotEmpty) {
-          // Format number with spaces
           final formattedValue = _numberFormat
               .format(int.parse(value.replaceAll(" ", "")))
               .replaceAll(",", " ");
@@ -560,13 +644,48 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
     );
   }
 
+  Future<void> _showImageSourceDialog({required bool isLicenceDisk}) async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Choose Image Source'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Camera'),
+                  onTap: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                    _pickImage(ImageSource.camera,
+                        isLicenceDisk: isLicenceDisk);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Gallery'),
+                  onTap: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                    _pickImage(ImageSource.gallery,
+                        isLicenceDisk: isLicenceDisk);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildVinTextField({
     required TextEditingController controller,
     required String hintText,
   }) {
     return TextFormField(
       controller: controller,
-      cursorColor: const Color(0xFFFF4E00), // Orange cursor
+      cursorColor: const Color(0xFFFF4E00),
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
@@ -578,19 +697,14 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(
-            color: Color(0xFFFF4E00), // Orange border when focused
-            width: 2.0,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFFF4E00), width: 2.0),
         ),
       ),
       style: const TextStyle(color: Colors.white),
       inputFormatters: [
-        // Allow only uppercase letters and numbers
         FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
       ],
       onChanged: (value) {
-        // Convert the input to uppercase as the user types
         controller.value = controller.value.copyWith(
           text: value.toUpperCase(),
           selection: TextSelection.collapsed(offset: value.length),
@@ -600,7 +714,6 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         if (value == null || value.isEmpty) {
           return 'Please enter $hintText';
         }
-        // Check if it contains only uppercase letters and numbers
         if (!RegExp(r'^[A-Z0-9]+$').hasMatch(value)) {
           return 'Please enter a valid VIN (capital letters and numbers only)';
         }
@@ -615,7 +728,7 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
   }) {
     return TextFormField(
       controller: controller,
-      cursorColor: const Color(0xFFFF4E00), // Orange cursor
+      cursorColor: const Color(0xFFFF4E00),
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
@@ -627,10 +740,7 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(
-            color: Color(0xFFFF4E00), // Orange border when focused
-            width: 2.0,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFFF4E00), width: 2.0),
         ),
       ),
       style: const TextStyle(color: Colors.white),
@@ -655,24 +765,19 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(
-            color: Color(0xFFFF4E00), // Orange border when focused
-            width: 2.0,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFFF4E00), width: 2.0),
         ),
         hintText: 'Mileage',
         hintStyle: const TextStyle(color: Colors.white70),
       ),
-      dropdownColor:
-          Colors.black.withOpacity(0.7), // Background color of dropdown
-      style:
-          const TextStyle(color: Colors.white), // Text color of selected item
+      dropdownColor: Colors.black.withOpacity(0.7),
+      style: const TextStyle(color: Colors.white),
       items: _mileageOptions.map((String value) {
         return DropdownMenuItem<String>(
           value: value,
           child: Text(
             value,
-            style: const TextStyle(color: Colors.white), // Text color of items
+            style: const TextStyle(color: Colors.white),
           ),
         );
       }).toList(),
@@ -680,6 +785,9 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
         setState(() {
           _selectedMileage = newValue;
           _mileageController.text = newValue!;
+          // Update provider
+          Provider.of<FormDataProvider>(context, listen: false)
+              .setMileage(newValue);
         });
       },
     );
@@ -700,6 +808,14 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
                 _vehicleType = newValue!;
               }
             });
+            // Update provider
+            if (isWeight) {
+              Provider.of<FormDataProvider>(context, listen: false)
+                  .setWeightClass(_weightClass);
+            } else {
+              Provider.of<FormDataProvider>(context, listen: false)
+                  .setVehicleType(_vehicleType);
+            }
           },
           activeColor: const Color(0xFFFF4E00),
         ),

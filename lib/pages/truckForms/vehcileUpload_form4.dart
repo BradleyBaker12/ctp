@@ -8,7 +8,9 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart'; // Import for Provider
+import 'package:ctp/providers/form_data_provider.dart'; // Import FormDataProvider
 import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
+import 'package:path/path.dart' as path; // Import path package
 
 class FourthFormPage extends StatefulWidget {
   const FourthFormPage({super.key});
@@ -20,15 +22,24 @@ class FourthFormPage extends StatefulWidget {
 class _FourthFormPageState extends State<FourthFormPage> {
   final _formKey = GlobalKey<FormState>();
 
-  String? _rc1NatisFile;
   bool _isLoading = false;
+
+  // Add FormDataProvider instance
+  late FormDataProvider formDataProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    formDataProvider = Provider.of<FormDataProvider>(context);
+  }
 
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles();
       if (result != null) {
         setState(() {
-          _rc1NatisFile = result.files.single.path;
+          // Update provider
+          formDataProvider.setRc1NatisFile(File(result.files.single.path!));
         });
       }
     } catch (e) {
@@ -39,7 +50,7 @@ class _FourthFormPageState extends State<FourthFormPage> {
     }
   }
 
-  Future<void> _submitForm(File? imageFile) async {
+  Future<void> _submitForm() async {
     setState(() {
       _isLoading = true;
     });
@@ -53,11 +64,15 @@ class _FourthFormPageState extends State<FourthFormPage> {
 
       if (vehicleId != null) {
         String? rc1NatisFileUrl;
-        if (_rc1NatisFile != null) {
+        if (formDataProvider.rc1NatisFile != null) {
           // Upload the RC1/NATIS file to Firebase Storage
-          final ref =
-              storage.ref().child('vehicles/$vehicleId/rc1NatisFile.jpg');
-          final uploadTask = ref.putFile(File(_rc1NatisFile!));
+          String fileName = path.basename(formDataProvider.rc1NatisFile!.path);
+          String fileExtension = fileName.split('.').last; // Get file extension
+
+          final ref = storage
+              .ref()
+              .child('vehicles/$vehicleId/rc1NatisFile.$fileExtension');
+          final uploadTask = ref.putFile(formDataProvider.rc1NatisFile!);
           final snapshot = await uploadTask;
           rc1NatisFileUrl = await snapshot.ref.getDownloadURL();
         }
@@ -73,17 +88,13 @@ class _FourthFormPageState extends State<FourthFormPage> {
           const SnackBar(content: Text('Form submitted successfully!')),
         );
 
-        // Navigate to the FifthFormPage
-        Navigator.pushNamed(
-          context,
-          '/fifthTruckForm',
-          arguments: {
-            'docId': vehicleId,
-            'image': imageFile,
-          },
-        );
+        // Navigate to the next form
+        formDataProvider.incrementFormIndex();
       } else {
         print('Error: vehicleId is null');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Vehicle ID is null.')),
+        );
       }
     } catch (e) {
       print("Error submitting form: $e");
@@ -99,15 +110,14 @@ class _FourthFormPageState extends State<FourthFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic>? args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final File? imageFile = args?['image'] as File?;
+    final File? imageFile = formDataProvider.selectedMainImage;
+    final File? rc1NatisFile = formDataProvider.rc1NatisFile;
 
-    if (args == null) {
+    if (imageFile == null) {
       return const Scaffold(
         body: Center(
           child: Text(
-            'Invalid or missing arguments. Please try again.',
+            'No image selected. Please go back and select an image.',
             style: TextStyle(color: Colors.red),
           ),
         ),
@@ -143,24 +153,15 @@ class _FourthFormPageState extends State<FourthFormPage> {
                                       color: Colors.black.withOpacity(0.3),
                                       borderRadius: BorderRadius.circular(10.0),
                                     ),
-                                    child: imageFile == null
-                                        ? const Text(
-                                            'No image selected',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                            ),
-                                          )
-                                        : ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10.0),
-                                            child: Image.file(
-                                              imageFile,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      child: Image.file(
+                                        imageFile,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -202,11 +203,11 @@ class _FourthFormPageState extends State<FourthFormPage> {
                                         color: Colors.white70, width: 1),
                                   ),
                                   child: Center(
-                                    child: _rc1NatisFile == null
+                                    child: rc1NatisFile == null
                                         ? const Icon(Icons.folder_open,
                                             color: Colors.blue, size: 40)
                                         : Text(
-                                            _rc1NatisFile!.split('/').last,
+                                            path.basename(rc1NatisFile.path),
                                             style: const TextStyle(
                                                 color: Colors.white),
                                           ),
@@ -228,18 +229,16 @@ class _FourthFormPageState extends State<FourthFormPage> {
                             const SizedBox(height: 20),
                             Center(
                               child: CustomButton(
-                                text: 'CONTINUE',
+                                text: _isLoading ? 'Submitting...' : 'CONTINUE',
                                 borderColor: const Color(0xFFFF4E00),
-                                onPressed: _isLoading
-                                    ? () {}
-                                    : () => _submitForm(imageFile),
+                                onPressed: _isLoading ? () {} : _submitForm,
                               ),
                             ),
                             const SizedBox(height: 10),
                             Center(
                               child: TextButton(
                                 onPressed: () {
-                                  // Handle cancel action
+                                  Navigator.pop(context);
                                 },
                                 child: const Text(
                                   'CANCEL',

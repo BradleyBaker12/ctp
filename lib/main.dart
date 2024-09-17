@@ -30,6 +30,7 @@ import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/tutorial_page.dart';
 import 'package:ctp/pages/tutorial_started.dart';
 import 'package:ctp/providers/complaints_provider.dart';
+import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
@@ -55,6 +56,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => VehicleProvider()),
         ChangeNotifierProvider(create: (context) => OfferProvider()),
         ChangeNotifierProvider(create: (context) => ComplaintsProvider()),
+        ChangeNotifierProvider(create: (context) => FormDataProvider()),
       ],
       child: const MyApp(),
     ),
@@ -115,6 +117,7 @@ class MyApp extends StatelessWidget {
               offerId: args['offerId'] as String,
               makeModel: args['makeModel'] as String,
               offerAmount: args['offerAmount'] as String,
+              vehicleId: args['vehicleId'] as String, // Add this line
             ),
           );
         }

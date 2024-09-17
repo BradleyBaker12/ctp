@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 class CustomButton extends StatelessWidget {
   final String text;
   final Color borderColor;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed; // Make this nullable
 
   const CustomButton({
     super.key,
@@ -23,7 +23,8 @@ class CustomButton extends StatelessWidget {
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.white,
-            backgroundColor: borderColor.withOpacity(0.17), // Text color
+            backgroundColor: borderColor.withOpacity(
+                0.17), // Adjust opacity for disabled state if needed
             padding: const EdgeInsets.symmetric(
                 vertical: 15.0), // Padding inside button
             shape: RoundedRectangleBorder(

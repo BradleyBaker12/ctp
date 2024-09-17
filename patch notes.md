@@ -88,3 +88,21 @@ Added inspection setup button and form for transporter to setup the locaiton , d
 Some vehilce were not showing on the vehicle list page, fixed that issue
 Images were not showing on the vehilce details page, fixed that as well
 Styled the vehilce listing page to look more like the designs
+Setup the inspection and collection allocaiton the transporter needs to provider
+
+12/09/2024
+Adding drawer to transporter forms so that the user can travel freely between the form section
+Fixing the structure of the form so that it rememebers where the user last left off on the form
+
+13/09/2024
+Fixing the structure of the form so that it rememebers where the user last left off on the form
+
+15/09/2024-17/09/2024
+setup location, dates and times for the dealer size once the transporter has set the locations, dates and times.
+
+17/09/2024
+Under the "Your vehicles with offers", it need to be respective to the user. So the vehicles displayed are only those that belong to the transporter and that have offers on them and they should match the the offer being displayed under it.
+on the faults where you can upload all the damages to the truck, it needs to be a yes , no for all section, if you press no then it takes the block away.
+When filling in the Truck/Tyre section it needs to be displayed like that, currently they are filling out the tyre section and it says Truck/Trailer.
+Describe the damages needs to be a section where they add a picture of the damage with a photo and text and that can be repeated multiple times.
+

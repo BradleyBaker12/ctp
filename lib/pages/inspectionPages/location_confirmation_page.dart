@@ -18,6 +18,7 @@ class LocationConfirmationPage extends StatefulWidget {
   final String time;
   final String makeModel;
   final String offerAmount;
+  final String vehicleId; // Add this line
 
   const LocationConfirmationPage({
     super.key,
@@ -28,6 +29,7 @@ class LocationConfirmationPage extends StatefulWidget {
     required this.time,
     required this.makeModel,
     required this.offerAmount,
+    required this.vehicleId, // Add this line
   });
 
   @override
@@ -122,6 +124,7 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
             latLng: _latLng!,
             makeModel: widget.makeModel,
             offerAmount: widget.offerAmount,
+            vehicleId: widget.vehicleId, // Add this line
           ),
         ),
       );

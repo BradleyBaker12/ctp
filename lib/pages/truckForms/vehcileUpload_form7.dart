@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
@@ -6,10 +6,15 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
+import 'package:ctp/providers/form_data_provider.dart'; // Import FormDataProvider
+// import 'package:path/path.dart' as path;
 
 class SeventhFormPage extends StatefulWidget {
-  const SeventhFormPage({super.key});
+  const SeventhFormPage({Key? key}) : super(key: key);
 
   @override
   _SeventhFormPageState createState() => _SeventhFormPageState();
@@ -17,16 +22,26 @@ class SeventhFormPage extends StatefulWidget {
 
 class _SeventhFormPageState extends State<SeventhFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final List<File?> _photoPaths = List<File?>.filled(18, null);
   bool _isLoading = false;
+
+  late FormDataProvider formDataProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    formDataProvider = Provider.of<FormDataProvider>(context);
+
+    // Debugging code
+    print(
+        "SeventhFormPage: vehicleId from FormDataProvider in didChangeDependencies: ${formDataProvider.vehicleId}");
+  }
 
   Future<void> _pickImage(ImageSource source, {required int index}) async {
     try {
       final pickedFile = await ImagePicker().pickImage(source: source);
       if (pickedFile != null) {
-        setState(() {
-          _photoPaths[index] = File(pickedFile.path);
-        });
+        // Use the setter method from FormDataProvider
+        formDataProvider.setPhotoAtIndex(index, File(pickedFile.path));
       }
     } catch (e) {
       print("Error picking image at index $index: $e");
@@ -36,7 +51,36 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
     }
   }
 
-  Future<void> _submitForm(String docId, File? imageFile) async {
+  void _pickImageDialog(int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Choose Image Source'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _pickImage(ImageSource.camera, index: index);
+              },
+              child: const Text('Camera'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _pickImage(ImageSource.gallery, index: index);
+              },
+              child: const Text('Gallery'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _submitForm() async {
+    print("Submitting SeventhFormPage form...");
+
     setState(() {
       _isLoading = true;
     });
@@ -45,67 +89,92 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
       final FirebaseStorage storage = FirebaseStorage.instance;
 
-      // Function to upload file to Firebase Storage
-      Future<String> uploadFile(String filePath, String fileName) async {
-        final ref = storage.ref().child('vehicles/$docId/$fileName');
-        final task = ref.putFile(File(filePath));
-        final snapshot = await task;
-        return await snapshot.ref.getDownloadURL();
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+
+      String? userId = userProvider.userId;
+      String? vehicleId = vehicleProvider.vehicleId;
+
+      print("User ID: $userId");
+      print("Vehicle ID: $vehicleId");
+
+      if (userId == null) {
+        print("Error: userId is null");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: User not logged in.')),
+        );
+        return;
       }
 
-      // Upload images and get URLs
-      Map<String, String?> photoUrls = {};
-      List<String> photoLabels = [
-        'front_view',
-        'right_side_view',
-        'left_side_view',
-        'rear_view',
-        'left_front_45',
-        'right_front_45',
-        'left_rear_45',
-        'right_rear_45',
-        'front_tyres_tread',
-        'rear_tyres_tread',
-        'spare_wheel',
-        'license_disk',
-        'seats',
-        'bed_bunk',
-        'roof',
-        'mileageImage',
-        'dashboard',
-        'door_panels',
-      ];
+      if (vehicleId != null) {
+        // Upload images and get URLs
+        Map<String, String?> photoUrls = {};
+        List<String> photoLabels = [
+          'front_view',
+          'right_side_view',
+          'left_side_view',
+          'rear_view',
+          'left_front_45',
+          'right_front_45',
+          'left_rear_45',
+          'right_rear_45',
+          'front_tyres_tread',
+          'rear_tyres_tread',
+          'spare_wheel',
+          'license_disk',
+          'seats',
+          'bed_bunk',
+          'roof',
+          'mileage_image',
+          'dashboard',
+          'door_panels',
+        ];
 
-      for (int i = 0; i < _photoPaths.length; i++) {
-        if (_photoPaths[i] != null) {
-          photoUrls[photoLabels[i]] =
-              await uploadFile(_photoPaths[i]!.path, '${photoLabels[i]}.jpg');
+        for (int i = 0; i < formDataProvider.photoPaths.length; i++) {
+          if (formDataProvider.photoPaths[i] != null) {
+            print("Uploading image at index $i...");
+            String fileName = '${photoLabels[i]}.jpg';
+
+            // Define the storage path
+            final ref = storage.ref().child('vehicles/$vehicleId/$fileName');
+
+            final uploadTask = ref.putFile(formDataProvider.photoPaths[i]!);
+            final snapshot = await uploadTask;
+            String downloadUrl = await snapshot.ref.getDownloadURL();
+
+            photoUrls[photoLabels[i]] = downloadUrl;
+
+            print("Image uploaded for ${photoLabels[i]}: $downloadUrl");
+          } else {
+            print("No image selected for index $i (${photoLabels[i]}).");
+          }
         }
+
+        // Update the existing vehicle document using vehicleId
+        print("Updating Firestore document for vehicle...");
+        await firestore.collection('vehicles').doc(vehicleId).update({
+          ...photoUrls,
+          'userId': userId,
+        });
+
+        print("Form submitted successfully!");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Form submitted successfully!')),
+        );
+
+        // Navigate to the next form or update the form index
+        formDataProvider.incrementFormIndex();
+      } else {
+        print('Error: vehicleId is null');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Vehicle ID is null.')),
+        );
       }
-
-      // Filter out any null values from the photoUrls map
-      photoUrls.removeWhere((key, value) => value == null);
-
-      // Update Firestore with non-null URLs
-      await firestore.collection('vehicles').doc(docId).update(photoUrls);
-
-      print("Form submitted successfully!");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form submitted successfully!')),
-      );
-
-      // Navigate to the next form page
-      Navigator.pushNamed(
-        context,
-        '/eighthTruckForm', // Update with your actual route
-        arguments: {
-          'docId': docId,
-          'image': imageFile,
-        },
-      );
-    } catch (e) {
+    } catch (e, stackTrace) {
       print("Error submitting form: $e");
+      print("Stack trace: $stackTrace");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error submitting form: $e')),
       );
@@ -118,21 +187,25 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic>? args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final File? imageFile = args?['image'] as File?;
-    final String? docId = args?['docId'] as String?;
+    print("Building SeventhFormPage...");
 
-    if (args == null || docId == null) {
-      return const Scaffold(
+    final File? imageFile = formDataProvider.selectedMainImage;
+    final String? vehicleId = formDataProvider.vehicleId;
+
+    print('Debug: vehicleId in SeventhFormPage build method: $vehicleId');
+
+    if (vehicleId == null) {
+      return Scaffold(
         body: Center(
-          child: Text(
-            'Invalid or missing arguments. Please try again.',
+          child: const Text(
+            'Invalid or missing vehicle ID. Please try again.',
             style: TextStyle(color: Colors.red),
           ),
         ),
       );
     }
+
+    var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
       body: Stack(
@@ -253,18 +326,25 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
                             const SizedBox(height: 20),
                             Center(
                               child: CustomButton(
-                                text: 'CONTINUE',
-                                borderColor: const Color(0xFFFF4E00),
+                                text: _isLoading ? 'Submitting...' : 'CONTINUE',
+                                borderColor: orange,
                                 onPressed: _isLoading
-                                    ? () {}
-                                    : () => _submitForm(docId, imageFile),
+                                    ? () {
+                                        print(
+                                            "Submit button pressed while loading.");
+                                      }
+                                    : () {
+                                        print("Submit button pressed.");
+                                        _submitForm();
+                                      },
                               ),
                             ),
                             const SizedBox(height: 10),
                             Center(
                               child: TextButton(
                                 onPressed: () {
-                                  // Handle cancel action
+                                  print("Cancel button pressed.");
+                                  Navigator.pop(context);
                                 },
                                 child: const Text(
                                   'CANCEL',
@@ -283,13 +363,8 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
             ),
           ),
           if (_isLoading)
-            SizedBox(
-              child: const Center(
-              
-                child: CircularProgressIndicator(
-                  color: Color(0xFFFF4E00),
-                ),
-              ),
+            const Center(
+              child: CircularProgressIndicator(),
             ),
           const Positioned(
             top: 40,
@@ -298,33 +373,6 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
           ),
         ],
       ),
-    );
-  }
-
-  void _pickImageDialog(int index) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Choose Image Source'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.camera, index: index);
-              },
-              child: const Text('Camera'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.gallery, index: index);
-              },
-              child: const Text('Gallery'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -342,44 +390,39 @@ class _SeventhFormPageState extends State<SeventhFormPage> {
       itemBuilder: (context, index) {
         int actualIndex = startIndex + index;
         print("Building grid item at index $actualIndex");
-        try {
-          return GestureDetector(
-            onTap: () => _pickImageDialog(actualIndex),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(10.0),
-                border: Border.all(color: Colors.white70, width: 1),
-              ),
-              child: Center(
-                child: _photoPaths[actualIndex] == null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add, color: Colors.blue, size: 40),
-                          Text(
-                            _getPhotoLabel(actualIndex),
-                            style: const TextStyle(color: Colors.white),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      )
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(10.0),
-                        child: Image.file(
-                          _photoPaths[actualIndex]!,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-              ),
+        return GestureDetector(
+          onTap: () => _pickImageDialog(actualIndex),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: Colors.white70, width: 1),
             ),
-          );
-        } catch (e) {
-          print("Error building grid item at index $actualIndex: $e");
-          return const SizedBox();
-        }
+            child: Center(
+              child: formDataProvider.photoPaths[actualIndex] == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add, color: Colors.blue, size: 40),
+                        Text(
+                          _getPhotoLabel(actualIndex),
+                          style: const TextStyle(color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(10.0),
+                      child: Image.file(
+                        formDataProvider.photoPaths[actualIndex]!,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+            ),
+          ),
+        );
       },
     );
   }

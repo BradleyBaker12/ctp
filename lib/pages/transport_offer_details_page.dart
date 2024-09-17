@@ -70,7 +70,7 @@ class _TransporterOfferDetailsPageState
             Row(
               children: [
                 Text(
-                  widget.vehicle.makeModel?.toUpperCase() ?? 'UNKNOWN',
+                  widget.vehicle.makeModel.toUpperCase(),
                   style: GoogleFonts.montserrat(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -209,8 +209,8 @@ class _TransporterOfferDetailsPageState
                   ),
                   const SizedBox(height: 10),
                   _buildInfoRow(
-                      'Make/Model', widget.vehicle.makeModel ?? 'Unknown'),
-                  _buildInfoRow('Year', widget.vehicle.year ?? 'Unknown'),
+                      'Make/Model', widget.vehicle.makeModel),
+                  _buildInfoRow('Year', widget.vehicle.year),
                 ],
               ),
             ),

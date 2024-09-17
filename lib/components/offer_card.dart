@@ -326,9 +326,11 @@ class _OfferCardState extends State<OfferCard> {
                 offerId: widget.offer.offerId,
                 makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
                 offerAmount: formatOfferAmount(widget.offer.offerAmount),
+                vehicleId: widget.offer.vehicleId, // Add this line
               ),
             ),
           );
+
           break;
         case 'payment pending':
           Navigator.push(
@@ -368,9 +370,11 @@ class _OfferCardState extends State<OfferCard> {
                 offerId: widget.offer.offerId,
                 makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
                 offerAmount: formatOfferAmount(widget.offer.offerAmount),
+                vehicleId: widget.offer.vehicleId, // Add this line
               ),
             ),
           );
+
           break;
         case 'confirm location':
           Navigator.push(
@@ -386,10 +390,12 @@ class _OfferCardState extends State<OfferCard> {
                 time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
                 makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
                 offerAmount: formatOfferAmount(widget.offer.offerAmount),
+                vehicleId: widget.offer.vehicleId, // Add this line
               ),
             ),
           );
           break;
+
         case 'inspection pending':
           Navigator.push(
             context,
@@ -408,6 +414,7 @@ class _OfferCardState extends State<OfferCard> {
                 ),
                 makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
                 offerAmount: formatOfferAmount(widget.offer.offerAmount),
+                vehicleId: widget.offer.vehicleId, // Add this line
               ),
             ),
           );

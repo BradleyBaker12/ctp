@@ -4,7 +4,7 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/crop_photo_page.dart';
-import 'package:ctp/pages/dealer_reg.dart';
+// import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/transporter_reg.dart';
 // Import the House Rules page
 import 'package:flutter/material.dart';

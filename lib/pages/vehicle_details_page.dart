@@ -390,7 +390,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             Row(
               children: [
                 Text(
-                  widget.vehicle.makeModel.toUpperCase() ?? 'Unknown',
+                  widget.vehicle.makeModel.toUpperCase(),
                   style: GoogleFonts.montserrat(
                     fontSize: 20, // Adjust the font size as needed
                     fontWeight: FontWeight.bold,

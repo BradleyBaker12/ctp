@@ -13,7 +13,7 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     final userProvider = Provider.of<UserProvider>(context);
-    final size = MediaQuery.of(context).size;
+    // final size = MediaQuery.of(context).size;
     const Color borderColor = Color(0xFFFF4E00);
     final Color backgroundColor = borderColor.withOpacity(0.6);
 
@@ -58,8 +58,7 @@ class ProfilePage extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  userProvider.getUserName.toUpperCase() ??
-                                      'Profile Name',
+                                  userProvider.getUserName.toUpperCase(),
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
@@ -98,7 +97,7 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 20),
               _buildProfileDetail('FULL NAME',
                   '${userProvider.getFirstName ?? ''} ${userProvider.getMiddleName ?? ''} ${userProvider.getLastName ?? ''}'),
-              _buildProfileDetail('EMAIL', userProvider.getUserEmail ?? ''),
+              _buildProfileDetail('EMAIL', userProvider.getUserEmail),
               _buildProfileDetail(
                   'PHONE NUMBER', userProvider.getPhoneNumber ?? ''),
               _buildProfileDetail(

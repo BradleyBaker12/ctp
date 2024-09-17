@@ -21,6 +21,7 @@ class ConfirmationPage extends StatefulWidget {
   final LatLng latLng;
   final String makeModel;
   final String offerAmount;
+  final String vehicleId; // Add this line
 
   const ConfirmationPage({
     super.key,
@@ -32,6 +33,7 @@ class ConfirmationPage extends StatefulWidget {
     required this.latLng,
     required this.makeModel,
     required this.offerAmount,
+    required this.vehicleId, // Add this line
   });
 
   @override
@@ -232,6 +234,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                 offerId: widget.offerId,
                                 makeModel: widget.makeModel,
                                 offerAmount: widget.offerAmount,
+                                vehicleId:
+                                    widget.vehicleId, // Ensure this is added
                               ),
                             ),
                           );

@@ -139,7 +139,7 @@ class _TutorialTruckSwipePageState extends State<TutorialTruckSwipePage> {
   }
 
   Widget _buildTruckCard(BuildContext context, Size size) {
-    int honestyPercentage = (sampleVehicle['honestyPercentage'] as int);
+    // int honestyPercentage = (sampleVehicle['honestyPercentage'] as int);
 
     return GestureDetector(
       onDoubleTap: () {
