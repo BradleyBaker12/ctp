@@ -8,7 +8,7 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:ui'; // Required for the AppBar's blur effect
+// Required for the AppBar's blur effect
 
 class TruckPage extends StatefulWidget {
   final String? vehicleType; // Optional vehicleType, null means show all

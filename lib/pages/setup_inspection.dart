@@ -8,6 +8,8 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart'; // Import intl package to handle custom date formats
 
 class SetupInspectionPage extends StatefulWidget {
+  const SetupInspectionPage({super.key});
+
   @override
   _SetupInspectionPageState createState() => _SetupInspectionPageState();
 }
@@ -16,10 +18,10 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
   DateTime _focusedDay = DateTime.now();
   List<DateTime> _selectedDays = [];
   DateTime? _selectedDay;
-  CalendarFormat _calendarFormat = CalendarFormat.month;
+  final CalendarFormat _calendarFormat = CalendarFormat.month;
 
   // Map to store times for each selected date
-  Map<DateTime, List<TimeOfDay>> _dateTimeSlots = {};
+  final Map<DateTime, List<TimeOfDay>> _dateTimeSlots = {};
 
   // List of time dropdowns for the current day
   List<TimeOfDay?> _selectedTimes = [null];
@@ -49,7 +51,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
   ];
 
   // Store information for multiple locations
-  List<Map<String, dynamic>> _locations = [];
+  final List<Map<String, dynamic>> _locations = [];
   int? _editIndex; // Store the index of the location being edited
 
   // Controllers for address input fields
@@ -241,7 +243,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
     // Concatenate address into one line
     String fullAddress =
-        '${_addressLine1Controller.text}, ${_addressLine2Controller.text.isNotEmpty ? _addressLine2Controller.text + ', ' : ''}${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
+        '${_addressLine1Controller.text}, ${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
 
     Map<String, dynamic> locationData = {
       'address': fullAddress,
@@ -688,6 +690,6 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
 extension on DateTime {
   String toShortString() {
-    return '${this.day}-${this.month}-${this.year}';
+    return '$day-$month-$year';
   }
 }

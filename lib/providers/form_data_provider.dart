@@ -35,7 +35,7 @@ class FormDataProvider with ChangeNotifier {
   }
 
   // List of damage entries
-  List<DamageEntry> _damageEntries = [];
+  final List<DamageEntry> _damageEntries = [];
 
   List<DamageEntry> get damageEntries => _damageEntries;
 

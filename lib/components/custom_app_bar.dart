@@ -7,7 +7,7 @@ import 'package:ctp/pages/profile_page.dart'; // Import the ProfilePage
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double height;
 
-  CustomAppBar({this.height = 70.0});
+  const CustomAppBar({super.key, this.height = 70.0});
 
   @override
   Widget build(BuildContext context) {

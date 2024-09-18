@@ -12,7 +12,6 @@ import 'package:intl/intl.dart';
 
 import 'package:ctp/pages/inspectionPages/final_inspection_approval_page.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
-import 'package:ctp/pages/offer_details_page.dart';
 import 'package:ctp/pages/payment_options_page.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/pages/payment_approved.dart';
@@ -310,8 +309,7 @@ class _OfferCardState extends State<OfferCard> {
       return;
     }
 
-    if (resolvedComplaint != null &&
-        resolvedComplaint['complaintStatus'] == 'resolved') {
+    if (resolvedComplaint['complaintStatus'] == 'resolved') {
       // Handle resolved complaints
       // ... (existing logic for handling resolved complaints)
     } else {

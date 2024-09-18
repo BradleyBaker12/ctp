@@ -7,7 +7,7 @@ class CustomDrawer extends StatelessWidget {
   final String docId;
   final File? imageFile;
 
-  CustomDrawer({required this.docId, this.imageFile});
+  const CustomDrawer({super.key, required this.docId, this.imageFile});
 
   @override
   Widget build(BuildContext context) {

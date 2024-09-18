@@ -28,7 +28,7 @@ class ProgressBar extends StatelessWidget {
                           .withOpacity(0.4), // Semi-transparent blue
                       Colors.white, // Transition to white
                     ],
-                    stops: [
+                    stops: const [
                       0.0,
                       0.8,
                       1.0

@@ -223,7 +223,7 @@ class _OffersPageState extends State<OffersPage> {
                 return OfferCard(
                   offer: offer,
                 );
-              }).toList(),
+              }),
             ],
           );
         }

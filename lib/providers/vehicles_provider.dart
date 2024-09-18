@@ -67,9 +67,9 @@ class VehicleProvider with ChangeNotifier {
       print(
           'Total vehicles fetched from database: ${querySnapshot.docs.length}');
 
-      querySnapshot.docs.forEach((doc) {
+      for (var doc in querySnapshot.docs) {
         print('Fetched Vehicle ID from Firestore: ${doc.id}');
-      });
+      }
 
       _vehicles = querySnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -85,10 +85,10 @@ class VehicleProvider with ChangeNotifier {
 
       // Print the total number of vehicles after filtering
       print('Total vehicles after filtering: ${_vehicles.length}');
-      _vehicles.forEach((vehicle) {
+      for (var vehicle in _vehicles) {
         print(
             'After Filtering: Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}, UserId: ${vehicle.userId}');
-      });
+      }
 
       _isLoading = false;
       vehicleListenable.value = List.from(_vehicles);

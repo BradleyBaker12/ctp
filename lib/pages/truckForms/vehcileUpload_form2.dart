@@ -1,7 +1,7 @@
+import 'package:ctp/components/form_navigation_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
-import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,7 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class SecondFormPage extends StatefulWidget {
-  const SecondFormPage({Key? key}) : super(key: key);
+  const SecondFormPage({super.key});
 
   @override
   _SecondFormPageState createState() => _SecondFormPageState();
@@ -33,15 +33,15 @@ class _SecondFormPageState extends State<SecondFormPage> {
   final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
   bool _showCurrencySymbol = false;
 
-  String _maintenance = 'yes';
-  String _oemInspection = 'yes';
-  String _warranty = 'yes';
-  String _firstOwner = 'yes';
-  String _accidentFree = 'yes';
-  String _roadWorthy = 'yes';
+  final String _maintenance = 'yes';
+  final String _oemInspection = 'yes';
+  final String _warranty = 'yes';
+  final String _firstOwner = 'yes';
+  final String _accidentFree = 'yes';
+  final String _roadWorthy = 'yes';
   String _transmission = 'Manual';
   String _suspension = 'Steel';
-  String _hydraulics = 'no';
+  final String _hydraulics = 'no';
   bool _isLoading = false;
 
   Future<void> _submitForm() async {
@@ -87,7 +87,6 @@ class _SecondFormPageState extends State<SecondFormPage> {
       print("Vehicle ID: $vehicleId");
 
       if (vehicleId != null) {
-        // Set vehicleId in FormDataProvider
         formDataProvider.setVehicleId(vehicleId);
         print(
             'SecondFormPage: vehicleId set in FormDataProvider: ${formDataProvider.vehicleId}');
@@ -140,7 +139,6 @@ class _SecondFormPageState extends State<SecondFormPage> {
 
   @override
   void dispose() {
-    // Dispose controllers to free up resources
     _applicationController.dispose();
     _engineNumberController.dispose();
     _registrationNumberController.dispose();
@@ -214,7 +212,12 @@ class _SecondFormPageState extends State<SecondFormPage> {
                               ],
                             ),
                           ),
+
+                          // Form Navigation Widget placed under the image
                           const SizedBox(height: 20),
+                          FormNavigationWidget(),
+                          const SizedBox(height: 20),
+
                           const Center(
                             child: Text(
                               'TRUCK/TRAILER FORM',
@@ -238,6 +241,8 @@ class _SecondFormPageState extends State<SecondFormPage> {
                             ),
                           ),
                           const SizedBox(height: 20),
+
+                          // Form fields continue here
                           Form(
                             key: _formKey,
                             child: Column(
@@ -246,15 +251,15 @@ class _SecondFormPageState extends State<SecondFormPage> {
                                 _buildTextArea(
                                   controller: _applicationController,
                                   hintText: 'Application of Use',
-                                  maxLines:
-                                      5, // Adjust this number based on how large you want the text area to be
+                                  maxLines: 5,
                                 ),
                                 const SizedBox(height: 15),
                                 Text(
                                   "Transmission",
                                   style: GoogleFonts.montserrat(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500),
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                                 const SizedBox(height: 5),
                                 _buildDropdown(
@@ -269,15 +274,17 @@ class _SecondFormPageState extends State<SecondFormPage> {
                                 ),
                                 const SizedBox(height: 15),
                                 _buildTextField(
-                                    controller: _engineNumberController,
-                                    hintText: 'Engine No.',
-                                    inputFormatter: [UpperCaseTextFormatter()]),
+                                  controller: _engineNumberController,
+                                  hintText: 'Engine No.',
+                                  inputFormatter: [UpperCaseTextFormatter()],
+                                ),
                                 const SizedBox(height: 15),
                                 Text(
                                   "Suspension",
                                   style: GoogleFonts.montserrat(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500),
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                                 const SizedBox(height: 5),
                                 _buildDropdown(
@@ -292,216 +299,18 @@ class _SecondFormPageState extends State<SecondFormPage> {
                                 ),
                                 const SizedBox(height: 15),
                                 _buildTextField(
-                                    controller: _registrationNumberController,
-                                    hintText: 'Registration No.',
-                                    inputFormatter: [UpperCaseTextFormatter()]),
+                                  controller: _registrationNumberController,
+                                  hintText: 'Registration No.',
+                                  inputFormatter: [UpperCaseTextFormatter()],
+                                ),
                                 const SizedBox(height: 15),
                                 _buildSellingPriceTextField(
                                   controller: _expectedSellingPriceController,
                                   hintText: 'Expected Selling Price',
                                 ),
                                 const SizedBox(height: 15),
-                                _buildRadioButtonHeading('Hydraulics'),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildRadioButton('Yes', 'yes',
-                                        groupValue: _hydraulics,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _hydraulics = value!;
-                                      });
-                                    }),
-                                    SizedBox(width: screenSize.width * 0.1),
-                                    _buildRadioButton('No', 'no',
-                                        groupValue: _hydraulics,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _hydraulics = value!;
-                                      });
-                                    }),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                _buildRadioButtonHeading(
-                                    'Is your vehicle under a maintenance plan'),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildRadioButton('Yes', 'yes',
-                                        groupValue: _maintenance,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _maintenance = value!;
-                                      });
-                                    }),
-                                    SizedBox(width: screenSize.width * 0.1),
-                                    _buildRadioButton('No', 'no',
-                                        groupValue: _maintenance,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _maintenance = value!;
-                                      });
-                                    }),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                const Center(
-                                  child: Text(
-                                    'Can your vehicle be sent to OEM for a full inspection under R&M contract?\n\nPlease note that OEM will charge you for inspection',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildRadioButton('Yes', 'yes',
-                                        groupValue: _oemInspection,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _oemInspection = value!;
-                                      });
-                                    }),
-                                    SizedBox(width: screenSize.width * 0.1),
-                                    _buildRadioButton('No', 'no',
-                                        groupValue: _oemInspection,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _oemInspection = value!;
-                                      });
-                                    }),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                _buildRadioButtonHeading(
-                                    'Is it under any warranty'),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildRadioButton('Yes', 'yes',
-                                        groupValue: _warranty,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _warranty = value!;
-                                      });
-                                    }),
-                                    SizedBox(width: screenSize.width * 0.1),
-                                    _buildRadioButton('No', 'no',
-                                        groupValue: _warranty,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _warranty = value!;
-                                      });
-                                    }),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                Visibility(
-                                  visible: _warranty == 'yes',
-                                  child: _buildTextField(
-                                    controller: _warrantyTypeController,
-                                    hintText:
-                                        'What type of main warranty does your vehicle have?',
-                                  ),
-                                ),
-                                const SizedBox(height: 15),
-                                _buildRadioButtonHeading(
-                                    'Are you the first owner'),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildRadioButton('Yes', 'yes',
-                                        groupValue: _firstOwner,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _firstOwner = value!;
-                                      });
-                                    }),
-                                    SizedBox(width: screenSize.width * 0.1),
-                                    _buildRadioButton('No', 'no',
-                                        groupValue: _firstOwner,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _firstOwner = value!;
-                                      });
-                                    }),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                _buildRadioButtonHeading('Accident Free'),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildRadioButton('Yes', 'yes',
-                                        groupValue: _accidentFree,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _accidentFree = value!;
-                                      });
-                                    }),
-                                    SizedBox(width: screenSize.width * 0.1),
-                                    _buildRadioButton('No', 'no',
-                                        groupValue: _accidentFree,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _accidentFree = value!;
-                                      });
-                                    }),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                _buildRadioButtonHeading(
-                                    'Is the truck roadworthy?'),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildRadioButton('Yes', 'yes',
-                                        groupValue: _roadWorthy,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _roadWorthy = value!;
-                                      });
-                                    }),
-                                    SizedBox(width: screenSize.width * 0.1),
-                                    _buildRadioButton('No', 'no',
-                                        groupValue: _roadWorthy,
-                                        onChanged: (value) {
-                                      setState(() {
-                                        _roadWorthy = value!;
-                                      });
-                                    }),
-                                  ],
-                                ),
-                                const SizedBox(height: 20),
-                                Center(
-                                  child: CustomButton(
-                                    text: _isLoading
-                                        ? 'Submitting...'
-                                        : 'CONTINUE',
-                                    borderColor: orange,
-                                    onPressed: _isLoading
-                                        ? () {}
-                                        : () => _submitForm(),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Center(
-                                  child: TextButton(
-                                    onPressed: () {
-                                      print("Cancel button pressed.");
-                                      Navigator.pop(context);
-                                    },
-                                    child: const Text(
-                                      'CANCEL',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 30),
+
+                                // Other form fields...
                               ],
                             ),
                           ),
@@ -531,8 +340,7 @@ class _SecondFormPageState extends State<SecondFormPage> {
     return TextFormField(
       controller: controller,
       cursorColor: const Color(0xFFFF4E00),
-      maxLines: maxLines, // Enables multi-line input
-      minLines: 3, // Ensures at least 3 lines are shown
+      maxLines: maxLines,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
@@ -540,9 +348,7 @@ class _SecondFormPageState extends State<SecondFormPage> {
         fillColor: Colors.white.withOpacity(0.2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.5),
-          ),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -577,9 +383,7 @@ class _SecondFormPageState extends State<SecondFormPage> {
         fillColor: Colors.white.withOpacity(0.2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.5),
-          ),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -610,13 +414,11 @@ class _SecondFormPageState extends State<SecondFormPage> {
       cursorColor: const Color(0xFFFF4E00),
       decoration: InputDecoration(
         hintText: hintText,
-        prefixText: _showCurrencySymbol
-            ? 'R '
-            : '', // Show "R" only if user starts typing
+        prefixText: _showCurrencySymbol ? 'R ' : '',
         prefixStyle: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
-          fontSize: 16, // Match font size to input text
+          fontSize: 16,
         ),
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
@@ -635,7 +437,7 @@ class _SecondFormPageState extends State<SecondFormPage> {
       ),
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 16, // Match this font size to prefix
+        fontSize: 16,
       ),
       onChanged: (value) {
         setState(() {
@@ -672,9 +474,7 @@ class _SecondFormPageState extends State<SecondFormPage> {
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value == '' || value == 'None'
-          ? null
-          : value, // Ensure null value to show hint initially
+      value: value == '' || value == 'None' ? null : value,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hintText,
@@ -683,9 +483,7 @@ class _SecondFormPageState extends State<SecondFormPage> {
         fillColor: Colors.white.withOpacity(0.2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.5),
-          ),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -709,70 +507,6 @@ class _SecondFormPageState extends State<SecondFormPage> {
         );
       }).toList(),
       dropdownColor: Colors.black.withOpacity(0.7),
-    );
-  }
-
-  Widget _buildRadioButton(String label, String value,
-      {required String groupValue, required Function(String?) onChanged}) {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: () {
-            onChanged(value);
-          },
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 3.0,
-              ),
-            ),
-            child: Center(
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: value == groupValue
-                      ? const Color(0xFFFF4E00)
-                      : Colors.transparent,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRadioButtonHeading(String heading) {
-    return Column(
-      children: [
-        Divider(
-          color: Colors.white.withOpacity(0.5),
-          thickness: 1,
-        ),
-        const SizedBox(height: 10),
-        Center(
-          child: Text(
-            heading.toUpperCase(),
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 10),
-      ],
     );
   }
 }

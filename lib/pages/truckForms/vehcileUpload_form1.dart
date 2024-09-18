@@ -18,7 +18,7 @@ import 'package:ctp/providers/form_data_provider.dart'; // Import FormDataProvid
 class FirstTruckForm extends StatefulWidget {
   final String vehicleType;
 
-  const FirstTruckForm({Key? key, required this.vehicleType}) : super(key: key);
+  const FirstTruckForm({super.key, required this.vehicleType});
 
   @override
   _FirstTruckFormState createState() => _FirstTruckFormState();

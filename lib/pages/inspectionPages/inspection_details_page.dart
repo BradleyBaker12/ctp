@@ -15,12 +15,12 @@ class InspectionDetailsPage extends StatefulWidget {
   final String vehicleId; // Add vehicleId to fetch vehicle data
 
   const InspectionDetailsPage({
-    Key? key,
+    super.key,
     required this.offerId,
     required this.makeModel,
     required this.offerAmount,
     required this.vehicleId,
-  }) : super(key: key);
+  });
 
   @override
   _InspectionDetailsPageState createState() => _InspectionDetailsPageState();

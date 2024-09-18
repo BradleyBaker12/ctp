@@ -34,7 +34,6 @@ import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';

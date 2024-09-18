@@ -15,7 +15,7 @@ import 'package:intl/intl.dart'; // Import for number formatting
 import 'package:path/path.dart' as path; // Import path package
 
 class ThirdFormPage extends StatefulWidget {
-  const ThirdFormPage({Key? key}) : super(key: key);
+  const ThirdFormPage({super.key});
 
   @override
   _ThirdFormPageState createState() => _ThirdFormPageState();

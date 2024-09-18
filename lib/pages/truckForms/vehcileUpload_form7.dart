@@ -14,7 +14,7 @@ import 'package:ctp/providers/form_data_provider.dart'; // Import FormDataProvid
 // import 'package:path/path.dart' as path;
 
 class SeventhFormPage extends StatefulWidget {
-  const SeventhFormPage({Key? key}) : super(key: key);
+  const SeventhFormPage({super.key});
 
   @override
   _SeventhFormPageState createState() => _SeventhFormPageState();
