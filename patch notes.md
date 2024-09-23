@@ -106,5 +106,7 @@ on the faults where you can upload all the damages to the truck, it needs to be 
 When filling in the Truck/Tyre section it needs to be displayed like that, currently they are filling out the tyre section and it says Truck/Trailer.
 Describe the damages needs to be a section where they add a picture of the damage with a photo and text and that can be repeated multiple times.
 
-18/09/2024
-Change the positioning of the form navigation to replace the stars
+18/09/2024 - 23/09/2024
+Refactored the truck form so the user can move between each section of the form freely and that the data is saved for that truck
+
+
