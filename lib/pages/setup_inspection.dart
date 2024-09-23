@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
