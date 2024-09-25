@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -689,6 +690,12 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
             : [];
         _isInspectionSetupComplete = true; // Ensure this is set to true
       });
+      // Debugging code
+      print('Inspection Setup Complete:');
+      print('Dates: $_inspectionDates');
+      print('Locations: $_inspectionLocations');
+    } else {
+      print('Inspection setup was cancelled or invalid data.');
     }
   }
 
@@ -709,6 +716,12 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
             : [];
         _isCollectionSetupComplete = true; // Ensure this is set to true
       });
+      // Debugging code
+      print('Collection Setup Complete:');
+      print('Dates: $_collectionDates');
+      print('Locations: $_collectionLocations');
+    } else {
+      print('Collection setup was cancelled or invalid data.');
     }
   }
 
@@ -768,19 +781,33 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         'mileage': _mileageController.text,
         'sellingPrice': _sellingPriceController.text,
         'mainImageUrl': mainImageUrl, // Include the main image URL
+        'inspectionDates': _inspectionDates, // Inspection data
+        'inspectionLocations': _inspectionLocations, // Inspection data
+        'collectionDates': _collectionDates, // Collection data
+        'collectionLocations': _collectionLocations, // Collection data
         'createdAt': FieldValue.serverTimestamp(),
       };
+
+      // Debugging code
+      print('Submitting Section 1 Data:');
+      print(section1Data);
 
       // Add new document if it's a new vehicle, otherwise update the existing document
       if (_vehicleId == null) {
         DocumentReference docRef =
             await _firestore.collection('vehicles').add(section1Data);
         _vehicleId = docRef.id; // Store vehicleId for future use
+
+        // Debugging code
+        print('New vehicle document created with ID: $_vehicleId');
       } else {
         await _firestore
             .collection('vehicles')
             .doc(_vehicleId)
             .update(section1Data);
+
+        // Debugging code
+        print('Vehicle document updated with ID: $_vehicleId');
       }
 
       setState(() {
@@ -814,7 +841,9 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         Scaffold(
           appBar: AppBar(
             leading: IconButton(
-              onPressed: () {},
+              onPressed: () async {
+                Navigator.pop(context);
+              },
               icon: Icon(Icons.arrow_left),
               color: Colors.white,
               iconSize: 40,
@@ -872,11 +901,13 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
             child: NotificationListener<ScrollNotification>(
               onNotification: (scrollNotification) {
                 if (scrollNotification.metrics.axis == Axis.vertical) {
-                  setState(() {
-                    double offset = scrollNotification.metrics.pixels;
-                    if (offset < 0) offset = 0;
-                    if (offset > (300.0 - 150.0)) offset = (300.0 - 150.0);
-                    _imageHeight = 300.0 - offset;
+                  SchedulerBinding.instance.addPostFrameCallback((_) {
+                    setState(() {
+                      double offset = scrollNotification.metrics.pixels;
+                      if (offset < 0) offset = 0;
+                      if (offset > (300.0 - 150.0)) offset = (300.0 - 150.0);
+                      _imageHeight = 300.0 - offset;
+                    });
                   });
                 }
                 return true;
@@ -1119,7 +1150,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                     },
                   ),
                   const SizedBox(height: 15),
-                  // In _buildSection1 method
                   _buildTextField(
                     controller: _vinNumberController,
                     hintText: 'VIN Number',
@@ -1133,7 +1163,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 30),
                   Center(
                     child: Column(
@@ -1162,6 +1191,62 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 ],
               ),
             ),
+            CustomButton(
+              text: 'Next',
+              borderColor: blue,
+              onPressed: () async {
+                if (!_formKeys[0].currentState!.validate()) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Please fill in all required fields in Section 1.')),
+                  );
+                  return;
+                } else if (!_isInspectionSetupComplete ||
+                    !_isCollectionSetupComplete) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Please complete both Inspection and Collection setup before proceeding.')),
+                  );
+                  return;
+                } else {
+                  // Save Section 1 data and move to the next tab
+                  await _saveSection1Data();
+                  if (_vehicleId != null) {
+                    _tabController.animateTo(1);
+                  }
+                }
+              },
+            ),
+            if (_tabController.index == 0)
+              CustomButton(
+                text: 'Done',
+                borderColor: orange,
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        if (!_formKeys[0].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please fill in all required fields in Section 1.')),
+                          );
+                          return;
+                        } else if (!_isInspectionSetupComplete ||
+                            !_isCollectionSetupComplete) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please complete both Inspection and Collection setup before proceeding.')),
+                          );
+                          return;
+                        } else {
+                          await _saveAllSectionsAndNavigateHome();
+                        }
+                      },
+              ),
+            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -1266,6 +1351,55 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 // No validator
               ),
               const SizedBox(height: 15),
+
+              // Add the Next and Done buttons at the bottom
+              Center(
+                child: Column(
+                  children: [
+                    CustomButton(
+                      text: 'Next',
+                      borderColor: blue,
+                      onPressed: () async {
+                        if (!_formKeys[1].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please fill in all required fields in Section 2.')),
+                          );
+                          return;
+                        } else {
+                          // Save Section 2 data and move to next tab
+                          await _saveSection2Data();
+                          if (_vehicleId != null) {
+                            _tabController.animateTo(2); // move to next tab
+                          }
+                        }
+                      },
+                    ),
+                    if (_tabController.index ==
+                        1) // Show the Done button for section 2
+                      CustomButton(
+                        text: 'Done',
+                        borderColor: orange,
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                if (!_formKeys[1].currentState!.validate()) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please fill in all required fields in Section 2.')),
+                                  );
+                                  return;
+                                } else {
+                                  await _saveAllSectionsAndNavigateHome();
+                                }
+                              },
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 30),
             ],
           ),
         ),
@@ -1319,7 +1453,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       setState(() {
                         _settleBeforeSelling = value;
                       });
-                      // Ensure value is non-null before calling setSettleBeforeSelling
                       if (value != null) {
                         Provider.of<FormDataProvider>(context, listen: false)
                             .setSettleBeforeSelling(value);
@@ -1335,7 +1468,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       setState(() {
                         _settleBeforeSelling = value;
                       });
-                      // Ensure value is non-null before calling setSettleBeforeSelling
                       if (value != null) {
                         Provider.of<FormDataProvider>(context, listen: false)
                             .setSettleBeforeSelling(value);
@@ -1412,12 +1544,60 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       hintText: 'Amount',
                       isCurrency: true, // Ensure 'R' prefix is shown
                       keyboardType: TextInputType.number,
-                      // No validator
                     ),
                     const SizedBox(height: 20),
                   ],
                 ),
               ),
+
+              // Add Next and Done buttons here, regardless of Yes/No selection
+              Center(
+                child: Column(
+                  children: [
+                    CustomButton(
+                      text: 'Next',
+                      borderColor: blue,
+                      onPressed: () async {
+                        if (!_formKeys[2].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please fill in all required fields in Section 3.')),
+                          );
+                          return;
+                        } else {
+                          // Save Section 3 data and move to next tab
+                          await _saveSection3Data();
+                          if (_vehicleId != null) {
+                            _tabController.animateTo(3); // move to next tab
+                          }
+                        }
+                      },
+                    ),
+                    if (_tabController.index ==
+                        2) // Show the Done button for section 3
+                      CustomButton(
+                        text: 'Done',
+                        borderColor: orange,
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                if (!_formKeys[2].currentState!.validate()) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please fill in all required fields in Section 3.')),
+                                  );
+                                  return;
+                                } else {
+                                  await _saveAllSectionsAndNavigateHome();
+                                }
+                              },
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -1489,6 +1669,55 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Add Next and Done buttons here
+              Center(
+                child: Column(
+                  children: [
+                    CustomButton(
+                      text: 'Next',
+                      borderColor: blue,
+                      onPressed: () async {
+                        if (!_formKeys[3].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please fill in all required fields in Section 4.')),
+                          );
+                          return;
+                        } else {
+                          // Save Section 4 data and move to the next tab
+                          await _saveSection4Data();
+                          if (_vehicleId != null) {
+                            _tabController.animateTo(4); // move to next tab
+                          }
+                        }
+                      },
+                    ),
+                    if (_tabController.index ==
+                        3) // Show the Done button for section 4
+                      CustomButton(
+                        text: 'Done',
+                        borderColor: orange,
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                if (!_formKeys[3].currentState!.validate()) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please fill in all required fields in Section 4.')),
+                                  );
+                                  return;
+                                } else {
+                                  await _saveAllSectionsAndNavigateHome();
+                                }
+                              },
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -1569,6 +1798,55 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 _buildDamageEntriesSection(),
                 const SizedBox(height: 20),
               ],
+
+              // Add Next and Done buttons here
+              Center(
+                child: Column(
+                  children: [
+                    CustomButton(
+                      text: 'Next',
+                      borderColor: blue,
+                      onPressed: () async {
+                        if (!_formKeys[4].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please fill in all required fields in Section 5.')),
+                          );
+                          return;
+                        } else {
+                          // Save Section 5 data and move to the next tab
+                          await _saveSection5Data();
+                          if (_vehicleId != null) {
+                            _tabController.animateTo(5); // move to next tab
+                          }
+                        }
+                      },
+                    ),
+                    if (_tabController.index ==
+                        4) // Show the Done button for section 5
+                      CustomButton(
+                        text: 'Done',
+                        borderColor: orange,
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                if (!_formKeys[4].currentState!.validate()) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please fill in all required fields in Section 5.')),
+                                  );
+                                  return;
+                                } else {
+                                  await _saveAllSectionsAndNavigateHome();
+                                }
+                              },
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -1641,12 +1919,10 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
 
               // Tyre Type (Virgin or Recaps)
               _buildTyreTypeSection(),
-
               const SizedBox(height: 20),
 
               // Tread Left (Dropdown)
               _buildTreadLeftDropdown(),
-
               const SizedBox(height: 20),
 
               // Front Right Tyre Image Upload
@@ -1656,7 +1932,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   _frontRightTyreImage = image;
                 });
               }),
-
               const SizedBox(height: 20),
 
               // Front Left Tyre Image Upload
@@ -1666,7 +1941,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   _frontLeftTyreImage = image;
                 });
               }),
-
               const SizedBox(height: 20),
 
               // Spare Tyre (Yes or No) and Upload Section
@@ -1682,7 +1956,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               ),
               const SizedBox(height: 10),
               _buildSpareTyreSection(),
-
               const SizedBox(height: 20),
 
               // Spare Wheel Tyre Image Upload
@@ -1692,7 +1965,55 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   _spareWheelTyreImage = image;
                 });
               }),
+              const SizedBox(height: 30),
 
+              // Add Next and Done buttons here
+              Center(
+                child: Column(
+                  children: [
+                    CustomButton(
+                      text: 'Next',
+                      borderColor: blue,
+                      onPressed: () async {
+                        if (!_formKeys[5].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please fill in all required fields in Section 6.')),
+                          );
+                          return;
+                        } else {
+                          // Save Section 6 data and move to the next tab
+                          await _saveSection6Data();
+                          if (_vehicleId != null) {
+                            _tabController.animateTo(6); // move to next tab
+                          }
+                        }
+                      },
+                    ),
+                    if (_tabController.index ==
+                        5) // Show the Done button for section 6
+                      CustomButton(
+                        text: 'Done',
+                        borderColor: orange,
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                if (!_formKeys[5].currentState!.validate()) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please fill in all required fields in Section 6.')),
+                                  );
+                                  return;
+                                } else {
+                                  await _saveAllSectionsAndNavigateHome();
+                                }
+                              },
+                      ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 30),
             ],
           ),
@@ -1755,7 +2076,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
 
               // Exterior Photos Grid
               _buildPhotoGrid(0, 4),
-
               const SizedBox(height: 20),
 
               // Additional Exterior Photos Header
@@ -1774,7 +2094,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
 
               // Additional Exterior Photos Grid
               _buildPhotoGrid(4, 12),
-
               const SizedBox(height: 20),
 
               // Interior Photos Header
@@ -1793,8 +2112,30 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
 
               // Interior Photos Grid
               _buildPhotoGrid(12, 18),
-
               const SizedBox(height: 20),
+
+              // Add Done button here
+              Center(
+                child: CustomButton(
+                  text: 'Done',
+                  borderColor: orange,
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          if (!_formKeys[6].currentState!.validate()) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Please fill in all required fields in Section 7.')),
+                            );
+                            return;
+                          } else {
+                            await _saveAllSectionsAndNavigateHome();
+                          }
+                        },
+                ),
+              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -1836,85 +2177,85 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
             ),
           ),
           const SizedBox(height: 20),
-          if (currentIndex < 6) // Only show Next button for sections 1-6
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: CustomButton(
-                  text: 'Next',
-                  borderColor: blue,
-                  onPressed: () async {
-                    if (currentIndex == 0) {
-                      // Validation for Section 1
-                      if (!_formKeys[0].currentState!.validate()) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Please fill in all required fields in Section 1.')),
-                        );
-                        return;
-                      } else if (!_isInspectionSetupComplete ||
-                          !_isCollectionSetupComplete) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Please complete both Inspection and Collection setup before proceeding.')),
-                        );
-                        return;
-                      } else {
-                        // Save Section 1 data
-                        await _saveSection1Data();
-                      }
-                    }
-                    if (_tabController.index < _tabController.length - 1) {
-                      // Ensure vehicleId is not null
-                      if (_vehicleId != null) {
-                        _tabController.animateTo(_tabController.index + 1);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Error saving Section 1. Please try again.')),
-                        );
-                      }
-                    }
-                  },
-                ),
-              ),
-            ),
-          const SizedBox(height: 10),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: CustomButton(
-                text: 'Done',
-                borderColor: orange,
-                onPressed: _isLoading
-                    ? null
-                    : () async {
-                        // Validation for Section 1 before saving all sections
-                        if (!_formKeys[0].currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Please fill in all required fields in Section 1.')),
-                          );
-                          return;
-                        } else if (!_isInspectionSetupComplete ||
-                            !_isCollectionSetupComplete) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Please complete both Inspection and Collection setup before proceeding.')),
-                          );
-                          return;
-                        } else {
-                          await _saveAllSectionsAndNavigateHome();
-                        }
-                      },
-              ),
-            ),
-          ),
+          // if (currentIndex < 6) // Only show Next button for sections 1-6
+          //   Center(
+          //     child: Padding(
+          //       padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          //       child: CustomButton(
+          //         text: 'Next',
+          //         borderColor: blue,
+          //         onPressed: () async {
+          //           if (currentIndex == 0) {
+          //             // Validation for Section 1
+          //             if (!_formKeys[0].currentState!.validate()) {
+          //               ScaffoldMessenger.of(context).showSnackBar(
+          //                 const SnackBar(
+          //                     content: Text(
+          //                         'Please fill in all required fields in Section 1.')),
+          //               );
+          //               return;
+          //             } else if (!_isInspectionSetupComplete ||
+          //                 !_isCollectionSetupComplete) {
+          //               ScaffoldMessenger.of(context).showSnackBar(
+          //                 const SnackBar(
+          //                     content: Text(
+          //                         'Please complete both Inspection and Collection setup before proceeding.')),
+          //               );
+          //               return;
+          //             } else {
+          //               // Save Section 1 data
+          //               await _saveSection1Data();
+          //             }
+          //           }
+          //           if (_tabController.index < _tabController.length - 1) {
+          //             // Ensure vehicleId is not null
+          //             if (_vehicleId != null) {
+          //               _tabController.animateTo(_tabController.index + 1);
+          //             } else {
+          //               ScaffoldMessenger.of(context).showSnackBar(
+          //                 const SnackBar(
+          //                     content: Text(
+          //                         'Error saving Section 1. Please try again.')),
+          //               );
+          //             }
+          //           }
+          //         },
+          //       ),
+          //     ),
+          //   ),
+          // const SizedBox(height: 10),
+          // Center(
+          //   child: Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          //     child: CustomButton(
+          //       text: 'Done',
+          //       borderColor: orange,
+          //       onPressed: _isLoading
+          //           ? null
+          //           : () async {
+          //               // Validation for Section 1 before saving all sections
+          //               if (!_formKeys[0].currentState!.validate()) {
+          //                 ScaffoldMessenger.of(context).showSnackBar(
+          //                   const SnackBar(
+          //                       content: Text(
+          //                           'Please fill in all required fields in Section 1.')),
+          //                 );
+          //                 return;
+          //               } else if (!_isInspectionSetupComplete ||
+          //                   !_isCollectionSetupComplete) {
+          //                 ScaffoldMessenger.of(context).showSnackBar(
+          //                   const SnackBar(
+          //                       content: Text(
+          //                           'Please complete both Inspection and Collection setup before proceeding.')),
+          //                 );
+          //                 return;
+          //               } else {
+          //                 await _saveAllSectionsAndNavigateHome();
+          //               }
+          //             },
+          //     ),
+          //   ),
+          // ),
           const SizedBox(height: 20),
         ],
       ),

@@ -111,5 +111,6 @@ Refactored the truck form so the user can move between each section of the form 
 
 24/09/2024
 After refacotirng the truck form we needed to fix the vehilce listing page so that it can relfect the users uploaded trucks form that form.
+Adjustments made to the truck form so that it is more readable
 
 
