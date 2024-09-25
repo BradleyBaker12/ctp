@@ -2317,30 +2317,52 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     Function(String?)? onChanged,
     bool isWeight = false,
   }) {
-    return Theme(
-      data: ThemeData(
-        unselectedWidgetColor:
-            Colors.white, // White outer circle for unselected
-      ),
-      child: Row(
-        children: [
-          Radio<String>(
-            value: value,
-            groupValue: groupValue ?? (isWeight ? _weightClass : _vehicleType),
-            onChanged: onChanged ??
-                (String? newValue) {
-                  setState(() {
-                    if (isWeight) {
-                      _weightClass = newValue!;
-                    } else {
-                      _vehicleType = newValue!;
-                    }
-                  });
-                },
-            activeColor: const Color(0xFFFF4E00), // Orange center for selected
+    bool isSelected =
+        (groupValue ?? (isWeight ? _weightClass : _vehicleType)) == value;
+
+    return InkWell(
+      onTap: () {
+        if (onChanged != null) {
+          onChanged(value);
+        } else {
+          setState(() {
+            if (isWeight) {
+              _weightClass = value;
+            } else {
+              _vehicleType = value;
+            }
+          });
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFFFF4E00)
+              : Colors.transparent, // Orange background if selected
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFFF4E00)
+                : Colors.white54, // Orange border if selected, white otherwise
+            width: 2.0,
           ),
-          Text(label, style: const TextStyle(color: Colors.white)),
-        ],
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : Colors
+                        .white70, // White text if selected, slightly faded otherwise
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

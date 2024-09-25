@@ -114,4 +114,4 @@ After refacotirng the truck form we needed to fix the vehilce listing page so th
 Adjustments made to the truck form so that it is more readable
 Made the setup for the inspection detaisl and collection details more user friendly in a functinality point of view, designs need more adjuments
 Added pagination to the my vehicles page
-
+make sure the hitbox of the yes and no is bigger and the truck drivers focusing on the little dot that they need to press on is too small
