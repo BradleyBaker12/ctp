@@ -41,26 +41,19 @@ class VehicleProvider with ChangeNotifier {
   }
 
   List<Vehicle> getVehiclesByUserId(String userId) {
-    List<Vehicle> userVehicles =
-        _vehicles.where((vehicle) => vehicle.userId == userId).toList();
-
-    // // Print details of each vehicle for the user
-    // for (var vehicle in userVehicles) {
-    //   print(
-    //       'User Vehicle - ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}');
-    // }
-
-    return userVehicles;
+    return _vehicles.where((vehicle) => vehicle.userId == userId).toList();
   }
 
   Future<void> fetchVehicles(UserProvider userProvider,
       {String? vehicleType,
       String? userId,
-      bool filterLikedDisliked = true}) async {
+      bool filterLikedDisliked = true,
+      int limit = 20}) async {
     try {
       _isLoading = true;
 
-      Query query = FirebaseFirestore.instance.collection('vehicles');
+      Query query =
+          FirebaseFirestore.instance.collection('vehicles').limit(limit);
 
       if (vehicleType != null) {
         query = query.where('vehicleType', isEqualTo: vehicleType);
@@ -72,8 +65,9 @@ class VehicleProvider with ChangeNotifier {
 
       QuerySnapshot querySnapshot = await query.get();
 
-      print(
-          'Total vehicles fetched from database: ${querySnapshot.docs.length}');
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastFetchedDocument = querySnapshot.docs.last;
+      }
 
       _vehicles = querySnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -81,7 +75,6 @@ class VehicleProvider with ChangeNotifier {
         return Vehicle.fromFirestore(data);
       }).toList();
 
-      // Apply filtering based on likes and dislikes if needed
       if (filterLikedDisliked) {
         _vehicles = _vehicles.where((vehicle) {
           return !userProvider.getLikedVehicles.contains(vehicle.id) &&
@@ -89,9 +82,7 @@ class VehicleProvider with ChangeNotifier {
         }).toList();
       }
 
-      print('Total vehicles after filtering: ${_vehicles.length}');
       _isLoading = false;
-      vehicleListenable.value = List.from(_vehicles);
       notifyListeners();
     } catch (e) {
       print('Error fetching vehicles: $e');
@@ -109,7 +100,7 @@ class VehicleProvider with ChangeNotifier {
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
           .startAfterDocument(_lastFetchedDocument!)
-          .limit(10)
+          .limit(20) // Fetch 20 more vehicles
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
@@ -124,7 +115,6 @@ class VehicleProvider with ChangeNotifier {
 
       _vehicles.addAll(moreVehicles);
       _isLoading = false;
-      vehicleListenable.value = List.from(_vehicles);
       notifyListeners();
     } catch (e) {
       print('Error fetching more vehicles: $e');

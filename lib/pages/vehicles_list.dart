@@ -17,6 +17,7 @@ class VehiclesListPage extends StatefulWidget {
 
 class _VehiclesListPageState extends State<VehiclesListPage> {
   int _selectedIndex = 1;
+  final ScrollController _scrollController = ScrollController();
 
   void _onItemTapped(int index) {
     setState(() {
@@ -34,49 +35,52 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final currentUserId = userProvider.userId;
 
-      print('initState - Current User ID: $currentUserId');
-
       if (currentUserId != null) {
         vehicleProvider.fetchVehicles(userProvider,
             userId: currentUserId, filterLikedDisliked: false);
       }
+
+      // Add listener to the scroll controller for pagination
+      _scrollController.addListener(() {
+        if (_scrollController.position.pixels ==
+            _scrollController.position.maxScrollExtent) {
+          // Trigger fetching more vehicles when reaching the end
+          vehicleProvider.fetchMoreVehicles();
+        }
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final vehicleProvider = Provider.of<VehicleProvider>(context);
     final userProvider = Provider.of<UserProvider>(context);
-
-    // Fetch the current user's ID from the UserProvider
     final currentUserId = userProvider.userId;
 
-    print('build - Current User ID: $currentUserId');
-
-    // Check if currentUserId is null
     if (currentUserId == null) {
       return Scaffold(
-        appBar: CustomAppBar(), // Use the custom app bar here
+        appBar: CustomAppBar(),
         body: const Center(
           child: Text('User is not signed in.'),
         ),
       );
     }
 
-    // Get the filtered vehicles by current userId
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
-
-    print(
-        'Total vehicles to be displayed for user $currentUserId: ${userVehicles.length}');
 
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: CustomAppBar(), // Use the custom app bar here
+        appBar: CustomAppBar(),
         body: Column(
           children: [
             const SizedBox(height: 40),
-            // Styled heading
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -110,38 +114,40 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: vehicleProvider.isLoading
+              child: vehicleProvider.isLoading && userVehicles.isEmpty
                   ? const Center(child: CircularProgressIndicator())
-                  : userVehicles.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No vehicles available.',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: userVehicles.length,
-                          itemBuilder: (context, index) {
-                            final vehicle = userVehicles[index];
-                            return ListingCard(
-                              vehicleMakeModel: vehicle.makeModel,
-                              vehicleImageUrl: vehicle.mainImageUrl,
-                              vehicleYear: vehicle.year,
-                              vehicleMileage: vehicle.mileage,
-                              vehicleTransmission: vehicle.transmission,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => VehicleDetailsPage(
-                                      vehicle: vehicle,
-                                    ),
-                                  ),
-                                );
-                              },
+                  : ListView.builder(
+                      controller: _scrollController, // Attach scroll controller
+                      itemCount: userVehicles.length +
+                          1, // Add an extra item for the loading indicator
+                      itemBuilder: (context, index) {
+                        if (index == userVehicles.length) {
+                          // Show loading indicator at the bottom
+                          return vehicleProvider.isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : const SizedBox(); // Empty widget when not loading
+                        }
+
+                        final vehicle = userVehicles[index];
+                        return ListingCard(
+                          vehicleMakeModel: vehicle.makeModel,
+                          vehicleImageUrl: vehicle.mainImageUrl,
+                          vehicleYear: vehicle.year,
+                          vehicleMileage: vehicle.mileage,
+                          vehicleTransmission: vehicle.transmission,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => VehicleDetailsPage(
+                                  vehicle: vehicle,
+                                ),
+                              ),
                             );
                           },
-                        ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
