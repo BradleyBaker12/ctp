@@ -4,7 +4,6 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:table_calendar/table_calendar.dart';
-// import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart'; // Import intl package to handle custom date formats
 
 class SetupCollectionPage extends StatefulWidget {
@@ -20,13 +19,9 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   DateTime? _selectedDay;
   final CalendarFormat _calendarFormat = CalendarFormat.month;
 
-  // Map to store times for each selected date
   final Map<DateTime, List<TimeOfDay>> _dateTimeSlots = {};
-
-  // List of time dropdowns for the current day
   List<TimeOfDay?> _selectedTimes = [null];
 
-  // Create a list of time slots (e.g., every 30 minutes from 8 AM to 6 PM)
   final List<TimeOfDay> _timeSlots = [
     TimeOfDay(hour: 8, minute: 0),
     TimeOfDay(hour: 8, minute: 30),
@@ -50,16 +45,18 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     TimeOfDay(hour: 17, minute: 30),
   ];
 
-  // Store information for multiple locations
   final List<Map<String, dynamic>> _locations = [];
   int? _editIndex;
 
-  // Controllers for address input fields
   final TextEditingController _addressLine1Controller = TextEditingController();
   final TextEditingController _addressLine2Controller = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _postalCodeController = TextEditingController();
+
+  bool _showFormFields = true;
+  bool _showBackToFormButton = false;
+  bool _showSaveButton = true;
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     if (_selectedDay != null &&
@@ -176,12 +173,10 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
   Future<void> _saveCollectionDetails() async {
     if (_locations.isNotEmpty) {
-      // Prepare the data to pass back
       Map<String, dynamic> collectionDetails = {
         'locations': _locations,
       };
 
-      // Return the collection details to the previous page
       Navigator.pop(context, collectionDetails);
     } else {
       _showErrorDialog('Please save at least one location.');
@@ -200,7 +195,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       return;
     }
 
-    // Concatenate address into one line
     String fullAddress =
         '${_addressLine1Controller.text}, ${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
 
@@ -219,24 +213,16 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
     setState(() {
       if (_editIndex != null) {
-        // If we are editing a location, update it
         _locations[_editIndex!] = locationData;
-        _editIndex = null; // Reset edit mode
+        _editIndex = null;
       } else {
-        // Otherwise, add a new location
         _locations.add(locationData);
       }
 
-      // Clear fields for the next location
-      _selectedDays.clear();
-      _dateTimeSlots.clear();
-      _selectedDay = null;
-      _selectedTimes = [null];
-      _addressLine1Controller.clear();
-      _addressLine2Controller.clear();
-      _cityController.clear();
-      _stateController.clear();
-      _postalCodeController.clear();
+      _clearFormFields();
+      _showFormFields = false;
+      _showSaveButton = false;
+      _showBackToFormButton = true;
     });
   }
 
@@ -244,13 +230,11 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     setState(() {
       _editIndex = index;
 
-      // Load the selected location's data back into the form
       Map<String, dynamic> location = _locations[index];
       List<String> dates = List<String>.from(location['dates']);
       List<Map<String, dynamic>> timeSlots =
           List<Map<String, dynamic>>.from(location['timeSlots']);
 
-      // Populate address fields
       List<String> addressParts = location['address'].split(', ');
       _addressLine1Controller.text = addressParts[0];
       _addressLine2Controller.text =
@@ -260,14 +244,10 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       _postalCodeController.text =
           addressParts.length > 4 ? addressParts[4] : '';
 
-      // Parse the dates using DateFormat
-      DateFormat dateFormat = DateFormat('d-M-yyyy'); // Custom date format
-      _selectedDays = dates
-          .map((dateStr) => dateFormat
-              .parse(dateStr)) // Convert custom date format to DateTime
-          .toList();
+      DateFormat dateFormat = DateFormat('d-M-yyyy');
+      _selectedDays =
+          dates.map((dateStr) => dateFormat.parse(dateStr)).toList();
 
-      // Populate the times for the selected dates
       for (var date in _selectedDays) {
         List<String> times = timeSlots
             .firstWhere((slot) => slot['date'] == date.toShortString())['times']
@@ -278,6 +258,26 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                 minute: int.parse(timeStr.split(':')[1].split(' ')[0])))
             .toList();
       }
+    });
+  }
+
+  void _clearFormFields() {
+    _selectedDays.clear();
+    _dateTimeSlots.clear();
+    _selectedDay = null;
+    _selectedTimes = [null];
+    _addressLine1Controller.clear();
+    _addressLine2Controller.clear();
+    _cityController.clear();
+    _stateController.clear();
+    _postalCodeController.clear();
+  }
+
+  void _addAnotherLocation() {
+    setState(() {
+      _showFormFields = true;
+      _showSaveButton = true;
+      _clearFormFields();
     });
   }
 
@@ -318,6 +318,13 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           const SizedBox(height: 80),
+                          Row(
+                            children: [
+                              CustomBackButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                            ],
+                          ),
                           SizedBox(
                             width: 100,
                             height: 100,
@@ -344,7 +351,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 30),
-
                           const Text(
                             'ENTER COLLECTION LOCATION',
                             style: TextStyle(
@@ -355,28 +361,28 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
-
-                          _buildTextField(
-                              controller: _addressLine1Controller,
-                              hintText: 'Address Line 1'),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _addressLine2Controller,
-                              hintText: 'Suburb (Optional)',
-                              isOptional: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _cityController, hintText: 'City'),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _stateController,
-                              hintText: 'State/Province/Region'),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _postalCodeController,
-                              hintText: 'Postal Code'),
-                          const SizedBox(height: 32),
-
+                          if (_showFormFields) ...[
+                            _buildTextField(
+                                controller: _addressLine1Controller,
+                                hintText: 'Address Line 1'),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _addressLine2Controller,
+                                hintText: 'Suburb (Optional)',
+                                isOptional: true),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _cityController, hintText: 'City'),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _stateController,
+                                hintText: 'State/Province/Region'),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _postalCodeController,
+                                hintText: 'Postal Code'),
+                            const SizedBox(height: 32),
+                          ],
                           const Text(
                             'SELECT AVAILABLE DATES AND TIMES FOR COLLECTION',
                             style: TextStyle(
@@ -387,98 +393,97 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
-
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(15),
+                          if (_showFormFields)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: TableCalendar(
+                                firstDay: DateTime.utc(2020, 1, 1),
+                                lastDay: DateTime.utc(2100, 1, 1),
+                                focusedDay: _focusedDay,
+                                calendarFormat: _calendarFormat,
+                                selectedDayPredicate: (day) {
+                                  return _selectedDays.any((selectedDay) =>
+                                      _isSameDay(day, selectedDay));
+                                },
+                                onDaySelected: _onDaySelected,
+                                enabledDayPredicate: (day) => day.isAfter(
+                                    DateTime.now()
+                                        .subtract(const Duration(days: 1))),
+                                calendarStyle: CalendarStyle(
+                                  selectedDecoration: BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  todayDecoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  todayTextStyle: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  defaultDecoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  defaultTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  weekendDecoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  weekendTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  outsideDaysVisible: false,
+                                  disabledDecoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  markerDecoration: const BoxDecoration(
+                                    color: Colors.transparent,
+                                  ),
+                                ),
+                                headerStyle: HeaderStyle(
+                                  titleCentered: true,
+                                  formatButtonVisible: false,
+                                  titleTextStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  leftChevronIcon: Icon(
+                                    Icons.chevron_left,
+                                    color: Colors.white,
+                                  ),
+                                  rightChevronIcon: Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                daysOfWeekStyle: DaysOfWeekStyle(
+                                  weekdayStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  weekendStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
-                            child: TableCalendar(
-                              firstDay: DateTime.utc(2020, 1, 1),
-                              lastDay: DateTime.utc(2100, 1, 1),
-                              focusedDay: _focusedDay,
-                              calendarFormat: _calendarFormat,
-                              selectedDayPredicate: (day) {
-                                return _selectedDays.any((selectedDay) =>
-                                    _isSameDay(day, selectedDay));
-                              },
-                              onDaySelected: _onDaySelected,
-                              enabledDayPredicate: (day) => day.isAfter(
-                                  DateTime.now()
-                                      .subtract(const Duration(days: 1))),
-                              calendarStyle: CalendarStyle(
-                                selectedDecoration: BoxDecoration(
-                                  color: Colors.blue,
-                                  shape: BoxShape.rectangle,
-                                ),
-                                todayDecoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.rectangle,
-                                ),
-                                todayTextStyle: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                defaultDecoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  shape: BoxShape.rectangle,
-                                ),
-                                defaultTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                weekendDecoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  shape: BoxShape.rectangle,
-                                ),
-                                weekendTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                outsideDaysVisible: false,
-                                disabledDecoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                ),
-                                markerDecoration: const BoxDecoration(
-                                  color: Colors.transparent,
-                                ),
-                              ),
-                              headerStyle: HeaderStyle(
-                                titleCentered: true,
-                                formatButtonVisible: false,
-                                titleTextStyle: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                leftChevronIcon: Icon(
-                                  Icons.chevron_left,
-                                  color: Colors.white,
-                                ),
-                                rightChevronIcon: Icon(
-                                  Icons.chevron_right,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              daysOfWeekStyle: DaysOfWeekStyle(
-                                weekdayStyle: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                weekendStyle: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
                           const SizedBox(height: 16),
-
-                          if (_selectedDay != null) ...[
+                          if (_selectedDay != null && _showFormFields) ...[
                             Text(
                               'Set Times for ${_selectedDay?.toLocal().toShortString()}',
                               style: const TextStyle(
@@ -518,15 +523,11 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                             ),
                             const SizedBox(height: 8),
                             CustomButton(
-                              text: 'Add Another Time Slot',
+                              text: 'Save Your Setup Details',
                               borderColor: Colors.blue,
                               onPressed: _addSelectedTimeSlot,
                             ),
                           ],
-
-                          const SizedBox(height: 16),
-
-                          // Display saved locations above Confirm Meeting button
                           if (_locations.isNotEmpty)
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -582,22 +583,28 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                               }).toList(),
                             ),
                           const SizedBox(height: 16),
-
-                          CustomButton(
-                            text: 'Save Collection Details',
-                            borderColor: Colors.blue,
-                            onPressed: _saveLocation,
-                          ),
-
+                          if (_showSaveButton)
+                            CustomButton(
+                              text: 'Save Collection Details',
+                              borderColor: Colors.blue,
+                              onPressed: _saveLocation,
+                            ),
                           const SizedBox(height: 16),
-
-                          CustomButton(
-                            text: 'Back to Form',
-                            borderColor: Color(0xFFFF4E00),
-                            onPressed: () async {
-                              await _saveCollectionDetails();
-                            },
-                          ),
+                          if (!_showFormFields)
+                            CustomButton(
+                              text: 'Add Another Location',
+                              borderColor: Colors.blue,
+                              onPressed: _addAnotherLocation,
+                            ),
+                          const SizedBox(height: 16),
+                          if (_showBackToFormButton)
+                            CustomButton(
+                              text: 'Back to Form',
+                              borderColor: const Color(0xFFFF4E00),
+                              onPressed: () async {
+                                await _saveCollectionDetails();
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -609,13 +616,13 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                 ),
               ],
             ),
-            Positioned(
-              top: 120,
-              left: 16,
-              child: CustomBackButton(
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
+            // Positioned(
+            //   top: 120,
+            //   left: 16,
+            //   child: CustomBackButton(
+            //     onPressed: () => Navigator.of(context).pop(),
+            //   ),
+            // ),
           ],
         ),
       ),

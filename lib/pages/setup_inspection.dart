@@ -1,3 +1,4 @@
+import 'package:ctp/components/custom_back_button.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -24,6 +25,9 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
   // List of time dropdowns for the current day
   List<TimeOfDay?> _selectedTimes = [null];
+
+  bool _isAddingLocation = true;
+  bool _showBackToFormButton = false;
 
   // Create a list of time slots (e.g., every 30 minutes from 8 AM to 6 PM)
   final List<TimeOfDay> _timeSlots = [
@@ -240,9 +244,10 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       return;
     }
 
-    // Concatenate address into one line
-    String fullAddress =
-        '${_addressLine1Controller.text}, ${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
+    // Save the location
+    String fullAddress = '${_addressLine1Controller.text}, '
+        '${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}'
+        '${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
 
     Map<String, dynamic> locationData = {
       'address': fullAddress,
@@ -252,32 +257,36 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                 'date': date.toShortString(),
                 'times': _dateTimeSlots[date]
                     ?.map((time) => time.format(context))
-                    .toList()
+                    .toList(),
               })
           .toList(),
     };
 
     setState(() {
       if (_editIndex != null) {
-        // If we are editing a location, update it
         _locations[_editIndex!] = locationData;
-        _editIndex = null; // Reset edit mode
+        _editIndex = null;
       } else {
-        // Otherwise, add a new location
         _locations.add(locationData);
       }
 
-      // Clear fields for the next location
-      _selectedDays.clear();
-      _dateTimeSlots.clear();
-      _selectedDay = null;
-      _selectedTimes = [null];
-      _addressLine1Controller.clear();
-      _addressLine2Controller.clear();
-      _cityController.clear();
-      _stateController.clear();
-      _postalCodeController.clear();
+      // Clear the input fields and update the UI state
+      _clearFields();
+      _isAddingLocation = false;
+      _showBackToFormButton = true;
     });
+  }
+
+  void _clearFields() {
+    _selectedDays.clear();
+    _dateTimeSlots.clear();
+    _selectedDay = null;
+    _selectedTimes = [null];
+    _addressLine1Controller.clear();
+    _addressLine2Controller.clear();
+    _cityController.clear();
+    _stateController.clear();
+    _postalCodeController.clear();
   }
 
   void _showErrorDialog(String message) {
@@ -317,6 +326,13 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           const SizedBox(height: 80),
+                          Row(
+                            children: [
+                              CustomBackButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                            ],
+                          ),
                           SizedBox(
                             width: 100,
                             height: 100,
@@ -336,19 +352,10 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // Text(
-                              //   'Great news!',
-                              //   style: TextStyle(
-                              //     fontSize: 18,
-                              //     color: Colors.white,
-                              //     fontWeight: FontWeight.w800,
-                              //   ),
-                              //   textAlign: TextAlign.center,
-                              // ),
                               SizedBox(width: 5),
                               SizedBox(
                                 child: Text(
-                                  'Provide a details for the potential dealer',
+                                  'Provide details for the potential dealer',
                                   style: TextStyle(
                                     fontSize: 18,
                                     color: Colors.white,
@@ -370,7 +377,6 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 32),
-
                           const Text(
                             'ENTER INSPECTION LOCATION',
                             style: TextStyle(
@@ -382,177 +388,180 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                           ),
                           const SizedBox(height: 16),
 
-                          _buildTextField(
-                              controller: _addressLine1Controller,
-                              hintText: 'Address Line 1'),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _addressLine2Controller,
-                              hintText: 'Suburb (Optional)',
-                              isOptional: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _cityController, hintText: 'City'),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _stateController,
-                              hintText: 'State/Province/Region'),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                              controller: _postalCodeController,
-                              hintText: 'Postal Code'),
-                          const SizedBox(height: 32),
+                          // Show input fields and calendar only if adding location
+                          if (_isAddingLocation) ...[
+                            _buildTextField(
+                                controller: _addressLine1Controller,
+                                hintText: 'Address Line 1'),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _addressLine2Controller,
+                                hintText: 'Suburb (Optional)',
+                                isOptional: true),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _cityController, hintText: 'City'),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _stateController,
+                                hintText: 'State/Province/Region'),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                                controller: _postalCodeController,
+                                hintText: 'Postal Code'),
+                            const SizedBox(height: 32),
 
-                          const Text(
-                            'SELECT AVAILABLE DATES AND TIMES',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: TableCalendar(
-                              firstDay: DateTime.utc(2020, 1, 1),
-                              lastDay: DateTime.utc(2100, 1, 1),
-                              focusedDay: _focusedDay,
-                              calendarFormat: _calendarFormat,
-                              selectedDayPredicate: (day) {
-                                return _selectedDays.any((selectedDay) =>
-                                    _isSameDay(day, selectedDay));
-                              },
-                              onDaySelected: _onDaySelected,
-                              enabledDayPredicate: (day) => day.isAfter(
-                                  DateTime.now()
-                                      .subtract(const Duration(days: 1))),
-                              calendarStyle: CalendarStyle(
-                                selectedDecoration: BoxDecoration(
-                                  color: Colors.blue,
-                                  shape: BoxShape.rectangle,
-                                ),
-                                todayDecoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.rectangle,
-                                ),
-                                todayTextStyle: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                defaultDecoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  shape: BoxShape.rectangle,
-                                ),
-                                defaultTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                weekendDecoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  shape: BoxShape.rectangle,
-                                ),
-                                weekendTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                outsideDaysVisible: false,
-                                disabledDecoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                ),
-                                markerDecoration: const BoxDecoration(
-                                  color: Colors.transparent,
-                                ),
-                              ),
-                              headerStyle: HeaderStyle(
-                                titleCentered: true,
-                                formatButtonVisible: false,
-                                titleTextStyle: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                leftChevronIcon: Icon(
-                                  Icons.chevron_left,
-                                  color: Colors.white,
-                                ),
-                                rightChevronIcon: Icon(
-                                  Icons.chevron_right,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              daysOfWeekStyle: DaysOfWeekStyle(
-                                weekdayStyle: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                weekendStyle: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          if (_selectedDay != null) ...[
-                            Text(
-                              'Set Times for ${_selectedDay?.toLocal().toShortString()}',
-                              style: const TextStyle(
-                                fontSize: 18,
+                            const Text(
+                              'SELECT AVAILABLE DATES AND TIMES',
+                              style: TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
-                            Column(
-                              children:
-                                  _selectedTimes.asMap().entries.map((entry) {
-                                int index = entry.key;
-                                TimeOfDay? selectedTime = entry.value;
-                                return DropdownButton<TimeOfDay>(
-                                  value: selectedTime,
-                                  hint: const Text(
-                                    'Select Time Slot',
-                                    style: TextStyle(color: Colors.white),
+
+                            // This is the exact calendar appearance
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: TableCalendar(
+                                firstDay: DateTime.utc(2020, 1, 1),
+                                lastDay: DateTime.utc(2100, 1, 1),
+                                focusedDay: _focusedDay,
+                                calendarFormat: _calendarFormat,
+                                selectedDayPredicate: (day) {
+                                  return _selectedDays.any((selectedDay) =>
+                                      _isSameDay(day, selectedDay));
+                                },
+                                onDaySelected: _onDaySelected,
+                                enabledDayPredicate: (day) => day.isAfter(
+                                    DateTime.now()
+                                        .subtract(const Duration(days: 1))),
+                                calendarStyle: CalendarStyle(
+                                  selectedDecoration: BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.rectangle,
                                   ),
-                                  dropdownColor: Colors.black,
-                                  items: _timeSlots.map((TimeOfDay time) {
-                                    return DropdownMenuItem<TimeOfDay>(
-                                      value: time,
-                                      child: Text(
-                                        time.format(context),
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (TimeOfDay? newValue) {
-                                    _onTimeSlotSelected(newValue, index);
-                                  },
-                                );
-                              }).toList(),
+                                  todayDecoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  todayTextStyle: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  defaultDecoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  defaultTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  weekendDecoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  weekendTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  outsideDaysVisible: false,
+                                  disabledDecoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  markerDecoration: const BoxDecoration(
+                                    color: Colors.transparent,
+                                  ),
+                                ),
+                                headerStyle: HeaderStyle(
+                                  titleCentered: true,
+                                  formatButtonVisible: false,
+                                  titleTextStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  leftChevronIcon: Icon(
+                                    Icons.chevron_left,
+                                    color: Colors.white,
+                                  ),
+                                  rightChevronIcon: Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                daysOfWeekStyle: DaysOfWeekStyle(
+                                  weekdayStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  weekendStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 8),
-                            CustomButton(
-                              text: 'Add Another Time Slot',
-                              borderColor: Colors.blue,
-                              onPressed: _addSelectedTimeSlot,
-                            ),
+                            const SizedBox(height: 16),
+                            // Time slots for selected day
+                            if (_selectedDay != null) ...[
+                              Text(
+                                'Set Times for ${_selectedDay?.toLocal().toShortString()}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Column(
+                                children:
+                                    _selectedTimes.asMap().entries.map((entry) {
+                                  int index = entry.key;
+                                  TimeOfDay? selectedTime = entry.value;
+                                  return DropdownButton<TimeOfDay>(
+                                    value: selectedTime,
+                                    hint: const Text(
+                                      'Select Time Slot',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    dropdownColor: Colors.black,
+                                    items: _timeSlots.map((TimeOfDay time) {
+                                      return DropdownMenuItem<TimeOfDay>(
+                                        value: time,
+                                        child: Text(
+                                          time.format(context),
+                                          style: const TextStyle(
+                                              color: Colors.white),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (TimeOfDay? newValue) {
+                                      _onTimeSlotSelected(newValue, index);
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 8),
+                              CustomButton(
+                                text: 'Add Another Time Slot',
+                                borderColor: Colors.blue,
+                                onPressed: _addSelectedTimeSlot,
+                              ),
+                            ],
+                            const SizedBox(height: 16),
                           ],
 
-                          const SizedBox(height: 16),
-
-                          // Display saved locations above Confirm Meeting button
+                          // Display saved locations after the form is hidden
                           if (_locations.isNotEmpty)
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,24 +618,38 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                             ),
                           const SizedBox(height: 16),
 
-                          // Add Another Location button moved up
-                          CustomButton(
-                            text: 'Add Another Location',
-                            borderColor: Colors.blue,
-                            onPressed: _saveLocation,
-                          ),
+                          // Save Setup Details button (when adding location)
+                          if (_isAddingLocation)
+                            CustomButton(
+                              text: 'Save Setup Details',
+                              borderColor: Colors.blue,
+                              onPressed: _saveLocation,
+                            ),
+
+                          // Add Another Location button (shown after saving the current location)
+                          if (!_isAddingLocation)
+                            CustomButton(
+                              text: 'Add Another Location',
+                              borderColor: Colors.blue,
+                              onPressed: () {
+                                setState(() {
+                                  _isAddingLocation = true;
+                                  _clearFields(); // Clear fields for the next location
+                                });
+                              },
+                            ),
 
                           const SizedBox(height: 16),
 
-                          // Confirm Meeting button moved down
-                          CustomButton(
-                            text: 'Back to Form',
-                            borderColor: Colors.blue,
-                            onPressed: () async {
-                              // Pass saved locations to previous page
-                              await _saveInspectionDetails();
-                            },
-                          ),
+                          // Back to Form button
+                          if (_showBackToFormButton)
+                            CustomButton(
+                              text: 'Back to Form',
+                              borderColor: const Color(0xFFFF4E00),
+                              onPressed: () async {
+                                await _saveInspectionDetails();
+                              },
+                            ),
                         ],
                       ),
                     ),
