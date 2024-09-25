@@ -40,14 +40,23 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // New method to fetch vehicles by userId
   List<Vehicle> getVehiclesByUserId(String userId) {
-    return _vehicles.where((vehicle) => vehicle.userId == userId).toList();
+    List<Vehicle> userVehicles =
+        _vehicles.where((vehicle) => vehicle.userId == userId).toList();
+
+    // // Print details of each vehicle for the user
+    // for (var vehicle in userVehicles) {
+    //   print(
+    //       'User Vehicle - ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}');
+    // }
+
+    return userVehicles;
   }
 
-  // Existing fetchVehicles method (where you are filtering and logging vehicle details)
   Future<void> fetchVehicles(UserProvider userProvider,
-      {String? vehicleType, String? userId}) async {
+      {String? vehicleType,
+      String? userId,
+      bool filterLikedDisliked = true}) async {
     try {
       _isLoading = true;
 
@@ -63,33 +72,24 @@ class VehicleProvider with ChangeNotifier {
 
       QuerySnapshot querySnapshot = await query.get();
 
-      // Print the total number of vehicles retrieved from the database
       print(
           'Total vehicles fetched from database: ${querySnapshot.docs.length}');
-
-      for (var doc in querySnapshot.docs) {
-        print('Fetched Vehicle ID from Firestore: ${doc.id}');
-      }
 
       _vehicles = querySnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return Vehicle.fromFirestore(data);
-      }).where((vehicle) {
-        // Debugging: Log vehicle before filtering
-        print(
-            'Before Filtering: Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}, UserId: ${vehicle.userId}');
-        return !userProvider.getLikedVehicles.contains(vehicle.id) &&
-            !userProvider.getDislikedVehicles.contains(vehicle.id);
       }).toList();
 
-      // Print the total number of vehicles after filtering
-      print('Total vehicles after filtering: ${_vehicles.length}');
-      for (var vehicle in _vehicles) {
-        print(
-            'After Filtering: Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}, UserId: ${vehicle.userId}');
+      // Apply filtering based on likes and dislikes if needed
+      if (filterLikedDisliked) {
+        _vehicles = _vehicles.where((vehicle) {
+          return !userProvider.getLikedVehicles.contains(vehicle.id) &&
+              !userProvider.getDislikedVehicles.contains(vehicle.id);
+        }).toList();
       }
 
+      print('Total vehicles after filtering: ${_vehicles.length}');
       _isLoading = false;
       vehicleListenable.value = List.from(_vehicles);
       notifyListeners();
@@ -419,7 +419,7 @@ class Vehicle {
       warrantyType: data['warrantyType'] ?? 'N/A',
       weightClass: data['weightClass'] ?? 'N/A',
       year: data['year'] ?? 'N/A',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: _parseTimestamp(data['createdAt'], data['id']),
       bed_bunk: data['bed_bunk'],
       dashboard: data['dashboard'],
       door_panels: data['door_panels'],
@@ -438,6 +438,17 @@ class Vehicle {
       seats: data['seats'],
       spare_wheel: data['spare_wheel'],
     );
+  }
+
+  static DateTime _parseTimestamp(dynamic timestamp, String vehicleId) {
+    if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    } else {
+      // Log a warning with vehicle ID for easy identification
+      print(
+          'Warning: createdAt is null or invalid for vehicle ID $vehicleId. Using DateTime.now() as default.');
+      return DateTime.now();
+    }
   }
 
   factory Vehicle.fromDocument(DocumentSnapshot doc) {

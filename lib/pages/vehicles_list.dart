@@ -9,19 +9,37 @@ import 'package:ctp/pages/vehicle_details_page.dart'; // Import the VehicleDetai
 import 'package:ctp/components/custom_app_bar.dart'; // Import the custom app bar
 
 class VehiclesListPage extends StatefulWidget {
-  const VehiclesListPage({super.key});
+  const VehiclesListPage({Key? key}) : super(key: key);
 
   @override
   _VehiclesListPageState createState() => _VehiclesListPageState();
 }
 
 class _VehiclesListPageState extends State<VehiclesListPage> {
-  int _selectedIndex =
-      1; // Set the default selected index for the bottom navigation
+  int _selectedIndex = 1;
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      // Handle navigation to different pages if needed
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUserId = userProvider.userId;
+
+      print('initState - Current User ID: $currentUserId');
+
+      if (currentUserId != null) {
+        vehicleProvider.fetchVehicles(userProvider,
+            userId: currentUserId, filterLikedDisliked: false);
+      }
     });
   }
 
@@ -33,12 +51,14 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
     // Fetch the current user's ID from the UserProvider
     final currentUserId = userProvider.userId;
 
+    print('build - Current User ID: $currentUserId');
+
     // Check if currentUserId is null
     if (currentUserId == null) {
       return Scaffold(
         appBar: CustomAppBar(), // Use the custom app bar here
-        body: Center(
-          child: Text('User ID is not available.'),
+        body: const Center(
+          child: Text('User is not signed in.'),
         ),
       );
     }
@@ -46,7 +66,6 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
     // Get the filtered vehicles by current userId
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
 
-    // Debugging: Print how many vehicles are being displayed for the user
     print(
         'Total vehicles to be displayed for user $currentUserId: ${userVehicles.length}');
 
@@ -56,20 +75,19 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
         appBar: CustomAppBar(), // Use the custom app bar here
         body: Column(
           children: [
-            const SizedBox(height: 40), // Same padding as in the OffersPage
+            const SizedBox(height: 40),
             // Styled heading
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons
-                      .local_shipping, // Built-in truck icon from Flutter's Icons library
-                  color: Color(0xFFFF4E00), // You can customize the color
-                  size: 30, // Adjust the size of the icon as needed
+                  Icons.local_shipping,
+                  color: Color(0xFFFF4E00),
+                  size: 30,
                 ),
-                SizedBox(width: 8), // Space between image and text
+                SizedBox(width: 8),
                 Text(
-                  'VEHICLE LISTING',
+                  'MY VEHICLES',
                   style: TextStyle(
                     color: Color(0xFFFF4E00),
                     fontSize: 24,
@@ -82,7 +100,7 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
             const SizedBox(
               width: 350,
               child: Text(
-                'Browse the list of available vehicles.',
+                'Here are your uploaded vehicles.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -92,31 +110,38 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: userVehicles.isEmpty
-                  ? const Center(child: Text('No vehicles available.'))
-                  : ListView.builder(
-                      itemCount: userVehicles.length,
-                      itemBuilder: (context, index) {
-                        final vehicle = userVehicles[index];
-                        return ListingCard(
-                          vehicleMakeModel: vehicle.makeModel,
-                          vehicleImageUrl: vehicle.mainImageUrl ?? '',
-                          vehicleYear: vehicle.year,
-                          vehicleMileage: vehicle.mileage,
-                          vehicleTransmission: vehicle.transmission,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => VehicleDetailsPage(
-                                  vehicle: vehicle,
-                                ),
-                              ),
+              child: vehicleProvider.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : userVehicles.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No vehicles available.',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: userVehicles.length,
+                          itemBuilder: (context, index) {
+                            final vehicle = userVehicles[index];
+                            return ListingCard(
+                              vehicleMakeModel: vehicle.makeModel,
+                              vehicleImageUrl: vehicle.mainImageUrl,
+                              vehicleYear: vehicle.year,
+                              vehicleMileage: vehicle.mileage,
+                              vehicleTransmission: vehicle.transmission,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => VehicleDetailsPage(
+                                      vehicle: vehicle,
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                    ),
+                        ),
             ),
           ],
         ),

@@ -109,4 +109,7 @@ Describe the damages needs to be a section where they add a picture of the damag
 18/09/2024 - 23/09/2024
 Refactored the truck form so the user can move between each section of the form freely and that the data is saved for that truck
 
+24/09/2024
+After refacotirng the truck form we needed to fix the vehilce listing page so that it can relfect the users uploaded trucks form that form.
+
 

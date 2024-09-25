@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 
 class ListingCard extends StatelessWidget {
   final String vehicleMakeModel;
-  final String vehicleImageUrl;
+  final String? vehicleImageUrl; // Now nullable
   final String vehicleYear;
   final String vehicleMileage;
   final String vehicleTransmission;
   final VoidCallback onTap;
 
   const ListingCard({
-    super.key,
+    Key? key,
     required this.vehicleMakeModel,
     required this.vehicleImageUrl,
     required this.vehicleYear,
     required this.vehicleMileage,
     required this.vehicleTransmission,
     required this.onTap,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +33,7 @@ class ListingCard extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               double imageWidth = constraints.maxWidth * 0.25;
-              double cardHeight = 130.0; // Fixed height to avoid layout issues
+              double cardHeight = 130.0;
 
               return Row(
                 children: [
@@ -47,11 +47,12 @@ class ListingCard extends StatelessWidget {
                     height: cardHeight,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: vehicleImageUrl.isNotEmpty &&
-                                Uri.tryParse(vehicleImageUrl)
+                        image: (vehicleImageUrl != null &&
+                                vehicleImageUrl!.isNotEmpty &&
+                                Uri.tryParse(vehicleImageUrl!)
                                         ?.hasAbsolutePath ==
-                                    true
-                            ? NetworkImage(vehicleImageUrl)
+                                    true)
+                            ? NetworkImage(vehicleImageUrl!)
                             : const AssetImage(
                                     'lib/assets/default_vehicle_image.png')
                                 as ImageProvider,

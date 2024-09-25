@@ -13,6 +13,7 @@ import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/components/custom_button.dart'; // Import CustomButton
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class VehicleUploadTabs extends StatefulWidget {
   const VehicleUploadTabs({super.key});
@@ -27,7 +28,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0; // Initial height of the image
   double _minImageHeight = 150.0; // Minimum height when scrolled
-  final GlobalKey<FormState> _section1FormKey = GlobalKey<FormState>();
   late TabController _tabController;
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _makeModelController = TextEditingController();
@@ -72,6 +72,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   bool _isSubmitting = false; // To manage loading state
   bool _isSection1Completed = false; // To check if Section 1 is completed
@@ -111,15 +112,22 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     super.initState();
     _tabController = TabController(length: 7, vsync: this);
 
-    _tabController.addListener(() {
+    _tabController.addListener(() async {
       if (_tabController.indexIsChanging) {
-        if (!_isSection1Completed && _tabController.index != 0) {
-          // Prevent switching tabs if Section 1 is not completed
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Please complete Section 1 before proceeding.')),
-          );
-          _tabController.animateTo(0);
+        if (_tabController.index != 0) {
+          if (!_formKeys[0].currentState!.validate()) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Please complete Section 1 before proceeding.')));
+            _tabController.animateTo(0);
+          } else {
+            // Save Section 1 data
+            await _saveSection1Data();
+            if (_vehicleId == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Error saving Section 1. Please try again.')));
+              _tabController.animateTo(0);
+            }
+          }
         }
       }
     });
@@ -364,6 +372,66 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     }
   }
 
+  void _resetFormData() {
+    // Reset form fields
+    _yearController.clear();
+    _makeModelController.clear();
+    _sellingPriceController.clear();
+    _vinNumberController.clear();
+    _mileageController.clear();
+    _applicationController.clear();
+    _engineNumberController.clear();
+    _registrationNumberController.clear();
+    _expectedSellingPriceController.clear();
+    _warrantyTypeController.clear();
+    _amountController.clear();
+
+    // Reset variables
+    _vehicleId = null;
+    _selectedMileage = null;
+    _transmission = 'Manual';
+    _suspension = 'Steel';
+    _isLoading = false;
+    _isInspectionSetupComplete = false;
+    _isCollectionSetupComplete = false;
+
+    _inspectionDates = null;
+    _inspectionLocations = null;
+    _collectionDates = null;
+    _collectionLocations = null;
+    _listDamages = 'yes';
+
+    _vehicleType = 'truck';
+    _weightClass = 'heavy';
+    _settlementLetterFile = null;
+    _settleBeforeSelling = null;
+
+    // Reset section completion
+    _isSection1Completed = false;
+    _isSectionCompleted = List.generate(7, (index) => false);
+
+    // Reset images and files
+    _rc1NatisFile = null;
+    _frontRightTyreImage = null;
+    _frontLeftTyreImage = null;
+    _spareWheelTyreImage = null;
+    _dashboardImage = null;
+    _faultCodesImage = null;
+
+    _damageEntries = [];
+    _photoFiles = List<File?>.filled(18, null);
+
+    // Reset FormDataProvider
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    formData.setSelectedMainImage(null);
+    formData.setSettlementLetterFile(null);
+    formData.setSelectedLicenceDiskImage(null);
+    formData.setSettleBeforeSelling('');
+
+    // Reset TabController to the first tab
+    _tabController.index = 0;
+  }
+
   Future<void> _saveSection2Data() async {
     if (_vehicleId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -388,9 +456,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           .doc(_vehicleId)
           .update(section2Data);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Section 2 data saved successfully!')),
-      );
+      print('Section 2 data saved successfully');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving Section 2: $e')),
@@ -426,9 +492,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           .collection('vehicles')
           .doc(_vehicleId)
           .update(section3Data);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Section 3 data updated successfully!')),
-      );
+      print('Section 3 data saved successfully');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving section 3: $e')),
@@ -462,9 +526,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           .collection('vehicles')
           .doc(_vehicleId)
           .update(section4Data);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Section 4 data updated successfully!')),
-      );
+      print('Section 4 data saved successfully');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving section 4: $e')),
@@ -502,9 +564,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           .collection('vehicles')
           .doc(_vehicleId)
           .update(section5Data);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Section 5 data updated successfully!')),
-      );
+      print('Section 5 data saved successfully');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving section 5: $e')),
@@ -551,9 +611,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           .collection('vehicles')
           .doc(_vehicleId)
           .update(section6Data);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Section 6 data updated successfully!')),
-      );
+      print('Section 6 data saved successfully');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving section 6: $e')),
@@ -589,9 +647,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           .collection('vehicles')
           .doc(_vehicleId)
           .update(section7Data);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Section 7 data updated successfully!')),
-      );
+      print('Section 7 data saved successfully');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving section 7: $e')),
@@ -616,7 +672,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     }
   }
 
-  // Navigate to the Setup Inspection page and get the data back
   Future<void> _setupInspection() async {
     final result = await Navigator.push(
       context,
@@ -632,12 +687,11 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         _inspectionLocations = result['locations'] != null
             ? List<Map<String, dynamic>>.from(result['locations'])
             : [];
-        _isInspectionSetupComplete = true;
+        _isInspectionSetupComplete = true; // Ensure this is set to true
       });
     }
   }
 
-  // Navigate to the Setup Collection page and get the data back
   Future<void> _setupCollection() async {
     final result = await Navigator.push(
       context,
@@ -653,13 +707,13 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         _collectionLocations = result['locations'] != null
             ? List<Map<String, dynamic>>.from(result['locations'])
             : [];
-        _isCollectionSetupComplete = true;
+        _isCollectionSetupComplete = true; // Ensure this is set to true
       });
     }
   }
 
   Future<void> _saveSection1Data() async {
-    if (!_section1FormKey.currentState!.validate()) {
+    if (!_formKeys[0].currentState!.validate()) {
       return; // Return if form is not valid
     }
 
@@ -668,8 +722,44 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     });
 
     try {
+      // Access the selectedMainImage from the provider
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      String? mainImageUrl;
+      if (formData.selectedMainImage != null) {
+        // Upload the main image
+        mainImageUrl = await _uploadFile(
+          formData.selectedMainImage,
+          'vehicles/${DateTime.now().millisecondsSinceEpoch}_main.jpg',
+        );
+      } else {
+        // If no main image is selected, you might want to prevent saving
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please select a main image before saving.')),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Get the current user's UID
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        // If the user is not signed in, show an error
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No user is signed in.')),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+      final String userId = currentUser.uid;
+
       // Prepare data for Section 1
       Map<String, dynamic> section1Data = {
+        'userId': userId, // Include the userId
         'vehicleType': _vehicleType,
         'weightClass': _weightClass,
         'year': _yearController.text,
@@ -677,6 +767,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         'vinNumber': _vinNumberController.text,
         'mileage': _mileageController.text,
         'sellingPrice': _sellingPriceController.text,
+        'mainImageUrl': mainImageUrl, // Include the main image URL
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -695,10 +786,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       setState(() {
         _isSection1Completed = true; // Mark Section 1 as completed
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Section 1 saved successfully!')),
-      );
+      print('Section 1 saved successfully!');
     } catch (e) {
       print("Error saving section 1 data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -725,30 +813,59 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       children: [
         Scaffold(
           appBar: AppBar(
-            bottom: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabs: const [
-                Tab(text: 'Mandatory Section'),
-                Tab(text: 'Section 2'),
-                Tab(text: 'Section 3'),
-                Tab(text: 'Section 4'),
-                Tab(text: 'Section 5'),
-                Tab(text: 'Section 6'),
-                Tab(text: 'Section 7'),
-              ],
-              onTap: (index) async {
-                if (index != 0) {
-                  if (!_section1FormKey.currentState!.validate()) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Please complete Section 1 before proceeding.')),
-                    );
-                    _tabController.animateTo(0);
-                  }
-                }
-              },
+            leading: IconButton(
+              onPressed: () {},
+              icon: Icon(Icons.arrow_left),
+              color: Colors.white,
+              iconSize: 40,
+            ),
+            backgroundColor:
+                Color(0xFF0E4CAF), // Set AppBar background to transparent
+            elevation: 0.0, // Remove shadow/elevation
+            systemOverlayStyle:
+                SystemUiOverlayStyle.light, // For status bar icons
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: Material(
+                color: Color(0xFF0E4CAF),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabs: const [
+                    Tab(text: 'Mandatory Section'),
+                    Tab(text: 'Additional Information'),
+                    Tab(text: 'Settlement'),
+                    Tab(text: 'RCI/NATIS'),
+                    Tab(text: 'Damage & Faults'),
+                    Tab(text: 'Tyres'),
+                    Tab(text: 'Additional Photos'),
+                  ],
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  indicatorColor: Colors.white,
+                  onTap: (index) async {
+                    if (index != 0) {
+                      if (!_formKeys[0].currentState!.validate()) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text(
+                                'Please complete Section 1 before proceeding.')));
+                        _tabController.animateTo(0);
+                      } else {
+                        // Save Section 1 data
+                        await _saveSection1Data();
+                        if (_vehicleId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Error saving Section 1. Please try again.')),
+                          );
+                          _tabController.animateTo(0);
+                        }
+                      }
+                    }
+                  },
+                ),
+              ),
             ),
           ),
           body: GradientBackground(
@@ -852,9 +969,9 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                           kBottomNavigationBarHeight,
                       child: TabBarView(
                         controller: _tabController,
-                        physics: _isSectionCompleted[0]
-                            ? null // Allow swiping when Section 1 is completed
-                            : NeverScrollableScrollPhysics(), // Disable swiping when Section 1 is incomplete
+                        physics: _isSection1Completed
+                            ? null
+                            : const NeverScrollableScrollPhysics(),
                         children: [
                           _buildSection1(orange, blue, green),
                           _buildSection2(orange, blue, green),
@@ -891,9 +1008,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   }
 
   Widget _buildSection1(Color orange, Color blue, Color green) {
-    // Removed the incorrect 'key:' line after the function definition
-    // and updated the Form widget to use _formKeys[0] as its key.
-
     return _buildSectionWithGradient(
       orange,
       blue,
@@ -943,10 +1057,8 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               ],
             ),
             const SizedBox(height: 20),
-            // Updated the Form widget to use _formKeys[0] as its key
             Form(
-              key:
-                  _formKeys[0], // Changed from _section1FormKey to _formKeys[0]
+              key: _formKeys[0],
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -985,6 +1097,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                     controller: _mileageController,
                     hintText: 'Mileage',
                     keyboardType: TextInputType.number,
+                    inputFormatter: [FilteringTextInputFormatter.digitsOnly],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter the mileage';
@@ -1006,9 +1119,13 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                     },
                   ),
                   const SizedBox(height: 15),
+                  // In _buildSection1 method
                   _buildTextField(
                     controller: _vinNumberController,
                     hintText: 'VIN Number',
+                    inputFormatter: [
+                      UpperCaseTextFormatter()
+                    ], // Added this line
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter the VIN number';
@@ -1016,6 +1133,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 30),
                   Center(
                     child: Column(
@@ -1047,9 +1165,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           ],
         ),
       ),
-      () async {
-        await _saveSection1Data();
-      },
       0,
     );
   }
@@ -1062,7 +1177,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
-          key: _formKeys[1], // Updated to use the correct key from _formKeys
+          key: _formKeys[1],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1110,6 +1225,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 controller: _engineNumberController,
                 hintText: 'Engine No.',
                 inputFormatter: [UpperCaseTextFormatter()],
+                // No validator
               ),
               const SizedBox(height: 15),
 
@@ -1139,6 +1255,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 controller: _registrationNumberController,
                 hintText: 'Registration No.',
                 inputFormatter: [UpperCaseTextFormatter()],
+                // No validator
               ),
               const SizedBox(height: 15),
 
@@ -1146,16 +1263,14 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               _buildSellingPriceTextField(
                 controller: _expectedSellingPriceController,
                 hintText: 'Expected Selling Price',
+                // No validator
               ),
               const SizedBox(height: 15),
             ],
           ),
         ),
       ),
-      () async {
-        await _saveSection2Data();
-      },
-      1,
+      1, // Corrected number of arguments
     );
   }
 
@@ -1167,7 +1282,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
-          key: _formKeys[2], // Updated to use the correct key from _formKeys
+          key: _formKeys[2],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1297,6 +1412,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       hintText: 'Amount',
                       isCurrency: true, // Ensure 'R' prefix is shown
                       keyboardType: TextInputType.number,
+                      // No validator
                     ),
                     const SizedBox(height: 20),
                   ],
@@ -1306,10 +1422,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           ),
         ),
       ),
-      () async {
-        await _saveSection3Data();
-      },
-      2,
+      2, // Corrected number of arguments
     );
   }
 
@@ -1321,7 +1434,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
-          key: _formKeys[3], // Updated to use the correct key from _formKeys
+          key: _formKeys[3],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1354,8 +1467,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               // Upload RC1/NATIS Documents
               Center(
                 child: GestureDetector(
-                  onTap: () => _pickFile(
-                      'rc1Natis'), // Method to pick the RC1/NATIS file
+                  onTap: () => _pickFile('rc1Natis'),
                   child: Container(
                     height: 100,
                     width: double.infinity,
@@ -1381,10 +1493,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           ),
         ),
       ),
-      () async {
-        await _saveSection4Data();
-      },
-      3, // The currentIndex for Section 4
+      3, // Corrected number of arguments
     );
   }
 
@@ -1396,7 +1505,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
-          key: _formKeys[4], // Updated to use the correct key from _formKeys
+          key: _formKeys[4],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1464,10 +1573,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           ),
         ),
       ),
-      () async {
-        await _saveSection5Data();
-      },
-      4, // The currentIndex for Section 5
+      4, // Corrected number of arguments
     );
   }
 
@@ -1504,7 +1610,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
-          key: _formKeys[5], // Updated to use the correct key from _formKeys
+          key: _formKeys[5],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1592,10 +1698,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           ),
         ),
       ),
-      () async {
-        await _saveSection6Data();
-      },
-      5, // The currentIndex for Section 6
+      5, // Corrected number of arguments
     );
   }
 
@@ -1607,7 +1710,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
-          key: _formKeys[6], // Updated to use the correct key from _formKeys
+          key: _formKeys[6],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1696,10 +1799,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           ),
         ),
       ),
-      () async {
-        await _saveSection7Data();
-      },
-      6, // The currentIndex for Section 7
+      6, // Corrected number of arguments
     );
   }
 
@@ -1725,7 +1825,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   }
 
   Widget _buildSectionWithGradient(Color orange, Color blue, Color green,
-      Widget sectionContent, Future<void> Function() onSave, int currentIndex) {
+      Widget sectionContent, int currentIndex) {
     return GradientBackground(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1743,19 +1843,39 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 child: CustomButton(
                   text: 'Next',
                   borderColor: blue,
-                  onPressed: () {
-                    if (_formKeys[currentIndex].currentState!.validate()) {
-                      if (_tabController.index < _tabController.length - 1) {
-                        // Ensure vehicleId is not null
-                        if (_vehicleId != null) {
-                          _tabController.animateTo(_tabController.index + 1);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Please save Section 1 before proceeding.')),
-                          );
-                        }
+                  onPressed: () async {
+                    if (currentIndex == 0) {
+                      // Validation for Section 1
+                      if (!_formKeys[0].currentState!.validate()) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Please fill in all required fields in Section 1.')),
+                        );
+                        return;
+                      } else if (!_isInspectionSetupComplete ||
+                          !_isCollectionSetupComplete) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Please complete both Inspection and Collection setup before proceeding.')),
+                        );
+                        return;
+                      } else {
+                        // Save Section 1 data
+                        await _saveSection1Data();
+                      }
+                    }
+                    if (_tabController.index < _tabController.length - 1) {
+                      // Ensure vehicleId is not null
+                      if (_vehicleId != null) {
+                        _tabController.animateTo(_tabController.index + 1);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Error saving Section 1. Please try again.')),
+                        );
                       }
                     }
                   },
@@ -1772,7 +1892,25 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 onPressed: _isLoading
                     ? null
                     : () async {
-                        await onSave(); // Save the current section's data
+                        // Validation for Section 1 before saving all sections
+                        if (!_formKeys[0].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please fill in all required fields in Section 1.')),
+                          );
+                          return;
+                        } else if (!_isInspectionSetupComplete ||
+                            !_isCollectionSetupComplete) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please complete both Inspection and Collection setup before proceeding.')),
+                          );
+                          return;
+                        } else {
+                          await _saveAllSectionsAndNavigateHome();
+                        }
                       },
               ),
             ),
@@ -1781,6 +1919,54 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         ],
       ),
     );
+  }
+
+  Future<void> _saveAllSectionsAndNavigateHome() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (_vehicleId == null) {
+        // Ensure that the vehicleId is set by saving Section 1 data first
+        await _saveSection1Data();
+        if (_vehicleId == null) {
+          // If vehicleId is still null, show error and return
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please complete Section 1.')),
+          );
+          return;
+        }
+      }
+
+      // Save all sections
+      await _saveSection2Data();
+      await _saveSection3Data();
+      await _saveSection4Data();
+      await _saveSection5Data();
+      await _saveSection6Data();
+      await _saveSection7Data();
+
+      // Optionally, show a success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All data saved successfully!')),
+      );
+
+      // Reset form data before navigating back
+      _resetFormData();
+
+      // Navigate back to the home page
+      Navigator.popUntil(context, (route) => route.isFirst);
+    } catch (e) {
+      // Handle error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving data: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Widget _buildRadioButton(
