@@ -1,3 +1,5 @@
+// lib/providers/vehicle_provider.dart
+
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -237,6 +239,27 @@ class VehicleProvider with ChangeNotifier {
       return [];
     }
   }
+
+  /// **New Method**: Update Vehicle
+  Future<void> updateVehicle(Vehicle updatedVehicle) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(updatedVehicle.id)
+          .update(updatedVehicle.toMap());
+
+      // Update the local list and notify listeners
+      int index = _vehicles.indexWhere((v) => v.id == updatedVehicle.id);
+      if (index != -1) {
+        _vehicles[index] = updatedVehicle;
+        notifyListeners();
+      }
+    } catch (e) {
+      print("Error updating vehicle: $e");
+    }
+  }
+
+  // Other existing methods...
 }
 
 class Vehicle {
@@ -303,6 +326,8 @@ class Vehicle {
   final String? seats;
   final String? spare_wheel;
 
+  final String vehicleStatus;
+
   Vehicle({
     required this.id,
     required this.accidentFree,
@@ -364,7 +389,137 @@ class Vehicle {
     this.roof,
     this.seats,
     this.spare_wheel,
+    required this.vehicleStatus,
   });
+
+  // Updated copyWith method
+  Vehicle copyWith({
+    String? id,
+    String? accidentFree,
+    String? application,
+    String? bookValue,
+    String? damageDescription,
+    List<String?>? damagePhotos,
+    String? dashboardPhoto,
+    String? engineNumber,
+    String? expectedSellingPrice,
+    String? faultCodesPhoto,
+    String? firstOwner,
+    String? hydraulics,
+    String? licenceDiskUrl,
+    String? listDamages,
+    String? maintenance,
+    String? makeModel,
+    String? mileage,
+    String? mileageImage,
+    String? oemInspection,
+    String? mainImageUrl,
+    List<String?>? photos,
+    String? rc1NatisFile,
+    String? registrationNumber,
+    String? roadWorthy,
+    String? settleBeforeSelling,
+    String? settlementAmount,
+    String? settlementLetterFile,
+    String? spareTyre,
+    String? suspension,
+    String? transmission,
+    String? config,
+    String? treadLeft,
+    String? tyrePhoto1,
+    String? tyrePhoto2,
+    String? tyreType,
+    String? userId,
+    String? vehicleType,
+    String? vinNumber,
+    String? warranty,
+    String? warrantyType,
+    String? weightClass,
+    String? year,
+    DateTime? createdAt,
+    String? bed_bunk,
+    String? dashboard,
+    String? door_panels,
+    String? front_tyres_tread,
+    String? front_view,
+    String? left_front_45,
+    String? left_rear_45,
+    String? left_side_view,
+    String? license_disk,
+    String? rear_tyres_tread,
+    String? rear_view,
+    String? right_front_45,
+    String? right_rear_45,
+    String? right_side_view,
+    String? roof,
+    String? seats,
+    String? spare_wheel,
+    String? vehicleStatus,
+  }) {
+    return Vehicle(
+      id: id ?? this.id,
+      accidentFree: accidentFree ?? this.accidentFree,
+      application: application ?? this.application,
+      bookValue: bookValue ?? this.bookValue,
+      damageDescription: damageDescription ?? this.damageDescription,
+      damagePhotos: damagePhotos ?? this.damagePhotos,
+      dashboardPhoto: dashboardPhoto ?? this.dashboardPhoto,
+      engineNumber: engineNumber ?? this.engineNumber,
+      expectedSellingPrice: expectedSellingPrice ?? this.expectedSellingPrice,
+      faultCodesPhoto: faultCodesPhoto ?? this.faultCodesPhoto,
+      firstOwner: firstOwner ?? this.firstOwner,
+      hydraulics: hydraulics ?? this.hydraulics,
+      licenceDiskUrl: licenceDiskUrl ?? this.licenceDiskUrl,
+      listDamages: listDamages ?? this.listDamages,
+      maintenance: maintenance ?? this.maintenance,
+      makeModel: makeModel ?? this.makeModel,
+      mileage: mileage ?? this.mileage,
+      mileageImage: mileageImage ?? this.mileageImage,
+      oemInspection: oemInspection ?? this.oemInspection,
+      mainImageUrl: mainImageUrl ?? this.mainImageUrl,
+      photos: photos ?? this.photos,
+      rc1NatisFile: rc1NatisFile ?? this.rc1NatisFile,
+      registrationNumber: registrationNumber ?? this.registrationNumber,
+      roadWorthy: roadWorthy ?? this.roadWorthy,
+      settleBeforeSelling: settleBeforeSelling ?? this.settleBeforeSelling,
+      settlementAmount: settlementAmount ?? this.settlementAmount,
+      settlementLetterFile: settlementLetterFile ?? this.settlementLetterFile,
+      spareTyre: spareTyre ?? this.spareTyre,
+      suspension: suspension ?? this.suspension,
+      transmission: transmission ?? this.transmission,
+      config: config ?? this.config,
+      treadLeft: treadLeft ?? this.treadLeft,
+      tyrePhoto1: tyrePhoto1 ?? this.tyrePhoto1,
+      tyrePhoto2: tyrePhoto2 ?? this.tyrePhoto2,
+      tyreType: tyreType ?? this.tyreType,
+      userId: userId ?? this.userId,
+      vehicleType: vehicleType ?? this.vehicleType,
+      vinNumber: vinNumber ?? this.vinNumber,
+      warranty: warranty ?? this.warranty,
+      warrantyType: warrantyType ?? this.warrantyType,
+      weightClass: weightClass ?? this.weightClass,
+      year: year ?? this.year,
+      createdAt: createdAt ?? this.createdAt,
+      bed_bunk: bed_bunk ?? this.bed_bunk,
+      dashboard: dashboard ?? this.dashboard,
+      door_panels: door_panels ?? this.door_panels,
+      front_tyres_tread: front_tyres_tread ?? this.front_tyres_tread,
+      front_view: front_view ?? this.front_view,
+      left_front_45: left_front_45 ?? this.left_front_45,
+      left_rear_45: left_rear_45 ?? this.left_rear_45,
+      left_side_view: left_side_view ?? this.left_side_view,
+      license_disk: license_disk ?? this.license_disk,
+      rear_tyres_tread: rear_tyres_tread ?? this.rear_tyres_tread,
+      rear_view: rear_view ?? this.rear_view,
+      right_front_45: right_front_45 ?? this.right_front_45,
+      right_rear_45: right_rear_45 ?? this.right_rear_45,
+      right_side_view: right_side_view ?? this.right_side_view,
+      roof: roof ?? this.roof,
+      seats: seats ?? this.seats,
+      spare_wheel: spare_wheel ?? this.spare_wheel,
+      vehicleStatus: vehicleStatus ?? this.vehicleStatus,
+    );
+  }
 
   factory Vehicle.fromFirestore(Map<String, dynamic> data) {
     return Vehicle(
@@ -373,7 +528,8 @@ class Vehicle {
       application: data['application'] ?? 'N/A',
       bookValue: data['bookValue'] ?? 'N/A',
       damageDescription: data['damageDescription'] ?? '',
-      damagePhotos: List<String?>.from(data['damagePhotos'] ?? []),
+      damagePhotos: List<String?>.from(
+          data['damagePhotos'] ?? []), // Ensure a list is always provided
       dashboardPhoto: data['dashboardPhoto'],
       engineNumber: data['engineNumber'] ?? 'N/A',
       expectedSellingPrice: data['expectedSellingPrice'] ?? 'N/A',
@@ -388,7 +544,8 @@ class Vehicle {
       mileageImage: data['mileageImage'],
       oemInspection: data['oemInspection'] ?? 'N/A',
       mainImageUrl: data['mainImageUrl'],
-      photos: List<String?>.from(data['photos'] ?? []),
+      photos: List<String?>.from(
+          data['photos'] ?? []), // Same here to ensure a valid list
       rc1NatisFile: data['rc1NatisFile'],
       registrationNumber: data['registrationNumber'] ?? 'N/A',
       roadWorthy: data['roadWorthy'] ?? 'N/A',
@@ -427,6 +584,8 @@ class Vehicle {
       roof: data['roof'],
       seats: data['seats'],
       spare_wheel: data['spare_wheel'],
+      vehicleStatus:
+          data['vehicleStatus'] ?? 'Live', // Default vehicleStatus is 'Live'
     );
   }
 
@@ -434,7 +593,6 @@ class Vehicle {
     if (timestamp is Timestamp) {
       return timestamp.toDate();
     } else {
-      // Log a warning with vehicle ID for easy identification
       print(
           'Warning: createdAt is null or invalid for vehicle ID $vehicleId. Using DateTime.now() as default.');
       return DateTime.now();
@@ -445,5 +603,71 @@ class Vehicle {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     data['id'] = doc.id;
     return Vehicle.fromFirestore(data);
+  }
+
+  /// **New Method**: Convert Vehicle to Map for Firestore
+  Map<String, dynamic> toMap() {
+    return {
+      'accidentFree': accidentFree,
+      'application': application,
+      'bookValue': bookValue,
+      'damageDescription': damageDescription,
+      'damagePhotos': damagePhotos,
+      'dashboardPhoto': dashboardPhoto,
+      'engineNumber': engineNumber,
+      'expectedSellingPrice': expectedSellingPrice,
+      'faultCodesPhoto': faultCodesPhoto,
+      'firstOwner': firstOwner,
+      'hydraulics': hydraulics,
+      'licenceDiskUrl': licenceDiskUrl,
+      'listDamages': listDamages,
+      'maintenance': maintenance,
+      'makeModel': makeModel,
+      'mileage': mileage,
+      'mileageImage': mileageImage,
+      'oemInspection': oemInspection,
+      'mainImageUrl': mainImageUrl,
+      'photos': photos,
+      'rc1NatisFile': rc1NatisFile,
+      'registrationNumber': registrationNumber,
+      'roadWorthy': roadWorthy,
+      'settleBeforeSelling': settleBeforeSelling,
+      'settlementAmount': settlementAmount,
+      'settlementLetterFile': settlementLetterFile,
+      'spareTyre': spareTyre,
+      'suspension': suspension,
+      'transmission': transmission,
+      'config': config,
+      'treadLeft': treadLeft,
+      'tyrePhoto1': tyrePhoto1,
+      'tyrePhoto2': tyrePhoto2,
+      'tyreType': tyreType,
+      'userId': userId,
+      'vehicleType': vehicleType,
+      'vinNumber': vinNumber,
+      'warranty': warranty,
+      'warrantyType': warrantyType,
+      'weightClass': weightClass,
+      'year': year,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'bed_bunk': bed_bunk,
+      'dashboard': dashboard,
+      'door_panels': door_panels,
+      'front_tyres_tread': front_tyres_tread,
+      'front_view': front_view,
+      'left_front_45': left_front_45,
+      'left_rear_45': left_rear_45,
+      'left_side_view': left_side_view,
+      'license_disk': license_disk,
+      'rear_tyres_tread': rear_tyres_tread,
+      'rear_view': rear_view,
+      'right_front_45': right_front_45,
+      'right_rear_45': right_rear_45,
+      'right_side_view': right_side_view,
+      'roof': roof,
+      'seats': seats,
+      'spare_wheel': spare_wheel,
+      'vehicleStatus': vehicleStatus,
+    };
   }
 }

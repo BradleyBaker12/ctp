@@ -7,24 +7,22 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/offer_provider.dart';
 
-class RateTransporterPage extends StatefulWidget {
+class RateDealerPage extends StatefulWidget {
   final String offerId;
-  final bool fromCollectionPage;
 
-  const RateTransporterPage({
-    super.key,
+  const RateDealerPage({
+    Key? key,
     required this.offerId,
-    required this.fromCollectionPage,
-  });
+  }) : super(key: key);
 
   @override
-  _RateTransporterPageState createState() => _RateTransporterPageState();
+  _RateDealerPageState createState() => _RateDealerPageState();
 }
 
-class _RateTransporterPageState extends State<RateTransporterPage> {
+class _RateDealerPageState extends State<RateDealerPage> {
   int _stars = 5;
-  String? _transporterProfileImageUrl;
-  String? _transportId;
+  String? _dealerProfileImageUrl;
+  String? _dealerId;
   bool _isSecondRating = false;
   bool _useDefaultImage = false;
 
@@ -40,13 +38,13 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
   void initState() {
     super.initState();
     _startImageLoadingTimer();
-    _fetchTransporterProfileImage();
+    _fetchDealerProfileImage();
     _checkIfSecondRating();
   }
 
   void _startImageLoadingTimer() {
     Timer(const Duration(seconds: 5), () {
-      if (_transporterProfileImageUrl == null) {
+      if (_dealerProfileImageUrl == null) {
         setState(() {
           _useDefaultImage = true;
         });
@@ -54,7 +52,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
     });
   }
 
-  void _fetchTransporterProfileImage() async {
+  void _fetchDealerProfileImage() async {
     try {
       OfferProvider offerProvider =
           Provider.of<OfferProvider>(context, listen: false);
@@ -64,34 +62,34 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
           offerId: '', // Default or fallback values
           dealerId: '',
           vehicleId: '',
-          transportId: '', offerStatus: '',
+          transportId: '',
+          offerStatus: '',
         ),
       );
 
       if (offer.offerId.isNotEmpty) {
-        _transportId = offer.transportId;
+        _dealerId = offer.dealerId;
 
-        if (_transportId != null) {
-          DocumentSnapshot transporterDoc = await FirebaseFirestore.instance
+        if (_dealerId != null) {
+          DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
               .collection('users')
-              .doc(_transportId)
+              .doc(_dealerId)
               .get();
 
-          if (transporterDoc.exists) {
+          if (dealerDoc.exists) {
             setState(() {
-              _transporterProfileImageUrl = transporterDoc['profileImageUrl'];
+              _dealerProfileImageUrl = dealerDoc['profileImageUrl'];
             });
 
-            print(
-                'Transporter profile image URL: $_transporterProfileImageUrl');
+            print('Dealer profile image URL: $_dealerProfileImageUrl');
           } else {
-            print('Error: Transporter document does not exist.');
+            print('Error: Dealer document does not exist.');
             setState(() {
               _useDefaultImage = true;
             });
           }
         } else {
-          print('Error: Transporter ID is null.');
+          print('Error: Dealer ID is null.');
           setState(() {
             _useDefaultImage = true;
           });
@@ -104,7 +102,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
         });
       }
     } catch (e) {
-      print('Error fetching transporter profile image: $e');
+      print('Error fetching dealer profile image: $e');
       setState(() {
         _useDefaultImage = true;
       });
@@ -112,11 +110,11 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
   }
 
   void _checkIfSecondRating() async {
-    if (_transportId != null) {
+    if (_dealerId != null) {
       try {
         CollectionReference ratingsRef = FirebaseFirestore.instance
             .collection('users')
-            .doc(_transportId)
+            .doc(_dealerId)
             .collection('ratings');
 
         QuerySnapshot ratingSnapshot =
@@ -141,11 +139,11 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
   }
 
   Future<void> _submitRating() async {
-    if (_transportId != null) {
+    if (_dealerId != null) {
       try {
         CollectionReference ratingsRef = FirebaseFirestore.instance
             .collection('users')
-            .doc(_transportId)
+            .doc(_dealerId)
             .collection('ratings');
 
         await ratingsRef.add({
@@ -166,17 +164,17 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
 
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(_transportId)
+            .doc(_dealerId)
             .update({
           'averageRating': averageRating,
           'ratingCount': ratingsDocs.length,
         });
 
-        // Update the offer status to 'Done'
-        await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(widget.offerId)
-            .update({'offerStatus': 'Done'});
+        // Removed code that changes the offer status
+        // await FirebaseFirestore.instance
+        //     .collection('offers')
+        //     .doc(widget.offerId)
+        //     .update({'offerStatus': 'Done'});
       } catch (e) {
         print('Error submitting rating: $e');
       }
@@ -186,18 +184,8 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
   void _onSubmit() async {
     await _submitRating();
 
-    if (widget.fromCollectionPage) {
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CollectionDetailsPage(
-            offerId: widget.offerId,
-          ),
-        ),
-      );
-    }
+    // Always navigate back to the home page after rating
+    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
   }
 
   @override
@@ -218,7 +206,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
                       child: Image.asset('lib/assets/CTPLogo.png')),
                   const SizedBox(height: 32),
                   const Text(
-                    'RATE THE TRANSPORTER',
+                    'RATE THE DEALER',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -228,7 +216,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'The transporter is automatically given five stars. For every trait you uncheck, the transporter loses one star.',
+                    'The dealer is automatically given five stars. For every trait you uncheck, the dealer loses one star.',
                     style: TextStyle(
                         fontSize: 14,
                         color: Colors.white,
@@ -242,8 +230,8 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
                         ? const AssetImage(
                                 'lib/assets/default-profile-photo.jpg')
                             as ImageProvider
-                        : (_transporterProfileImageUrl != null
-                            ? NetworkImage(_transporterProfileImageUrl!)
+                        : (_dealerProfileImageUrl != null
+                            ? NetworkImage(_dealerProfileImageUrl!)
                             : const AssetImage(
                                 'lib/assets/default-profile-photo.jpg')),
                   ),

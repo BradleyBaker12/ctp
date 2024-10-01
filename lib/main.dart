@@ -107,6 +107,7 @@ class MyApp extends StatelessWidget {
         '/truckPage': (context) => const TruckPage(),
         '/offers': (context) => const OffersPage(),
         '/profile': (context) => const ProfilePage(),
+        
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {

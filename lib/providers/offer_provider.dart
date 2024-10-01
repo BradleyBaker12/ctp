@@ -7,7 +7,7 @@ class Offer extends ChangeNotifier {
   final String vehicleId;
   final String transportId;
   double? offerAmount; // This can now be modified
-  final String? offerStatus;
+  String offerStatus; // Made mutable to update locally
   String? vehicleMakeModel;
   String? vehicleMainImage;
   String? reason;
@@ -31,13 +31,19 @@ class Offer extends ChangeNotifier {
   DateTime? dealerSelectedCollectionDate;
   String? dealerSelectedCollectionTime;
 
+  // New fields for inspection and collection dates and locations
+  final List<dynamic>? inspectionDates;
+  final List<dynamic>? inspectionLocations;
+  final List<dynamic>? collectionDates;
+  final List<dynamic>? collectionLocations;
+
   Offer({
     required this.offerId,
     required this.dealerId,
     required this.vehicleId,
     required this.transportId,
     this.offerAmount,
-    this.offerStatus,
+    required this.offerStatus,
     this.vehicleMakeModel,
     this.vehicleMainImage,
     this.reason,
@@ -49,6 +55,10 @@ class Offer extends ChangeNotifier {
     this.dealerSelectedCollectionAddress,
     this.dealerSelectedCollectionDate,
     this.dealerSelectedCollectionTime,
+    this.inspectionDates,
+    this.inspectionLocations,
+    this.collectionDates,
+    this.collectionLocations,
   });
 
   factory Offer.fromFirestore(DocumentSnapshot doc) {
@@ -73,12 +83,16 @@ class Offer extends ChangeNotifier {
       latLng: data['latLng'] != null ? data['latLng'] as GeoPoint : null,
       dealerSelectedCollectionLocation:
           data['dealerSelectedCollectionLocation'],
-      dealerSelectedCollectionAddress: data['dealerSelectedCollectionLocation'],
+      dealerSelectedCollectionAddress: data['dealerSelectedCollectionAddress'],
       dealerSelectedCollectionDate:
           (data['dealerSelectedCollectionDate'] != null)
               ? (data['dealerSelectedCollectionDate'] as Timestamp).toDate()
               : null,
       dealerSelectedCollectionTime: data['dealerSelectedCollectionTime'],
+      inspectionDates: data['inspectionDates'],
+      inspectionLocations: data['inspectionLocations'],
+      collectionDates: data['collectionDates'],
+      collectionLocations: data['collectionLocations'],
     );
   }
 
@@ -155,11 +169,13 @@ class OfferProvider extends ChangeNotifier {
     }
   }
 
-  // Method to get a specific offer by its ID from the cached offers
   Offer? getOfferById(String offerId) {
-    return _offers.firstWhere(
-      (offer) => offer.offerId == offerId,
-    );
+    for (var offer in _offers) {
+      if (offer.offerId == offerId) {
+        return offer;
+      }
+    }
+    return null;
   }
 
   // Method to update the offer amount

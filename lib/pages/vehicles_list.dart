@@ -2,11 +2,12 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart'; // Import the custom bottom navigation
-import 'package:ctp/pages/vehicle_details_page.dart'; // Import the VehicleDetailsPage
-import 'package:ctp/components/custom_app_bar.dart'; // Import the custom app bar
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/components/custom_app_bar.dart';
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({Key? key}) : super(key: key);
@@ -15,20 +16,23 @@ class VehiclesListPage extends StatefulWidget {
   _VehiclesListPageState createState() => _VehiclesListPageState();
 }
 
-class _VehiclesListPageState extends State<VehiclesListPage> {
+class _VehiclesListPageState extends State<VehiclesListPage>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 1;
   final ScrollController _scrollController = ScrollController();
+  late TabController _tabController;
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
-      // Handle navigation to different pages if needed
     });
   }
 
   @override
   void initState() {
     super.initState();
+    _tabController =
+        TabController(length: 3, vsync: this); // Create the TabController
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
@@ -40,11 +44,9 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
             userId: currentUserId, filterLikedDisliked: false);
       }
 
-      // Add listener to the scroll controller for pagination
       _scrollController.addListener(() {
         if (_scrollController.position.pixels ==
             _scrollController.position.maxScrollExtent) {
-          // Trigger fetching more vehicles when reaching the end
           vehicleProvider.fetchMoreVehicles();
         }
       });
@@ -54,6 +56,7 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _tabController.dispose(); // Dispose of the TabController
     super.dispose();
   }
 
@@ -73,6 +76,40 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
     }
 
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
+
+    List<Widget> buildVehicleList(List vehicles) {
+      return vehicles.isEmpty
+          ? [const Center(child: Text('No vehicles found.'))]
+          : vehicles.map((vehicle) {
+              return ListingCard(
+                vehicleMakeModel: vehicle.makeModel,
+                vehicleImageUrl: vehicle.mainImageUrl,
+                vehicleYear: vehicle.year,
+                vehicleMileage: vehicle.mileage,
+                vehicleTransmission: vehicle.transmission,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          VehicleDetailsPage(vehicle: vehicle),
+                    ),
+                  );
+                },
+              );
+            }).toList();
+    }
+
+    // Filter vehicles by status
+    final drafts = userVehicles
+        .where((vehicle) => vehicle.vehicleStatus == 'Draft')
+        .toList();
+    final pending = userVehicles
+        .where((vehicle) => vehicle.vehicleStatus == 'Pending')
+        .toList();
+    final live = userVehicles
+        .where((vehicle) => vehicle.vehicleStatus == 'Live')
+        .toList();
 
     return GradientBackground(
       child: Scaffold(
@@ -113,41 +150,64 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
               ),
             ),
             const SizedBox(height: 24),
+            // Add TabBar
+            TabBar(
+              controller: _tabController,
+              labelColor: Color(0xFFFF4E00),
+              unselectedLabelColor: Colors.white,
+              tabs: const [
+                Tab(text: 'Drafts'),
+                Tab(text: 'Pending'),
+                Tab(text: 'Live'),
+              ],
+            ),
+            const SizedBox(height: 16),
             Expanded(
-              child: vehicleProvider.isLoading && userVehicles.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      controller: _scrollController, // Attach scroll controller
-                      itemCount: userVehicles.length +
-                          1, // Add an extra item for the loading indicator
-                      itemBuilder: (context, index) {
-                        if (index == userVehicles.length) {
-                          // Show loading indicator at the bottom
-                          return vehicleProvider.isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : const SizedBox(); // Empty widget when not loading
-                        }
-
-                        final vehicle = userVehicles[index];
-                        return ListingCard(
-                          vehicleMakeModel: vehicle.makeModel,
-                          vehicleImageUrl: vehicle.mainImageUrl,
-                          vehicleYear: vehicle.year,
-                          vehicleMileage: vehicle.mileage,
-                          vehicleTransmission: vehicle.transmission,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => VehicleDetailsPage(
-                                  vehicle: vehicle,
-                                ),
-                              ),
-                            );
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Drafts Tab
+                  drafts.isEmpty
+                      ? Center(
+                          child: Text(
+                          'No Draft vehicles.',
+                          style: GoogleFonts.montserrat(color: Colors.white),
+                        ))
+                      : ListView.builder(
+                          controller: _scrollController,
+                          itemCount: drafts.length,
+                          itemBuilder: (context, index) {
+                            return buildVehicleList(drafts)[index];
                           },
-                        );
-                      },
-                    ),
+                        ),
+                  // Pending Tab
+                  pending.isEmpty
+                      ? Center(
+                          child: Text('No Pending vehicles.',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)))
+                      : ListView.builder(
+                          controller: _scrollController,
+                          itemCount: pending.length,
+                          itemBuilder: (context, index) {
+                            return buildVehicleList(pending)[index];
+                          },
+                        ),
+                  // Live Tab
+                  live.isEmpty
+                      ? Center(
+                          child: Text('No Live vehicles.',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)))
+                      : ListView.builder(
+                          controller: _scrollController,
+                          itemCount: live.length,
+                          itemBuilder: (context, index) {
+                            return buildVehicleList(live)[index];
+                          },
+                        ),
+                ],
+              ),
             ),
           ],
         ),

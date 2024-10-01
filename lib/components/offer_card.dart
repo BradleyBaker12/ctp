@@ -67,14 +67,12 @@ class _OfferCardState extends State<OfferCard> {
   String formatOfferAmount(double? amount) {
     if (amount == null) return 'Unknown';
 
-    // Use NumberFormat to format with commas
     final formattedAmount = NumberFormat.currency(
       locale: 'en_ZA',
       symbol: 'R',
       decimalDigits: 0,
     ).format(amount);
 
-    // Replace commas with spaces
     return formattedAmount.replaceAll(',', ' ');
   }
 
@@ -100,391 +98,225 @@ class _OfferCardState extends State<OfferCard> {
     }
   }
 
-  String getDisplayStatus(String? offerStatus) {
-    switch (offerStatus) {
-      case 'in-progress':
-        return 'In Progress';
-      case 'select location and time':
-        return 'Set Location and Time';
-      case 'accepted':
-        return 'Accepted';
-      case 'set location and time':
-        return 'Setup Inspection';
-      case 'confirm location':
-        return 'Confirm Location';
-      case 'inspection pending':
-        return 'Inspection Pending';
-      case '3/4':
-        return 'Step 3 of 4';
-      case 'paid':
-        return 'Paid';
-      case 'Issue reported':
-        return 'Issue Reported'; // Display text for 'Issue reported'
-      case 'resolved':
-        return 'Resolved'; // Display text for 'Resolved'
-      case 'done':
-      case 'Done':
-        return 'Done';
-      // Add more cases as needed
-      default:
-        return offerStatus ?? 'Unknown';
-    }
-  }
-
-  Future<void> _updateOfferAmount(double newAmount) async {
-    try {
-      await widget.offer.updateOfferAmount(newAmount);
-      _editController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Offer amount updated to ${formatOfferAmount(newAmount)}',
-            style: customFont(16, FontWeight.bold, Colors.green),
-          ),
-          backgroundColor: Colors.black,
-        ),
-      );
-
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final userId = userProvider.userId ?? ''; // Add a fallback value
-      final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
-      await Provider.of<OfferProvider>(context, listen: false).refreshOffers(
-        userId,
-        userRole,
-      );
-
-      setState(() {
-        widget.offer.offerAmount = newAmount;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update offer amount: $e',
-              style: customFont(16, FontWeight.normal, Colors.red)),
-        ),
-      );
-    }
-  }
-
-  void _editOfferAmountDialog() {
-    _editController.text = widget.offer.offerAmount?.toStringAsFixed(0) ?? '';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Edit Offer Amount',
-              style: customFont(18, FontWeight.bold, Colors.black)),
-          content: TextField(
-            controller: _editController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              hintText: 'Enter new offer amount',
-              hintStyle: customFont(16, FontWeight.normal, Colors.grey),
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: Text('Cancel',
-                  style: customFont(16, FontWeight.bold, Colors.red)),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Save',
-                  style: customFont(16, FontWeight.bold, Colors.green)),
-              onPressed: () {
-                double? newAmount = double.tryParse(_editController.text);
-                if (newAmount != null) {
-                  _updateOfferAmount(newAmount);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Invalid offer amount',
-                          style: customFont(16, FontWeight.normal, Colors.red)),
-                    ),
-                  );
-                }
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _updateOfferStatus(String status) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offer.offerId)
-          .update({'offerStatus': status});
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Offer status updated to $status',
-              style: customFont(16, FontWeight.normal, Colors.green)),
-        ),
-      );
-
-      setState(() {
-        // Optionally update the UI or trigger a refresh if needed
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update status: $e',
-              style: customFont(16, FontWeight.normal, Colors.red)),
-        ),
-      );
-    }
-  }
-
-  void navigateBasedOnStatus(BuildContext context) async {
+  void navigateBasedOnStatus(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final offerProvider = Provider.of<OfferProvider>(context, listen: false);
-    final complaintsProvider =
-        Provider.of<ComplaintsProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
 
-    // Fetch complaints related to this offer
-    await complaintsProvider.fetchComplaints(widget.offer.offerId);
-
-    // Check if there's a resolved complaint
-    final resolvedComplaint =
-        complaintsProvider.getResolvedComplaint(widget.offer.offerId);
-
-    // Check user role and navigate accordingly
     if (userRole == 'transporter') {
-      final vehicleProvider =
-          Provider.of<VehicleProvider>(context, listen: false);
-      Vehicle? vehicle;
+      switch (widget.offer.offerStatus) {
+        case 'set location and time':
+        case 'confirm location':
+        case 'Done':
+        case 'Confirm Collection':
+        case 'Collection Location Confirmation':
+        case 'payment options':
+        case 'accepted': // Added handling for 'accepted' status for transporter
+          _getVehicle().then((vehicle) {
+            if (vehicle != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TransporterOfferDetailsPage(
+                    offer: widget.offer,
+                    vehicle: vehicle,
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Vehicle details could not be loaded.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          });
+          return; // Exit after triggering async vehicle fetch
+        case 'inspection pending':
+        case 'Inspection Done':
+        case 'payment pending':
+          _navigateToRespectivePage(userRole);
+          return;
+        default:
+          print(
+              "Offer status not handled for transporter: ${widget.offer.offerStatus}");
+          return;
+      }
+    }
 
-      try {
-        vehicle = vehicleProvider.vehicles.firstWhere(
-          (v) => v.id == widget.offer.vehicleId,
-          orElse: () => throw Exception('Vehicle not found in provider'),
+    // Dealer-specific navigation logic
+    switch (widget.offer.offerStatus) {
+      case 'set location and time':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => InspectionDetailsPage(
+              offerId: widget.offer.offerId,
+              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+              offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              vehicleId: widget.offer.vehicleId,
+            ),
+          ),
         );
-      } catch (e) {
-        try {
-          DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
-              .collection('vehicles')
-              .doc(widget.offer.vehicleId)
-              .get();
+        break;
+      case 'confirm location':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LocationConfirmationPage(
+              offerId: widget.offer.offerId,
+              location:
+                  widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+              address:
+                  widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+              date: widget.offer.dealerSelectedInspectionDate!,
+              time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+              offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              vehicleId: widget.offer.vehicleId,
+            ),
+          ),
+        );
+        break;
+      case 'Done':
+      case 'Confirm Collection':
+      case 'Collection Location Confirmation':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CollectionDetailsPage(
+              offerId: widget.offer.offerId,
+            ),
+          ),
+        );
+        break;
+      case 'payment options':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentOptionsPage(
+              offerId: widget.offer.offerId,
+            ),
+          ),
+        );
+        break;
+      case 'accepted': // Added handling for 'accepted' status for dealer
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => InspectionDetailsPage(
+              offerId: widget.offer.offerId,
+              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+              offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              vehicleId: widget.offer.vehicleId,
+            ),
+          ),
+        );
+        break;
+      case 'inspection pending':
+      case 'Inspection Done':
+      case 'payment pending':
+        _navigateToRespectivePage(userRole);
+        break;
+      default:
+        print(
+            "Offer status not handled for dealer: ${widget.offer.offerStatus}");
+        break;
+    }
+  }
 
-          if (vehicleSnapshot.exists) {
-            vehicle = Vehicle.fromDocument(vehicleSnapshot);
-            vehicleProvider.addVehicle(vehicle); // Add to provider
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Vehicle details not found.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
-        } catch (e) {
+  Future<Vehicle?> _getVehicle() async {
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context, listen: false);
+    Vehicle? vehicle;
+
+    try {
+      vehicle = vehicleProvider.vehicles.firstWhere(
+        (v) => v.id == widget.offer.vehicleId,
+        orElse: () => throw Exception('Vehicle not found in provider'),
+      );
+    } catch (e) {
+      try {
+        DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.offer.vehicleId)
+            .get();
+
+        if (vehicleSnapshot.exists) {
+          vehicle = Vehicle.fromDocument(vehicleSnapshot);
+          vehicleProvider.addVehicle(vehicle); // Add to provider
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error fetching vehicle details: $e'),
+            const SnackBar(
+              content: Text('Vehicle details not found.'),
               backgroundColor: Colors.red,
             ),
           );
-          return;
         }
-      }
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => TransporterOfferDetailsPage(
-            offer: widget.offer,
-            vehicle: vehicle!,
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error fetching vehicle details: $e'),
+            backgroundColor: Colors.red,
           ),
-        ),
-      );
-      return;
+        );
+      }
     }
 
-    if (resolvedComplaint['complaintStatus'] == 'resolved') {
-      // Handle resolved complaints
-      // ... (existing logic for handling resolved complaints)
-    } else {
-      print("Offer status: ${widget.offer.offerStatus}");
-      // Continue with the original logic based on offer status
-      switch (widget.offer.offerStatus) {
-        case 'accepted':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => InspectionDetailsPage(
-                offerId: widget.offer.offerId,
-                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
-                offerAmount: formatOfferAmount(widget.offer.offerAmount),
-                vehicleId: widget.offer.vehicleId, // Add this line
-              ),
-            ),
-          );
+    return vehicle;
+  }
 
-          break;
-        case 'payment pending':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentPendingPage(
-                offerId: widget.offer.offerId,
+  void _navigateToRespectivePage(String userRole) {
+    switch (widget.offer.offerStatus) {
+      case 'inspection pending':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ConfirmationPage(
+              offerId: widget.offer.offerId,
+              location:
+                  widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+              address:
+                  widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+              date: widget.offer.dealerSelectedInspectionDate!,
+              time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+              latLng: LatLng(
+                widget.offer.latLng?.latitude ?? 0,
+                widget.offer.latLng?.longitude ?? 0,
               ),
+              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+              offerAmount: formatOfferAmount(widget.offer.offerAmount),
+              vehicleId: widget.offer.vehicleId,
             ),
-          );
-          break;
-        case 'payment options':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentOptionsPage(
-                offerId: widget.offer.offerId,
-              ),
+          ),
+        );
+        break;
+      case 'Inspection Done':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FinalInspectionApprovalPage(
+              offerId: widget.offer.offerId,
+              oldOffer: formatOfferAmount(widget.offer.offerAmount),
+              vehicleName: widget.offer.vehicleMakeModel ?? 'Unknown',
             ),
-          );
-          break;
-        case '3/4':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentPendingPage(
-                offerId: widget.offer.offerId,
-              ),
+          ),
+        );
+        break;
+      case 'payment pending':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentPendingPage(
+              offerId: widget.offer.offerId,
             ),
-          );
-          break;
-        case 'set location and time':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => InspectionDetailsPage(
-                offerId: widget.offer.offerId,
-                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
-                offerAmount: formatOfferAmount(widget.offer.offerAmount),
-                vehicleId: widget.offer.vehicleId, // Add this line
-              ),
-            ),
-          );
-
-          break;
-        case 'confirm location':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => LocationConfirmationPage(
-                offerId: widget.offer.offerId,
-                location:
-                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
-                address:
-                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
-                date: widget.offer.dealerSelectedInspectionDate!,
-                time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
-                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
-                offerAmount: formatOfferAmount(widget.offer.offerAmount),
-                vehicleId: widget.offer.vehicleId, // Add this line
-              ),
-            ),
-          );
-          break;
-
-        case 'inspection pending':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ConfirmationPage(
-                offerId: widget.offer.offerId,
-                location:
-                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
-                address:
-                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
-                date: widget.offer.dealerSelectedInspectionDate!,
-                time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
-                latLng: LatLng(
-                  widget.offer.latLng?.latitude ?? 0,
-                  widget.offer.latLng?.longitude ?? 0,
-                ),
-                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
-                offerAmount: formatOfferAmount(widget.offer.offerAmount),
-                vehicleId: widget.offer.vehicleId, // Add this line
-              ),
-            ),
-          );
-          break;
-        case 'Inspection Done':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => FinalInspectionApprovalPage(
-                offerId: widget.offer.offerId,
-                oldOffer: formatOfferAmount(widget.offer.offerAmount),
-                vehicleName: widget.offer.vehicleMakeModel ?? 'Unknown',
-              ),
-            ),
-          );
-          break;
-        case 'rating transporter':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RateTransporterPage(
-                offerId: widget.offer.offerId,
-                fromCollectionPage: false,
-              ),
-            ),
-          );
-          break;
-        case 'Confirm Collection':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CollectionDetailsPage(
-                offerId: widget.offer.offerId,
-              ),
-            ),
-          );
-          break;
-        case 'Collection Location Confirmation':
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CollectionConfirmationPage(
-                offerId: widget.offer.offerId,
-                location:
-                    widget.offer.dealerSelectedCollectionLocation ?? 'Unknown',
-                address:
-                    widget.offer.dealerSelectedCollectionAddress ?? 'Unknown',
-                date:
-                    widget.offer.dealerSelectedCollectionDate ?? DateTime.now(),
-                time: widget.offer.dealerSelectedCollectionTime ?? 'Unknown',
-                latLng: widget.offer.latLng != null
-                    ? LatLng(widget.offer.latLng!.latitude,
-                        widget.offer.latLng!.longitude)
-                    : null,
-              ),
-            ),
-          );
-          break;
-        case 'paid': // Handle the 'paid' status
-        case 'Payment Approved': // Handle the 'paid' status
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  PaymentApprovedPage(offerId: widget.offer.offerId),
-            ),
-          );
-          break;
-        default:
-          print("Offer status not handled: ${widget.offer.offerStatus}");
-          break;
-      }
+          ),
+        );
+        break;
+      default:
+        print(
+            "Offer status not handled in _navigateToRespectivePage: ${widget.offer.offerStatus}");
+        break;
     }
   }
 
@@ -555,7 +387,6 @@ class _OfferCardState extends State<OfferCard> {
               ),
             ),
             Expanded(
-              // Ensure Expanded is within a Row or Column
               child: GestureDetector(
                 onTap: () => navigateToVehicleDetails(),
                 child: Container(
@@ -616,55 +447,6 @@ class _OfferCardState extends State<OfferCard> {
           ],
         ),
       ],
-    );
-  }
-
-  void navigateToVehicleDetails() async {
-    final vehicleProvider =
-        Provider.of<VehicleProvider>(context, listen: false);
-    Vehicle? vehicle;
-
-    try {
-      vehicle = vehicleProvider.vehicles.firstWhere(
-        (v) => v.id == widget.offer.vehicleId,
-        orElse: () => throw Exception('Vehicle not found in provider'),
-      );
-    } catch (e) {
-      // If the vehicle is not found in the provider, fetch it from the database
-      try {
-        DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
-            .collection('vehicles')
-            .doc(widget.offer.vehicleId)
-            .get();
-
-        if (vehicleSnapshot.exists) {
-          vehicle = Vehicle.fromDocument(vehicleSnapshot);
-          vehicleProvider.addVehicle(vehicle); // Add to provider
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Vehicle details not found.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error fetching vehicle details: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-      ),
     );
   }
 
@@ -766,5 +548,83 @@ class _OfferCardState extends State<OfferCard> {
         ),
       ],
     );
+  }
+
+  void navigateToVehicleDetails() async {
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context, listen: false);
+    Vehicle? vehicle;
+
+    try {
+      vehicle = vehicleProvider.vehicles.firstWhere(
+        (v) => v.id == widget.offer.vehicleId,
+        orElse: () => throw Exception('Vehicle not found in provider'),
+      );
+    } catch (e) {
+      try {
+        DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.offer.vehicleId)
+            .get();
+
+        if (vehicleSnapshot.exists) {
+          vehicle = Vehicle.fromDocument(vehicleSnapshot);
+          vehicleProvider.addVehicle(vehicle); // Add to provider
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Vehicle details not found.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error fetching vehicle details: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+      ),
+    );
+  }
+
+  String getDisplayStatus(String? offerStatus) {
+    switch (offerStatus) {
+      case 'in-progress':
+        return 'In Progress';
+      case 'select location and time':
+        return 'Set Location and Time';
+      case 'accepted':
+        return 'Accepted';
+      case 'set location and time':
+        return 'Setup Inspection';
+      case 'confirm location':
+        return 'Confirm Location';
+      case 'inspection pending':
+        return 'Inspection Pending';
+      case '3/4':
+        return 'Step 3 of 4';
+      case 'paid':
+        return 'Paid';
+      case 'Issue reported':
+        return 'Issue Reported'; // Display text for 'Issue reported'
+      case 'resolved':
+        return 'Resolved'; // Display text for 'Resolved'
+      case 'done':
+      case 'Done':
+        return 'Done';
+      default:
+        return offerStatus ?? 'Unknown';
+    }
   }
 }

@@ -60,8 +60,8 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
             vehicleSnapshot.data() as Map<String, dynamic>?;
 
         // Use null-aware operators to safely access the field
-        var inspectionLocations =
-            vehicleData?['inspectionLocations'] as List<dynamic>?;
+        var inspectionLocations = vehicleData?['inspectionDetails']
+            ?['inspectionLocations']?['locations'] as List<dynamic>?;
 
         // Check for null or empty inspectionLocations
         if (inspectionLocations == null || inspectionLocations.isEmpty) {
@@ -482,6 +482,8 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                               borderRadius: BorderRadius.circular(15),
                             ),
                             child: TableCalendar(
+                              availableGestures:
+                                  AvailableGestures.verticalSwipe,
                               firstDay: DateTime.utc(2020, 1, 1),
                               lastDay: DateTime.utc(2100, 1, 1),
                               focusedDay: _focusedDay,
@@ -595,7 +597,6 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                 ),
                               ),
                               shouldFillViewport: false,
-                              availableGestures: AvailableGestures.none,
                             ),
                           ),
                           const SizedBox(height: 16),

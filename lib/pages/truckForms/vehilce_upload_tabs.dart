@@ -8,8 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/pages/setup_inspection.dart';
-import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/components/custom_button.dart'; // Import CustomButton
 import 'package:file_picker/file_picker.dart';
@@ -54,13 +52,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   String _transmission = 'Manual';
   String _suspension = 'Steel';
   bool _isLoading = false;
-  bool _isInspectionSetupComplete = false;
-  bool _isCollectionSetupComplete = false;
-
-  List<String>? _inspectionDates;
-  List<Map<String, dynamic>>? _inspectionLocations;
-  List<String>? _collectionDates;
-  List<Map<String, dynamic>>? _collectionLocations;
   String? _listDamages =
       'yes'; // Add this field to store radio button selection
 
@@ -331,12 +322,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         'mainImageUrl': mainImageUrl,
         'licenceDiskUrl': licenceDiskUrl,
 
-        // Inspection and Collection Details
-        'inspectionDates': _inspectionDates,
-        'inspectionLocations': _inspectionLocations,
-        'collectionDates': _collectionDates,
-        'collectionLocations': _collectionLocations,
-
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -393,13 +378,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     _transmission = 'Manual';
     _suspension = 'Steel';
     _isLoading = false;
-    _isInspectionSetupComplete = false;
-    _isCollectionSetupComplete = false;
-
-    _inspectionDates = null;
-    _inspectionLocations = null;
-    _collectionDates = null;
-    _collectionLocations = null;
     _listDamages = 'yes';
 
     _vehicleType = 'truck';
@@ -673,58 +651,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     }
   }
 
-  Future<void> _setupInspection() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SetupInspectionPage(),
-      ),
-    );
-
-    if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        _inspectionDates =
-            result['dates'] != null ? List<String>.from(result['dates']) : [];
-        _inspectionLocations = result['locations'] != null
-            ? List<Map<String, dynamic>>.from(result['locations'])
-            : [];
-        _isInspectionSetupComplete = true; // Ensure this is set to true
-      });
-      // Debugging code
-      print('Inspection Setup Complete:');
-      print('Dates: $_inspectionDates');
-      print('Locations: $_inspectionLocations');
-    } else {
-      print('Inspection setup was cancelled or invalid data.');
-    }
-  }
-
-  Future<void> _setupCollection() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SetupCollectionPage(),
-      ),
-    );
-
-    if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        _collectionDates =
-            result['dates'] != null ? List<String>.from(result['dates']) : [];
-        _collectionLocations = result['locations'] != null
-            ? List<Map<String, dynamic>>.from(result['locations'])
-            : [];
-        _isCollectionSetupComplete = true; // Ensure this is set to true
-      });
-      // Debugging code
-      print('Collection Setup Complete:');
-      print('Dates: $_collectionDates');
-      print('Locations: $_collectionLocations');
-    } else {
-      print('Collection setup was cancelled or invalid data.');
-    }
-  }
-
   Future<void> _saveSection1Data() async {
     if (!_formKeys[0].currentState!.validate()) {
       return; // Return if form is not valid
@@ -781,10 +707,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         'mileage': _mileageController.text,
         'sellingPrice': _sellingPriceController.text,
         'mainImageUrl': mainImageUrl, // Include the main image URL
-        'inspectionDates': _inspectionDates, // Inspection data
-        'inspectionLocations': _inspectionLocations, // Inspection data
-        'collectionDates': _collectionDates, // Collection data
-        'collectionLocations': _collectionLocations, // Collection data
+        'vehicleStatus': 'Draft', // Default value for vehicle status
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -1164,29 +1087,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                     },
                   ),
                   const SizedBox(height: 30),
-                  Center(
-                    child: Column(
-                      children: [
-                        CustomButton(
-                          text: _isInspectionSetupComplete
-                              ? 'Inspection Setup Complete'
-                              : 'Setup Inspection',
-                          borderColor:
-                              _isInspectionSetupComplete ? green : blue,
-                          onPressed: _setupInspection,
-                        ),
-                        const SizedBox(height: 10),
-                        CustomButton(
-                          text: _isCollectionSetupComplete
-                              ? 'Collection Setup Complete'
-                              : 'Setup Collection',
-                          borderColor:
-                              _isCollectionSetupComplete ? green : blue,
-                          onPressed: _setupCollection,
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -1200,14 +1100,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                     const SnackBar(
                         content: Text(
                             'Please fill in all required fields in Section 1.')),
-                  );
-                  return;
-                } else if (!_isInspectionSetupComplete ||
-                    !_isCollectionSetupComplete) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Please complete both Inspection and Collection setup before proceeding.')),
                   );
                   return;
                 } else {
@@ -1231,14 +1123,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                             const SnackBar(
                                 content: Text(
                                     'Please fill in all required fields in Section 1.')),
-                          );
-                          return;
-                        } else if (!_isInspectionSetupComplete ||
-                            !_isCollectionSetupComplete) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Please complete both Inspection and Collection setup before proceeding.')),
                           );
                           return;
                         } else {

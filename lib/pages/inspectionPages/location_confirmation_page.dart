@@ -104,30 +104,39 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
       final DocumentReference offerRef =
           FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
 
+      // Add null safety checks
       await offerRef.set({
-        'dealerSelectedInspectionDate': widget.date,
-        'dealerSelectedInspectionTime': widget.time,
-        'dealerSelectedInspectionLocation': widget.address,
+        'dealerSelectedInspectionDate': widget.date ?? DateTime.now(),
+        'dealerSelectedInspectionTime': widget.time ?? "12:00 PM",
+        'dealerSelectedInspectionLocation':
+            widget.address ?? "Unknown Location",
         'latLng': _latLng != null
             ? GeoPoint(_latLng!.latitude, _latLng!.longitude)
             : null,
       }, SetOptions(merge: true));
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => ConfirmationPage(
-            offerId: widget.offerId,
-            location: widget.location,
-            address: widget.address,
-            date: widget.date,
-            time: widget.time,
-            latLng: _latLng!,
-            makeModel: widget.makeModel,
-            offerAmount: widget.offerAmount,
-            vehicleId: widget.vehicleId, // Add this line
+      if (_latLng != null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ConfirmationPage(
+              offerId: widget.offerId,
+              location: widget.location,
+              address: widget.address,
+              date: widget.date,
+              time: widget.time,
+              latLng: _latLng!,
+              makeModel: widget.makeModel,
+              offerAmount: widget.offerAmount,
+              vehicleId: widget.vehicleId, // Add this line
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        print('LatLng is null, cannot proceed');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Location coordinates not available')),
+        );
+      }
     } catch (e) {
       print('Error saving inspection details: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -151,9 +160,11 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
         throw 'Could not open Google Maps';
       }
     } else {
-      print('LatLng is not available');
+      print('Location can not be found with the provided address');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('LatLng is not available')),
+        const SnackBar(
+            content:
+                Text('Location can not be found with the provided address')),
       );
     }
   }

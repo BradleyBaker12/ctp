@@ -30,6 +30,7 @@ class _TransporterRegistrationPageState
 
   final TextEditingController _companyNameController = TextEditingController();
   final TextEditingController _tradingNameController = TextEditingController();
+  final TextEditingController _fleetSizeController = TextEditingController();
   final TextEditingController _registrationNumberController =
       TextEditingController();
   final TextEditingController _vatNumberController = TextEditingController();
@@ -44,6 +45,7 @@ class _TransporterRegistrationPageState
 
   final FocusNode _companyNameFocusNode = FocusNode();
   final FocusNode _tradingNameFocusNode = FocusNode();
+  final FocusNode _fleetSizeFocusNode = FocusNode();
   final FocusNode _registrationNumberFocusNode = FocusNode();
   final FocusNode _vatNumberFocusNode = FocusNode();
   final FocusNode _firstNameFocusNode = FocusNode();
@@ -140,6 +142,7 @@ class _TransporterRegistrationPageState
       await firestore.collection('users').doc(userId).update({
         'companyName': _companyNameController.text,
         'tradingName': _tradingNameController.text,
+        'fleetSize': _fleetSizeController.text,
         'registrationNumber': _registrationNumberController.text,
         'vatNumber': _vatNumberController.text,
         'firstName': _firstNameController.text,
@@ -266,6 +269,11 @@ class _TransporterRegistrationPageState
                                     controller: _tradingNameController,
                                     focusNode: _tradingNameFocusNode,
                                     hintText: 'Trading Name'),
+                                const SizedBox(height: 15),
+                                _buildTextField(
+                                    controller: _fleetSizeController,
+                                    focusNode: _fleetSizeFocusNode,
+                                    hintText: 'Fleet Size'),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _registrationNumberController,

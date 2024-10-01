@@ -123,6 +123,8 @@ flutter:
     - lib/assets/Logo/VOLVO.png
     - lib/assets/Logo/VW.png
     - lib/assets/Loading_Logo_CTP.gif
+    - lib/assets/dealer_handshake.png
+    - lib/assets/transporter_handshake.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
   # For details regarding adding assets from package dependencies, see

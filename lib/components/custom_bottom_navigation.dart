@@ -21,7 +21,7 @@ class CustomBottomNavigation extends StatelessWidget {
   });
 
   Widget _buildNavBarItem(
-      BuildContext context, IconData icon, bool isActive, int index) {
+      BuildContext context, Widget iconWidget, bool isActive, int index) {
     return GestureDetector(
       onTap: () {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -77,11 +77,7 @@ class CustomBottomNavigation extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: iconSize,
-            color: isActive ? Colors.black : Colors.black.withOpacity(0.6),
-          ),
+          iconWidget,
           if (isActive)
             const Icon(
               Icons.arrow_drop_up,
@@ -105,17 +101,76 @@ class CustomBottomNavigation extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavBarItem(context, Icons.home, selectedIndex == 0, 0),
           _buildNavBarItem(
-              context, Icons.local_shipping, selectedIndex == 1, 1),
+            context,
+            Icon(Icons.home,
+                size: iconSize,
+                color: selectedIndex == 0
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6)),
+            selectedIndex == 0,
+            0,
+          ),
+          _buildNavBarItem(
+            context,
+            Icon(Icons.local_shipping,
+                size: iconSize,
+                color: selectedIndex == 1
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6)),
+            selectedIndex == 1,
+            1,
+          ),
           if (userRole == 'transporter')
-            _buildNavBarItem(context, Icons.handshake, selectedIndex == 2, 2),
+            _buildNavBarItem(
+              context,
+              ImageIcon(
+                AssetImage(
+                    'lib/assets/transporter_handshake.png'), // Replace with your icon path
+                size: iconSize,
+                color: selectedIndex == 2
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6),
+              ),
+              selectedIndex == 2,
+              2,
+            ),
           if (userRole != 'transporter')
-            _buildNavBarItem(context, Icons.favorite, selectedIndex == 3, 3),
+            _buildNavBarItem(
+              context,
+              Icon(Icons.favorite,
+                  size: iconSize,
+                  color: selectedIndex == 3
+                      ? Colors.black
+                      : Colors.black.withOpacity(0.6)),
+              selectedIndex == 3,
+              3,
+            ),
           if (userRole == 'dealer')
-            _buildNavBarItem(context, Icons.handshake, selectedIndex == 4, 4),
+            _buildNavBarItem(
+              context,
+              ImageIcon(
+                AssetImage(
+                    'lib/assets/dealer_handshake.png'), // Replace with your icon path
+                size: iconSize,
+                color: selectedIndex == 4
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6),
+              ),
+              selectedIndex == 4,
+              4,
+            ),
           if (userRole != 'dealer')
-            _buildNavBarItem(context, Icons.person, selectedIndex == 5, 5),
+            _buildNavBarItem(
+              context,
+              Icon(Icons.person,
+                  size: iconSize,
+                  color: selectedIndex == 5
+                      ? Colors.black
+                      : Colors.black.withOpacity(0.6)),
+              selectedIndex == 5,
+              5,
+            ),
         ],
       ),
     );

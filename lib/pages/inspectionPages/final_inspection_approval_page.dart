@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/adjust_offer.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
+import 'package:ctp/pages/rating_pages/rate_dealer_page.dart'; // Import RateDealerPage
 import 'package:ctp/pages/report_issue.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -8,6 +9,7 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
 
 class FinalInspectionApprovalPage extends StatefulWidget {
   final String offerId;
@@ -62,39 +64,80 @@ class _FinalInspectionApprovalPageState
     }
   }
 
-  Future<void> _navigateToRateTransporterPage(BuildContext context) async {
+  Future<void> _approveInspection(String userRole) async {
     setState(() {
       _isLoading = true;
     });
 
-    OfferProvider offerProvider =
-        Provider.of<OfferProvider>(context, listen: false);
-    await offerProvider.fetchOffers('JdTI3IY7WcRQne7QnyDp1O7p7Xg2', 'dealer');
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    // Update offer status to "Done" before navigating
     try {
+      String fieldToUpdate =
+          userRole == 'dealer' ? 'dealerApproved' : 'transporterApproved';
+
+      // Update Firestore to mark the approval status for the respective role
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
-          .update({'offerStatus': 'Done'});
-      print('Offer status updated to Done');
-    } catch (e) {
-      print('Failed to update offer status to Done: $e');
-    }
+          .update({fieldToUpdate: true});
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RateTransporterPage(
-          offerId: widget.offerId,
-          fromCollectionPage: false,
+      // Check if both the dealer and transporter have approved
+      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .get();
+      bool dealerApproved = offerSnapshot['dealerApproved'] ?? false;
+      bool transporterApproved = offerSnapshot['transporterApproved'] ?? false;
+
+      // Navigate to the appropriate rating page only if both parties have approved
+      if (dealerApproved && transporterApproved) {
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .update({'offerStatus': 'Done'});
+
+        if (userRole == 'dealer') {
+          // Dealer rates the transporter
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RateTransporterPage(
+                offerId: widget.offerId,
+                fromCollectionPage: false,
+              ),
+            ),
+          );
+        } else if (userRole == 'transporter') {
+          // Transporter rates the dealer
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RateDealerPage(
+                offerId: widget.offerId,
+              ),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Waiting for the other party to approve the inspection.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Failed to approve inspection: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('An error occurred while approving the inspection.'),
+          backgroundColor: Colors.red,
         ),
-      ),
-    );
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -102,6 +145,10 @@ class _FinalInspectionApprovalPageState
     final screenSize = MediaQuery.of(context).size;
     final padding = screenSize.width * 0.05;
     final spacing = screenSize.height * 0.02;
+
+    // Fetch the user role to determine whether to show the adjust offer button
+    final userProvider = Provider.of<UserProvider>(context);
+    final userRole = userProvider.getUserRole;
 
     return Scaffold(
       body: Stack(
@@ -164,23 +211,25 @@ class _FinalInspectionApprovalPageState
                         text: 'APPROVE',
                         borderColor: Colors.blue,
                         onPressed: () {
-                          _navigateToRateTransporterPage(context);
+                          _approveInspection(userRole);
                         },
                       ),
-                      CustomButton(
-                        text: 'ADJUST OFFER',
-                        borderColor: Colors.blue,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AdjustOfferPage(
-                                offerId: widget.offerId,
+                      // Only show the "Adjust Offer" button for dealers
+                      if (userRole == 'dealer')
+                        CustomButton(
+                          text: 'ADJUST OFFER',
+                          borderColor: Colors.blue,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AdjustOfferPage(
+                                  offerId: widget.offerId,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
                       CustomButton(
                         text: 'REPORT AN ISSUE',
                         borderColor: const Color(0xFFFF4E00),

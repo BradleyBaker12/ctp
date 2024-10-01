@@ -138,3 +138,4 @@ inspection dates needs to be after accepting an offer
 Adding conditional redenering for user roles between dealer and transporter.
 Added the approval screen for the transporter (Approve inspection, rate dealer)
 Fixed the collection and inspection dates, location and times to be after the offer has been accepted
+Waiting to see if the Maps works on andriod. Changed the API so that it works on android specificly

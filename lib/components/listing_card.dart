@@ -75,19 +75,27 @@ class ListingCard extends StatelessWidget {
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white),
+                            overflow: TextOverflow.ellipsis, // Added ellipsis
+                            maxLines: 1, // Limit to one line
                           ),
                           const SizedBox(height: 5),
                           Text(
                             'Year: $vehicleYear',
                             style: const TextStyle(color: Colors.white70),
+                            overflow: TextOverflow.ellipsis, // Added ellipsis
+                            maxLines: 1,
                           ),
                           Text(
                             'Mileage: $vehicleMileage',
                             style: const TextStyle(color: Colors.white70),
+                            overflow: TextOverflow.ellipsis, // Added ellipsis
+                            maxLines: 1,
                           ),
                           Text(
                             'Transmission: $vehicleTransmission',
                             style: const TextStyle(color: Colors.white70),
+                            overflow: TextOverflow.ellipsis, // Added ellipsis
+                            maxLines: 1,
                           ),
                         ],
                       ),

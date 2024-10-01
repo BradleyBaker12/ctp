@@ -21,7 +21,7 @@ class ConfirmationPage extends StatefulWidget {
   final LatLng latLng;
   final String makeModel;
   final String offerAmount;
-  final String vehicleId; // Add this line
+  final String vehicleId;
 
   const ConfirmationPage({
     super.key,
@@ -33,7 +33,7 @@ class ConfirmationPage extends StatefulWidget {
     required this.latLng,
     required this.makeModel,
     required this.offerAmount,
-    required this.vehicleId, // Add this line
+    required this.vehicleId,
   });
 
   @override
@@ -43,18 +43,20 @@ class ConfirmationPage extends StatefulWidget {
 class _ConfirmationPageState extends State<ConfirmationPage> {
   int _selectedIndex =
       1; // Variable to keep track of the selected bottom nav item
+  bool _inspectionCompleteClicked =
+      false; // To prevent double clicks on "Inspection Complete"
+
+  @override
+  void initState() {
+    super.initState();
+    _updateOfferStatus();
+  }
 
   void _updateOfferStatus() {
     FirebaseFirestore.instance
         .collection('offers')
         .doc(widget.offerId)
         .update({'offerStatus': 'inspection pending'});
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _updateOfferStatus();
   }
 
   void _onItemTapped(int index) {
@@ -67,6 +69,61 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
   }
 
+  Future<void> _completeInspection(String userRole) async {
+    if (_inspectionCompleteClicked) return; // Prevent multiple clicks
+    setState(() {
+      _inspectionCompleteClicked = true;
+    });
+
+    String fieldToUpdate = userRole == 'dealer'
+        ? 'dealerInspectionComplete'
+        : 'transporterInspectionComplete';
+
+    // Update Firestore to mark the inspection as complete for the respective role
+    await FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .update({
+      fieldToUpdate: true,
+    });
+
+    // Check if both the dealer and transporter have completed the inspection
+    DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .get();
+    bool dealerInspectionComplete =
+        offerSnapshot['dealerInspectionComplete'] ?? false;
+    bool transporterInspectionComplete =
+        offerSnapshot['transporterInspectionComplete'] ?? false;
+
+    // Navigate to Final Inspection Approval Page only if both parties have completed
+    if (dealerInspectionComplete && transporterInspectionComplete) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FinalInspectionApprovalPage(
+            offerId: widget.offerId,
+            oldOffer: widget.offerAmount,
+            vehicleName: widget.makeModel,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Waiting for the other party to complete the inspection.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+
+    setState(() {
+      _inspectionCompleteClicked = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -74,6 +131,9 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     final profilePictureUrl = userProvider.getProfileImageUrl.isNotEmpty
         ? userProvider.getProfileImageUrl
         : 'lib/assets/default_profile_picture.png';
+
+    // Fetch the user role to determine whether to show the reschedule button
+    final userRole = userProvider.getUserRole;
 
     return Scaffold(
       body: GradientBackground(
@@ -164,7 +224,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
-                          'DATE: ${DateFormat('d MMMM yyyy').format(widget.date)}', // Format date as 25 September 2024
+                          'DATE: ${DateFormat('d MMMM yyyy').format(widget.date)}',
                           style: GoogleFonts.montserrat(
                               fontSize: screenSize.height * 0.018,
                               color: Colors.white,
@@ -223,38 +283,30 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                       height: 16), // Added spacing for bottom buttons
                   Column(
                     children: [
-                      CustomButton(
-                        text: 'RESCHEDULE',
-                        borderColor: Colors.blue,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => InspectionDetailsPage(
-                                offerId: widget.offerId,
-                                makeModel: widget.makeModel,
-                                offerAmount: widget.offerAmount,
-                                vehicleId:
-                                    widget.vehicleId, // Ensure this is added
+                      // Only show the "Reschedule" button for dealers
+                      if (userRole == 'dealer')
+                        CustomButton(
+                          text: 'RESCHEDULE',
+                          borderColor: Colors.blue,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => InspectionDetailsPage(
+                                  offerId: widget.offerId,
+                                  makeModel: widget.makeModel,
+                                  offerAmount: widget.offerAmount,
+                                  vehicleId: widget.vehicleId,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
                       CustomButton(
                         text: 'INSPECTION COMPLETE',
                         borderColor: const Color(0xFFFF4E00),
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FinalInspectionApprovalPage(
-                                offerId: widget.offerId,
-                                oldOffer: widget.offerAmount,
-                                vehicleName: widget.makeModel,
-                              ),
-                            ),
-                          );
+                          _completeInspection(userRole);
                         },
                       ),
                       CustomButton(

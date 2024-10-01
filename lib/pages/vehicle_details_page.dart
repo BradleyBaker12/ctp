@@ -1,17 +1,26 @@
+import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'edit_vehicle.dart'; // Ensure this import points to your EditVehiclePage
+
+// Define the PhotoItem class to hold both the image URL and its label
+class PhotoItem {
+  final String url;
+  final String label;
+
+  PhotoItem({required this.url, required this.label});
+}
 
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
 
-  const VehicleDetailsPage({super.key, required this.vehicle});
+  const VehicleDetailsPage({Key? key, required this.vehicle}) : super(key: key);
 
   @override
   _VehicleDetailsPageState createState() => _VehicleDetailsPageState();
@@ -25,7 +34,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   double _offerAmount = 0.0;
   bool _hasMadeOffer = false;
   bool _isAdditionalInfoExpanded = true; // State to track the dropdown
-  List<String> allPhotos = [];
+  List<PhotoItem> allPhotos = [];
   late PageController _pageController;
   String _offerStatus = 'in-progress'; // default status for the offer
 
@@ -40,13 +49,28 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       // Ensure the main image is added first
       if (widget.vehicle.mainImageUrl != null &&
           widget.vehicle.mainImageUrl!.isNotEmpty) {
-        allPhotos.add(widget.vehicle.mainImageUrl!);
+        allPhotos.add(
+            PhotoItem(url: widget.vehicle.mainImageUrl!, label: 'Main Image'));
         print('Main Image Added: ${widget.vehicle.mainImageUrl}');
       }
 
+      // Add damage photos (since it's a list, we need to loop through it)
+      if (widget.vehicle.damagePhotos != null &&
+          widget.vehicle.damagePhotos.isNotEmpty) {
+        for (int i = 0; i < widget.vehicle.damagePhotos.length; i++) {
+          _addPhotoIfExists(
+              widget.vehicle.damagePhotos[i], 'Damage Photo ${i + 1}');
+        }
+      }
+
       // Additional photo fields
+      _addPhotoIfExists(widget.vehicle.dashboardPhoto, 'Dashboard Photo');
+      _addPhotoIfExists(widget.vehicle.faultCodesPhoto, 'Fault Codes Photo');
+      _addPhotoIfExists(widget.vehicle.treadLeft, 'Tread Left Photo');
+      _addPhotoIfExists(widget.vehicle.tyrePhoto1, 'Tyre Photo 1');
+      _addPhotoIfExists(widget.vehicle.tyrePhoto2, 'Tyre Photo 2');
       _addPhotoIfExists(widget.vehicle.bed_bunk, 'Bed Bunk Photo');
-      _addPhotoIfExists(widget.vehicle.dashboard, 'Dashboard Photo');
+      _addPhotoIfExists(widget.vehicle.dashboard, 'Dashboard');
       _addPhotoIfExists(widget.vehicle.door_panels, 'Door Panels Photo');
       _addPhotoIfExists(
           widget.vehicle.front_tyres_tread, 'Front Tyres Tread Photo');
@@ -82,14 +106,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-
-// Helper function to add photo if it exists
-  void _addPhotoIfExists(String? photoUrl, String photoType) {
+  // Helper function to add photo if it exists
+  void _addPhotoIfExists(String? photoUrl, String photoLabel) {
     if (photoUrl != null && photoUrl.isNotEmpty) {
-      allPhotos.add(photoUrl);
-      print('$photoType Added: $photoUrl');
+      allPhotos.add(PhotoItem(url: photoUrl, label: photoLabel));
+      print('$photoLabel Added: $photoUrl');
     } else {
-      print('$photoType is null or empty');
+      print('$photoLabel is null or empty');
     }
   }
 
@@ -371,6 +394,18 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
+  void _navigateToEditPage() {
+    // Navigate to the edit page with the vehicle object
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditVehiclePage(
+          vehicle: widget.vehicle,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -382,37 +417,38 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white, // Set the background color to white
-        elevation: 0, // Remove the shadow under the AppBar
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Text(
-                  widget.vehicle.makeModel.toUpperCase(),
-                  style: GoogleFonts.montserrat(
-                    fontSize: 20, // Adjust the font size as needed
-                    fontWeight: FontWeight.bold,
-                    color: blue, // Set the color to blue as in the image
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.verified,
-                    color: Color(0xFFFF4E00), size: 24), // Verified icon
-              ],
+            Text(
+              widget.vehicle.makeModel.toUpperCase(),
+              style: GoogleFonts.montserrat(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: blue,
+              ),
             ),
-            const Icon(Icons.arrow_drop_down,
-                color: Color(0xFFFF4E00), size: 40), // Right aligned arrow
+            const SizedBox(width: 8),
+            const Icon(Icons.verified, color: Color(0xFFFF4E00), size: 24),
           ],
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios,
-              color: Color(0xFFFF4E00), size: 20), // Custom back arrow color
+              color: Color(0xFFFF4E00), size: 20),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
+        actions: [
+          if (isTransporter)
+            IconButton(
+              icon: const Icon(Icons.edit, color: Color(0xFFFF4E00), size: 24),
+              onPressed: () {
+                _navigateToEditPage();
+              },
+            ),
+        ],
       ),
       backgroundColor: Colors.black,
       body: Stack(
@@ -438,13 +474,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 onTap: () =>
                                     _showFullScreenImage(context, index),
                                 child: Image.network(
-                                  allPhotos[index],
+                                  allPhotos[index].url,
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: size.height * 0.45,
                                   errorBuilder: (context, error, stackTrace) {
                                     return Image.asset(
-                                      'assets/default_vehicle_image.png', // Correct path
+                                      'assets/default_vehicle_image.png',
                                       fit: BoxFit.cover,
                                       width: double.infinity,
                                       height: size.height * 0.45,
@@ -464,6 +500,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                       ],
                                       stops: const [0.5, 1.0],
                                     ),
+                                  ),
+                                ),
+                              ),
+                              // Overlay label on top left corner
+                              Positioned(
+                                top: 10,
+                                left: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  color: Colors.black54,
+                                  child: Text(
+                                    allPhotos[index].label,
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 16),
                                   ),
                                 ),
                               ),
@@ -492,19 +543,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _buildInfoContainer('YEAR', widget.vehicle.year),
-                          SizedBox(
-                            width: 5,
-                          ),
+                          const SizedBox(width: 5),
                           _buildInfoContainer(
                               'MILEAGE', widget.vehicle.mileage),
-                          SizedBox(
-                            width: 5,
-                          ),
+                          const SizedBox(width: 5),
                           _buildInfoContainer(
                               'GEARBOX', widget.vehicle.transmission),
-                          SizedBox(
-                            width: 5,
-                          ),
+                          const SizedBox(width: 5),
                           _buildInfoContainer('CONFIG', widget.vehicle.config),
                         ],
                       ),
@@ -661,7 +706,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       else if (!isTransporter)
                         Center(
                           child: Text(
-                            "Offer Status: ${getDisplayStatus(_offerStatus)}", // Display offer status
+                            "Offer Status: ${getDisplayStatus(_offerStatus)}",
                             style: _customFont(
                                 20, FontWeight.bold, const Color(0xFFFF4E00)),
                           ),
@@ -694,7 +739,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       ),
                       const SizedBox(height: 32),
                       if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
-                      SizedBox(height: 30),
+                      const SizedBox(height: 30),
                       Text(
                         "Discover the Power and Performance You Need: Our Semi Trucks Are Built to Drive Your Success Forward!",
                         style: TextStyle(
@@ -702,7 +747,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             fontWeight: FontWeight.w700,
                             fontSize: 13.5),
                       ),
-                      SizedBox(height: 25),
+                      const SizedBox(height: 25),
                       Text(
                         "Looking for reliability, efficiency, and cutting-edge technology in your next semi-truck purchase? Look no further! Our fleet of semi trucks offers top-of-the-line performance to meet the demands of your toughest routes and deliver your cargo on time, every time.",
                         style: TextStyle(
@@ -772,7 +817,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             Text(
               displayValue,
               style: _customFont(
-                  screenSize.height * 0.017, FontWeight.bold, Colors.white),
+                  screenSize.height * 0.014, FontWeight.bold, Colors.white),
             ),
           ],
         ),
@@ -808,8 +853,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   void _showFullScreenImage(BuildContext context, int initialIndex) {
-    _pageController = PageController(
-        initialPage: initialIndex); // Ensure PageController is initialized here
+    _pageController = PageController(initialPage: initialIndex);
 
     showDialog(
       context: context,
@@ -823,13 +867,31 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 controller: _pageController,
                 itemCount: allPhotos.length,
                 itemBuilder: (context, index) {
-                  return InteractiveViewer(
-                    child: Image.network(
-                      allPhotos[index],
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
+                  return Stack(
+                    children: [
+                      InteractiveViewer(
+                        child: Image.network(
+                          allPhotos[index].url,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      ),
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          color: Colors.black54,
+                          child: Text(
+                            allPhotos[index].label,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),

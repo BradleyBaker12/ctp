@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
+import 'package:intl/intl.dart'; // For date formatting
+import 'package:table_calendar/table_calendar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart'; // Import intl package to handle custom date formats
 
 class SetupCollectionPage extends StatefulWidget {
-  const SetupCollectionPage({super.key});
+  final String vehicleId;
+
+  const SetupCollectionPage({Key? key, required this.vehicleId})
+      : super(key: key);
 
   @override
   _SetupCollectionPageState createState() => _SetupCollectionPageState();
@@ -19,9 +23,13 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   DateTime? _selectedDay;
   final CalendarFormat _calendarFormat = CalendarFormat.month;
 
+  // Map to store times for each selected date
   final Map<DateTime, List<TimeOfDay>> _dateTimeSlots = {};
+
+  // List of time dropdowns for the current day
   List<TimeOfDay?> _selectedTimes = [null];
 
+  // List of predefined time slots (e.g., every 30 minutes from 8 AM to 6 PM)
   final List<TimeOfDay> _timeSlots = [
     TimeOfDay(hour: 8, minute: 0),
     TimeOfDay(hour: 8, minute: 30),
@@ -45,91 +53,65 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     TimeOfDay(hour: 17, minute: 30),
   ];
 
+  // Store information for multiple collection locations
   final List<Map<String, dynamic>> _locations = [];
-  int? _editIndex;
+  int? _editIndex; // Store the index of the location being edited
 
+  // Controllers for address input fields
   final TextEditingController _addressLine1Controller = TextEditingController();
   final TextEditingController _addressLine2Controller = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _postalCodeController = TextEditingController();
 
-  bool _showFormFields = true;
+  bool _isAddingLocation = true;
   bool _showBackToFormButton = false;
-  bool _showSaveButton = true;
+  bool _isLoading = false; // Loading state variable
 
+  @override
+  void dispose() {
+    _addressLine1Controller.dispose();
+    _addressLine2Controller.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _postalCodeController.dispose();
+    super.dispose();
+  }
+
+  // Handler for day selection on the calendar
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-    if (_selectedDay != null &&
-        (_dateTimeSlots[_selectedDay!] == null ||
-            _dateTimeSlots[_selectedDay!]!.isEmpty)) {
-      _showTimeRequiredDialog();
-      return;
-    }
-
     setState(() {
       _focusedDay = focusedDay;
 
+      // Save times for the previously selected day
+      if (_selectedDay != null) {
+        _dateTimeSlots[_selectedDay!] =
+            _selectedTimes.whereType<TimeOfDay>().toList();
+      }
+
       if (_selectedDays.any((day) => _isSameDay(day, selectedDay))) {
+        // If the day is already selected, allow editing or removal
         _showEditOrRemoveDialog(selectedDay);
       } else {
-        if (_selectedDay != null) {
-          _dateTimeSlots[_selectedDay!] =
-              _selectedTimes.whereType<TimeOfDay>().toList();
-        }
-
-        _selectedTimes = [null];
-
+        // Add the new day to selected days
         _selectedDays.add(selectedDay);
       }
 
+      // Update the currently selected day and its times
       _selectedDay = selectedDay;
+      _selectedTimes =
+          _dateTimeSlots[selectedDay]?.map((e) => e).toList() ?? [null];
     });
   }
 
+  // Helper method to check if two days are the same
   bool _isSameDay(DateTime day1, DateTime day2) {
     return day1.year == day2.year &&
         day1.month == day2.month &&
         day1.day == day2.day;
   }
 
-  void _showTimeRequiredDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Time Required'),
-          content: const Text(
-              'Please add at least one time for the selected date before selecting another date.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _addSelectedTimeSlot() {
-    setState(() {
-      _selectedTimes.add(null);
-    });
-  }
-
-  void _onTimeSlotSelected(TimeOfDay? selectedTime, int index) {
-    setState(() {
-      _selectedTimes[index] = selectedTime;
-
-      if (_selectedDay != null && selectedTime != null) {
-        _dateTimeSlots[_selectedDay!] ??= [];
-        _dateTimeSlots[_selectedDay!]?.add(selectedTime);
-      }
-    });
-  }
-
+  // Show dialog to edit or remove a selected date
   void _showEditOrRemoveDialog(DateTime selectedDay) {
     showDialog(
       context: context,
@@ -158,9 +140,9 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
               onPressed: () {
                 setState(() {
                   _selectedDay = selectedDay;
-                  _selectedTimes = _dateTimeSlots[selectedDay] != null
-                      ? _dateTimeSlots[selectedDay]!.map((e) => e).toList()
-                      : [null];
+                  _selectedTimes =
+                      _dateTimeSlots[selectedDay]?.map((e) => e).toList() ??
+                          [null];
                 });
                 Navigator.of(context).pop();
               },
@@ -171,61 +153,35 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     );
   }
 
-  Future<void> _saveCollectionDetails() async {
-    if (_locations.isNotEmpty) {
-      Map<String, dynamic> collectionDetails = {
-        'locations': _locations,
-      };
-
-      Navigator.pop(context, collectionDetails);
-    } else {
-      _showErrorDialog('Please save at least one location.');
-    }
-  }
-
-  Future<void> _saveLocation() async {
-    if (_selectedDays.isEmpty || _dateTimeSlots.isEmpty) {
-      _showErrorDialog(
-          'Please select at least one date and time for this location.');
-      return;
-    }
-
-    if (_addressLine1Controller.text.isEmpty) {
-      _showErrorDialog('Please enter the collection location.');
-      return;
-    }
-
-    String fullAddress =
-        '${_addressLine1Controller.text}, ${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
-
-    Map<String, dynamic> locationData = {
-      'address': fullAddress,
-      'dates': _selectedDays.map((date) => date.toShortString()).toList(),
-      'timeSlots': _selectedDays
-          .map((date) => {
-                'date': date.toShortString(),
-                'times': _dateTimeSlots[date]
-                    ?.map((time) => time.format(context))
-                    .toList()
-              })
-          .toList(),
-    };
-
+  // Add another time slot dropdown
+  void _addSelectedTimeSlot() {
     setState(() {
-      if (_editIndex != null) {
-        _locations[_editIndex!] = locationData;
-        _editIndex = null;
-      } else {
-        _locations.add(locationData);
-      }
-
-      _clearFormFields();
-      _showFormFields = false;
-      _showSaveButton = false;
-      _showBackToFormButton = true;
+      _selectedTimes.add(null);
     });
   }
 
+  // Handler for time slot selection
+  void _onTimeSlotSelected(TimeOfDay? selectedTime, int index) {
+    setState(() {
+      _selectedTimes[index] = selectedTime;
+
+      if (_selectedDay != null && selectedTime != null) {
+        _dateTimeSlots[_selectedDay!] ??= [];
+        _dateTimeSlots[_selectedDay!]?.add(selectedTime);
+      }
+    });
+  }
+
+  DateTime _parseDateString(String dateStr) {
+    final parts = dateStr.split('-');
+    if (parts.length != 3) throw FormatException("Invalid date format");
+    final day = int.parse(parts[0]);
+    final month = int.parse(parts[1]);
+    final year = int.parse(parts[2]);
+    return DateTime(year, month, day);
+  }
+
+  // Edit an existing collection location
   Future<void> _editLocation(int index) async {
     setState(() {
       _editIndex = index;
@@ -246,22 +202,182 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
       DateFormat dateFormat = DateFormat('d-M-yyyy');
       _selectedDays =
-          dates.map((dateStr) => dateFormat.parse(dateStr)).toList();
+          dates.map((dateStr) => _parseDateString(dateStr)).toList();
+
+      // Clear previous time slots
+      _dateTimeSlots.clear();
 
       for (var date in _selectedDays) {
         List<String> times = timeSlots
             .firstWhere((slot) => slot['date'] == date.toShortString())['times']
             .cast<String>();
         _dateTimeSlots[date] = times
-            .map((timeStr) => TimeOfDay(
-                hour: int.parse(timeStr.split(':')[0]),
-                minute: int.parse(timeStr.split(':')[1].split(' ')[0])))
+            .map((timeStr) => _parseTimeOfDay(timeStr))
+            .whereType<TimeOfDay>()
             .toList();
+      }
+
+      // Set the selected day to the first date for editing
+      if (_selectedDays.isNotEmpty) {
+        _selectedDay = _selectedDays.first;
+        _selectedTimes =
+            _dateTimeSlots[_selectedDay!]?.map((e) => e).toList() ?? [null];
       }
     });
   }
 
-  void _clearFormFields() {
+  // Parse time from string
+  TimeOfDay? _parseTimeOfDay(String timeStr) {
+    try {
+      final format = DateFormat.jm(); // e.g., 08:00 AM
+      final dateTime = format.parse(timeStr);
+      return TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
+    } catch (e) {
+      print('Error parsing time: $timeStr');
+      return null;
+    }
+  }
+
+  // Save all collection details to Firestore
+  Future<void> _saveCollectionDetails() async {
+    if (_locations.isNotEmpty) {
+      // Extract all collection dates from the locations
+      List<DateTime> allCollectionDates = _locations
+          .expand((location) => location['dates'] as List<String>)
+          .map((dateStr) => _parseDateString(dateStr))
+          .toList();
+
+      // Extract all collection locations
+      List<String> allCollectionLocations =
+          _locations.map((location) => location['address'] as String).toList();
+
+      // Prepare the data to save
+      Map<String, dynamic> collectionDetails = {
+        'collectionDates':
+            allCollectionDates.map((date) => Timestamp.fromDate(date)).toList(),
+        'collectionLocation': allCollectionLocations,
+        'createdAt': FieldValue.serverTimestamp(),
+        // Add other necessary fields if required
+      };
+
+      print('Saving collection details: $collectionDetails');
+
+      setState(() {
+        _isLoading = true; // Start loading
+      });
+
+      try {
+        // Save the collection details to the vehicle document in Firestore
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.vehicleId)
+            .update(collectionDetails);
+
+        // Optionally, show a success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Collection details saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate back after saving
+        Navigator.pop(context);
+      } catch (e) {
+        _showErrorDialog(
+            'Failed to save collection details. Please try again.');
+        print('Error saving collection details: $e');
+      } finally {
+        setState(() {
+          _isLoading = false; // Stop loading
+        });
+      }
+    } else {
+      _showErrorDialog('Please save at least one location.');
+    }
+  }
+
+  // Save the current location being added or edited
+  Future<void> _saveLocation() async {
+    if (_selectedDays.isEmpty) {
+      _showErrorDialog('Please select at least one date for this location.');
+      return;
+    }
+
+    // Collect all dates that are missing time assignments
+    List<DateTime> daysMissingTimes = [];
+    for (var day in _selectedDays) {
+      if (_dateTimeSlots[day] == null || _dateTimeSlots[day]!.isEmpty) {
+        daysMissingTimes.add(day);
+      }
+    }
+
+    if (daysMissingTimes.isNotEmpty) {
+      // Format the list of dates to a readable string
+      String daysList = daysMissingTimes.map((day) {
+        // You can format the date as you prefer
+        return DateFormat('dd MMM yyyy').format(day);
+      }).join(', ');
+
+      _showErrorDialog(
+          'Please assign at least one time for the following dates:\n$daysList');
+      return;
+    }
+
+    if (_addressLine1Controller.text.isEmpty) {
+      _showErrorDialog('Please enter the collection location.');
+      return;
+    }
+    if (_cityController.text.isEmpty) {
+      _showErrorDialog('Please enter City.');
+      return;
+    }
+
+    if (_stateController.text.isEmpty) {
+      _showErrorDialog('Please enter State/Province/Region.');
+      return;
+    }
+
+    if (_postalCodeController.text.isEmpty) {
+      _showErrorDialog('Please enter Postal Code.');
+      return;
+    }
+
+    // Save the location
+    String fullAddress = '${_addressLine1Controller.text}, '
+        '${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}'
+        '${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
+
+    Map<String, dynamic> locationData = {
+      'address': fullAddress,
+      'dates': _selectedDays.map((date) => date.toShortString()).toList(),
+      'timeSlots': _selectedDays
+          .map((date) => {
+                'date': date.toShortString(),
+                'times': _dateTimeSlots[date]
+                    ?.map((time) => time.format(context))
+                    .toList(),
+              })
+          .toList(),
+    };
+
+    setState(() {
+      if (_editIndex != null) {
+        _locations[_editIndex!] = locationData;
+        _editIndex = null;
+      } else {
+        _locations.add(locationData);
+      }
+
+      // Clear the input fields and update the UI state
+      _clearFields();
+      _isAddingLocation = false;
+      _showBackToFormButton = true;
+    });
+  }
+
+  // Clear all input fields and selections
+  void _clearFields() {
     _selectedDays.clear();
     _dateTimeSlots.clear();
     _selectedDay = null;
@@ -273,14 +389,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     _postalCodeController.clear();
   }
 
-  void _addAnotherLocation() {
-    setState(() {
-      _showFormFields = true;
-      _showSaveButton = true;
-      _clearFormFields();
-    });
-  }
-
+  // Show an error dialog with a given message
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -301,334 +410,366 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     );
   }
 
+  // Allow the user to add another location
+  void _addAnotherLocation() {
+    setState(() {
+      _isAddingLocation = true;
+      _clearFields();
+    });
+  }
+
+  // Build the UI for the page
   @override
   Widget build(BuildContext context) {
-    return GradientBackground(
-      child: Material(
-        color: Colors.transparent,
-        child: Stack(
-          children: [
-            Column(
+    return Stack(
+      children: [
+        GradientBackground(
+          child: Material(
+            color: Colors.transparent,
+            child: Stack(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 80),
-                          Row(
+                Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              CustomBackButton(
-                                onPressed: () => Navigator.of(context).pop(),
+                              const SizedBox(height: 80),
+                              Row(
+                                children: [
+                                  CustomBackButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          SizedBox(
-                            width: 100,
-                            height: 100,
-                            child: Image.asset('lib/assets/CTPLogo.png'),
-                          ),
-                          const SizedBox(height: 35),
-                          const Text(
-                            'SETUP COLLECTION DETAILS',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 30),
-                          const Text(
-                            'Please provide the necessary details for the collection of the vehicle. Your careful selection ensures a smooth process ahead.',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 30),
-                          const Text(
-                            'ENTER COLLECTION LOCATION',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          if (_showFormFields) ...[
-                            _buildTextField(
-                                controller: _addressLine1Controller,
-                                hintText: 'Address Line 1'),
-                            const SizedBox(height: 16),
-                            _buildTextField(
-                                controller: _addressLine2Controller,
-                                hintText: 'Suburb (Optional)',
-                                isOptional: true),
-                            const SizedBox(height: 16),
-                            _buildTextField(
-                                controller: _cityController, hintText: 'City'),
-                            const SizedBox(height: 16),
-                            _buildTextField(
-                                controller: _stateController,
-                                hintText: 'State/Province/Region'),
-                            const SizedBox(height: 16),
-                            _buildTextField(
-                                controller: _postalCodeController,
-                                hintText: 'Postal Code'),
-                            const SizedBox(height: 32),
-                          ],
-                          const Text(
-                            'SELECT AVAILABLE DATES AND TIMES FOR COLLECTION',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          if (_showFormFields)
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(15),
+                              SizedBox(
+                                width: 100,
+                                height: 100,
+                                child: Image.asset('lib/assets/CTPLogo.png'),
                               ),
-                              child: TableCalendar(
-                                firstDay: DateTime.utc(2020, 1, 1),
-                                lastDay: DateTime.utc(2100, 1, 1),
-                                focusedDay: _focusedDay,
-                                calendarFormat: _calendarFormat,
-                                selectedDayPredicate: (day) {
-                                  return _selectedDays.any((selectedDay) =>
-                                      _isSameDay(day, selectedDay));
-                                },
-                                onDaySelected: _onDaySelected,
-                                enabledDayPredicate: (day) => day.isAfter(
-                                    DateTime.now()
-                                        .subtract(const Duration(days: 1))),
-                                calendarStyle: CalendarStyle(
-                                  selectedDecoration: BoxDecoration(
-                                    color: Colors.blue,
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  todayDecoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  todayTextStyle: const TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                  defaultDecoration: BoxDecoration(
-                                    color: Colors.grey[800],
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  defaultTextStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                  weekendDecoration: BoxDecoration(
-                                    color: Colors.grey[800],
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  weekendTextStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                  outsideDaysVisible: false,
-                                  disabledDecoration: BoxDecoration(
-                                    color: Colors.transparent,
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  markerDecoration: const BoxDecoration(
-                                    color: Colors.transparent,
-                                  ),
+                              const SizedBox(height: 35),
+                              const Text(
+                                'SETUP COLLECTION DETAILS',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
-                                headerStyle: HeaderStyle(
-                                  titleCentered: true,
-                                  formatButtonVisible: false,
-                                  titleTextStyle: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  leftChevronIcon: Icon(
-                                    Icons.chevron_left,
-                                    color: Colors.white,
-                                  ),
-                                  rightChevronIcon: Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                daysOfWeekStyle: DaysOfWeekStyle(
-                                  weekdayStyle: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  weekendStyle: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                textAlign: TextAlign.center,
                               ),
-                            ),
-                          const SizedBox(height: 16),
-                          if (_selectedDay != null && _showFormFields) ...[
-                            Text(
-                              'Set Times for ${_selectedDay?.toLocal().toShortString()}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                              const SizedBox(height: 30),
+                              const Text(
+                                'Please provide the necessary details for the collection of the vehicle. Your careful selection ensures a smooth process ahead.',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Column(
-                              children:
-                                  _selectedTimes.asMap().entries.map((entry) {
-                                int index = entry.key;
-                                TimeOfDay? selectedTime = entry.value;
-                                return DropdownButton<TimeOfDay>(
-                                  value: selectedTime,
-                                  hint: const Text(
-                                    'Select Time Slot',
-                                    style: TextStyle(color: Colors.white),
+                              const SizedBox(height: 30),
+                              const Text(
+                                'ENTER COLLECTION LOCATION',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              if (_isAddingLocation) ...[
+                                _buildTextField(
+                                  controller: _addressLine1Controller,
+                                  hintText: 'Address Line 1',
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _addressLine2Controller,
+                                  hintText: 'Suburb (Optional)',
+                                  isOptional: true,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _cityController,
+                                  hintText: 'City',
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _stateController,
+                                  hintText: 'State/Province/Region',
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _postalCodeController,
+                                  hintText: 'Postal Code',
+                                ),
+                                const SizedBox(height: 32),
+                                const Text(
+                                  'SELECT AVAILABLE DATES AND TIMES FOR COLLECTION',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
-                                  dropdownColor: Colors.black,
-                                  items: _timeSlots.map((TimeOfDay time) {
-                                    return DropdownMenuItem<TimeOfDay>(
-                                      value: time,
-                                      child: Text(
-                                        time.format(context),
-                                        style: const TextStyle(
-                                            color: Colors.white),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  child: TableCalendar(
+                                    firstDay: DateTime.utc(2020, 1, 1),
+                                    lastDay: DateTime.utc(2100, 1, 1),
+                                    focusedDay: _focusedDay,
+                                    calendarFormat: _calendarFormat,
+                                    selectedDayPredicate: (day) {
+                                      return _selectedDays.any((selectedDay) =>
+                                          _isSameDay(day, selectedDay));
+                                    },
+                                    onDaySelected: _onDaySelected,
+                                    enabledDayPredicate: (day) => day.isAfter(
+                                        DateTime.now()
+                                            .subtract(const Duration(days: 1))),
+                                    calendarStyle: CalendarStyle(
+                                      selectedDecoration: const BoxDecoration(
+                                        color: Colors.blue,
+                                        shape: BoxShape.rectangle,
                                       ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (TimeOfDay? newValue) {
-                                    _onTimeSlotSelected(newValue, index);
-                                  },
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: 8),
-                            CustomButton(
-                              text: 'Save Your Setup Details',
-                              borderColor: Colors.blue,
-                              onPressed: _addSelectedTimeSlot,
-                            ),
-                          ],
-                          if (_locations.isNotEmpty)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: _locations.asMap().entries.map((entry) {
-                                int index = entry.key;
-                                Map<String, dynamic> location = entry.value;
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            'Location ${index + 1}: ${location['address']}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 3,
-                                            softWrap: true,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.orange,
-                                          ),
-                                          onPressed: () => _editLocation(index),
-                                        ),
-                                      ],
+                                      todayDecoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.rectangle,
+                                      ),
+                                      todayTextStyle: const TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      defaultDecoration: BoxDecoration(
+                                        color: Colors.grey[800],
+                                        shape: BoxShape.rectangle,
+                                      ),
+                                      defaultTextStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      weekendDecoration: BoxDecoration(
+                                        color: Colors.grey[800],
+                                        shape: BoxShape.rectangle,
+                                      ),
+                                      weekendTextStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      outsideDaysVisible: false,
+                                      disabledDecoration: const BoxDecoration(
+                                        color: Colors.transparent,
+                                        shape: BoxShape.rectangle,
+                                      ),
+                                      markerDecoration: const BoxDecoration(
+                                        color: Colors.transparent,
+                                      ),
                                     ),
-                                    ...location['timeSlots']
-                                        .map<Widget>((timeSlot) {
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 4.0),
-                                        child: Text(
-                                          'Date: ${timeSlot['date']}, Times: ${timeSlot['times'].join(', ')}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                    const Divider(
+                                    headerStyle: const HeaderStyle(
+                                      titleCentered: true,
+                                      formatButtonVisible: false,
+                                      titleTextStyle: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      leftChevronIcon: Icon(
+                                        Icons.chevron_left,
+                                        color: Colors.white,
+                                      ),
+                                      rightChevronIcon: Icon(
+                                        Icons.chevron_right,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    daysOfWeekStyle: const DaysOfWeekStyle(
+                                      weekdayStyle: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      weekendStyle: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                if (_selectedDay != null) ...[
+                                  Text(
+                                    'Set Times for ${_selectedDay?.toLocal().toShortString()}',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                     ),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          const SizedBox(height: 16),
-                          if (_showSaveButton)
-                            CustomButton(
-                              text: 'Save Collection Details',
-                              borderColor: Colors.blue,
-                              onPressed: _saveLocation,
-                            ),
-                          const SizedBox(height: 16),
-                          if (!_showFormFields)
-                            CustomButton(
-                              text: 'Add Another Location',
-                              borderColor: Colors.blue,
-                              onPressed: _addAnotherLocation,
-                            ),
-                          const SizedBox(height: 16),
-                          if (_showBackToFormButton)
-                            CustomButton(
-                              text: 'Back to Form',
-                              borderColor: const Color(0xFFFF4E00),
-                              onPressed: () async {
-                                await _saveCollectionDetails();
-                              },
-                            ),
-                        ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Column(
+                                    children: _selectedTimes
+                                        .asMap()
+                                        .entries
+                                        .map((entry) {
+                                      int index = entry.key;
+                                      TimeOfDay? selectedTime = entry.value;
+                                      return DropdownButton<TimeOfDay>(
+                                        value: selectedTime,
+                                        hint: const Text(
+                                          'Select Time Slot',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        dropdownColor: Colors.black,
+                                        items: _timeSlots.map((TimeOfDay time) {
+                                          return DropdownMenuItem<TimeOfDay>(
+                                            value: time,
+                                            child: Text(
+                                              time.format(context),
+                                              style: const TextStyle(
+                                                  color: Colors.white),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        onChanged: (TimeOfDay? newValue) {
+                                          _onTimeSlotSelected(newValue, index);
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  CustomButton(
+                                    text: 'Add Another Time Slot',
+                                    borderColor: Colors.blue,
+                                    onPressed: _addSelectedTimeSlot,
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
+                              ],
+                              if (_locations.isNotEmpty && !_isAddingLocation)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children:
+                                      _locations.asMap().entries.map((entry) {
+                                    int index = entry.key;
+                                    Map<String, dynamic> location = entry.value;
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                'Location ${index + 1}: ${location['address']}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 3,
+                                                softWrap: true,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                color: Colors.orange,
+                                              ),
+                                              onPressed: () =>
+                                                  _editLocation(index),
+                                            ),
+                                          ],
+                                        ),
+                                        ...location['timeSlots']
+                                            .map<Widget>((timeSlot) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 4.0),
+                                            child: Text(
+                                              'Date: ${timeSlot['date']}, Times: ${timeSlot['times'].join(', ')}',
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        const Divider(
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              const SizedBox(height: 16),
+                              if (_isAddingLocation)
+                                CustomButton(
+                                  text: 'Save Collection Details',
+                                  borderColor: Colors.blue,
+                                  onPressed: _saveLocation,
+                                ),
+                              if (!_isAddingLocation)
+                                CustomButton(
+                                  text: 'Add Another Location',
+                                  borderColor: Colors.blue,
+                                  onPressed: _addAnotherLocation,
+                                ),
+                              const SizedBox(height: 16),
+                              if (_showBackToFormButton)
+                                CustomButton(
+                                  text: 'Save Collection Details',
+                                  borderColor: const Color(0xFFFF4E00),
+                                  onPressed: () {
+                                    _saveCollectionDetails();
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                CustomBottomNavigation(
-                  selectedIndex: 1,
-                  onItemTapped: (int) {},
+                    CustomBottomNavigation(
+                      selectedIndex: 1,
+                      onItemTapped: (int) {},
+                    ),
+                  ],
                 ),
               ],
             ),
-            // Positioned(
-            //   top: 120,
-            //   left: 16,
-            //   child: CustomBackButton(
-            //     onPressed: () => Navigator.of(context).pop(),
-            //   ),
-            // ),
-          ],
+          ),
         ),
-      ),
+        if (_isLoading)
+          Container(
+            color: Colors.black.withOpacity(0.5),
+            child: Center(
+              child: SizedBox(
+                width: 100,
+                height: 100,
+                child: Image.asset(
+                  'lib/assets/Loading_Logo_CTP.gif', // Replace with your loader GIF path
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
+  // Helper method to build text fields
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -646,9 +787,9 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
           borderRadius: BorderRadius.circular(10.0),
           borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+          borderSide: BorderSide(
             color: Color(0xFFFF4E00),
             width: 2.0,
           ),
@@ -665,8 +806,18 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   }
 }
 
-extension on DateTime {
+// Extension method to format DateTime to a short string
+extension DateTimeExtension on DateTime {
   String toShortString() {
     return '$day-$month-$year';
+  }
+
+  static DateTime parseShortString(String dateStr) {
+    final parts = dateStr.split('-');
+    if (parts.length != 3) throw FormatException("Invalid date format");
+    final day = int.parse(parts[0]);
+    final month = int.parse(parts[1]);
+    final year = int.parse(parts[2]);
+    return DateTime(year, month, day);
   }
 }

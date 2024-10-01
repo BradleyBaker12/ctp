@@ -58,14 +58,32 @@ class _OffersPageState extends State<OffersPage> {
     });
   }
 
+  // Modify the filter to include all statuses except 'accepted' and 'in-progress'
+  List _filterOffers(String status) {
+    if (status == "ALL") {
+      return _offerProvider.offers;
+    } else if (status == "pending") {
+      return _offerProvider.offers
+          .where((offer) =>
+              offer.offerStatus != 'accepted' &&
+              offer.offerStatus != 'in-progress')
+          .toList();
+    } else {
+      return _offerProvider.offers
+          .where((offer) => offer.offerStatus == status.toLowerCase())
+          .toList();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GradientBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: CustomAppBar(), // Use the custom app bar here
-        body: SingleChildScrollView(
-          child: Column(
+      child: DefaultTabController(
+        length: 4, // Number of tabs
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: CustomAppBar(), // Use the custom app bar here
+          body: Column(
             children: [
               const SizedBox(
                 height: 40,
@@ -90,80 +108,91 @@ class _OffersPageState extends State<OffersPage> {
                   ),
                 ],
               ),
-              const SizedBox(
-                width: 350,
-                child: Text(
-                  'Track your pending offers made.',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center,
+              const SizedBox(height: 16),
+              const TabBar(
+                labelColor: Color(0xFFFF4E00),
+                unselectedLabelColor: Colors.white,
+                indicatorColor: Color(0xFFFF4E00),
+                tabs: [
+                  Tab(text: 'ALL'),
+                  Tab(text: 'PENDING'),
+                  Tab(text: 'ACCEPTED'),
+                  Tab(text: 'IN-PROGRESS'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _buildOffersSection('ALL'),
+                    _buildOffersSection(
+                        'pending'), // Shows all except 'accepted' and 'in-progress'
+                    _buildOffersSection('accepted'),
+                    _buildOffersSection('in-progress'),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              _buildPendingOffersSection(),
             ],
           ),
-        ),
-        bottomNavigationBar: CustomBottomNavigation(
-          selectedIndex: selectedIndex, // Dynamically set selectedIndex
-          onItemTapped: (index) {
-            final userProvider =
-                Provider.of<UserProvider>(context, listen: false);
-            final userRole = userProvider.getUserRole;
+          bottomNavigationBar: CustomBottomNavigation(
+            selectedIndex: selectedIndex, // Dynamically set selectedIndex
+            onItemTapped: (index) {
+              final userProvider =
+                  Provider.of<UserProvider>(context, listen: false);
+              final userRole = userProvider.getUserRole;
 
-            if (index == 0) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HomePage()),
-              );
-            } else if (index == 1) {
-              if (userRole == 'transporter') {
+              if (index == 0) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) => const VehiclesListPage()),
+                  MaterialPageRoute(builder: (context) => const HomePage()),
                 );
-              } else {
+              } else if (index == 1) {
+                if (userRole == 'transporter') {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const VehiclesListPage()),
+                  );
+                } else {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TruckPage()),
+                  );
+                }
+              } else if (index == 2) {
+                if (userRole == 'transporter') {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const OffersPage()),
+                  );
+                } else {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const WishlistOffersPage()),
+                  );
+                }
+              } else if (index == 3) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const TruckPage()),
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
                 );
+              } else if (index == 4) {
+                if (userRole != 'transporter') {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const OffersPage()),
+                  );
+                }
               }
-            } else if (index == 2) {
-              if (userRole == 'transporter') {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OffersPage()),
-                );
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const WishlistOffersPage()),
-                );
-              }
-            } else if (index == 3) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            } else if (index == 4) {
-              if (userRole != 'transporter') {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OffersPage()),
-                );
-              }
-            }
-          },
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildPendingOffersSection() {
+  Widget _buildOffersSection(String status) {
     return FutureBuilder<void>(
       future: _fetchOffersFuture,
       builder: (context, snapshot) {
@@ -181,50 +210,14 @@ class _OffersPageState extends State<OffersPage> {
             style: _customFont(16, FontWeight.normal, Colors.white),
           );
         } else {
-          // Limit the offers to the 3 most recent
-          final latestOffers = _offerProvider.offers.take(3).toList();
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        // Navigate to PendingOffersPage
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const PendingOffersPage()),
-                        );
-                      },
-                      child: Row(
-                        children: const [
-                          Text(
-                            'View All',
-                            style: TextStyle(
-                              color: Colors.white,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Colors.white,
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_right,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              ...latestOffers.map((offer) {
-                return OfferCard(
-                  offer: offer,
-                );
-              }),
-            ],
+          final filteredOffers = _filterOffers(status);
+          return ListView.builder(
+            itemCount: filteredOffers.length,
+            itemBuilder: (context, index) {
+              return OfferCard(
+                offer: filteredOffers[index],
+              );
+            },
           );
         }
       },

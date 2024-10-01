@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'thank_you_page.dart'; // Import the ThankYouPage
+import 'package:file_picker/file_picker.dart'; // Add this import
+import 'package:firebase_storage/firebase_storage.dart'; // Add this import
+import 'dart:io'; // Add this import
 
 class ReportIssuePage extends StatefulWidget {
   final String offerId; // Add offerId as a required parameter
@@ -16,6 +19,7 @@ class ReportIssuePage extends StatefulWidget {
 class _ReportIssuePageState extends State<ReportIssuePage> {
   String _selectedIssue = 'FALSE INFORMATION FROM TRANSPORTER';
   final TextEditingController _controller = TextEditingController();
+  File? _mediaFile; // For storing the selected image or video file
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +105,57 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
                     ),
                     const SizedBox(height: 20),
                   ],
+                  // Add media upload section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'UPLOAD IMAGE OR VIDEO',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: _pickMedia,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Choose File',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFFFF4E00),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_mediaFile != null) ...[
+                        const SizedBox(height: 10),
+                        if (_isImageFile(_mediaFile!.path))
+                          Image.file(
+                            _mediaFile!,
+                            height: 200,
+                          )
+                        else
+                          Text(
+                            'Selected File: ${_mediaFile!.path.split('/').last}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () async {
                       // Handle form submission
@@ -140,6 +195,24 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
     );
   }
 
+  Future<void> _pickMedia() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'mp4', 'mov', 'avi'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _mediaFile = File(result.files.single.path!);
+      });
+    }
+  }
+
+  bool _isImageFile(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    return ['jpg', 'jpeg', 'png'].contains(extension);
+  }
+
   Future<void> _submitComplaint() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -151,7 +224,22 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
             .get();
         String? currentStep = offerSnapshot['offerStatus'];
 
-        // Save the complaint with the previous step information
+        String? mediaUrl;
+
+        if (_mediaFile != null) {
+          // Upload the file to Firebase Storage
+          String fileName = _mediaFile!.path.split('/').last;
+          Reference ref = FirebaseStorage.instance
+              .ref()
+              .child('complaint_media')
+              .child('${widget.offerId}/$fileName');
+          UploadTask uploadTask = ref.putFile(_mediaFile!);
+
+          TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() => null);
+          mediaUrl = await taskSnapshot.ref.getDownloadURL();
+        }
+
+        // Save the complaint with the previous step information and media URL
         await FirebaseFirestore.instance.collection('complaints').add({
           'userId': user.uid,
           'offerId': widget.offerId, // Save the offerId
@@ -160,6 +248,8 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
           'timestamp': FieldValue.serverTimestamp(),
           'complaintStatus': 'Issue Submitted', // Add complaintStatus
           'previousStep': currentStep, // Save the current step as previousStep
+          if (mediaUrl != null)
+            'mediaUrl': mediaUrl, // Include mediaUrl if exists
         });
 
         // Update the offer status to "Issue reported"
