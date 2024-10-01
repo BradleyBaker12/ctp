@@ -115,3 +115,26 @@ Adjustments made to the truck form so that it is more readable
 Made the setup for the inspection detaisl and collection details more user friendly in a functinality point of view, designs need more adjuments
 Added pagination to the my vehicles page
 make sure the hitbox of the yes and no is bigger and the truck drivers focusing on the little dot that they need to press on is too small
+
+26/09/2024
+Changed the handshake icon in the bottom navigation to be more like the design
+Offers on trucks we need tabs for, ALL, PENDING. ACCEPTED and IN-PROGRESS
+Createing the edit for for users to edit the vehicle details
+
+27/09/2024
+Fixing and adjusted the edit form, still needs styling added
+Add a label to images so the user knowns which image they are on
+upload an image or video on the inspection for report an issue 
+scrolling up and down when you're on the calendar doesn't work properly
+Brandon tried to upload the last photo and it just kicked him to the home screen of the app and he can't get back to the form because the edit form button is under the S7s buttons at the bottom.
+All the offers are coming through on the transporter home screen , even ones that aren't his, it needs to be specific for a user
+Images are buggy on the wish - list screen, all the information says N/A when you click on the truck and want to view it.
+double check trailer form, make sure there are enough blocks for images for the trailers
+Made he edit button only visible to transporter
+Moved the Setup Inspection and Setup Collection button to after the user has accepted the offer. Still need to add/move all proper functinality to those buttons and pages
+
+Need to be able to select another date if you select the wrong date. At the moment they need to select a time first
+inspection dates needs to be after accepting an offer
+Adding conditional redenering for user roles between dealer and transporter.
+Added the approval screen for the transporter (Approve inspection, rate dealer)
+Fixed the collection and inspection dates, location and times to be after the offer has been accepted
