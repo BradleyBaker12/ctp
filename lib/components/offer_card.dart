@@ -1,9 +1,12 @@
+// offer_card.dart
+
+import 'package:flutter/material.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/pages/transport_offer_details_page.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:flutter/material.dart';
+
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,10 +20,10 @@ import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/pages/payment_approved.dart';
 import 'package:ctp/pages/inspectionPages/location_confirmation_page.dart';
 import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
-import 'package:ctp/pages/rating_pages/rate_transporter_page.dart'; // Import RateTransporterPage
+import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/providers/complaints_provider.dart'; // Import ComplaintsProvider
+import 'package:ctp/providers/complaints_provider.dart';
 
 class OfferCard extends StatefulWidget {
   final Offer offer;
@@ -54,11 +57,11 @@ class _OfferCardState extends State<OfferCard> {
       case 'rejected':
         return Colors.red;
       case 'Done':
-        return Colors.green; // Green color for 'Done'
+        return Colors.green;
       case 'Issue reported':
-        return Colors.orange; // Orange color for 'Issue reported'
+        return Colors.orange;
       case 'resolved':
-        return Colors.blue; // Blue color for 'resolved'
+        return Colors.blue;
       default:
         return Colors.grey;
     }
@@ -81,67 +84,50 @@ class _OfferCardState extends State<OfferCard> {
       case 'in-progress':
       case 'inspection pending':
       case 'set location and time':
-        return Icons.access_time; // Clock icon for "In Progress"
+        return Icons.access_time;
       case '1/4':
       case '2/4':
       case '3/4':
-        return Icons.access_time; // Clock icon
+        return Icons.access_time;
       case 'paid':
-        return Icons.check_circle; // Paid icon
+        return Icons.check_circle;
       case 'Done':
       case 'accepted':
-        return Icons.check; // Tick icon for 'Done'
+        return Icons.check;
       case 'resolved':
-        return Icons.thumb_up; // Thumbs up icon for 'resolved'
+        return Icons.thumb_up;
       default:
-        return Icons.info; // Default icon
+        return Icons.info;
     }
   }
 
   void navigateBasedOnStatus(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
+    final userRole = userProvider.getUserRole ?? '';
 
     if (userRole == 'transporter') {
-      switch (widget.offer.offerStatus) {
-        case 'set location and time':
-        case 'confirm location':
-        case 'Done':
-        case 'Confirm Collection':
-        case 'Collection Location Confirmation':
-        case 'payment options':
-        case 'accepted': // Added handling for 'accepted' status for transporter
-          _getVehicle().then((vehicle) {
-            if (vehicle != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TransporterOfferDetailsPage(
-                    offer: widget.offer,
-                    vehicle: vehicle,
-                  ),
-                ),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Vehicle details could not be loaded.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          });
-          return; // Exit after triggering async vehicle fetch
-        case 'inspection pending':
-        case 'Inspection Done':
-        case 'payment pending':
-          _navigateToRespectivePage(userRole);
-          return;
-        default:
-          print(
-              "Offer status not handled for transporter: ${widget.offer.offerStatus}");
-          return;
-      }
+      // For transporter, navigate to TransporterOfferDetailsPage
+      _getVehicle().then((vehicle) {
+        if (vehicle != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TransporterOfferDetailsPage(
+                offer: widget.offer,
+                vehicle: vehicle,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Vehicle details could not be loaded.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
+      return;
     }
 
     // Dealer-specific navigation logic
@@ -200,7 +186,7 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-      case 'accepted': // Added handling for 'accepted' status for dealer
+      case 'accepted':
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -323,14 +309,13 @@ class _OfferCardState extends State<OfferCard> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final userRole = userProvider.getUserRole ?? ''; // Add a fallback value
+    final userRole = userProvider.getUserRole ?? '';
     Color statusColor = getStatusColor(widget.offer.offerStatus);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        double imageWidth = constraints.maxWidth * 0.25;
-        double statusWidth = constraints.maxWidth * 0.2;
-        double cardHeight = constraints.maxHeight < 150 ? 100 : 120;
+        var screenSize = MediaQuery.of(context).size;
+        double cardHeight = screenSize.height * 0.13;
 
         return GestureDetector(
           onTap: () => navigateBasedOnStatus(context),
@@ -354,8 +339,7 @@ class _OfferCardState extends State<OfferCard> {
 
   Widget _buildDealerCard(Color statusColor, BoxConstraints constraints) {
     var screenSize = MediaQuery.of(context).size;
-    double cardHeight =
-        screenSize.height * 0.13; // Set a fixed height for consistency
+    double cardHeight = screenSize.height * 0.13;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -452,7 +436,7 @@ class _OfferCardState extends State<OfferCard> {
 
   Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
     var screenSize = MediaQuery.of(context).size;
-    double cardHeight = screenSize.height * 0.13; // Same as dealer card height
+    double cardHeight = screenSize.height * 0.13;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -462,17 +446,16 @@ class _OfferCardState extends State<OfferCard> {
             GestureDetector(
               onTap: () => navigateBasedOnStatus(context),
               child: Container(
-                width: constraints.maxWidth * 0.06, // Same side indicator width
-                height: cardHeight, // Fixed height
+                width: constraints.maxWidth * 0.06,
+                height: cardHeight,
                 color: Colors.green,
               ),
             ),
             GestureDetector(
               onTap: () => navigateToVehicleDetails(),
               child: Container(
-                width:
-                    constraints.maxWidth * 0.22, // Same image container width
-                height: cardHeight, // Fixed height
+                width: constraints.maxWidth * 0.22,
+                height: cardHeight,
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: widget.offer.vehicleMainImage != null
@@ -490,8 +473,8 @@ class _OfferCardState extends State<OfferCard> {
                 onTap: () => navigateToVehicleDetails(),
                 child: Container(
                   color: Colors.blue,
-                  padding: const EdgeInsets.all(10.0), // Same padding as dealer
-                  height: cardHeight, // Fixed height
+                  padding: const EdgeInsets.all(10.0),
+                  height: cardHeight,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -517,10 +500,9 @@ class _OfferCardState extends State<OfferCard> {
             GestureDetector(
               onTap: () => navigateBasedOnStatus(context),
               child: Container(
-                width: constraints.maxWidth *
-                    0.23, // Same as dealer status section
-                height: cardHeight, // Fixed height
-                color: Colors.green, // Always green
+                width: constraints.maxWidth * 0.23,
+                height: cardHeight,
+                color: Colors.green,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Center(
@@ -528,12 +510,12 @@ class _OfferCardState extends State<OfferCard> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(
-                          Icons.remove_red_eye, // Always the eye icon
+                          Icons.remove_red_eye,
                           color: Colors.white,
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          'View', // Always "View"
+                          'View',
                           style: customFont(screenSize.height * 0.016,
                               FontWeight.bold, Colors.white),
                           textAlign: TextAlign.center,
@@ -617,9 +599,9 @@ class _OfferCardState extends State<OfferCard> {
       case 'paid':
         return 'Paid';
       case 'Issue reported':
-        return 'Issue Reported'; // Display text for 'Issue reported'
+        return 'Issue Reported';
       case 'resolved':
-        return 'Resolved'; // Display text for 'Resolved'
+        return 'Resolved';
       case 'done':
       case 'Done':
         return 'Done';

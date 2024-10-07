@@ -11,6 +11,7 @@ class Offer extends ChangeNotifier {
   String? vehicleMakeModel;
   String? vehicleMainImage;
   String? reason;
+  DateTime? createdAt; // Add this field
 
   // New properties for vehicle details
   List<String> vehicleImages = [];
@@ -47,6 +48,7 @@ class Offer extends ChangeNotifier {
     this.vehicleMakeModel,
     this.vehicleMainImage,
     this.reason,
+    this.createdAt, // Include in constructor
     this.dealerSelectedInspectionDate,
     this.dealerSelectedInspectionTime,
     this.dealerSelectedInspectionLocation,
@@ -73,6 +75,9 @@ class Offer extends ChangeNotifier {
       vehicleMakeModel: data['vehicleMakeModel'],
       vehicleMainImage: data['vehicleMainImage'],
       reason: data['reason'],
+      createdAt: data['createdAt'] != null
+          ? (data['createdAt'] as Timestamp).toDate()
+          : null, // Handle null case
       dealerSelectedInspectionDate:
           (data['dealerSelectedInspectionDate'] != null)
               ? (data['dealerSelectedInspectionDate'] as Timestamp).toDate()
@@ -142,6 +147,7 @@ class Offer extends ChangeNotifier {
     }
   }
 }
+
 
 class OfferProvider extends ChangeNotifier {
   List<Offer> _offers = [];

@@ -124,7 +124,7 @@ Createing the edit for for users to edit the vehicle details
 27/09/2024
 Fixing and adjusted the edit form, still needs styling added
 Add a label to images so the user knowns which image they are on
-upload an image or video on the inspection for report an issue 
+upload an image or video on the inspection for report an issue
 scrolling up and down when you're on the calendar doesn't work properly
 Brandon tried to upload the last photo and it just kicked him to the home screen of the app and he can't get back to the form because the edit form button is under the S7s buttons at the bottom.
 All the offers are coming through on the transporter home screen , even ones that aren't his, it needs to be specific for a user
@@ -133,9 +133,21 @@ double check trailer form, make sure there are enough blocks for images for the 
 Made he edit button only visible to transporter
 Moved the Setup Inspection and Setup Collection button to after the user has accepted the offer. Still need to add/move all proper functinality to those buttons and pages
 
+01/10/2024
 Need to be able to select another date if you select the wrong date. At the moment they need to select a time first
 inspection dates needs to be after accepting an offer
 Adding conditional redenering for user roles between dealer and transporter.
 Added the approval screen for the transporter (Approve inspection, rate dealer)
 Fixed the collection and inspection dates, location and times to be after the offer has been accepted
 Waiting to see if the Maps works on andriod. Changed the API so that it works on android specificly
+
+02/10/2024
+Added headings to all radio buttons
+Added "Is vehilce avaliable immediatly" wuth a yes or no and they can select the date for when it is ready to be sold if they select no
+Made sure that all recent offers are shown first, ordered lastest first
+Added the feaeture where the locations are saved, just need to test it properly to see if it works
+Busy trying to add the duplicate feature
+
+04/10/2024
+Add all the offers under the trucks details screen
+Moving some input field to the mandatory page

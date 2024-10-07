@@ -1,6 +1,6 @@
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/models/inspection_details.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -8,15 +8,15 @@ import 'package:flutter/material.dart';
 class UserProvider extends ChangeNotifier {
   User? _user;
   List<String> _preferredBrands = [];
-  String _userRole = 'guest'; // default role
+  String _userRole = 'guest'; // Default role
   String? _profileImageUrl;
   List<String> _offers = [];
   List<String> _offersMade = [];
-  List<String> _likedVehicles = []; // Add liked vehicles list
-  List<String> _dislikedVehicles = []; // Add disliked vehicles list
-  String _userName = 'Guest'; // default name
+  List<String> _likedVehicles = [];
+  List<String> _dislikedVehicles = [];
+  String _userName = 'Guest';
   String _userEmail = 'user@example.com';
-  bool _isLoading = true; // Add loading state
+  bool _isLoading = true;
 
   // User details
   String? _companyName;
@@ -31,13 +31,16 @@ class UserProvider extends ChangeNotifier {
   String? _firstName;
   String? _middleName;
   String? _lastName;
-  String? _phoneNumber; // Add phone number
+  String? _phoneNumber;
   bool? _agreedToHouseRules;
   String? _bankConfirmationUrl;
   String? _brncUrl;
   String? _cipcCertificateUrl;
   String? _proxyUrl;
   Timestamp? _createdAt;
+
+  // Add saved inspection details
+  List<InspectionDetail> _savedInspectionDetails = [];
 
   UserProvider() {
     _checkAuthState();
@@ -74,6 +77,8 @@ class UserProvider extends ChangeNotifier {
       'city': _city,
       'state': _state,
       'postalCode': _postalCode,
+      'savedInspectionDetails':
+          _savedInspectionDetails.map((item) => item.toMap()).toList(),
     };
   }
 
@@ -87,13 +92,13 @@ class UserProvider extends ChangeNotifier {
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
           _preferredBrands = List<String>.from(data['preferredBrands'] ?? []);
-          _userRole = data['userRole'] ?? 'guest'; // Ensure role is not null
+          _userRole = data['userRole'] ?? 'guest';
           _profileImageUrl = data['profileImageUrl'];
           _offers = List<String>.from(data['offers'] ?? []);
           _offersMade = List<String>.from(data['offersMade'] ?? []);
           _likedVehicles = List<String>.from(data['likedVehicles'] ?? []);
           _dislikedVehicles = List<String>.from(data['dislikedVehicles'] ?? []);
-          _userName = data['firstName'] ?? 'Guest'; // Ensure name is not null
+          _userName = data['firstName'] ?? 'Guest';
           _userEmail = data['email'] ?? 'user@example.com';
           _companyName = data['companyName'];
           _tradingName = data['tradingName'];
@@ -115,6 +120,16 @@ class UserProvider extends ChangeNotifier {
           _proxyUrl = data['proxyUrl'];
           _createdAt = data['createdAt'];
           _isLoading = false;
+
+          // Fetch saved inspection details
+          _savedInspectionDetails = [];
+          if (data['savedInspectionDetails'] != null) {
+            _savedInspectionDetails = (data['savedInspectionDetails'] as List)
+                .map((item) =>
+                    InspectionDetail.fromMap(Map<String, dynamic>.from(item)))
+                .toList();
+          }
+
           notifyListeners();
         } else {
           _clearUserData();
@@ -150,6 +165,7 @@ class UserProvider extends ChangeNotifier {
     _offersMade = [];
     _likedVehicles = [];
     _dislikedVehicles = [];
+    _savedInspectionDetails = [];
     _userName = 'Guest';
     _companyName = null;
     _tradingName = null;
@@ -177,27 +193,23 @@ class UserProvider extends ChangeNotifier {
     if (_user != null) {
       if (!_likedVehicles.contains(vehicleId)) {
         _likedVehicles.add(vehicleId);
-        print(
-            'Adding vehicleId: $vehicleId to likedVehicles list'); // Debugging statement
+        print('Adding vehicleId: $vehicleId to likedVehicles list');
 
         try {
           await FirebaseFirestore.instance
               .collection('users')
               .doc(_user!.uid)
               .update({'likedVehicles': _likedVehicles});
-          print(
-              'Updated likedVehicles in Firestore successfully'); // Debugging statement
+          print('Updated likedVehicles in Firestore successfully');
           notifyListeners();
         } catch (e) {
-          print(
-              'Error updating likedVehicles in Firestore: $e'); // Debugging statement
+          print('Error updating likedVehicles in Firestore: $e');
         }
       } else {
-        print(
-            'VehicleId: $vehicleId already in likedVehicles list'); // Debugging statement
+        print('VehicleId: $vehicleId already in likedVehicles list');
       }
     } else {
-      print('User is not authenticated'); // Debugging statement
+      print('User is not authenticated');
     }
   }
 
@@ -205,42 +217,36 @@ class UserProvider extends ChangeNotifier {
     if (_user != null) {
       if (!_dislikedVehicles.contains(vehicleId)) {
         _dislikedVehicles.add(vehicleId);
-        print(
-            'Adding vehicleId: $vehicleId to dislikedVehicles list'); // Debugging statement
+        print('Adding vehicleId: $vehicleId to dislikedVehicles list');
 
         try {
           await FirebaseFirestore.instance
               .collection('users')
               .doc(_user!.uid)
               .update({
-            'dislikedVehicles': FieldValue.arrayUnion([
-              vehicleId
-            ]), // Use arrayUnion to add the vehicleId to the array
+            'dislikedVehicles': FieldValue.arrayUnion([vehicleId]),
           });
-          print(
-              'Updated dislikedVehicles in Firestore successfully'); // Debugging statement
+          print('Updated dislikedVehicles in Firestore successfully');
           notifyListeners();
         } catch (e) {
-          print(
-              'Error updating dislikedVehicles in Firestore: $e'); // Debugging statement
+          print('Error updating dislikedVehicles in Firestore: $e');
         }
       } else {
-        print(
-            'VehicleId: $vehicleId already in dislikedVehicles list'); // Debugging statement
+        print('VehicleId: $vehicleId already in dislikedVehicles list');
       }
     } else {
-      print('User is not authenticated'); // Debugging statement
+      print('User is not authenticated');
     }
   }
 
   Future<void> clearLikedVehicles() async {
     if (_user != null) {
-      _likedVehicles.clear(); // Clear the list locally
+      _likedVehicles.clear();
       try {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(_user!.uid)
-            .update({'likedVehicles': []}); // Clear the list in Firestore
+            .update({'likedVehicles': []});
         notifyListeners();
       } catch (e) {
         print('Error clearing likedVehicles in Firestore: $e');
@@ -250,12 +256,12 @@ class UserProvider extends ChangeNotifier {
 
   Future<void> clearDislikedVehicles() async {
     if (_user != null) {
-      _dislikedVehicles.clear(); // Clear the list locally
+      _dislikedVehicles.clear();
       try {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(_user!.uid)
-            .update({'dislikedVehicles': []}); // Clear the list in Firestore
+            .update({'dislikedVehicles': []});
         notifyListeners();
       } catch (e) {
         print('Error clearing dislikedVehicles in Firestore: $e');
@@ -267,27 +273,23 @@ class UserProvider extends ChangeNotifier {
     if (_user != null) {
       if (_likedVehicles.contains(vehicleId)) {
         _likedVehicles.remove(vehicleId);
-        print(
-            'Removing vehicleId: $vehicleId from likedVehicles list'); // Debugging statement
+        print('Removing vehicleId: $vehicleId from likedVehicles list');
 
         try {
           await FirebaseFirestore.instance
               .collection('users')
               .doc(_user!.uid)
               .update({'likedVehicles': _likedVehicles});
-          print(
-              'Updated likedVehicles in Firestore successfully'); // Debugging statement
+          print('Updated likedVehicles in Firestore successfully');
           notifyListeners();
         } catch (e) {
-          print(
-              'Error updating likedVehicles in Firestore: $e'); // Debugging statement
+          print('Error updating likedVehicles in Firestore: $e');
         }
       } else {
-        print(
-            'VehicleId: $vehicleId not found in likedVehicles list'); // Debugging statement
+        print('VehicleId: $vehicleId not found in likedVehicles list');
       }
     } else {
-      print('User is not authenticated'); // Debugging statement
+      print('User is not authenticated');
     }
   }
 
@@ -295,27 +297,23 @@ class UserProvider extends ChangeNotifier {
     if (_user != null) {
       if (_dislikedVehicles.contains(vehicleId)) {
         _dislikedVehicles.remove(vehicleId);
-        print(
-            'Removing vehicleId: $vehicleId from dislikedVehicles list'); // Debugging statement
+        print('Removing vehicleId: $vehicleId from dislikedVehicles list');
 
         try {
           await FirebaseFirestore.instance
               .collection('users')
               .doc(_user!.uid)
               .update({'dislikedVehicles': _dislikedVehicles});
-          print(
-              'Updated dislikedVehicles in Firestore successfully'); // Debugging statement
+          print('Updated dislikedVehicles in Firestore successfully');
           notifyListeners();
         } catch (e) {
-          print(
-              'Error updating dislikedVehicles in Firestore: $e'); // Debugging statement
+          print('Error updating dislikedVehicles in Firestore: $e');
         }
       } else {
-        print(
-            'VehicleId: $vehicleId not found in dislikedVehicles list'); // Debugging statement
+        print('VehicleId: $vehicleId not found in dislikedVehicles list');
       }
     } else {
-      print('User is not authenticated'); // Debugging statement
+      print('User is not authenticated');
     }
   }
 
@@ -420,6 +418,29 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Add method to save an inspection detail
+  Future<void> saveInspectionDetail(InspectionDetail detail) async {
+    if (_user != null) {
+      _savedInspectionDetails.add(detail);
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({
+          'savedInspectionDetails':
+              _savedInspectionDetails.map((item) => item.toMap()).toList(),
+        });
+        notifyListeners();
+      } catch (e) {
+        print('Error saving inspection detail: $e');
+      }
+    }
+  }
+
+  // Getter for saved inspection details
+  List<InspectionDetail> get getSavedInspectionDetails =>
+      _savedInspectionDetails;
+
   User? get getUser => _user;
   String get getProfileImageUrl => _profileImageUrl ?? '';
   String get getUserRole => _userRole;
@@ -460,7 +481,7 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Add methods to get liked and disliked vehicles lists
+  // Getters for liked and disliked vehicles
   List<String> get getLikedVehicles => _likedVehicles;
   List<String> get getDislikedVehicles => _dislikedVehicles;
 }

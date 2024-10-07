@@ -257,7 +257,9 @@ class _FirstTruckFormState extends State<FirstTruckForm> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(vehicleId: '',),
+        builder: (context) => SetupCollectionPage(
+          vehicleId: '',
+        ),
       ),
     );
 

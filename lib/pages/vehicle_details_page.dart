@@ -1,3 +1,6 @@
+import 'package:ctp/components/offer_card.dart';
+import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
+import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,7 +23,7 @@ class PhotoItem {
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
 
-  const VehicleDetailsPage({Key? key, required this.vehicle}) : super(key: key);
+  const VehicleDetailsPage({super.key, required this.vehicle});
 
   @override
   _VehicleDetailsPageState createState() => _VehicleDetailsPageState();
@@ -42,6 +45,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   void initState() {
     super.initState();
     _checkIfOfferMade();
+    _fetchOffersForVehicle(); // Fetch offers when the page initializes
 
     try {
       allPhotos = [];
@@ -55,8 +59,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       }
 
       // Add damage photos (since it's a list, we need to loop through it)
-      if (widget.vehicle.damagePhotos != null &&
-          widget.vehicle.damagePhotos.isNotEmpty) {
+      if (widget.vehicle.damagePhotos.isNotEmpty) {
         for (int i = 0; i < widget.vehicle.damagePhotos.length; i++) {
           _addPhotoIfExists(
               widget.vehicle.damagePhotos[i], 'Damage Photo ${i + 1}');
@@ -147,11 +150,81 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
+  Future<List<QueryDocumentSnapshot>> _fetchOffersForVehicle() async {
+    try {
+      QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .where('vehicleId', isEqualTo: widget.vehicle.id)
+          .get();
+
+      return offersSnapshot.docs;
+    } catch (e) {
+      print('Error fetching offers: $e');
+      return [];
+    }
+  }
+
+  Widget _buildOffersList() {
+    return FutureBuilder<List<QueryDocumentSnapshot>>(
+      future: _fetchOffersForVehicle(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        } else if (snapshot.hasError) {
+          return const Center(
+            child: Text('Error fetching offers'),
+          );
+        } else if (snapshot.data == null || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text('No offers available for this vehicle'),
+          );
+        }
+
+        List<QueryDocumentSnapshot> offers = snapshot.data!;
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: offers.length,
+          itemBuilder: (context, index) {
+            var offerData = offers[index];
+            Offer offer = Offer.fromFirestore(
+                offerData); // Replace fromDocument with fromFirestore
+
+            // Use the custom OfferCard widget here
+            return OfferCard(
+              offer: offer,
+            );
+          },
+        );
+      },
+    );
+  }
+
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
     return GoogleFonts.montserrat(
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
+    );
+  }
+
+  void _navigateToEditPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditVehiclePage(vehicle: widget.vehicle),
+      ),
+    );
+  }
+
+  void _navigateToDuplicatePage(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VehicleUploadTabs(vehicle: widget.vehicle),
+      ),
     );
   }
 
@@ -161,6 +234,28 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     double subTotal = basePrice + flatRateFee;
     double vat = subTotal * vatRate;
     return subTotal + vat;
+  }
+
+  String _formatNumberWithSpaces(String number) {
+    return number.replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+  }
+
+  Widget _buildActionButton(IconData icon, Color backgroundColor) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.black, // Icon color set to black as in the image
+          size: 24,
+        ),
+      ),
+    );
   }
 
   Future<void> _makeOffer() async {
@@ -229,6 +324,36 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
+  String getDisplayStatus(String? offerStatus) {
+    switch (offerStatus) {
+      case 'in-progress':
+        return 'In Progress';
+      case 'select location and time':
+        return 'Set Location and Time';
+      case 'accepted':
+        return 'Accepted';
+      case 'set location and time':
+        return 'Setup Inspection';
+      case 'confirm location':
+        return 'Confirm Location';
+      case 'inspection pending':
+        return 'Inspection Pending';
+      case '3/4':
+        return 'Step 3 of 4';
+      case 'paid':
+        return 'Paid';
+      case 'Issue reported':
+        return 'Issue Reported';
+      case 'resolved':
+        return 'Resolved';
+      case 'done':
+      case 'Done':
+        return 'Done';
+      default:
+        return offerStatus ?? 'Unknown';
+    }
+  }
+
   Widget _buildAdditionalInfo() {
     List<Widget> infoWidgets = [];
 
@@ -281,20 +406,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  Widget _buildInfoRow(String title, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: _customFont(14, FontWeight.normal, Colors.white)),
-          Text(value ?? 'Unknown',
-              style: _customFont(14, FontWeight.bold, Colors.white)),
-        ],
-      ),
-    );
-  }
-
   Widget _buildInfoRowWithIcon(String title, String? value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -303,8 +414,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         children: [
           Row(
             children: [
-              Text(title,
-                  style: _customFont(14, FontWeight.normal, Colors.white)),
+              Text(
+                title,
+                style: _customFont(14, FontWeight.normal, Colors.white),
+              ),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
@@ -319,19 +432,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  Widget _buildActionButton(IconData icon, Color backgroundColor) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          color: Colors.black, // Icon color set to black as in the image
-          size: 24,
-        ),
+  Widget _buildInfoRow(String title, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: _customFont(14, FontWeight.normal, Colors.white),
+          ),
+          Text(
+            value ?? 'Unknown',
+            style: _customFont(14, FontWeight.bold, Colors.white),
+          ),
+        ],
       ),
     );
   }
@@ -356,53 +471,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ],
         );
       },
-    );
-  }
-
-  String _formatNumberWithSpaces(String number) {
-    return number.replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
-  }
-
-  String getDisplayStatus(String? offerStatus) {
-    switch (offerStatus) {
-      case 'in-progress':
-        return 'In Progress';
-      case 'select location and time':
-        return 'Set Location and Time';
-      case 'accepted':
-        return 'Accepted';
-      case 'set location and time':
-        return 'Setup Inspection';
-      case 'confirm location':
-        return 'Confirm Location';
-      case 'inspection pending':
-        return 'Inspection Pending';
-      case '3/4':
-        return 'Step 3 of 4';
-      case 'paid':
-        return 'Paid';
-      case 'Issue reported':
-        return 'Issue Reported';
-      case 'resolved':
-        return 'Resolved';
-      case 'done':
-      case 'Done':
-        return 'Done';
-      default:
-        return offerStatus ?? 'Unknown';
-    }
-  }
-
-  void _navigateToEditPage() {
-    // Navigate to the edit page with the vehicle object
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EditVehiclePage(
-          vehicle: widget.vehicle,
-        ),
-      ),
     );
   }
 
@@ -446,6 +514,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               icon: const Icon(Icons.edit, color: Color(0xFFFF4E00), size: 24),
               onPressed: () {
                 _navigateToEditPage();
+              },
+            ),
+          if (isTransporter)
+            IconButton(
+              icon: const Icon(Icons.copy,
+                  color: Color(0xFFFF4E00), size: 24), // Duplicate button
+              onPressed: () {
+                _navigateToDuplicatePage(context);
               },
             ),
         ],
@@ -741,20 +817,15 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
                       const SizedBox(height: 30),
                       Text(
-                        "Discover the Power and Performance You Need: Our Semi Trucks Are Built to Drive Your Success Forward!",
+                        "Offers Made on This Vehicle:",
                         style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13.5),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
                       ),
-                      const SizedBox(height: 25),
-                      Text(
-                        "Looking for reliability, efficiency, and cutting-edge technology in your next semi-truck purchase? Look no further! Our fleet of semi trucks offers top-of-the-line performance to meet the demands of your toughest routes and deliver your cargo on time, every time.",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w400,
-                            fontSize: 13.5),
-                      )
+                      const SizedBox(height: 10),
+                      _buildOffersList(), // Display all offers
                     ],
                   ),
                 ),

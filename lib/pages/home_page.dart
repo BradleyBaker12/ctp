@@ -310,8 +310,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
+    // *** Updated Section: Sort offers by 'createdAt' in descending order ***
+    List<Offer> sortedOffers = List.from(_offerProvider.offers);
+    sortedOffers.sort((a, b) {
+      final DateTime? aCreatedAt = a.createdAt;
+      final DateTime? bCreatedAt = b.createdAt;
+
+      if (aCreatedAt == null && bCreatedAt == null) return 0;
+      if (bCreatedAt == null) {
+        return -1; // Place offers with null 'createdAt' at the end
+      }
+      if (aCreatedAt == null) return 1;
+      return bCreatedAt.compareTo(aCreatedAt);
+    });
+
     // Get the 5 most recent offers
-    final recentOffers = _offerProvider.offers.take(5).toList();
+    final recentOffers = sortedOffers.take(5).toList();
+    // *** End of Updated Section ***
 
     return Container(
       color: Colors.black,
@@ -334,8 +349,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     child: Column(
                       children: [
                         Text(
-                          'Welcome ${userProvider.getUserName.toUpperCase()}'
-                              .toUpperCase(),
+                          'Welcome ${userProvider.getUserName.toUpperCase()}',
                           style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
@@ -432,11 +446,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       final offerProvider =
                           Provider.of<OfferProvider>(context, listen: false);
 
-                      // Debug: Log the number of displayed vehicles
-                      print(
-                          'Total displayed vehicles: ${displayedVehicles.length}');
-                      print('Total offers: ${offerProvider.offers.length}');
-
                       return SizedBox(
                         height: size.height * 0.3,
                         child: ListView.builder(
@@ -445,22 +454,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           itemBuilder: (context, index) {
                             final vehicle = displayedVehicles[index];
 
-                            // Debug: Log vehicle details
-                            print(
-                                'Vehicle ID: ${vehicle.id}, MakeModel: ${vehicle.makeModel}');
-
                             // Check if the vehicle has offers
                             final hasOffers = offerProvider.offers
                                 .any((offer) => offer.vehicleId == vehicle.id);
 
-                            // Debug: Log whether the vehicle has offers or not
                             if (hasOffers) {
-                              print('Vehicle ID: ${vehicle.id} has offers.');
                               return _buildTransporterVehicleCard(
                                   vehicle, size);
                             } else {
-                              print(
-                                  'Vehicle ID: ${vehicle.id} does not have any offers.');
                               return const SizedBox
                                   .shrink(); // Return an empty widget if no offers
                             }
@@ -503,7 +504,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                // Directly displaying the 5 most recent offers
+                // Display the 5 most recent offers
                 if (recentOffers.isNotEmpty) ...[
                   SizedBox(height: screenSize.height * 0.01),
                   Column(

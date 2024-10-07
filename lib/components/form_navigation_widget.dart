@@ -9,7 +9,6 @@ class FormNavigationWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<FormDataProvider>(
       builder: (context, formDataProvider, child) {
-        int currentIndex = formDataProvider.currentFormIndex;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 10.0),
           child: Row(

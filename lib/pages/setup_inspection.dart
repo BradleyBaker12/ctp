@@ -10,8 +10,7 @@ import 'package:ctp/components/custom_button.dart';
 class SetupInspectionPage extends StatefulWidget {
   final String vehicleId;
 
-  const SetupInspectionPage({Key? key, required this.vehicleId})
-      : super(key: key);
+  const SetupInspectionPage({super.key, required this.vehicleId});
 
   @override
   _SetupInspectionPageState createState() => _SetupInspectionPageState();
@@ -22,6 +21,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
   List<DateTime> _selectedDays = [];
   DateTime? _selectedDay;
   final CalendarFormat _calendarFormat = CalendarFormat.month;
+
+  // Availability date and range
+  final DateTime _availabilityDate =
+      DateTime.now(); // Change this to your specific availability start date
+  final int _daysAvailable = 7; // Only show the first 7 available days
 
   // Map to store times for each selected date
   final Map<DateTime, List<TimeOfDay>> _dateTimeSlots = {};
@@ -140,7 +144,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                 setState(() {
                   _selectedDay = selectedDay;
                   _selectedTimes =
-                      _dateTimeSlots[selectedDay!]?.map((e) => e).toList() ??
+                      _dateTimeSlots[selectedDay]?.map((e) => e).toList() ??
                           [null];
                 });
                 Navigator.of(context).pop();
@@ -553,9 +557,17 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                                 _isSameDay(day, selectedDay));
                                       },
                                       onDaySelected: _onDaySelected,
-                                      enabledDayPredicate: (day) => day.isAfter(
-                                          DateTime.now().subtract(
-                                              const Duration(days: 1))),
+
+                                      // Here we limit the enabled days to only the first 7 days starting from availability date
+                                      enabledDayPredicate: (day) {
+                                        DateTime endDay = _availabilityDate.add(
+                                            Duration(days: _daysAvailable));
+                                        return day.isAfter(_availabilityDate
+                                                .subtract(Duration(days: 1))) &&
+                                            day.isBefore(
+                                                endDay.add(Duration(days: 1)));
+                                      },
+
                                       calendarStyle: CalendarStyle(
                                         selectedDecoration: const BoxDecoration(
                                           color: Colors.blue,

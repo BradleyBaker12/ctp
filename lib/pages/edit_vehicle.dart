@@ -15,7 +15,7 @@ import 'package:url_launcher/url_launcher.dart'; // For opening URLs
 class EditVehiclePage extends StatefulWidget {
   final Vehicle vehicle;
 
-  const EditVehiclePage({Key? key, required this.vehicle}) : super(key: key);
+  const EditVehiclePage({super.key, required this.vehicle});
 
   @override
   _EditVehiclePageState createState() => _EditVehiclePageState();
@@ -303,7 +303,6 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     required TextEditingController controller,
     String? hint,
     TextInputType keyboardType = TextInputType.text,
-    bool isRequired = true,
     bool isCurrency = false, // Added to handle currency inputs
     List<TextInputFormatter>? inputFormatter, // Added input formatters
   }) {

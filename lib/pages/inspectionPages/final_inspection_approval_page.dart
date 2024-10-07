@@ -8,7 +8,6 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 
 class FinalInspectionApprovalPage extends StatefulWidget {

@@ -10,7 +10,7 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 
 class VehiclesListPage extends StatefulWidget {
-  const VehiclesListPage({Key? key}) : super(key: key);
+  const VehiclesListPage({super.key});
 
   @override
   _VehiclesListPageState createState() => _VehiclesListPageState();

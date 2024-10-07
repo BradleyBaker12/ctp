@@ -1,3 +1,5 @@
+// transporter_offer_details_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
@@ -5,16 +7,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/setup_inspection.dart';
 import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/components/custom_button.dart'; // Import CustomButton
 
 class TransporterOfferDetailsPage extends StatefulWidget {
   final Offer offer;
   final Vehicle vehicle;
 
   const TransporterOfferDetailsPage({
-    Key? key,
+    super.key,
     required this.offer,
     required this.vehicle,
-  }) : super(key: key);
+  });
 
   @override
   _TransporterOfferDetailsPageState createState() =>
@@ -82,39 +85,9 @@ class _TransporterOfferDetailsPageState
     );
   }
 
-  Widget _buildStyledLongButton({
-    required String text,
-    required Color backgroundColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 180, // Increased width for longer buttons
-        height: 60,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: customFont(18, FontWeight.bold, Colors.black),
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _handleAccept(BuildContext context) async {
     try {
+      // Update the offer status to 'accepted'
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId)
@@ -124,8 +97,17 @@ class _TransporterOfferDetailsPageState
         setState(() {
           _hasResponded = true;
           _responseMessage = 'You have accepted the offer';
-          // No need to modify widget.offer.offerStatus
         });
+
+        // Navigate to SetupInspectionPage
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SetupInspectionPage(
+              vehicleId: widget.vehicle.id,
+            ),
+          ),
+        );
       }
     } catch (e, stackTrace) {
       print('Exception in _handleAccept: $e');
@@ -151,7 +133,6 @@ class _TransporterOfferDetailsPageState
         setState(() {
           _hasResponded = true;
           _responseMessage = 'You have rejected the offer';
-          // No need to modify widget.offer.offerStatus
         });
       }
     } catch (e, stackTrace) {
@@ -171,7 +152,9 @@ class _TransporterOfferDetailsPageState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SetupInspectionPage(vehicleId: widget.vehicle.id),
+        builder: (context) => SetupInspectionPage(
+          vehicleId: widget.vehicle.id,
+        ),
       ),
     );
   }
@@ -313,11 +296,6 @@ class _TransporterOfferDetailsPageState
               Map<String, dynamic> vehicleData =
                   vehicleSnapshot.data!.data() as Map<String, dynamic>;
 
-              // Debugging statements
-              print('vehicleData: $vehicleData');
-              print('inspectionDetails: ${vehicleData['inspectionDetails']}');
-              print('collectionDetails: ${vehicleData['collectionDetails']}');
-
               // Adjusted data parsing to match Firestore structure
               List<Map<String, dynamic>> inspectionLocations = _parseLocations(
                   vehicleData['inspectionDetails']?['inspectionLocations']
@@ -327,16 +305,9 @@ class _TransporterOfferDetailsPageState
                   vehicleData['collectionDetails']?['collectionLocations']
                       ?['locations'] as List<dynamic>?);
 
-              // Debugging parsed locations
-              print('Parsed inspectionLocations: $inspectionLocations');
-              print('Parsed collectionLocations: $collectionLocations');
-
               // Compute local variables based on parsed data
               bool isInspectionComplete = inspectionLocations.isNotEmpty;
               bool isCollectionComplete = collectionLocations.isNotEmpty;
-
-              print('isInspectionComplete: $isInspectionComplete');
-              print('isCollectionComplete: $isCollectionComplete');
 
               // Use the latest offerStatus
               return SingleChildScrollView(
@@ -383,16 +354,16 @@ class _TransporterOfferDetailsPageState
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildStyledLongButton(
+                            CustomButton(
                               text: 'Accept',
-                              backgroundColor: Colors.blue,
-                              onTap: () => _handleAccept(context),
+                              borderColor: Colors.blue,
+                              onPressed: () => _handleAccept(context),
                             ),
                             const SizedBox(width: 16),
-                            _buildStyledLongButton(
+                            CustomButton(
                               text: 'Reject',
-                              backgroundColor: const Color(0xFFFF4E00),
-                              onTap: () => _handleReject(context),
+                              borderColor: const Color(0xFFFF4E00),
+                              onPressed: () => _handleReject(context),
                             ),
                           ],
                         ),
@@ -416,10 +387,10 @@ class _TransporterOfferDetailsPageState
                         child: Column(
                           children: [
                             if (!isInspectionComplete)
-                              _buildStyledLongButton(
+                              CustomButton(
                                 text: 'Setup Inspection',
-                                backgroundColor: Colors.blue,
-                                onTap: _setupInspection,
+                                borderColor: Colors.blue,
+                                onPressed: _setupInspection,
                               )
                             else
                               Center(
@@ -432,10 +403,10 @@ class _TransporterOfferDetailsPageState
                               ),
                             const SizedBox(height: 16),
                             if (!isCollectionComplete)
-                              _buildStyledLongButton(
+                              CustomButton(
                                 text: 'Setup Collection',
-                                backgroundColor: Colors.blue,
-                                onTap: _setupCollection,
+                                borderColor: Colors.blue,
+                                onPressed: _setupCollection,
                               )
                             else
                               Center(
@@ -488,12 +459,5 @@ class _TransporterOfferDetailsPageState
         },
       ),
     );
-  }
-}
-
-// Extension method to format DateTime to a short string
-extension DateTimeExtension on DateTime {
-  String toShortString() {
-    return '$day-$month-$year';
   }
 }

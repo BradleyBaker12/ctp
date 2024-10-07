@@ -10,8 +10,7 @@ import 'package:ctp/components/custom_button.dart';
 class SetupCollectionPage extends StatefulWidget {
   final String vehicleId;
 
-  const SetupCollectionPage({Key? key, required this.vehicleId})
-      : super(key: key);
+  const SetupCollectionPage({super.key, required this.vehicleId});
 
   @override
   _SetupCollectionPageState createState() => _SetupCollectionPageState();
@@ -238,29 +237,16 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     }
   }
 
-  // Save all collection details to Firestore
   Future<void> _saveCollectionDetails() async {
     if (_locations.isNotEmpty) {
-      // Extract all collection dates from the locations
-      List<DateTime> allCollectionDates = _locations
-          .expand((location) => location['dates'] as List<String>)
-          .map((dateStr) => _parseDateString(dateStr))
-          .toList();
-
-      // Extract all collection locations
-      List<String> allCollectionLocations =
-          _locations.map((location) => location['address'] as String).toList();
-
-      // Prepare the data to save
+      // Prepare the data to save under 'collectionDetails' -> 'collectionLocations' -> 'locations'
       Map<String, dynamic> collectionDetails = {
-        'collectionDates':
-            allCollectionDates.map((date) => Timestamp.fromDate(date)).toList(),
-        'collectionLocation': allCollectionLocations,
-        'createdAt': FieldValue.serverTimestamp(),
-        // Add other necessary fields if required
+        'collectionDetails': {
+          'collectionLocations': {
+            'locations': _locations,
+          },
+        },
       };
-
-      print('Saving collection details: $collectionDetails');
 
       setState(() {
         _isLoading = true; // Start loading
@@ -273,7 +259,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
             .doc(widget.vehicleId)
             .update(collectionDetails);
 
-        // Optionally, show a success message
+        // Optionally, navigate back or show a confirmation
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Collection details saved successfully!'),
@@ -281,7 +267,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
           ),
         );
 
-        // Navigate back after saving
         Navigator.pop(context);
       } catch (e) {
         _showErrorDialog(

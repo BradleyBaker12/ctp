@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -15,7 +16,8 @@ import 'package:path/path.dart' as path;
 import 'package:firebase_auth/firebase_auth.dart';
 
 class VehicleUploadTabs extends StatefulWidget {
-  const VehicleUploadTabs({super.key});
+  final Vehicle? vehicle;
+  const VehicleUploadTabs({super.key, this.vehicle});
 
   @override
   _VehicleUploadTabsState createState() => _VehicleUploadTabsState();
@@ -26,7 +28,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   // Add these variables for controlling the image size
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0; // Initial height of the image
-  double _minImageHeight = 150.0; // Minimum height when scrolled
+  final double _minImageHeight = 150.0; // Minimum height when scrolled
   late TabController _tabController;
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _makeModelController = TextEditingController();
@@ -54,9 +56,23 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   bool _isLoading = false;
   String? _listDamages =
       'yes'; // Add this field to store radio button selection
+  DateTime? _availableDate;
+  final TextEditingController _availableDateController =
+      TextEditingController();
+
+  // Declare these state variables in the _VehicleUploadTabsState class
+  String _maintenance = 'yes';
+  String _oemInspection = 'yes';
+  String _warranty = 'yes';
+  String _firstOwner = 'yes';
+  String _accidentFree = 'yes';
+  String _roadWorthy = 'yes';
+
+  // State variables for 'Vehicle Available Immediately' and the conditional date
+  String? _vehicleAvailableImmediately = 'yes';
 
   final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
-  bool _showCurrencySymbol = false;
+  final bool _showCurrencySymbol = false;
   String _vehicleType = 'truck';
   String _weightClass = 'heavy';
   File? _settlementLetterFile;
@@ -86,6 +102,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   String _tyreType = 'virgin';
   String _treadLeft = '';
   String _spareTyre = 'yes';
+  String? _mainImageUrl;
   File? _rc1NatisFile;
   File? _frontRightTyreImage;
   File? _frontLeftTyreImage;
@@ -124,6 +141,21 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       }
     });
 
+    // Prepopulate fields if vehicle data is provided (for duplication or editing)
+    if (widget.vehicle != null) {
+      _yearController.text = widget.vehicle!.year ?? '';
+      _makeModelController.text = widget.vehicle!.makeModel ?? '';
+      _transmission = widget.vehicle!.transmission ?? 'Manual';
+      _suspension = widget.vehicle!.suspension ?? 'Steel';
+
+      // Load main image if it's available (e.g., from URL)
+      // Load main image if it's available (e.g., from URL)
+      if (widget.vehicle!.mainImageUrl != null &&
+          widget.vehicle!.mainImageUrl!.isNotEmpty) {
+        _loadMainImageFromUrl(widget.vehicle!.mainImageUrl!);
+      }
+    }
+
     // Add this to listen to scroll events
     _scrollController.addListener(() {
       setState(() {
@@ -133,6 +165,17 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         _imageHeight = 300.0 - offset;
       });
     });
+  }
+
+  Future<void> _loadMainImageFromUrl(String url) async {
+    try {
+      final downloadUrl = await _storage.refFromURL(url).getDownloadURL();
+      setState(() {
+        _mainImageUrl = downloadUrl;
+      });
+    } catch (e) {
+      print("Error loading image from URL: $e");
+    }
   }
 
   Future<String?> _uploadFile(File? file, String storagePath) async {
@@ -704,10 +747,16 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         'year': _yearController.text,
         'makeModel': _makeModelController.text,
         'vinNumber': _vinNumberController.text,
+        'availableDate': _availableDate, // Include the available date
         'mileage': _mileageController.text,
         'sellingPrice': _sellingPriceController.text,
         'mainImageUrl': mainImageUrl, // Include the main image URL
         'vehicleStatus': 'Draft', // Default value for vehicle status
+        'vehicleAvailableImmediately': _vehicleAvailableImmediately,
+        'availableDate': _availableDate != null
+            ? DateFormat('yyyy-MM-dd').format(_availableDate!)
+            : null,
+
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -749,6 +798,24 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     }
   }
 
+  // Function to show the date picker
+  Future<void> _selectAvailableDate(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(DateTime.now().year + 5),
+    );
+    if (pickedDate != null) {
+      setState(() {
+        _availableDate = pickedDate;
+        // Display date as '02 October 2024'
+        _availableDateController.text =
+            DateFormat('dd MMMM yyyy').format(pickedDate);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var orange = const Color(0xFFFF4E00);
@@ -757,7 +824,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
 
     // Access the selectedMainImage from the provider
     final formData = Provider.of<FormDataProvider>(context);
-    File? _selectedMainImage = formData.selectedMainImage;
+    File? selectedMainImage = formData.selectedMainImage;
 
     return Stack(
       children: [
@@ -847,7 +914,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                           duration: const Duration(milliseconds: 0),
                           height: _imageHeight, // Use _imageHeight here
                           width: double.infinity,
-                          child: _selectedMainImage == null
+                          child: selectedMainImage == null
                               ? GestureDetector(
                                   onTap: () {
                                     _showImageSourceDialog(
@@ -905,7 +972,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                               : ClipRRect(
                                   borderRadius: BorderRadius.circular(10.0),
                                   child: Image.file(
-                                    _selectedMainImage!,
+                                    selectedMainImage,
                                     width: double.infinity,
                                     height:
                                         _imageHeight, // Use _imageHeight here
@@ -916,7 +983,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       ],
                     ),
                     // Wrap TabBarView in a Container to set its height
-                    Container(
+                    SizedBox(
                       height: MediaQuery.of(context).size.height -
                           _imageHeight -
                           kToolbarHeight -
@@ -991,6 +1058,16 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               ),
             ),
             const SizedBox(height: 20),
+
+            // Vehicle Type
+            const Center(
+              child: Text(
+                'VEHICLE TYPE',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -1000,6 +1077,16 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               ],
             ),
             const SizedBox(height: 20),
+
+            // Weight Class
+            const Center(
+              child: Text(
+                'WEIGHT CLASS',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -1011,6 +1098,8 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               ],
             ),
             const SizedBox(height: 20),
+
+            // Input Fields Grouped Together
             Form(
               key: _formKeys[0],
               child: Column(
@@ -1086,11 +1175,281 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                       return null;
                     },
                   ),
-                  const SizedBox(height: 30),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
+                  _buildTextArea(
+                    controller: _applicationController,
+                    hintText: 'Application of Use',
+                    maxLines: 5,
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Transmission Dropdown
+                  const Text(
+                    "Transmission",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  _buildDropdown(
+                    value: _transmission,
+                    items: ['Manual', 'Automatic'],
+                    hintText: 'Transmission',
+                    onChanged: (value) {
+                      setState(() {
+                        _transmission = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Engine Number Field
+                  _buildTextField(
+                    controller: _engineNumberController,
+                    hintText: 'Engine No.',
+                    inputFormatter: [UpperCaseTextFormatter()],
+                    // No validator
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Suspension Dropdown
+                  const Text(
+                    "Suspension",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  _buildDropdown(
+                    value: _suspension,
+                    items: ['Steel', 'Air'],
+                    hintText: 'Suspension',
+                    onChanged: (value) {
+                      setState(() {
+                        _suspension = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Registration Number Field
+                  _buildTextField(
+                    controller: _registrationNumberController,
+                    hintText: 'Registration No.',
+                    inputFormatter: [UpperCaseTextFormatter()],
+                    // No validator
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Expected Selling Price Field
+                  _buildSellingPriceTextField(
+                    controller: _expectedSellingPriceController,
+                    hintText: 'Expected Selling Price',
+                    // No validator
+                  ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 20),
+
+            // Radio Buttons Grouped Together
+            const Center(
+              child: Text(
+                'IS VEHICLE AVAILABLE IMMEDIATELY',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildRadioButton(
+                  'Yes',
+                  'yes',
+                  groupValue: _vehicleAvailableImmediately,
+                  onChanged: (value) {
+                    setState(() {
+                      _vehicleAvailableImmediately = value;
+                    });
+                  },
+                ),
+                const SizedBox(width: 20),
+                _buildRadioButton(
+                  'No',
+                  'no',
+                  groupValue: _vehicleAvailableImmediately,
+                  onChanged: (value) {
+                    setState(() {
+                      _vehicleAvailableImmediately = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+            if (_vehicleAvailableImmediately == 'no')
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                child: GestureDetector(
+                  onTap: () => _selectAvailableDate(context),
+                  child: AbsorbPointer(
+                    child: TextFormField(
+                      controller: _availableDateController,
+                      decoration: InputDecoration(
+                        hintText: 'What is the date available for sale?',
+                        hintStyle: const TextStyle(color: Colors.white70),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.2),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFFF4E00),
+                            width: 2.0,
+                          ),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      validator: (value) {
+                        if (_vehicleAvailableImmediately == 'no') {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select the available date';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 20),
+            const Center(
+              child: Text(
+                'MAINTENANCE',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildRadioButton('Yes', 'yes', groupValue: _maintenance,
+                    onChanged: (value) {
+                  setState(() {
+                    _maintenance = value!;
+                  });
+                }),
+                const SizedBox(width: 20),
+                _buildRadioButton('No', 'no', groupValue: _maintenance,
+                    onChanged: (value) {
+                  setState(() {
+                    _maintenance = value!;
+                  });
+                }),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            const Center(
+              child: Text(
+                'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                'Please note that OEM will charge you for inspection',
+                style: TextStyle(fontSize: 12, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildRadioButton('Yes', 'yes', groupValue: _oemInspection,
+                    onChanged: (value) {
+                  setState(() {
+                    _oemInspection = value!;
+                  });
+                }),
+                const SizedBox(width: 20),
+                _buildRadioButton('No', 'no', groupValue: _oemInspection,
+                    onChanged: (value) {
+                  setState(() {
+                    _oemInspection = value!;
+                  });
+                }),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            const Center(
+              child: Text(
+                "Warranty",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildRadioButton(
+                  'Yes',
+                  'yes',
+                  groupValue: _settleBeforeSelling,
+                  onChanged: (value) {
+                    setState(() {
+                      _settleBeforeSelling = value;
+                    });
+                  },
+                ),
+                const SizedBox(width: 20),
+                _buildRadioButton(
+                  'No',
+                  'no',
+                  groupValue: _settleBeforeSelling,
+                  onChanged: (value) {
+                    setState(() {
+                      _settleBeforeSelling = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+
+            if (_settleBeforeSelling == 'yes')
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10.0),
+                child: _buildTextField(
+                  controller: _warrantyTypeController,
+                  hintText: "WHAT TYPE OF MAIN WARRANTY DOES YOUR VEHICLE HAVE",
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please specify the warranty type';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
+            const SizedBox(height: 20),
             CustomButton(
               text: 'Next',
               borderColor: blue,
@@ -1160,81 +1519,96 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   ),
                 ),
               ),
+              const SizedBox(height: 15),
+              // MAINTENANCE Heading with Radio Buttons
+
+              // First Owner Heading with Radio Buttons
+              const Center(
+                child: Text(
+                  'ARE YOU THE FIRST OWNER',
+                  style: TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton('Yes', 'yes', groupValue: _firstOwner,
+                      onChanged: (value) {
+                    setState(() {
+                      _firstOwner = value!;
+                    });
+                  }),
+                  const SizedBox(width: 20),
+                  _buildRadioButton('No', 'no', groupValue: _firstOwner,
+                      onChanged: (value) {
+                    setState(() {
+                      _firstOwner = value!;
+                    });
+                  }),
+                ],
+              ),
               const SizedBox(height: 20),
-              _buildTextArea(
-                controller: _applicationController,
-                hintText: 'Application of Use',
-                maxLines: 5,
-              ),
-              const SizedBox(height: 15),
 
-              // Transmission Dropdown
-              const Text(
-                "Transmission",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
+              // Accident Free Heading with Radio Buttons
+              const Center(
+                child: Text(
+                  'ACCIDENT FREE',
+                  style: TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 5),
-              _buildDropdown(
-                value: _transmission,
-                items: ['Manual', 'Automatic'],
-                hintText: 'Transmission',
-                onChanged: (value) {
-                  setState(() {
-                    _transmission = value!;
-                  });
-                },
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton('Yes', 'yes', groupValue: _accidentFree,
+                      onChanged: (value) {
+                    setState(() {
+                      _accidentFree = value!;
+                    });
+                  }),
+                  const SizedBox(width: 20),
+                  _buildRadioButton('No', 'no', groupValue: _accidentFree,
+                      onChanged: (value) {
+                    setState(() {
+                      _accidentFree = value!;
+                    });
+                  }),
+                ],
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
-              // Engine Number Field
-              _buildTextField(
-                controller: _engineNumberController,
-                hintText: 'Engine No.',
-                inputFormatter: [UpperCaseTextFormatter()],
-                // No validator
-              ),
-              const SizedBox(height: 15),
-
-              // Suspension Dropdown
-              const Text(
-                "Suspension",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
+              // Road Worthy Heading with Radio Buttons
+              const Center(
+                child: Text(
+                  'IS THE TRUCK ROAD WORTHY',
+                  style: TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 5),
-              _buildDropdown(
-                value: _suspension,
-                items: ['Steel', 'Air'],
-                hintText: 'Suspension',
-                onChanged: (value) {
-                  setState(() {
-                    _suspension = value!;
-                  });
-                },
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton('Yes', 'yes', groupValue: _roadWorthy,
+                      onChanged: (value) {
+                    setState(() {
+                      _roadWorthy = value!;
+                    });
+                  }),
+                  const SizedBox(width: 20),
+                  _buildRadioButton('No', 'no', groupValue: _roadWorthy,
+                      onChanged: (value) {
+                    setState(() {
+                      _roadWorthy = value!;
+                    });
+                  }),
+                ],
               ),
-              const SizedBox(height: 15),
-
-              // Registration Number Field
-              _buildTextField(
-                controller: _registrationNumberController,
-                hintText: 'Registration No.',
-                inputFormatter: [UpperCaseTextFormatter()],
-                // No validator
-              ),
-              const SizedBox(height: 15),
-
-              // Expected Selling Price Field
-              _buildSellingPriceTextField(
-                controller: _expectedSellingPriceController,
-                hintText: 'Expected Selling Price',
-                // No validator
-              ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
+              // Warranty Radio Button and Conditional Text Field
 
               // Add the Next and Done buttons at the bottom
               Center(
@@ -2446,7 +2820,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
 
   // Tread Left Dropdown
   Widget _buildTreadLeftDropdown() {
-    final List<String> _treadOptions = ['10% - 50%', '51% - 79%', '80% - 100%'];
+    final List<String> treadOptions = ['10% - 50%', '51% - 79%', '80% - 100%'];
     return DropdownButtonFormField<String>(
       value: _treadLeft.isEmpty ? null : _treadLeft,
       decoration: InputDecoration(
@@ -2461,7 +2835,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       ),
       dropdownColor: Colors.black,
       style: const TextStyle(color: Colors.white),
-      items: _treadOptions.map((String value) {
+      items: treadOptions.map((String value) {
         return DropdownMenuItem<String>(
           value: value,
           child: Text(value),

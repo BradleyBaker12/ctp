@@ -11,9 +11,9 @@ class RateDealerPage extends StatefulWidget {
   final String offerId;
 
   const RateDealerPage({
-    Key? key,
+    super.key,
     required this.offerId,
-  }) : super(key: key);
+  });
 
   @override
   _RateDealerPageState createState() => _RateDealerPageState();

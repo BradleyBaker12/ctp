@@ -1,3 +1,5 @@
+// offers_page.dart
+
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -59,7 +61,7 @@ class _OffersPageState extends State<OffersPage> {
   }
 
   // Modify the filter to include all statuses except 'accepted' and 'in-progress'
-  List _filterOffers(String status) {
+  List<Offer> _filterOffers(String status) {
     if (status == "ALL") {
       return _offerProvider.offers;
     } else if (status == "pending") {
@@ -211,6 +213,20 @@ class _OffersPageState extends State<OffersPage> {
           );
         } else {
           final filteredOffers = _filterOffers(status);
+
+          // Sort the filtered offers by 'createdAt' in descending order
+          filteredOffers.sort((a, b) {
+            final DateTime? aCreatedAt = a.createdAt;
+            final DateTime? bCreatedAt = b.createdAt;
+
+            if (aCreatedAt == null && bCreatedAt == null) return 0;
+            if (bCreatedAt == null) {
+              return -1; // Place offers with null 'createdAt' at the end
+            }
+            if (aCreatedAt == null) return 1;
+            return bCreatedAt.compareTo(aCreatedAt);
+          });
+
           return ListView.builder(
             itemCount: filteredOffers.length,
             itemBuilder: (context, index) {
