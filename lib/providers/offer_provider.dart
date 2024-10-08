@@ -11,7 +11,7 @@ class Offer extends ChangeNotifier {
   String? vehicleMakeModel;
   String? vehicleMainImage;
   String? reason;
-  DateTime? createdAt; // Add this field
+  DateTime? createdAt; // Include in constructor
 
   // New properties for vehicle details
   List<String> vehicleImages = [];
@@ -78,10 +78,9 @@ class Offer extends ChangeNotifier {
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : null, // Handle null case
-      dealerSelectedInspectionDate:
-          (data['dealerSelectedInspectionDate'] != null)
-              ? (data['dealerSelectedInspectionDate'] as Timestamp).toDate()
-              : null,
+      dealerSelectedInspectionDate: data['dealerSelectedInspectionDate'] != null
+          ? (data['dealerSelectedInspectionDate'] as Timestamp).toDate()
+          : null,
       dealerSelectedInspectionTime: data['dealerSelectedInspectionTime'],
       dealerSelectedInspectionLocation:
           data['dealerSelectedInspectionLocation'],
@@ -89,10 +88,9 @@ class Offer extends ChangeNotifier {
       dealerSelectedCollectionLocation:
           data['dealerSelectedCollectionLocation'],
       dealerSelectedCollectionAddress: data['dealerSelectedCollectionAddress'],
-      dealerSelectedCollectionDate:
-          (data['dealerSelectedCollectionDate'] != null)
-              ? (data['dealerSelectedCollectionDate'] as Timestamp).toDate()
-              : null,
+      dealerSelectedCollectionDate: data['dealerSelectedCollectionDate'] != null
+          ? (data['dealerSelectedCollectionDate'] as Timestamp).toDate()
+          : null,
       dealerSelectedCollectionTime: data['dealerSelectedCollectionTime'],
       inspectionDates: data['inspectionDates'],
       inspectionLocations: data['inspectionLocations'],
@@ -147,7 +145,6 @@ class Offer extends ChangeNotifier {
     }
   }
 }
-
 
 class OfferProvider extends ChangeNotifier {
   List<Offer> _offers = [];
@@ -242,5 +239,25 @@ class OfferProvider extends ChangeNotifier {
 
   Future<void> refreshOffers(String userId, String userRole) async {
     await fetchOffers(userId, userRole);
+  }
+
+  // Added method to fetch offers for a specific vehicle
+  Future<List<Offer>> fetchOffersForVehicle(String vehicleId) async {
+    try {
+      QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .where('vehicleId', isEqualTo: vehicleId)
+          .get();
+
+      List<Offer> vehicleOffers = offersSnapshot.docs.map((doc) {
+        return Offer.fromFirestore(doc);
+      }).toList();
+
+      // Optionally, you can add these offers to _offers list or handle them separately
+      return vehicleOffers;
+    } catch (e) {
+      print('Error fetching offers for vehicle: $e');
+      return [];
+    }
   }
 }

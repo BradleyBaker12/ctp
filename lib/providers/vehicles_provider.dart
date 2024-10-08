@@ -306,6 +306,8 @@ class Vehicle {
   final String weightClass;
   final String year;
   final DateTime createdAt;
+  String vehicleAvailableImmediately; // Add this property
+  String availableDate; // Add this property
 
   // New fields for additional photos
   final String? bed_bunk;
@@ -390,6 +392,8 @@ class Vehicle {
     this.seats,
     this.spare_wheel,
     required this.vehicleStatus,
+    required this.vehicleAvailableImmediately, // Initialize this property
+    required this.availableDate, // Initialize this property
   });
 
   // Updated copyWith method
@@ -518,6 +522,9 @@ class Vehicle {
       seats: seats ?? this.seats,
       spare_wheel: spare_wheel ?? this.spare_wheel,
       vehicleStatus: vehicleStatus ?? this.vehicleStatus,
+      vehicleAvailableImmediately:
+          vehicleAvailableImmediately ?? this.vehicleAvailableImmediately,
+      availableDate: availableDate ?? this.availableDate,
     );
   }
 
@@ -584,8 +591,10 @@ class Vehicle {
       roof: data['roof'],
       seats: data['seats'],
       spare_wheel: data['spare_wheel'],
-      vehicleStatus:
-          data['vehicleStatus'] ?? 'Live', // Default vehicleStatus is 'Live'
+
+      vehicleStatus: data['vehicleStatus'] ?? 'Live',
+      vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
+      availableDate: data['availableDate'] ?? '',
     );
   }
 

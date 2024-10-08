@@ -151,3 +151,13 @@ Busy trying to add the duplicate feature
 04/10/2024
 Add all the offers under the trucks details screen
 Moving some input field to the mandatory page
+
+07/10/2024
+Moved some input field to the mandatory page
+Completed the Duplication added
+The Apps Icon has been changed and is now the CTP Logo
+Changed the Display name to CTP
+
+08/10/2024
+Added radio buttons to conditionaly show certain tabs
+Certain Tab's are shown based on what the user selected (Yes/No)

@@ -16,20 +16,31 @@ import 'package:path/path.dart' as path;
 import 'package:firebase_auth/firebase_auth.dart';
 
 class VehicleUploadTabs extends StatefulWidget {
+  final bool isDuplicating; // Add this parameter
   final Vehicle? vehicle;
-  const VehicleUploadTabs({super.key, this.vehicle});
+  const VehicleUploadTabs(
+      {super.key, this.vehicle, this.isDuplicating = false});
 
   @override
   _VehicleUploadTabsState createState() => _VehicleUploadTabsState();
 }
 
 class _VehicleUploadTabsState extends State<VehicleUploadTabs>
-    with SingleTickerProviderStateMixin {
-  // Add these variables for controlling the image size
+    with TickerProviderStateMixin {
+  // Colors
+  final Color orange = const Color(0xFFFF4E00);
+  final Color blue = const Color(0xFF2F7FFF);
+  final Color green = const Color(0xFF4CAF50);
+
+// Scroll and Tab Controllers
   final ScrollController _scrollController = ScrollController();
+  late TabController _tabController;
+
+// Image height settings
   double _imageHeight = 300.0; // Initial height of the image
   final double _minImageHeight = 150.0; // Minimum height when scrolled
-  late TabController _tabController;
+
+// TextEditing Controllers
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _makeModelController = TextEditingController();
   final TextEditingController _sellingPriceController = TextEditingController();
@@ -43,50 +54,46 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       TextEditingController();
   final TextEditingController _warrantyTypeController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  String?
-      _vehicleId; // To store the document ID (vehicleId) of the current vehicle
-
-  // Form keys for each section
-  final List<GlobalKey<FormState>> _formKeys =
-      List.generate(7, (index) => GlobalKey<FormState>());
-
-  String? _selectedMileage;
-  String _transmission = 'Manual';
-  String _suspension = 'Steel';
-  bool _isLoading = false;
-  String? _listDamages =
-      'yes'; // Add this field to store radio button selection
-  DateTime? _availableDate;
   final TextEditingController _availableDateController =
       TextEditingController();
 
-  // Declare these state variables in the _VehicleUploadTabsState class
+// Form and state management
+  final List<GlobalKey<FormState>> _formKeys =
+      List.generate(7, (index) => GlobalKey<FormState>());
+  List<bool> _isSectionCompleted = List.generate(7, (index) => false);
+
+  bool _isSubmitting = false; // Manage loading state
+  bool _isSection1Completed = false; // To check if Section 1 is completed
+  bool _isLoading = false; // General loading state
+
+// Vehicle attributes
+  String? _vehicleId; // Document ID (vehicleId) of the current vehicle
+  String? _selectedMileage;
+  String _transmission = 'Manual';
+  String _suspension = 'Steel';
+  String? _listDamages = 'yes'; // Store radio button selection
+  DateTime? _availableDate;
   String _maintenance = 'yes';
   String _oemInspection = 'yes';
   String _warranty = 'yes';
   String _firstOwner = 'yes';
   String _accidentFree = 'yes';
   String _roadWorthy = 'yes';
-
-  // State variables for 'Vehicle Available Immediately' and the conditional date
+  String? _outstandingSettlement = 'yes';
+  String? _damagesOrFaults = 'yes';
+  String? _includeTyreInfo = 'yes';
   String? _vehicleAvailableImmediately = 'yes';
-
-  final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
-  final bool _showCurrencySymbol = false;
   String _vehicleType = 'truck';
   String _weightClass = 'heavy';
-  File? _settlementLetterFile;
   String? _settleBeforeSelling;
+  String? _mainImageUrl;
 
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+// State management for UI sections
+  bool _showSettlementTab = false;
+  bool _showDamagesFaultsTab = false;
+  bool _showTyresTab = false;
 
-  bool _isSubmitting = false; // To manage loading state
-  bool _isSection1Completed = false; // To check if Section 1 is completed
-  // Track completed sections
-  List<bool> _isSectionCompleted = List.generate(7, (index) => false);
-
+// Mileage options
   final List<String> _mileageOptions = [
     '0+',
     '10,001+',
@@ -98,11 +105,13 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     '1,000,001+'
   ];
 
-  // Added variables for missing sections
+// Tyre and tread information
   String _tyreType = 'virgin';
   String _treadLeft = '';
   String _spareTyre = 'yes';
-  String? _mainImageUrl;
+
+// Files for uploads
+  File? _settlementLetterFile;
   File? _rc1NatisFile;
   File? _frontRightTyreImage;
   File? _frontLeftTyreImage;
@@ -110,16 +119,45 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   File? _dashboardImage;
   File? _faultCodesImage;
 
-  // For Damage Entries
+// Photo uploads
+  List<File?> _photoFiles = List<File?>.filled(18, null);
+
+// Damage entries
   List<Map<String, dynamic>> _damageEntries = [];
 
-  // For Photos
-  List<File?> _photoFiles = List<File?>.filled(18, null);
+// Firebase and formatters
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
+  final bool _showCurrencySymbol = false;
+
+// Tab count calculation
+  int _calculateTabCount() {
+    int count =
+        4; // Mandatory Section, Additional Information, RC1/NATIS, and Additional Photos are always shown
+    if (_showSettlementTab) count++;
+    if (_showDamagesFaultsTab) count++;
+    if (_showTyresTab) count++;
+    return count;
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _showSettlementTab = _outstandingSettlement == 'yes';
+    _showDamagesFaultsTab = _damagesOrFaults == 'yes';
+    _showTyresTab = _includeTyreInfo == 'yes';
+    _tabController = TabController(
+      length: _calculateTabCount(),
+      vsync: this,
+    );
+
+    // Reset selectedMainImage at the start
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      formData.setSelectedMainImage(null);
+    });
 
     _tabController.addListener(() async {
       if (_tabController.indexIsChanging) {
@@ -145,15 +183,43 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     if (widget.vehicle != null) {
       _yearController.text = widget.vehicle!.year ?? '';
       _makeModelController.text = widget.vehicle!.makeModel ?? '';
-      _transmission = widget.vehicle!.transmission ?? 'Manual';
-      _suspension = widget.vehicle!.suspension ?? 'Steel';
+      _vinNumberController.text = widget.vehicle!.vinNumber ?? '';
+      _mileageController.text = widget.vehicle!.mileage ?? '';
+      _vehicleAvailableImmediately =
+          widget.vehicle!.vehicleAvailableImmediately ?? 'yes';
+      _availableDateController.text = widget.vehicle!.availableDate ?? '';
 
-      // Load main image if it's available (e.g., from URL)
+      // Ensure that _transmission has a valid value
+      List<String> transmissionOptions = ['Manual', 'Automatic'];
+      _transmission = transmissionOptions.contains(widget.vehicle!.transmission)
+          ? widget.vehicle!.transmission!
+          : 'Manual'; // Default to 'Manual' if invalid
+
+      // Ensure that _suspension has a valid value
+      List<String> suspensionOptions = ['Steel', 'Air'];
+      _suspension = suspensionOptions.contains(widget.vehicle!.suspension)
+          ? widget.vehicle!.suspension!
+          : 'Steel'; // Default to 'Steel' if invalid
+
       // Load main image if it's available (e.g., from URL)
       if (widget.vehicle!.mainImageUrl != null &&
           widget.vehicle!.mainImageUrl!.isNotEmpty) {
         _loadMainImageFromUrl(widget.vehicle!.mainImageUrl!);
       }
+
+      if (widget.isDuplicating) {
+        // If duplicating, do not set _vehicleId
+        _vehicleId = null;
+      } else {
+        // If editing, set _vehicleId to the existing vehicle's ID
+        _vehicleId = widget.vehicle!.id;
+      }
+    } else {
+      // If not duplicating, reset selectedMainImage and _mainImageUrl
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      formData.setSelectedMainImage(null);
+      _mainImageUrl = null; // Reset the main image URL
+      _vehicleId = null; // Ensure vehicleId is null for new vehicles
     }
 
     // Add this to listen to scroll events
@@ -450,6 +516,9 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     formData.setSelectedLicenceDiskImage(null);
     formData.setSettleBeforeSelling('');
 
+    // Reset main image URL
+    _mainImageUrl = null; // Add this line
+
     // Reset TabController to the first tab
     _tabController.index = 0;
   }
@@ -706,6 +775,8 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     try {
       // Access the selectedMainImage from the provider
       final formData = Provider.of<FormDataProvider>(context, listen: false);
+      print('selectedMainImage: ${formData.selectedMainImage}');
+      print('_mainImageUrl: $_mainImageUrl');
       String? mainImageUrl;
       if (formData.selectedMainImage != null) {
         // Upload the main image
@@ -713,8 +784,11 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           formData.selectedMainImage,
           'vehicles/${DateTime.now().millisecondsSinceEpoch}_main.jpg',
         );
+      } else if (_mainImageUrl != null) {
+        // Use the existing main image URL
+        mainImageUrl = _mainImageUrl;
       } else {
-        // If no main image is selected, you might want to prevent saving
+        // If no main image is selected or existing, prompt the user
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Please select a main image before saving.')),
@@ -747,16 +821,14 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
         'year': _yearController.text,
         'makeModel': _makeModelController.text,
         'vinNumber': _vinNumberController.text,
-        'availableDate': _availableDate, // Include the available date
+        'availableDate': _availableDate != null
+            ? DateFormat('yyyy-MM-dd').format(_availableDate!)
+            : null, // Include the available date
         'mileage': _mileageController.text,
         'sellingPrice': _sellingPriceController.text,
         'mainImageUrl': mainImageUrl, // Include the main image URL
         'vehicleStatus': 'Draft', // Default value for vehicle status
         'vehicleAvailableImmediately': _vehicleAvailableImmediately,
-        'availableDate': _availableDate != null
-            ? DateFormat('yyyy-MM-dd').format(_availableDate!)
-            : null,
-
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -816,6 +888,56 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     }
   }
 
+  List<Tab> _buildTabs() {
+    List<Tab> tabs = [
+      const Tab(text: 'Mandatory Section'),
+      const Tab(text: 'Additional Information'),
+    ];
+
+    if (_showSettlementTab) {
+      tabs.add(const Tab(text: 'Settlement'));
+    }
+
+    tabs.add(const Tab(text: 'RC1/NATIS'));
+
+    if (_showDamagesFaultsTab) {
+      tabs.add(const Tab(text: 'Damage & Faults'));
+    }
+
+    if (_showTyresTab) {
+      tabs.add(const Tab(text: 'Tyres'));
+    }
+
+    tabs.add(const Tab(text: 'Additional Photos'));
+
+    return tabs;
+  }
+
+  List<Widget> _buildTabViews() {
+    List<Widget> tabViews = [
+      _buildSection1(orange, blue, green),
+      _buildSection2(orange, blue, green),
+    ];
+
+    if (_showSettlementTab) {
+      tabViews.add(_buildSection3(orange, blue, green));
+    }
+
+    tabViews.add(_buildSection4(orange, blue, green));
+
+    if (_showDamagesFaultsTab) {
+      tabViews.add(_buildSection5(orange, blue, green));
+    }
+
+    if (_showTyresTab) {
+      tabViews.add(_buildSection6(orange, blue, green));
+    }
+
+    tabViews.add(_buildSection7(orange, blue, green));
+
+    return tabViews;
+  }
+
   @override
   Widget build(BuildContext context) {
     var orange = const Color(0xFFFF4E00);
@@ -850,15 +972,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 child: TabBar(
                   controller: _tabController,
                   isScrollable: true,
-                  tabs: const [
-                    Tab(text: 'Mandatory Section'),
-                    Tab(text: 'Additional Information'),
-                    Tab(text: 'Settlement'),
-                    Tab(text: 'RCI/NATIS'),
-                    Tab(text: 'Damage & Faults'),
-                    Tab(text: 'Tyres'),
-                    Tab(text: 'Additional Photos'),
-                  ],
+                  tabs: _buildTabs(),
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white70,
                   indicatorColor: Colors.white,
@@ -914,62 +1028,8 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                           duration: const Duration(milliseconds: 0),
                           height: _imageHeight, // Use _imageHeight here
                           width: double.infinity,
-                          child: selectedMainImage == null
-                              ? GestureDetector(
-                                  onTap: () {
-                                    _showImageSourceDialog(
-                                        (ImageSource source) {
-                                      _pickImage(source);
-                                    });
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.3),
-                                      borderRadius: BorderRadius.circular(10.0),
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.camera_alt,
-                                                size: 40,
-                                                color: Colors.white,
-                                              ),
-                                              onPressed: () {
-                                                _pickImage(ImageSource.camera);
-                                              },
-                                            ),
-                                            const SizedBox(width: 20),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.photo,
-                                                size: 40,
-                                                color: Colors.white,
-                                              ),
-                                              onPressed: () {
-                                                _pickImage(ImageSource.gallery);
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        const Text(
-                                          'NEW PHOTO OR UPLOAD FROM GALLERY',
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.white),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              : ClipRRect(
+                          child: selectedMainImage != null
+                              ? ClipRRect(
                                   borderRadius: BorderRadius.circular(10.0),
                                   child: Image.file(
                                     selectedMainImage,
@@ -978,7 +1038,74 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                                         _imageHeight, // Use _imageHeight here
                                     fit: BoxFit.cover,
                                   ),
-                                ),
+                                )
+                              : (_mainImageUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      child: Image.network(
+                                        _mainImageUrl!,
+                                        width: double.infinity,
+                                        height: _imageHeight,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : GestureDetector(
+                                      onTap: () {
+                                        _showImageSourceDialog(
+                                            (ImageSource source) {
+                                          _pickImage(source);
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.3),
+                                          borderRadius:
+                                              BorderRadius.circular(10.0),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(
+                                                    Icons.camera_alt,
+                                                    size: 40,
+                                                    color: Colors.white,
+                                                  ),
+                                                  onPressed: () {
+                                                    _pickImage(
+                                                        ImageSource.camera);
+                                                  },
+                                                ),
+                                                const SizedBox(width: 20),
+                                                IconButton(
+                                                  icon: const Icon(
+                                                    Icons.photo,
+                                                    size: 40,
+                                                    color: Colors.white,
+                                                  ),
+                                                  onPressed: () {
+                                                    _pickImage(
+                                                        ImageSource.gallery);
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            const Text(
+                                              'NEW PHOTO OR UPLOAD FROM GALLERY',
+                                              style: TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    )),
                         ),
                       ],
                     ),
@@ -993,15 +1120,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                         physics: _isSection1Completed
                             ? null
                             : const NeverScrollableScrollPhysics(),
-                        children: [
-                          _buildSection1(orange, blue, green),
-                          _buildSection2(orange, blue, green),
-                          _buildSection3(orange, blue, green),
-                          _buildSection4(orange, blue, green),
-                          _buildSection5(orange, blue, green),
-                          _buildSection6(orange, blue, green),
-                          _buildSection7(orange, blue, green),
-                        ],
+                        children: _buildTabViews(),
                       ),
                     ),
                   ],
@@ -1026,6 +1145,43 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           ),
       ],
     );
+  }
+
+  void _updateTabController() {
+    int tabCount = _calculateTabCount();
+
+    int oldIndex = _tabController.index;
+
+    // Dispose of the old TabController
+    _tabController.dispose();
+
+    // Create a new TabController
+    _tabController = TabController(length: tabCount, vsync: this);
+
+    // Set the index to the previous position if possible
+    if (oldIndex >= tabCount) {
+      _tabController.index = tabCount - 1;
+    } else {
+      _tabController.index = oldIndex;
+    }
+
+    // If you need to call setState(), ensure it's safe to do so
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  int _getNextTabIndex(int currentIndex) {
+    int nextIndex = currentIndex + 1;
+
+    // Skip Settlement tab if it's not shown
+    if (!_showSettlementTab && currentIndex == 1) nextIndex++;
+    // Skip RC1/NATIS tab if it's not shown
+    if (!_showDamagesFaultsTab && currentIndex == 2) nextIndex++;
+    // Skip Tyres tab if it's not shown
+    if (!_showTyresTab && currentIndex == 3) nextIndex++;
+
+    return nextIndex;
   }
 
   Widget _buildSection1(Color orange, Color blue, Color green) {
@@ -1076,6 +1232,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                 _buildRadioButton('Trailer', 'trailer'),
               ],
             ),
+
             const SizedBox(height: 20),
 
             // Weight Class
@@ -1448,8 +1605,109 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   },
                 ),
               ),
+            const SizedBox(height: 20),
+
+            // New Radio Button: Outstanding Settlement
+            const Center(
+              child: Text(
+                'Outstanding Settlement?',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Outstanding Settlement Radio Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildRadioButton('Yes', 'yes',
+                    groupValue: _outstandingSettlement, onChanged: (value) {
+                  setState(() {
+                    _outstandingSettlement = value!;
+                    _showSettlementTab = value == 'yes';
+                    _updateTabController();
+                  });
+                }),
+                const SizedBox(width: 20),
+                _buildRadioButton('No', 'no',
+                    groupValue: _outstandingSettlement, onChanged: (value) {
+                  setState(() {
+                    _outstandingSettlement = value!;
+                    _showSettlementTab = value == 'yes';
+                    _updateTabController();
+                  });
+                }),
+              ],
+            ),
 
             const SizedBox(height: 20),
+
+            // New Radio Button: Any Damages or Faults
+            const Center(
+              child: Text(
+                'Any Damages or Faults?',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildRadioButton('Yes', 'yes', groupValue: _damagesOrFaults,
+                    onChanged: (value) {
+                  setState(() {
+                    _damagesOrFaults = value!;
+                    _showDamagesFaultsTab = value == 'yes';
+                    _updateTabController();
+                  });
+                }),
+                const SizedBox(width: 20),
+                _buildRadioButton('No', 'no', groupValue: _damagesOrFaults,
+                    onChanged: (value) {
+                  setState(() {
+                    _damagesOrFaults = value!;
+                    _showDamagesFaultsTab = value == 'yes';
+                    _updateTabController();
+                  });
+                }),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // New Radio Button: Include Tyre Info
+            const Center(
+              child: Text(
+                'Include Tyre Info?',
+                style: TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildRadioButton('Yes', 'yes', groupValue: _includeTyreInfo,
+                    onChanged: (value) {
+                  setState(() {
+                    _includeTyreInfo = value!;
+                    _showTyresTab = value == 'yes';
+                    _updateTabController();
+                  });
+                }),
+                const SizedBox(width: 20),
+                _buildRadioButton('No', 'no', groupValue: _includeTyreInfo,
+                    onChanged: (value) {
+                  setState(() {
+                    _includeTyreInfo = value!;
+                    _showTyresTab = value == 'yes';
+                    _updateTabController();
+                  });
+                }),
+              ],
+            ),
+            const SizedBox(height: 10),
             CustomButton(
               text: 'Next',
               borderColor: blue,
@@ -1465,6 +1723,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   // Save Section 1 data and move to the next tab
                   await _saveSection1Data();
                   if (_vehicleId != null) {
+                    int nextIndex = _getNextTabIndex(_tabController.index);
                     _tabController.animateTo(1);
                   }
                 }
@@ -1549,6 +1808,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   }),
                 ],
               ),
+
               const SizedBox(height: 20),
 
               // Accident Free Heading with Radio Buttons
@@ -1578,6 +1838,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   }),
                 ],
               ),
+
               const SizedBox(height: 20),
 
               // Road Worthy Heading with Radio Buttons
@@ -1607,6 +1868,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   }),
                 ],
               ),
+
               const SizedBox(height: 20),
               // Warranty Radio Button and Conditional Text Field
 
@@ -2123,7 +2385,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   }) {
     return Row(
       children: [
-        Radio<String>(
+        Radio<String?>(
           value: value,
           groupValue: groupValue,
           onChanged: onChanged,
@@ -2435,86 +2697,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
             ),
           ),
           const SizedBox(height: 20),
-          // if (currentIndex < 6) // Only show Next button for sections 1-6
-          //   Center(
-          //     child: Padding(
-          //       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          //       child: CustomButton(
-          //         text: 'Next',
-          //         borderColor: blue,
-          //         onPressed: () async {
-          //           if (currentIndex == 0) {
-          //             // Validation for Section 1
-          //             if (!_formKeys[0].currentState!.validate()) {
-          //               ScaffoldMessenger.of(context).showSnackBar(
-          //                 const SnackBar(
-          //                     content: Text(
-          //                         'Please fill in all required fields in Section 1.')),
-          //               );
-          //               return;
-          //             } else if (!_isInspectionSetupComplete ||
-          //                 !_isCollectionSetupComplete) {
-          //               ScaffoldMessenger.of(context).showSnackBar(
-          //                 const SnackBar(
-          //                     content: Text(
-          //                         'Please complete both Inspection and Collection setup before proceeding.')),
-          //               );
-          //               return;
-          //             } else {
-          //               // Save Section 1 data
-          //               await _saveSection1Data();
-          //             }
-          //           }
-          //           if (_tabController.index < _tabController.length - 1) {
-          //             // Ensure vehicleId is not null
-          //             if (_vehicleId != null) {
-          //               _tabController.animateTo(_tabController.index + 1);
-          //             } else {
-          //               ScaffoldMessenger.of(context).showSnackBar(
-          //                 const SnackBar(
-          //                     content: Text(
-          //                         'Error saving Section 1. Please try again.')),
-          //               );
-          //             }
-          //           }
-          //         },
-          //       ),
-          //     ),
-          //   ),
-          // const SizedBox(height: 10),
-          // Center(
-          //   child: Padding(
-          //     padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          //     child: CustomButton(
-          //       text: 'Done',
-          //       borderColor: orange,
-          //       onPressed: _isLoading
-          //           ? null
-          //           : () async {
-          //               // Validation for Section 1 before saving all sections
-          //               if (!_formKeys[0].currentState!.validate()) {
-          //                 ScaffoldMessenger.of(context).showSnackBar(
-          //                   const SnackBar(
-          //                       content: Text(
-          //                           'Please fill in all required fields in Section 1.')),
-          //                 );
-          //                 return;
-          //               } else if (!_isInspectionSetupComplete ||
-          //                   !_isCollectionSetupComplete) {
-          //                 ScaffoldMessenger.of(context).showSnackBar(
-          //                   const SnackBar(
-          //                       content: Text(
-          //                           'Please complete both Inspection and Collection setup before proceeding.')),
-          //                 );
-          //                 return;
-          //               } else {
-          //                 await _saveAllSectionsAndNavigateHome();
-          //               }
-          //             },
-          //     ),
-          //   ),
-          // ),
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -2734,8 +2916,10 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     required String hintText,
     required Function(String?) onChanged,
   }) {
+    String? dropdownValue = items.contains(value) ? value : null;
+
     return DropdownButtonFormField<String>(
-      value: value == '' || value == 'None' ? null : value,
+      value: dropdownValue,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hintText,

@@ -217,7 +217,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             year: 'N/A',
                             createdAt:
                                 (vehicleDoc['createdAt'] as Timestamp).toDate(),
-                            spareTyre: 'N/A', vehicleStatus: 'N/A',
+                            spareTyre: 'N/A', vehicleStatus: 'N/A', vehicleAvailableImmediately: 'N/A', availableDate: 'N/A',
                           ),
                         );
 

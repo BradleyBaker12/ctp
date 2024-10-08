@@ -1,16 +1,18 @@
-import 'package:ctp/components/offer_card.dart';
+// vehicle_details_page.dart
+
 import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
-import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/components/offer_card.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'edit_vehicle.dart'; // Ensure this import points to your EditVehiclePage
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'edit_vehicle.dart';
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -23,7 +25,7 @@ class PhotoItem {
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
 
-  const VehicleDetailsPage({super.key, required this.vehicle});
+  const VehicleDetailsPage({Key? key, required this.vehicle}) : super(key: key);
 
   @override
   _VehicleDetailsPageState createState() => _VehicleDetailsPageState();
@@ -45,7 +47,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   void initState() {
     super.initState();
     _checkIfOfferMade();
-    _fetchOffersForVehicle(); // Fetch offers when the page initializes
+    // No need to call _fetchOffersForVehicle() here since it's used in the FutureBuilder
 
     try {
       allPhotos = [];
@@ -58,7 +60,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         print('Main Image Added: ${widget.vehicle.mainImageUrl}');
       }
 
-      // Add damage photos (since it's a list, we need to loop through it)
+      // Add damage photos
       if (widget.vehicle.damagePhotos.isNotEmpty) {
         for (int i = 0; i < widget.vehicle.damagePhotos.length; i++) {
           _addPhotoIfExists(
@@ -150,14 +152,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  Future<List<QueryDocumentSnapshot>> _fetchOffersForVehicle() async {
+  Future<List<Offer>> _fetchOffersForVehicle() async {
     try {
-      QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
-          .collection('offers')
-          .where('vehicleId', isEqualTo: widget.vehicle.id)
-          .get();
-
-      return offersSnapshot.docs;
+      OfferProvider offerProvider =
+          Provider.of<OfferProvider>(context, listen: false);
+      List<Offer> offers =
+          await offerProvider.fetchOffersForVehicle(widget.vehicle.id);
+      return offers;
     } catch (e) {
       print('Error fetching offers: $e');
       return [];
@@ -165,12 +166,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   Widget _buildOffersList() {
-    return FutureBuilder<List<QueryDocumentSnapshot>>(
+    return FutureBuilder<List<Offer>>(
       future: _fetchOffersForVehicle(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(color: Color(0xFFFF4E00)),
           );
         } else if (snapshot.hasError) {
           return const Center(
@@ -182,15 +183,22 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           );
         }
 
-        List<QueryDocumentSnapshot> offers = snapshot.data!;
+        List<Offer> offers = snapshot.data!;
+
+        // Sort offers by createdAt in descending order (latest first)
+        offers.sort((a, b) {
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        });
+
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: offers.length,
           itemBuilder: (context, index) {
-            var offerData = offers[index];
-            Offer offer = Offer.fromFirestore(
-                offerData); // Replace fromDocument with fromFirestore
+            Offer offer = offers[index];
 
             // Use the custom OfferCard widget here
             return OfferCard(
@@ -223,7 +231,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => VehicleUploadTabs(vehicle: widget.vehicle),
+        builder: (context) => VehicleUploadTabs(
+          vehicle: widget.vehicle,
+          isDuplicating: true,
+        ),
       ),
     );
   }
@@ -532,6 +543,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           SingleChildScrollView(
             child: Column(
               children: [
+                // Image carousel and other vehicle details
                 Stack(
                   children: [
                     SizedBox(
@@ -609,6 +621,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                     ),
                   ],
                 ),
+                // Vehicle details and offers
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -816,16 +829,16 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       const SizedBox(height: 32),
                       if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
                       const SizedBox(height: 30),
-                      Text(
-                        "Offers Made on This Vehicle:",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildOffersList(), // Display all offers
+                      if (isTransporter)
+                        Column(children: [
+                          Text(
+                            "Offers Made on This Vehicle:",
+                            style: _customFont(
+                                20, FontWeight.bold, const Color(0xFFFF4E00)),
+                          ),
+                          const SizedBox(height: 10),
+                          _buildOffersList(), // Display all offers
+                        ])
                     ],
                   ),
                 ),
