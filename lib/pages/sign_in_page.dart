@@ -1,3 +1,4 @@
+// lib/pages/sign_in_page.dart
 import 'package:ctp/pages/error_page.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
@@ -9,6 +10,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -21,7 +23,15 @@ class _SignInPageState extends State<SignInPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   bool _isLoading = false;
+
+  // List of admin emails
+  final List<String> adminEmails = [
+    'admin1@example.com',
+    'admin2@example.com',
+    // Add more admin emails here
+  ];
 
   Future<void> _signIn() async {
     setState(() {
@@ -29,18 +39,60 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     try {
+      print('Attempting Email/Password Sign-In');
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
+        email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
       User? user = userCredential.user;
+      print('Signed in user UID: ${user?.uid}');
 
       if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        print('User document exists: ${userDoc.exists}');
+
+        if (!userDoc.exists) {
+          // Determine the user role based on email
+          String role = 'guest';
+          if (user.email != null && adminEmails.contains(user.email)) {
+            role = 'admin';
+          } else {
+            // Assign default role or determine based on other criteria
+            role = 'dealer'; // Change as per your application logic
+          }
+          print('Assigned role: $role');
+
+          // Create a new user document
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+            'userRole': role,
+            'email': user.email,
+            // Add other default fields as needed
+          });
+          print('User document created with role: $role');
+        } else {
+          print('User document already exists');
+        }
+
+        // Fetch user data via UserProvider
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         await userProvider.fetchUserData();
 
-        Navigator.pushReplacementNamed(context, '/home');
+        // Get user role
+        String userRole = userProvider.userRole;
+        print('Fetched user role: $userRole');
+
+        // Navigate based on user role
+        if (userRole == 'admin') {
+          Navigator.pushReplacementNamed(context, '/admin-home');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       }
     } on FirebaseAuthException catch (e) {
       print("FirebaseAuthException Code: ${e.code}");
@@ -49,7 +101,7 @@ class _SignInPageState extends State<SignInPage> {
       String errorMessage;
       switch (e.code) {
         case 'invalid-credential':
-        case 'INVALID_LOGIN_CREDENTIALS':
+        case 'invalid-login-credentials':
         case 'user-not-found':
           errorMessage = 'No user found with that email address.';
           Navigator.push(
@@ -101,6 +153,7 @@ class _SignInPageState extends State<SignInPage> {
 
     try {
       await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      print('Password reset email sent to ${_emailController.text.trim()}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password reset email sent!')),
       );
@@ -177,7 +230,7 @@ class _SignInPageState extends State<SignInPage> {
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(height: screenSize.height * 0.1),
+                              SizedBox(height: screenSize.height * 0.08),
                               CustomTextField(
                                 hintText: 'EMAIL',
                                 controller: _emailController,
@@ -221,7 +274,7 @@ class _SignInPageState extends State<SignInPage> {
           ),
           if (_isLoading)
             const LoadingScreen(
-              backgroundColor: Colors.black,
+              backgroundColor: Colors.black54,
               indicatorColor: Color(0xFFFF4E00),
             ),
         ],

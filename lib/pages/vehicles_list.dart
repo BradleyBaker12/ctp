@@ -1,5 +1,10 @@
+// lib/pages/vehicles_list_page.dart
+
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
+import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/offersPage.dart';
+import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -77,29 +82,6 @@ class _VehiclesListPageState extends State<VehiclesListPage>
 
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
 
-    List<Widget> buildVehicleList(List vehicles) {
-      return vehicles.isEmpty
-          ? [const Center(child: Text('No vehicles found.'))]
-          : vehicles.map((vehicle) {
-              return ListingCard(
-                vehicleMakeModel: vehicle.makeModel,
-                vehicleImageUrl: vehicle.mainImageUrl,
-                vehicleYear: vehicle.year,
-                vehicleMileage: vehicle.mileage,
-                vehicleTransmission: vehicle.transmission,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          VehicleDetailsPage(vehicle: vehicle),
-                    ),
-                  );
-                },
-              );
-            }).toList();
-    }
-
     // Filter vehicles by status
     final drafts = userVehicles
         .where((vehicle) => vehicle.vehicleStatus == 'Draft')
@@ -153,8 +135,9 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             // Add TabBar
             TabBar(
               controller: _tabController,
-              labelColor: Color(0xFFFF4E00),
+              labelColor: const Color(0xFFFF4E00),
               unselectedLabelColor: Colors.white,
+              indicatorColor: const Color(0xFFFF4E00),
               tabs: const [
                 Tab(text: 'Drafts'),
                 Tab(text: 'Pending'),
@@ -177,7 +160,23 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           controller: _scrollController,
                           itemCount: drafts.length,
                           itemBuilder: (context, index) {
-                            return buildVehicleList(drafts)[index];
+                            final vehicle = drafts[index];
+                            return ListingCard(
+                              vehicleMakeModel: vehicle.makeModel,
+                              vehicleImageUrl: vehicle.mainImageUrl,
+                              vehicleYear: vehicle.year,
+                              vehicleMileage: vehicle.mileage,
+                              vehicleTransmission: vehicle.transmission,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        VehicleDetailsPage(vehicle: vehicle),
+                                  ),
+                                );
+                              },
+                            );
                           },
                         ),
                   // Pending Tab
@@ -190,7 +189,23 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           controller: _scrollController,
                           itemCount: pending.length,
                           itemBuilder: (context, index) {
-                            return buildVehicleList(pending)[index];
+                            final vehicle = pending[index];
+                            return ListingCard(
+                              vehicleMakeModel: vehicle.makeModel,
+                              vehicleImageUrl: vehicle.mainImageUrl,
+                              vehicleYear: vehicle.year,
+                              vehicleMileage: vehicle.mileage,
+                              vehicleTransmission: vehicle.transmission,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        VehicleDetailsPage(vehicle: vehicle),
+                                  ),
+                                );
+                              },
+                            );
                           },
                         ),
                   // Live Tab
@@ -203,7 +218,23 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           controller: _scrollController,
                           itemCount: live.length,
                           itemBuilder: (context, index) {
-                            return buildVehicleList(live)[index];
+                            final vehicle = live[index];
+                            return ListingCard(
+                              vehicleMakeModel: vehicle.makeModel,
+                              vehicleImageUrl: vehicle.mainImageUrl,
+                              vehicleYear: vehicle.year,
+                              vehicleMileage: vehicle.mileage,
+                              vehicleTransmission: vehicle.transmission,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        VehicleDetailsPage(vehicle: vehicle),
+                                  ),
+                                );
+                              },
+                            );
                           },
                         ),
                 ],
@@ -213,9 +244,72 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         ),
         bottomNavigationBar: CustomBottomNavigation(
           selectedIndex: _selectedIndex,
-          onItemTapped: _onItemTapped,
+          onItemTapped: (index) {
+            _onItemTapped(index);
+            // Handle navigation based on the selected index and user role
+            // Ensure that navigation is not triggered during the build phase
+            final userRole = userProvider.getUserRole.toLowerCase().trim();
+
+            if (userRole == 'dealer') {
+              // Navigation items for dealers:
+              // 0: Home, 1: Vehicles, 2: Offers
+              if (index == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
+                );
+              } else if (index == 1) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const VehiclesListPage()),
+                );
+              } else if (index == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const OffersPage()),
+                );
+              }
+            } else if (userRole == 'transporter') {
+              // Navigation items for transporters:
+              // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
+              if (index == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
+                );
+              } else if (index == 1) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const VehiclesListPage()),
+                );
+              } else if (index == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const OffersPage()),
+                );
+              } else if (index == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              }
+            } else {
+              // Handle other roles or undefined roles if necessary
+            }
+          },
         ),
       ),
+    );
+  }
+
+  TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
+    return TextStyle(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      fontFamily: 'Montserrat',
     );
   }
 }

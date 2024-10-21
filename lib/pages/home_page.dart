@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
-import 'package:ctp/pages/truckForms/vehcileUpload_form1.dart';
+import 'package:ctp/pages/admin_home_page.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -62,6 +62,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     try {
       // Fetch user data first
       await userProvider.fetchUserData();
+
+      // Check if the user is an admin, if yes, navigate to the admin home screen
+      if (userProvider.getUserRole == 'admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminHomePage()),
+        );
+        return;
+      }
 
       // Fetch vehicles after ensuring user data is ready
       await vehicleProvider.fetchVehicles(userProvider);
@@ -310,7 +319,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
-    // *** Updated Section: Sort offers by 'createdAt' in descending order ***
+    // *** Updated Section: Sort offers by 'createdAt' in descending order and filter out offers with 'Done' status ***
     List<Offer> sortedOffers = List.from(_offerProvider.offers);
     sortedOffers.sort((a, b) {
       final DateTime? aCreatedAt = a.createdAt;
@@ -324,8 +333,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       return bCreatedAt.compareTo(aCreatedAt);
     });
 
-    // Get the 5 most recent offers
-    final recentOffers = sortedOffers.take(5).toList();
+    // Filter out offers with 'offerStatus' of 'Done'
+    List<Offer> filteredOffers =
+        sortedOffers.where((offer) => offer.offerStatus != 'Done').toList();
+
+    // Get the 5 most recent offers that are not 'Done'
+    final recentOffers = filteredOffers.take(5).toList();
     // *** End of Updated Section ***
 
     return Container(
@@ -349,7 +362,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     child: Column(
                       children: [
                         Text(
-                          'Welcome ${userProvider.getUserName.toUpperCase()}',
+                          'Welcome ${userProvider.getUserName.toUpperCase()}'
+                              .toUpperCase(),
                           style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
@@ -380,11 +394,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: _buildVehicleTypeSelection(userRole, size),
                 ),
                 SizedBox(height: screenSize.height * 0.02),
-                // Conditionally display the current brands section based on user role
                 if (userRole == 'dealer')
                   _buildPreferredBrandsSection(userProvider),
                 SizedBox(height: screenSize.height * 0.02),
-                // Continue with the rest of the content
                 if (_showEndMessage) ...[
                   Text(
                     "You've seen all the available trucks.",
@@ -395,7 +407,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     "The list will be updated tomorrow.",
                     style: _customFont(16, FontWeight.normal, Colors.grey),
                   ),
-                ] else if (userRole == 'dealer' && _showSwiper) ...[
+                ],
+                if (userRole == 'dealer' && _showSwiper) ...[
                   Text("🔥 NEW ARRIVALS",
                       style:
                           _customFont(18, FontWeight.bold, Color(0xFF2F7FFF))),
@@ -409,7 +422,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ValueListenableBuilder<List<Vehicle>>(
                     valueListenable: displayedVehiclesNotifier,
                     builder: (context, displayedVehicles, child) {
-                      // Use displayedVehiclesNotifier to ensure the correct vehicles are shown
                       if (displayedVehicles.isEmpty && _hasReachedEnd) {
                         return Text(
                           "You have swiped through all the available trucks.",
@@ -453,17 +465,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           itemCount: displayedVehicles.length,
                           itemBuilder: (context, index) {
                             final vehicle = displayedVehicles[index];
-
-                            // Check if the vehicle has offers
-                            final hasOffers = offerProvider.offers
-                                .any((offer) => offer.vehicleId == vehicle.id);
+                            final hasOffers = offerProvider.offers.any(
+                                (offer) =>
+                                    offer.vehicleId == vehicle.id &&
+                                    offer.offerStatus != 'Done');
 
                             if (hasOffers) {
                               return _buildTransporterVehicleCard(
                                   vehicle, size);
                             } else {
                               return const SizedBox
-                                  .shrink(); // Return an empty widget if no offers
+                                  .shrink(); // Return an empty widget if no valid offers
                             }
                           },
                         ),
@@ -504,7 +516,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                // Display the 5 most recent offers
+                // Display the 5 most recent offers (excluding 'Done' offers)
                 if (recentOffers.isNotEmpty) ...[
                   SizedBox(height: screenSize.height * 0.01),
                   Column(
@@ -579,8 +591,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => FirstTruckForm(
-                            vehicleType: 'trailer',
+                          builder: (context) => VehicleUploadTabs(
                           ),
                         ),
                       );

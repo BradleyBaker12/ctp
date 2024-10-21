@@ -1,26 +1,21 @@
-// offer_card.dart
+// lib/components/offer_card.dart
 
 import 'package:flutter/material.dart';
-import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/pages/transport_offer_details_page.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
-
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-
 import 'package:ctp/pages/inspectionPages/final_inspection_approval_page.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
 import 'package:ctp/pages/payment_options_page.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
-import 'package:ctp/pages/payment_approved.dart';
 import 'package:ctp/pages/inspectionPages/location_confirmation_page.dart';
 import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
-import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/complaints_provider.dart';
@@ -39,6 +34,33 @@ class OfferCard extends StatefulWidget {
 
 class _OfferCardState extends State<OfferCard> {
   final TextEditingController _editController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Schedule the complaint check after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForResolvedComplaints();
+    });
+  }
+
+  Future<void> _checkForResolvedComplaints() async {
+    final complaintsProvider =
+        Provider.of<ComplaintsProvider>(context, listen: false);
+    await complaintsProvider.fetchComplaints(widget.offer.offerId);
+    final resolvedComplaint =
+        complaintsProvider.getResolvedComplaint(widget.offer.offerId);
+
+    // Check if there is a resolved complaint and update the status accordingly
+    if (resolvedComplaint != null &&
+        widget.offer.offerStatus == 'Issue reported') {
+      if (mounted) {
+        setState(() {
+          widget.offer.offerStatus = resolvedComplaint.previousStep;
+        });
+      }
+    }
+  }
 
   TextStyle customFont(double size, FontWeight weight, Color color) {
     return GoogleFonts.montserrat(
@@ -106,28 +128,75 @@ class _OfferCardState extends State<OfferCard> {
     final userRole = userProvider.getUserRole ?? '';
 
     if (userRole == 'transporter') {
-      // For transporter, navigate to TransporterOfferDetailsPage
-      _getVehicle().then((vehicle) {
-        if (vehicle != null) {
+      switch (widget.offer.offerStatus) {
+        case 'inspection pending':
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => TransporterOfferDetailsPage(
-                offer: widget.offer,
-                vehicle: vehicle,
+              builder: (context) => ConfirmationPage(
+                offerId: widget.offer.offerId,
+                location:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                address:
+                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
+                date: widget.offer.dealerSelectedInspectionDate!,
+                time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+                latLng: LatLng(
+                  widget.offer.latLng?.latitude ?? 0,
+                  widget.offer.latLng?.longitude ?? 0,
+                ),
+                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                offerAmount: formatOfferAmount(widget.offer.offerAmount),
+                vehicleId: widget.offer.vehicleId,
               ),
             ),
           );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Vehicle details could not be loaded.'),
-              backgroundColor: Colors.red,
+          return;
+        case 'Inspection Done':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FinalInspectionApprovalPage(
+                offerId: widget.offer.offerId,
+                oldOffer: formatOfferAmount(widget.offer.offerAmount),
+                vehicleName: widget.offer.vehicleMakeModel ?? 'Unknown',
+              ),
             ),
           );
-        }
-      });
-      return;
+          return;
+        case 'payment pending':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentPendingPage(
+                offerId: widget.offer.offerId,
+              ),
+            ),
+          );
+          return;
+        default:
+          _getVehicle().then((vehicle) {
+            if (vehicle != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TransporterOfferDetailsPage(
+                    offer: widget.offer,
+                    vehicle: vehicle,
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Vehicle details could not be loaded.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          });
+          return;
+      }
     }
 
     // Dealer-specific navigation logic
@@ -164,7 +233,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-      case 'Done':
       case 'Confirm Collection':
       case 'Collection Location Confirmation':
         Navigator.push(

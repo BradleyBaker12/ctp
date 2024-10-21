@@ -35,49 +35,57 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
 
-      Offer? offer;
-      try {
-        offer =
-            offerProvider.offers.firstWhere((o) => o.offerId == widget.offerId);
-      } catch (e) {
+      final Offer? offer = offerProvider.offers
+          .firstWhereOrNull((o) => o.offerId == widget.offerId);
+
+      if (offer == null) {
         print('Offer not found for offerId: ${widget.offerId}');
-        return; // Early return if the offer is not found
+        return;
       }
 
-      Vehicle? vehicle;
-      try {
-        vehicle = vehicleProvider.vehicles
-            .firstWhere((v) => v.id == offer!.vehicleId);
-      } catch (e) {
+      final Vehicle? vehicle = vehicleProvider.vehicles
+          .firstWhereOrNull((v) => v.id == offer.vehicleId);
+
+      if (vehicle == null) {
         print('Vehicle not found for vehicleId: ${offer.vehicleId}');
-        return; // Early return if the vehicle is not found
+        return;
       }
 
       setState(() {
-        _truckMainImageUrl = vehicle!.mainImageUrl;
+        _truckMainImageUrl = vehicle.mainImageUrl;
         _truckName = vehicle.makeModel;
         _registrationNumber = vehicle.registrationNumber;
       });
+
+      print(
+          'Fetched Vehicle Data: registrationNumber=$_registrationNumber, truckName=$_truckName');
     } catch (e) {
       print('Error fetching truck data: $e');
     }
   }
 
   void _verifyLicensePlate() {
+    print('Entered License Plate: ${_licensePlateController.text}');
+    print('Expected Registration Number: $_registrationNumber');
+
     if (_licensePlateController.text == _registrationNumber) {
       setState(() {
         _isMatched = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('License plate matched successfully')),
-      );
-      Future.delayed(const Duration(seconds: 3), () {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+            const SnackBar(
+                content: Text('License plate matched successfully'),
+                duration: Duration(seconds: 3)),
+          )
+          .closed
+          .then((_) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => RateTransporterPage(
               offerId: widget.offerId,
-              fromCollectionPage: true, // Pass the new parameter
+              fromCollectionPage: true,
             ),
           ),
         );
@@ -129,7 +137,6 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                                 as ImageProvider,
                       ),
                       const SizedBox(height: 64),
-                      //TODO Name of truck needs to be added
                       const Text(
                         'COLLECT VEHICLE',
                         style: TextStyle(
@@ -152,9 +159,10 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                       const Text(
                         'CTP requires proof of collection of the vehicle. Please enter the license plate number.',
                         style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500),
+                          fontSize: 14,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
@@ -174,8 +182,9 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                               Text(
                                 'License plate matched successfully.',
                                 style: TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold),
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -186,10 +195,22 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: CustomButton(
-                  text: 'Cancle'.toUpperCase(),
-                  borderColor: const Color(0xFFFF4E00),
-                  onPressed: () {},
+                child: Column(
+                  children: [
+                    CustomButton(
+                      text: 'Done'.toUpperCase(),
+                      borderColor: const Color(0xFF00FF00),
+                      onPressed: _verifyLicensePlate,
+                    ),
+                    const SizedBox(height: 16),
+                    CustomButton(
+                      text: 'Cancel'.toUpperCase(),
+                      borderColor: const Color(0xFFFF4E00),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -197,5 +218,17 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
         ),
       ),
     );
+  }
+}
+
+// Extension method to get the first element or return null if not found
+extension ListExtensions<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (var element in this) {
+      if (test(element)) {
+        return element;
+      }
+    }
+    return null;
   }
 }

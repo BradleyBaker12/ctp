@@ -27,6 +27,7 @@ class CustomBottomNavigation extends StatelessWidget {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         final userRole = userProvider.getUserRole;
 
+        // Navigation logic based on userRole and index
         if (index == 0) {
           Navigator.pushReplacement(
             context,
@@ -41,28 +42,25 @@ class CustomBottomNavigation extends StatelessWidget {
           } else {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const TruckPage()),
+              MaterialPageRoute(
+                  builder: (context) => const TruckPage(vehicleType: 'truck')),
             );
           }
-        } else if (index == 2) {
-          if (userRole == 'transporter') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const OffersPage()),
-            );
-          }
+        } else if (index == 2 && userRole == 'transporter') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const OffersPage()),
+          );
         } else if (index == 3 && userRole != 'transporter') {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const WishlistOffersPage()),
           );
-        } else if (index == 4) {
-          if (userRole == 'dealer') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const OffersPage()),
-            );
-          }
+        } else if (index == 4 && userRole == 'dealer') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const OffersPage()),
+          );
         } else if (index == 5 && userRole != 'dealer') {
           Navigator.pushReplacement(
             context,
@@ -70,9 +68,7 @@ class CustomBottomNavigation extends StatelessWidget {
           );
         }
 
-        if (!(userRole == 'dealer' && index == 3)) {
-          onItemTapped(index);
-        }
+        onItemTapped(index);
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -91,88 +87,103 @@ class CustomBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userRole = userProvider.getUserRole;
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        final userRole = userProvider.getUserRole;
 
-    return Container(
-      height: 80,
-      color: const Color(0xFF2F7FFF),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavBarItem(
-            context,
-            Icon(Icons.home,
-                size: iconSize,
-                color: selectedIndex == 0
-                    ? Colors.black
-                    : Colors.black.withOpacity(0.6)),
-            selectedIndex == 0,
-            0,
-          ),
-          _buildNavBarItem(
-            context,
-            Icon(Icons.local_shipping,
-                size: iconSize,
-                color: selectedIndex == 1
-                    ? Colors.black
-                    : Colors.black.withOpacity(0.6)),
-            selectedIndex == 1,
-            1,
-          ),
-          if (userRole == 'transporter')
-            _buildNavBarItem(
-              context,
-              ImageIcon(
-                AssetImage(
-                    'lib/assets/transporter_handshake.png'), // Replace with your icon path
-                size: iconSize,
-                color: selectedIndex == 2
-                    ? Colors.black
-                    : Colors.black.withOpacity(0.6),
-              ),
-              selectedIndex == 2,
-              2,
-            ),
-          if (userRole != 'transporter')
-            _buildNavBarItem(
-              context,
-              Icon(Icons.favorite,
+        return Container(
+          height: 80,
+          color: const Color(0xFF2F7FFF),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // Home Icon - Available for all roles
+              _buildNavBarItem(
+                context,
+                Icon(
+                  Icons.home,
                   size: iconSize,
-                  color: selectedIndex == 3
+                  color: selectedIndex == 0
                       ? Colors.black
-                      : Colors.black.withOpacity(0.6)),
-              selectedIndex == 3,
-              3,
-            ),
-          if (userRole == 'dealer')
-            _buildNavBarItem(
-              context,
-              ImageIcon(
-                AssetImage(
-                    'lib/assets/dealer_handshake.png'), // Replace with your icon path
-                size: iconSize,
-                color: selectedIndex == 4
-                    ? Colors.black
-                    : Colors.black.withOpacity(0.6),
+                      : Colors.black.withOpacity(0.6),
+                ),
+                selectedIndex == 0,
+                0,
               ),
-              selectedIndex == 4,
-              4,
-            ),
-          if (userRole != 'dealer')
-            _buildNavBarItem(
-              context,
-              Icon(Icons.person,
+              // Vehicles or Truck Icon
+              _buildNavBarItem(
+                context,
+                Icon(
+                  Icons.local_shipping,
                   size: iconSize,
-                  color: selectedIndex == 5
+                  color: selectedIndex == 1
                       ? Colors.black
-                      : Colors.black.withOpacity(0.6)),
-              selectedIndex == 5,
-              5,
-            ),
-        ],
-      ),
+                      : Colors.black.withOpacity(0.6),
+                ),
+                selectedIndex == 1,
+                1,
+              ),
+              // Transporter Offers Icon - Only for transporters
+              if (userRole == 'transporter')
+                _buildNavBarItem(
+                  context,
+                  ImageIcon(
+                    const AssetImage('lib/assets/transporter_handshake.png'),
+                    size: iconSize,
+                    color: selectedIndex == 2
+                        ? Colors.black
+                        : Colors.black.withOpacity(0.6),
+                  ),
+                  selectedIndex == 2,
+                  2,
+                ),
+              // Wishlist Icon - Only for non-transporters
+              if (userRole != 'transporter')
+                _buildNavBarItem(
+                  context,
+                  Icon(
+                    Icons.favorite,
+                    size: iconSize,
+                    color: selectedIndex == 3
+                        ? Colors.black
+                        : Colors.black.withOpacity(0.6),
+                  ),
+                  selectedIndex == 3,
+                  3,
+                ),
+              // Dealer Offers Icon - Only for dealers
+              if (userRole == 'dealer')
+                _buildNavBarItem(
+                  context,
+                  ImageIcon(
+                    const AssetImage('lib/assets/dealer_handshake.png'),
+                    size: iconSize,
+                    color: selectedIndex == 4
+                        ? Colors.black
+                        : Colors.black.withOpacity(0.6),
+                  ),
+                  selectedIndex == 4,
+                  4,
+                ),
+              // Profile Icon - Only for non-dealers
+              if (userRole != 'dealer')
+                _buildNavBarItem(
+                  context,
+                  Icon(
+                    Icons.person,
+                    size: iconSize,
+                    color: selectedIndex == 5
+                        ? Colors.black
+                        : Colors.black.withOpacity(0.6),
+                  ),
+                  selectedIndex == 5,
+                  5,
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

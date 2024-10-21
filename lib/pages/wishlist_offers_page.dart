@@ -24,15 +24,19 @@ class WishlistOffersPage extends StatefulWidget {
 
 class _WishlistOffersPageState extends State<WishlistOffersPage> {
   final List<DocumentSnapshot> _wishlistVehicles = [];
-  late Future<void> _fetchOffersFuture;
+  late Future<void> _fetchDataFuture;
   late OfferProvider _offerProvider;
 
   @override
   void initState() {
     super.initState();
     _offerProvider = Provider.of<OfferProvider>(context, listen: false);
-    _fetchWishlist();
-    _fetchOffersFuture = _fetchOffers();
+    _fetchDataFuture = _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    await _fetchWishlist();
+    await _fetchOffers();
   }
 
   Future<void> _fetchWishlist() async {
@@ -54,7 +58,6 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
             _wishlistVehicles.add(vehicleDoc);
           }
         }
-        setState(() {});
       }
     }
   }
@@ -66,7 +69,6 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
       final userRole = userProvider.getUserRole;
 
       await _offerProvider.fetchOffers(user.uid, userRole);
-      setState(() {});
     }
   }
 
@@ -149,7 +151,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
               ),
               const SizedBox(height: 24),
               FutureBuilder<void>(
-                future: _fetchOffersFuture,
+                future: _fetchDataFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(
@@ -217,7 +219,10 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             year: 'N/A',
                             createdAt:
                                 (vehicleDoc['createdAt'] as Timestamp).toDate(),
-                            spareTyre: 'N/A', vehicleStatus: 'N/A', vehicleAvailableImmediately: 'N/A', availableDate: 'N/A',
+                            spareTyre: 'N/A',
+                            vehicleStatus: 'N/A',
+                            vehicleAvailableImmediately: 'N/A',
+                            availableDate: 'N/A',
                           ),
                         );
 

@@ -1,21 +1,18 @@
+// lib/providers/user_provider.dart
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/models/inspection_details.dart';
+import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
+  String _accountStatus = 'active'; // Default status
   List<String> _preferredBrands = [];
   String _userRole = 'guest'; // Default role
   String? _profileImageUrl;
-  List<String> _offers = [];
-  List<String> _offersMade = [];
-  List<String> _likedVehicles = [];
-  List<String> _dislikedVehicles = [];
-  String _userName = 'Guest';
-  String _userEmail = 'user@example.com';
   bool _isLoading = true;
 
   // User details
@@ -39,8 +36,32 @@ class UserProvider extends ChangeNotifier {
   String? _proxyUrl;
   Timestamp? _createdAt;
 
-  // Add saved inspection details
+  // Admin approval status
+  bool? _adminApproval;
+
+  // Saved inspection details
   List<InspectionDetail> _savedInspectionDetails = [];
+
+  // Liked and disliked vehicles
+  List<String> _likedVehicles = [];
+  List<String> _dislikedVehicles = [];
+
+  // Offers
+  List<String> _offers = [];
+  List<String> _offersMade = [];
+
+  // User display information
+  String _userName = 'Guest';
+  String _userEmail = 'user@example.com';
+
+  // Cache for userId to userName mapping
+  final Map<String, String> _userNameCache = {};
+
+  // New field to store dealer accounts
+  List<Dealer> _dealers = [];
+
+  // Getter for dealers
+  List<Dealer> get dealers => _dealers;
 
   UserProvider() {
     _checkAuthState();
@@ -91,15 +112,31 @@ class UserProvider extends ChangeNotifier {
             .get();
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-          _preferredBrands = List<String>.from(data['preferredBrands'] ?? []);
           _userRole = data['userRole'] ?? 'guest';
+          _adminApproval = data['adminApproval'] ?? false;
+          _accountStatus =
+              data['accountStatus'] ?? 'active'; // Fetch account status
+
+          // Fetch profile image URL
           _profileImageUrl = data['profileImageUrl'];
+
+          // Fetch preferred brands
+          _preferredBrands = List<String>.from(data['preferredBrands'] ?? []);
+
+          // Fetch offers
           _offers = List<String>.from(data['offers'] ?? []);
           _offersMade = List<String>.from(data['offersMade'] ?? []);
+
+          // Fetch liked and disliked vehicles
           _likedVehicles = List<String>.from(data['likedVehicles'] ?? []);
           _dislikedVehicles = List<String>.from(data['dislikedVehicles'] ?? []);
+
+          // Fetch user basic information
           _userName = data['firstName'] ?? 'Guest';
           _userEmail = data['email'] ?? 'user@example.com';
+          _phoneNumber = data['phoneNumber'];
+
+          // Fetch company information
           _companyName = data['companyName'];
           _tradingName = data['tradingName'];
           _registrationNumber = data['registrationNumber'];
@@ -109,17 +146,19 @@ class UserProvider extends ChangeNotifier {
           _city = data['city'];
           _state = data['state'];
           _postalCode = data['postalCode'];
+
+          // Fetch personal information
           _firstName = data['firstName'];
           _middleName = data['middleName'];
           _lastName = data['lastName'];
-          _phoneNumber = data['phoneNumber'];
           _agreedToHouseRules = data['agreedToHouseRules'];
+
+          // Fetch document URLs
           _bankConfirmationUrl = data['bankConfirmationUrl'];
           _brncUrl = data['brncUrl'];
           _cipcCertificateUrl = data['cipcCertificateUrl'];
           _proxyUrl = data['proxyUrl'];
           _createdAt = data['createdAt'];
-          _isLoading = false;
 
           // Fetch saved inspection details
           _savedInspectionDetails = [];
@@ -130,6 +169,7 @@ class UserProvider extends ChangeNotifier {
                 .toList();
           }
 
+          _isLoading = false;
           notifyListeners();
         } else {
           _clearUserData();
@@ -142,6 +182,45 @@ class UserProvider extends ChangeNotifier {
       _clearUserData();
     }
   }
+
+  /// Fetches all user accounts with userRole == 'dealer'
+  Future<void> fetchDealers() async {
+    try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userRole', isEqualTo: 'dealer')
+          .get();
+
+      _dealers = querySnapshot.docs.map((doc) {
+        return Dealer.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching dealers: $e');
+      // Optionally handle errors (e.g., set an error state, show a message)
+    }
+  }
+
+  Map<String, dynamic> getUserDataForUpdate() {
+    return {
+      'firstName': _firstName,
+      'middleName': _middleName,
+      'lastName': _lastName,
+      'tradingName': _tradingName,
+      'registrationNumber': _registrationNumber,
+      'vatNumber': _vatNumber,
+      'addressLine1': _addressLine1,
+      'addressLine2': _addressLine2,
+      'city': _city,
+      'state': _state,
+      'postalCode': _postalCode,
+      'savedInspectionDetails':
+          _savedInspectionDetails.map((item) => item.toMap()).toList(),
+    };
+  }
+
+  String get getAccountStatus => _accountStatus;
 
   Future<String> uploadFile(File file) async {
     final storageRef = FirebaseStorage.instance
@@ -185,57 +264,63 @@ class UserProvider extends ChangeNotifier {
     _brncUrl = null;
     _cipcCertificateUrl = null;
     _proxyUrl = null;
+    _createdAt = null;
+    _adminApproval = null;
     _isLoading = false;
     notifyListeners();
   }
 
+  Future<String?> getUserEmailById(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+        return data['email'] ?? 'Unknown';
+      } else {
+        return 'Unknown';
+      }
+    } catch (e) {
+      print('Error fetching email for userId $userId: $e');
+      return 'Unknown';
+    }
+  }
+
+  // Methods for liked vehicles
   Future<void> likeVehicle(String vehicleId) async {
     if (_user != null) {
       if (!_likedVehicles.contains(vehicleId)) {
         _likedVehicles.add(vehicleId);
-        print('Adding vehicleId: $vehicleId to likedVehicles list');
-
         try {
           await FirebaseFirestore.instance
               .collection('users')
               .doc(_user!.uid)
               .update({'likedVehicles': _likedVehicles});
-          print('Updated likedVehicles in Firestore successfully');
           notifyListeners();
         } catch (e) {
           print('Error updating likedVehicles in Firestore: $e');
         }
-      } else {
-        print('VehicleId: $vehicleId already in likedVehicles list');
       }
-    } else {
-      print('User is not authenticated');
     }
   }
 
-  Future<void> dislikeVehicle(String vehicleId) async {
+  Future<void> removeLikedVehicle(String vehicleId) async {
     if (_user != null) {
-      if (!_dislikedVehicles.contains(vehicleId)) {
-        _dislikedVehicles.add(vehicleId);
-        print('Adding vehicleId: $vehicleId to dislikedVehicles list');
-
+      if (_likedVehicles.contains(vehicleId)) {
+        _likedVehicles.remove(vehicleId);
         try {
           await FirebaseFirestore.instance
               .collection('users')
               .doc(_user!.uid)
-              .update({
-            'dislikedVehicles': FieldValue.arrayUnion([vehicleId]),
-          });
-          print('Updated dislikedVehicles in Firestore successfully');
+              .update({'likedVehicles': _likedVehicles});
           notifyListeners();
         } catch (e) {
-          print('Error updating dislikedVehicles in Firestore: $e');
+          print('Error updating likedVehicles in Firestore: $e');
         }
-      } else {
-        print('VehicleId: $vehicleId already in dislikedVehicles list');
       }
-    } else {
-      print('User is not authenticated');
     }
   }
 
@@ -250,6 +335,41 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
       } catch (e) {
         print('Error clearing likedVehicles in Firestore: $e');
+      }
+    }
+  }
+
+  // Methods for disliked vehicles
+  Future<void> dislikeVehicle(String vehicleId) async {
+    if (_user != null) {
+      if (!_dislikedVehicles.contains(vehicleId)) {
+        _dislikedVehicles.add(vehicleId);
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user!.uid)
+              .update({'dislikedVehicles': _dislikedVehicles});
+          notifyListeners();
+        } catch (e) {
+          print('Error updating dislikedVehicles in Firestore: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> removeDislikedVehicle(String vehicleId) async {
+    if (_user != null) {
+      if (_dislikedVehicles.contains(vehicleId)) {
+        _dislikedVehicles.remove(vehicleId);
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user!.uid)
+              .update({'dislikedVehicles': _dislikedVehicles});
+          notifyListeners();
+        } catch (e) {
+          print('Error updating dislikedVehicles in Firestore: $e');
+        }
       }
     }
   }
@@ -269,54 +389,7 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> removeLikedVehicle(String vehicleId) async {
-    if (_user != null) {
-      if (_likedVehicles.contains(vehicleId)) {
-        _likedVehicles.remove(vehicleId);
-        print('Removing vehicleId: $vehicleId from likedVehicles list');
-
-        try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(_user!.uid)
-              .update({'likedVehicles': _likedVehicles});
-          print('Updated likedVehicles in Firestore successfully');
-          notifyListeners();
-        } catch (e) {
-          print('Error updating likedVehicles in Firestore: $e');
-        }
-      } else {
-        print('VehicleId: $vehicleId not found in likedVehicles list');
-      }
-    } else {
-      print('User is not authenticated');
-    }
-  }
-
-  Future<void> removeDislikedVehicle(String vehicleId) async {
-    if (_user != null) {
-      if (_dislikedVehicles.contains(vehicleId)) {
-        _dislikedVehicles.remove(vehicleId);
-        print('Removing vehicleId: $vehicleId from dislikedVehicles list');
-
-        try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(_user!.uid)
-              .update({'dislikedVehicles': _dislikedVehicles});
-          print('Updated dislikedVehicles in Firestore successfully');
-          notifyListeners();
-        } catch (e) {
-          print('Error updating dislikedVehicles in Firestore: $e');
-        }
-      } else {
-        print('VehicleId: $vehicleId not found in dislikedVehicles list');
-      }
-    } else {
-      print('User is not authenticated');
-    }
-  }
-
+  // Methods for preferred brands
   void addPreferredBrand(String brand) {
     if (!_preferredBrands.contains(brand)) {
       _preferredBrands.add(brand);
@@ -353,6 +426,26 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Method to save inspection details
+  Future<void> saveInspectionDetail(InspectionDetail detail) async {
+    if (_user != null) {
+      _savedInspectionDetails.add(detail);
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({
+          'savedInspectionDetails':
+              _savedInspectionDetails.map((item) => item.toMap()).toList(),
+        });
+        notifyListeners();
+      } catch (e) {
+        print('Error saving inspection detail: $e');
+      }
+    }
+  }
+
+  // Method to update user profile
   Future<void> updateUserProfile({
     required String firstName,
     required String middleName,
@@ -418,29 +511,101 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  // Add method to save an inspection detail
-  Future<void> saveInspectionDetail(InspectionDetail detail) async {
-    if (_user != null) {
-      _savedInspectionDetails.add(detail);
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_user!.uid)
-            .update({
-          'savedInspectionDetails':
-              _savedInspectionDetails.map((item) => item.toMap()).toList(),
-        });
+  // **New Method: Update Any User's Details (Admin Only)**
+  Future<void> updateUserDetails({
+    required String userId,
+    required String firstName,
+    required String middleName,
+    required String lastName,
+    required String email,
+    required String phoneNumber,
+    required String companyName,
+    required String tradingName,
+    required String addressLine1,
+    required String addressLine2,
+    required String city,
+    required String state,
+    required String postalCode,
+    String? profileImageUrl,
+    String? bankConfirmationUrl,
+    String? cipcCertificateUrl,
+    String? proxyUrl,
+    String? brncUrl,
+    // Add other required fields as needed
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'firstName': firstName,
+        'middleName': middleName,
+        'lastName': lastName,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'companyName': companyName,
+        'tradingName': tradingName,
+        'addressLine1': addressLine1,
+        'addressLine2': addressLine2,
+        'city': city,
+        'state': state,
+        'postalCode': postalCode,
+        'profileImageUrl': profileImageUrl,
+        'bankConfirmationUrl': bankConfirmationUrl,
+        'cipcCertificateUrl': cipcCertificateUrl,
+        'proxyUrl': proxyUrl,
+        'brncUrl': brncUrl,
+        // Update other fields as needed
+      });
+
+      // If the edited user is the current user, update local data
+      if (_user != null && _user!.uid == userId) {
+        _firstName = firstName;
+        _middleName = middleName;
+        _lastName = lastName;
+        _userEmail = email;
+        _phoneNumber = phoneNumber;
+        _companyName = companyName;
+        _tradingName = tradingName;
+        _addressLine1 = addressLine1;
+        _addressLine2 = addressLine2;
+        _city = city;
+        _state = state;
+        _postalCode = postalCode;
+        _profileImageUrl = profileImageUrl;
+        _bankConfirmationUrl = bankConfirmationUrl;
+        _cipcCertificateUrl = cipcCertificateUrl;
+        _proxyUrl = proxyUrl;
+        _brncUrl = brncUrl;
         notifyListeners();
-      } catch (e) {
-        print('Error saving inspection detail: $e');
       }
+
+      print('User $userId details updated successfully.');
+    } catch (e) {
+      print('Error updating user details: $e');
+      rethrow; // Rethrow to handle in UI
     }
   }
 
-  // Getter for saved inspection details
-  List<InspectionDetail> get getSavedInspectionDetails =>
-      _savedInspectionDetails;
+  // **New Method: Update User Account Status (Admin Only)**
+  Future<void> updateUserAccountStatus(String userId, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'accountStatus': newStatus});
 
+      // If the updated user is the current user, update local status
+      if (_user != null && _user!.uid == userId) {
+        _accountStatus = newStatus;
+        notifyListeners();
+      }
+
+      print('User $userId account status updated to $newStatus.');
+    } catch (e) {
+      print('Error updating user account status: $e');
+      rethrow; // Rethrow to handle in UI
+    }
+  }
+
+  // Getter methods
   User? get getUser => _user;
   String get getProfileImageUrl => _profileImageUrl ?? '';
   String get getUserRole => _userRole;
@@ -451,8 +616,6 @@ class UserProvider extends ChangeNotifier {
   String get getUserEmail => _userEmail;
   String? get getPhoneNumber => _phoneNumber;
   bool get getIsLoading => _isLoading;
-
-  // Add the userId getter
   String? get userId => _user?.uid;
 
   // Getters for user details
@@ -475,13 +638,108 @@ class UserProvider extends ChangeNotifier {
   String? get getProxyUrl => _proxyUrl;
   Timestamp? get getCreatedAt => _createdAt;
 
-  // Add a method to set the user
+  // Getters for admin approval
+  bool? get getAdminApproval => _adminApproval;
+  String get userRole => _userRole;
+
+  // Getter for saved inspection details
+  List<InspectionDetail> get getSavedInspectionDetails =>
+      _savedInspectionDetails;
+
+  // Getters for liked and disliked vehicles
+  List<String> get getLikedVehicles => _likedVehicles;
+  List<String> get getDislikedVehicles => _dislikedVehicles;
+
+  // Method to set the user
   void setUser(User? user) {
     _user = user;
     notifyListeners();
   }
 
-  // Getters for liked and disliked vehicles
-  List<String> get getLikedVehicles => _likedVehicles;
-  List<String> get getDislikedVehicles => _dislikedVehicles;
+  // New Method to Get User's Full Name by userId
+  Future<String> getUserNameById(String userId) async {
+    // Check if the userId exists in the cache
+    if (_userNameCache.containsKey(userId)) {
+      return _userNameCache[userId]!;
+    }
+
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+        String firstName = data['firstName'] ?? '';
+        String lastName = data['lastName'] ?? '';
+        String fullName = '$firstName $lastName'.trim();
+        if (fullName.isEmpty) {
+          fullName = 'Unknown User';
+        }
+        // Cache the result
+        _userNameCache[userId] = fullName;
+        return fullName;
+      } else {
+        // User document does not exist
+        _userNameCache[userId] = 'Unknown User';
+        return 'Unknown User';
+      }
+    } catch (e) {
+      print('Error fetching user name for userId $userId: $e');
+      _userNameCache[userId] = 'Unknown User';
+      return 'Unknown User';
+    }
+  }
+}
+
+class Dealer {
+  final String id;
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String? profileImageUrl;
+  final String? companyName;
+  final String? tradingName;
+  final String? phoneNumber;
+  final Timestamp? createdAt;
+
+  Dealer({
+    required this.id,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    this.profileImageUrl,
+    this.companyName,
+    this.tradingName,
+    this.phoneNumber,
+    this.createdAt,
+  });
+
+  factory Dealer.fromMap(Map<String, dynamic> data, String documentId) {
+    return Dealer(
+      id: documentId,
+      firstName: data['firstName'] ?? '',
+      lastName: data['lastName'] ?? '',
+      email: data['email'] ?? '',
+      profileImageUrl: data['profileImageUrl'],
+      companyName: data['companyName'],
+      tradingName: data['tradingName'],
+      phoneNumber: data['phoneNumber'],
+      createdAt: data['createdAt'],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      'profileImageUrl': profileImageUrl,
+      'companyName': companyName,
+      'tradingName': tradingName,
+      'phoneNumber': phoneNumber,
+      'createdAt': createdAt,
+    };
+  }
 }

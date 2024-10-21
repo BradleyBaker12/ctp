@@ -31,6 +31,8 @@ class _TruckPageState extends State<TruckPage> {
   String? selectedMakeModel;
   String? selectedYear;
   String? selectedTransmission;
+  String? selectedMileage; // <--- Add selectedMileage variable here
+  bool _isFiltering = false; // Track filtering state
 
   @override
   void initState() {
@@ -51,22 +53,43 @@ class _TruckPageState extends State<TruckPage> {
       await vehicleProvider.fetchVehicles(userProvider,
           vehicleType: widget.vehicleType);
 
+      print('Total vehicles fetched: ${vehicleProvider.vehicles.length}');
+      print('User Preferred Brands: ${userProvider.getPreferredBrands}');
+      print('User Liked Vehicles: ${userProvider.getLikedVehicles}');
+      print('User Disliked Vehicles: ${userProvider.getDislikedVehicles}');
+
       setState(() {
-        // Filter vehicles based on preferred brands
-        displayedVehicles = vehicleProvider.vehicles
-            .where((vehicle) {
-              return userProvider.getPreferredBrands.any((brand) => vehicle
-                  .makeModel
+        // Separate vehicles based on whether they match preferred brands
+        List<Vehicle> preferredVehicles = [];
+        List<Vehicle> nonPreferredVehicles = [];
+
+        vehicleProvider.vehicles.forEach((vehicle) {
+          bool matchesPreferredBrand = userProvider.getPreferredBrands.any(
+              (brand) => vehicle.makeModel
                   .toLowerCase()
                   .contains(brand.toLowerCase()));
-            })
-            .take(5)
-            .toList();
+
+          bool isNotDraft = vehicle.vehicleStatus != 'Draft';
+
+          if (matchesPreferredBrand && isNotDraft) {
+            preferredVehicles.add(vehicle);
+          } else if (isNotDraft) {
+            nonPreferredVehicles.add(vehicle);
+          }
+        });
+
+        // Combine preferred vehicles first, followed by non-preferred vehicles
+        displayedVehicles = [...preferredVehicles, ...nonPreferredVehicles];
 
         loadedVehicleIndex = displayedVehicles.length;
         _isLoading = false; // Loading complete
+
+        print('Displayed Vehicles: ${displayedVehicles.length}');
+        print(
+            'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
       });
     } catch (e) {
+      print('Error in _loadInitialVehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to load vehicles. Please try again later.'),
@@ -82,7 +105,8 @@ class _TruckPageState extends State<TruckPage> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       while (loadedVehicleIndex < vehicleProvider.vehicles.length) {
         final nextVehicle = vehicleProvider.vehicles[loadedVehicleIndex];
-        if (!userProvider.getLikedVehicles.contains(nextVehicle.id) &&
+        if (nextVehicle.vehicleStatus != 'Draft' &&
+            !userProvider.getLikedVehicles.contains(nextVehicle.id) &&
             !userProvider.getDislikedVehicles.contains(nextVehicle.id)) {
           setState(() {
             displayedVehicles.add(nextVehicle);
@@ -96,6 +120,7 @@ class _TruckPageState extends State<TruckPage> {
         _hasReachedEnd = true;
       });
     } catch (e) {
+      print('Error in _loadNextVehicle: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to load the next vehicle. Please try again.'),
@@ -192,59 +217,135 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
-  void _applyFilters(String? makeModel, String? year, String? transmission) {
+  void _applyFilters(
+      String? makeModel, String? year, String? transmission, String? mileage) {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     setState(() {
-      displayedVehicles = vehicleProvider.vehicles
-          .where((vehicle) {
-            bool matchesPreferredBrand = userProvider.getPreferredBrands.any(
-                (brand) => vehicle.makeModel
-                    .toLowerCase()
-                    .contains(brand.toLowerCase()));
-            bool matchesMakeModel = makeModel == null ||
-                makeModel == 'All' ||
-                vehicleProvider.doesMakeModelContainBrand(
-                    vehicle.makeModel, makeModel);
-            bool matchesYear =
-                year == null || year == 'All' || vehicle.year == year;
-            bool matchesTransmission = transmission == null ||
-                transmission == 'All' ||
-                vehicle.transmission == transmission;
+      _isFiltering = true; // Start filtering
+    });
 
-            bool isLikedOrDisliked =
-                userProvider.getLikedVehicles.contains(vehicle.id) ||
-                    userProvider.getDislikedVehicles.contains(vehicle.id);
+    Future.delayed(const Duration(milliseconds: 500), () {
+      setState(() {
+        displayedVehicles = vehicleProvider.vehicles
+            .where((vehicle) {
+              bool matchesMakeModel = makeModel == null ||
+                  makeModel == 'All' ||
+                  vehicle.makeModel
+                      .toLowerCase()
+                      .contains(makeModel.toLowerCase());
 
-            return matchesPreferredBrand &&
-                matchesMakeModel &&
-                matchesYear &&
-                matchesTransmission &&
-                !isLikedOrDisliked;
-          })
-          .where((vehicle) =>
-              widget.vehicleType == null ||
-              vehicle.vehicleType == widget.vehicleType)
-          .take(5)
-          .toList();
-      loadedVehicleIndex = displayedVehicles.length;
+              bool matchesYear =
+                  year == null || year == 'All' || vehicle.year == year;
+
+              bool matchesTransmission = transmission == null ||
+                  transmission == 'All' ||
+                  vehicle.transmission.toLowerCase() ==
+                      transmission.toLowerCase();
+
+              bool matchesMileage = true;
+              if (mileage != null && mileage != 'All') {
+                int vehicleMileage =
+                    int.tryParse(vehicle.mileage.replaceAll(',', '')) ?? 0;
+                if (mileage == '0 - 50,000') {
+                  matchesMileage =
+                      vehicleMileage >= 0 && vehicleMileage <= 50000;
+                } else if (mileage == '50,001 - 100,000') {
+                  matchesMileage =
+                      vehicleMileage >= 50001 && vehicleMileage <= 100000;
+                } else if (mileage == '100,001 - 150,000') {
+                  matchesMileage =
+                      vehicleMileage >= 100001 && vehicleMileage <= 150000;
+                } else if (mileage == '150,001 - 200,000') {
+                  matchesMileage =
+                      vehicleMileage >= 150001 && vehicleMileage <= 200000;
+                } else if (mileage == '200,001+') {
+                  matchesMileage = vehicleMileage >= 200001;
+                }
+              }
+
+              bool isLikedOrDisliked =
+                  userProvider.getLikedVehicles.contains(vehicle.id) ||
+                      userProvider.getDislikedVehicles.contains(vehicle.id);
+
+              bool isNotDraft = vehicle.vehicleStatus != 'Draft';
+
+              return matchesMakeModel &&
+                  matchesYear &&
+                  matchesTransmission &&
+                  matchesMileage &&
+                  !isLikedOrDisliked &&
+                  isNotDraft;
+            })
+            .where((vehicle) =>
+                widget.vehicleType == null ||
+                vehicle.vehicleType == widget.vehicleType)
+            .toList();
+
+        loadedVehicleIndex = displayedVehicles.length;
+        _isFiltering = false; // End filtering
+
+        print('Vehicles after applying filters: ${displayedVehicles.length}');
+        print(
+            'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
+      });
     });
   }
 
   void _clearFilters() {
     setState(() {
+      _isFiltering = true; // Start filtering
       selectedMakeModel = null;
       selectedYear = null;
       selectedTransmission = null;
+      selectedMileage = null;
     });
-    _loadInitialVehicles();
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _loadInitialVehicles();
+      setState(() {
+        _isFiltering = false; // End filtering
+      });
+    });
   }
 
   Future<void> _showFilterDialog() async {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
+
+    // Get all unique make models from the fetched vehicles
+    Set<String> allMakeModelsSet = vehicleProvider.vehicles
+        .map((vehicle) => vehicle.makeModel)
+        .map(
+            (makeModel) => makeModel.split(" ")[0]) // Extracting the brand name
+        .toSet(); // Ensure uniqueness
+    List<String> allMakeModels = ['All', ...allMakeModelsSet.toList()];
+
+    // Get all unique years from the fetched vehicles
+    Set<String> allYearsSet = vehicleProvider.vehicles
+        .map((vehicle) => vehicle.year)
+        .where((year) => year.isNotEmpty)
+        .toSet();
+    List<String> allYears = ['All', ...allYearsSet.toList()];
+
+    // Get all unique transmissions from the fetched vehicles
+    Set<String> allTransmissionsSet = vehicleProvider.vehicles
+        .map((vehicle) => vehicle.transmission)
+        .where((transmission) => transmission.isNotEmpty)
+        .toSet();
+    List<String> allTransmissions = ['All', ...allTransmissionsSet.toList()];
+
+    // Define mileage ranges
+    List<String> allMileages = [
+      'All',
+      '0 - 50,000',
+      '50,001 - 100,000',
+      '100,001 - 150,000',
+      '150,001 - 200,000',
+      '200,001+'
+    ];
 
     await showDialog(
       context: context,
@@ -258,7 +359,7 @@ class _TruckPageState extends State<TruckPage> {
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Make Model'),
                   value: selectedMakeModel,
-                  items: vehicleProvider.getAllMakeModels().map((String value) {
+                  items: allMakeModels.map((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(value),
@@ -273,7 +374,7 @@ class _TruckPageState extends State<TruckPage> {
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Year'),
                   value: selectedYear,
-                  items: vehicleProvider.getAllYears().map((String value) {
+                  items: allYears.map((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(value),
@@ -288,8 +389,7 @@ class _TruckPageState extends State<TruckPage> {
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Transmission'),
                   value: selectedTransmission,
-                  items:
-                      vehicleProvider.getAllTransmissions().map((String value) {
+                  items: allTransmissions.map((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(value),
@@ -298,6 +398,21 @@ class _TruckPageState extends State<TruckPage> {
                   onChanged: (newValue) {
                     setState(() {
                       selectedTransmission = newValue;
+                    });
+                  },
+                ),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(labelText: 'Mileage'),
+                  value: selectedMileage,
+                  items: allMileages.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      selectedMileage = newValue;
                     });
                   },
                 ),
@@ -313,8 +428,8 @@ class _TruckPageState extends State<TruckPage> {
             ),
             TextButton(
               onPressed: () {
-                _applyFilters(
-                    selectedMakeModel, selectedYear, selectedTransmission);
+                _applyFilters(selectedMakeModel, selectedYear,
+                    selectedTransmission, selectedMileage);
                 Navigator.of(context).pop();
               },
               child: const Text('Apply'),
@@ -339,6 +454,7 @@ class _TruckPageState extends State<TruckPage> {
 
       _loadInitialVehicles();
     } catch (e) {
+      print('Error in _clearLikedAndDislikedVehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to clear vehicles. Please try again.'),
@@ -356,7 +472,8 @@ class _TruckPageState extends State<TruckPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          _isLoading
+          _isLoading ||
+                  _isFiltering // Show loading icon during initial load or filtering
               ? Center(
                   child: Image.asset(
                     'lib/assets/Loading_Logo_CTP.gif',
@@ -412,6 +529,7 @@ class _TruckPageState extends State<TruckPage> {
                                 });
                               }
                             } catch (e) {
+                              print('Error in onSwipeEnd: $e');
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
@@ -487,7 +605,8 @@ class _TruckPageState extends State<TruckPage> {
                     ),
                     if (selectedMakeModel != null ||
                         selectedYear != null ||
-                        selectedTransmission != null)
+                        selectedTransmission != null ||
+                        selectedMileage != null)
                       TextButton(
                         onPressed: _clearFilters,
                         child: const Text(
@@ -552,6 +671,7 @@ class _TruckPageState extends State<TruckPage> {
               ),
             );
           } catch (e) {
+            print('Error in onDoubleTap: $e');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content:
@@ -805,69 +925,6 @@ class _TruckPageState extends State<TruckPage> {
     );
   }
 
-  Widget _buildHonestyBar(double percentage) {
-    final size = MediaQuery.of(context).size;
-    return Container(
-      width: size.height * 0.018,
-      height: size.height * 0.49,
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(0),
-        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                height: ((size.height * 0.51) * percentage) / 100,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2F7FFF),
-                  borderRadius: BorderRadius.circular(0),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBlurryContainer(String title, String value) {
-    final size = MediaQuery.of(context).size;
-    return Container(
-      height: 90,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style:
-                _customFont(size.height * 0.012, FontWeight.w400, Colors.white),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value.isNotEmpty ? value : "N/A",
-            style:
-                _customFont(size.height * 0.016, FontWeight.bold, Colors.white),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildIconButton(IconData icon, Color color,
       AppinioSwiperController controller, String direction, Vehicle vehicle) {
     final size = MediaQuery.of(context).size;
@@ -898,6 +955,7 @@ class _TruckPageState extends State<TruckPage> {
               }
             }
           } catch (e) {
+            print('Error in _buildIconButton: $e');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Failed to swipe vehicle. Please try again.'),
@@ -951,6 +1009,7 @@ class _TruckPageState extends State<TruckPage> {
               );
             }
           } catch (e) {
+            print('Error in _buildCenterButton: $e');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Failed to undo swipe. Please try again.'),

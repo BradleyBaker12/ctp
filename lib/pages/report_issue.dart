@@ -124,7 +124,7 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
                       ElevatedButton(
                         onPressed: _pickMedia,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
+                          backgroundColor: Color(0xFF2F7FFF).withOpacity(0.3),
                           padding: const EdgeInsets.symmetric(vertical: 15.0),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -135,7 +135,7 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
                             'Choose File',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Color(0xFFFF4E00),
+                              color: Color(0xFFFFFFFF),
                             ),
                           ),
                         ),

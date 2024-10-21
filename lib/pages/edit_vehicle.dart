@@ -1,5 +1,8 @@
+// edit_vehicle_page.dart
+
 import 'dart:io'; // For file handling
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,7 +32,6 @@ class _EditVehiclePageState extends State<EditVehiclePage>
 
   // Controllers for text fields
   late TextEditingController _makeModelController;
-  late TextEditingController _transmissionController;
   late TextEditingController _yearController;
   late TextEditingController _mileageController;
   late TextEditingController _applicationController;
@@ -37,16 +39,17 @@ class _EditVehiclePageState extends State<EditVehiclePage>
   late TextEditingController _damageDescriptionController;
   late TextEditingController _engineNumberController;
   late TextEditingController _expectedSellingPriceController;
-  late TextEditingController _hydraulicsController;
   late TextEditingController _listDamagesController;
   late TextEditingController _registrationNumberController;
   late TextEditingController _settlementAmountController;
   late TextEditingController _spareTyreController;
-  late TextEditingController _suspensionController;
   late TextEditingController _tyreTypeController;
   late TextEditingController _vinNumberController;
   late TextEditingController _warrantyTypeController;
-  late TextEditingController _weightClassController;
+  late TextEditingController _vehicleAvailableImmediatelyController;
+  late TextEditingController _availableDateController;
+  late TextEditingController _treadLeftController;
+  late TextEditingController _oemInspectionController;
 
   // Radio Button Values
   String? _maintenance;
@@ -55,59 +58,79 @@ class _EditVehiclePageState extends State<EditVehiclePage>
   String? _accidentFree;
   String? _roadWorthy;
   String? _settleBeforeSelling;
-  String? _rc1NatisFile;
   String? _vehicleStatus;
+  String? _vehicleType;
+  String? _vehicleAvailableImmediately;
+  String? _weightClass;
+
+  // Dropdown Values
+  String? _transmission;
+  String? _suspension;
+  String? _hydraulics;
+  String? _config;
 
   // Settlement Letter
   String? _settlementLetterFileUrl;
 
+  // Natis document
+  String? _rc1NatisFile;
+
   // List of photo URLs
   late List<String?> _photoUrls;
+
   final NumberFormat _numberFormat = NumberFormat('#,##0', 'en_US');
+
+  // Dropdown options and radio button options
+  final List<String> _vehicleTypes = ['Truck', 'Trailer'];
+  final List<String> _transmissionTypes = ['AUTO', 'MANUAL'];
+  final List<String> _suspensionTypes = ['Air', 'Spring', 'Hydraulic'];
+  final List<String> _hydraulicsTypes = ['Yes', 'No'];
+  final List<String> _configOptions = ['4x2', '6x4', '8x4'];
+  final List<String> _weightClasses = ['Light', 'Medium', 'Heavy'];
 
   @override
   void initState() {
     super.initState();
-    print(widget.vehicle.id);
-    _tabController = TabController(length: 7, vsync: this); // Updated to 7 tabs
+    _tabController = TabController(length: 7, vsync: this);
 
     // Initialize controllers with existing values
     _makeModelController =
-        TextEditingController(text: widget.vehicle.makeModel);
-    _transmissionController =
-        TextEditingController(text: widget.vehicle.transmission);
-    _yearController = TextEditingController(text: widget.vehicle.year);
-    _mileageController = TextEditingController(text: widget.vehicle.mileage);
+        TextEditingController(text: widget.vehicle.makeModel ?? '');
+    _yearController = TextEditingController(text: widget.vehicle.year ?? '');
+    _mileageController =
+        TextEditingController(text: widget.vehicle.mileage ?? '');
     _applicationController =
-        TextEditingController(text: widget.vehicle.application);
+        TextEditingController(text: widget.vehicle.application ?? '');
     _bookValueController =
-        TextEditingController(text: widget.vehicle.bookValue);
+        TextEditingController(text: widget.vehicle.bookValue ?? '');
     _damageDescriptionController =
-        TextEditingController(text: widget.vehicle.damageDescription);
+        TextEditingController(text: widget.vehicle.damageDescription ?? '');
     _engineNumberController =
-        TextEditingController(text: widget.vehicle.engineNumber);
+        TextEditingController(text: widget.vehicle.engineNumber ?? '');
     _expectedSellingPriceController =
-        TextEditingController(text: widget.vehicle.expectedSellingPrice);
-    _hydraulicsController =
-        TextEditingController(text: widget.vehicle.hydraulics);
+        TextEditingController(text: widget.vehicle.expectedSellingPrice ?? '');
     _listDamagesController =
-        TextEditingController(text: widget.vehicle.listDamages);
+        TextEditingController(text: widget.vehicle.listDamages ?? '');
     _registrationNumberController =
-        TextEditingController(text: widget.vehicle.registrationNumber);
+        TextEditingController(text: widget.vehicle.registrationNumber ?? '');
     _settlementAmountController =
-        TextEditingController(text: widget.vehicle.settlementAmount);
+        TextEditingController(text: widget.vehicle.settlementAmount ?? '');
     _spareTyreController =
-        TextEditingController(text: widget.vehicle.spareTyre);
-    _suspensionController =
-        TextEditingController(text: widget.vehicle.suspension);
-    _tyreTypeController = TextEditingController(text: widget.vehicle.tyreType);
+        TextEditingController(text: widget.vehicle.spareTyre ?? '');
+    _tyreTypeController =
+        TextEditingController(text: widget.vehicle.tyreType ?? '');
     _vinNumberController =
-        TextEditingController(text: widget.vehicle.vinNumber);
+        TextEditingController(text: widget.vehicle.vinNumber ?? '');
     _warrantyTypeController =
-        TextEditingController(text: widget.vehicle.warrantyType);
-    _weightClassController =
-        TextEditingController(text: widget.vehicle.weightClass);
-    _rc1NatisFile = widget.vehicle.rc1NatisFile; // Initialize Natis URL
+        TextEditingController(text: widget.vehicle.warrantyType ?? '');
+    _vehicleAvailableImmediatelyController = TextEditingController(
+        text: widget.vehicle.vehicleAvailableImmediately ?? '');
+    _availableDateController =
+        TextEditingController(text: widget.vehicle.availableDate ?? '');
+    _treadLeftController =
+        TextEditingController(text: widget.vehicle.treadLeft ?? '');
+    _oemInspectionController =
+        TextEditingController(text: widget.vehicle.oemInspection ?? '');
 
     // Initialize radio button values
     _maintenance = widget.vehicle.maintenance;
@@ -116,47 +139,57 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     _accidentFree = widget.vehicle.accidentFree;
     _roadWorthy = widget.vehicle.roadWorthy;
     _settleBeforeSelling = widget.vehicle.settleBeforeSelling;
-    _settlementLetterFileUrl = widget.vehicle.settlementLetterFile;
     _vehicleStatus = widget.vehicle.vehicleStatus ?? 'Pending';
+    _vehicleType = widget.vehicle.vehicleType;
+    _vehicleAvailableImmediately = widget.vehicle.vehicleAvailableImmediately;
+    _weightClass = widget.vehicle.weightClass;
 
-    // Initialize the photo URLs
-    _photoUrls = [
-      widget.vehicle.mainImageUrl,
-      widget.vehicle.damagePhotos.isNotEmpty
-          ? widget.vehicle.damagePhotos[0]
-          : null, // first damage photo as an example
-      widget.vehicle.dashboardPhoto,
-      widget.vehicle.faultCodesPhoto,
-      widget.vehicle.licenceDiskUrl,
-      widget.vehicle.mileageImage,
-      widget.vehicle.treadLeft,
-      widget.vehicle.bed_bunk,
-      widget.vehicle.dashboard,
-      widget.vehicle.door_panels,
-      widget.vehicle.front_tyres_tread,
-      widget.vehicle.front_view,
-      widget.vehicle.left_front_45,
-      widget.vehicle.left_rear_45,
-      widget.vehicle.left_side_view,
-      widget.vehicle.license_disk,
-      widget.vehicle.rear_tyres_tread,
-      widget.vehicle.rear_view,
-      widget.vehicle.right_front_45,
-      widget.vehicle.right_rear_45,
-      widget.vehicle.right_side_view,
-      widget.vehicle.roof,
-      widget.vehicle.seats,
-      widget.vehicle.spare_wheel,
-      widget.vehicle.tyrePhoto1,
-      widget.vehicle.tyrePhoto2
-    ];
+    // Dropdown values
+    _transmission = widget.vehicle.transmission;
+    _hydraulics = widget.vehicle.hydraulics;
+    _suspension = widget.vehicle.suspension;
+    _config = widget.vehicle.config;
+
+    // Initialize the photo URLs with the correct number of elements
+    _photoUrls = List<String?>.filled(24, null);
+
+    // Assign values to each index
+    _photoUrls[0] = widget.vehicle.mainImageUrl;
+    _photoUrls[1] = widget.vehicle.damagePhotos.isNotEmpty
+        ? widget.vehicle.damagePhotos[0]
+        : null;
+    _photoUrls[2] = widget.vehicle.dashboardPhoto;
+    _photoUrls[3] = widget.vehicle.faultCodesPhoto;
+    _photoUrls[4] = widget.vehicle.licenceDiskUrl;
+    _photoUrls[5] = widget.vehicle.mileageImage;
+    _photoUrls[6] = widget.vehicle.treadLeft;
+    _photoUrls[7] = widget.vehicle.bed_bunk;
+    _photoUrls[8] = widget.vehicle.door_panels;
+    _photoUrls[9] = widget.vehicle.front_tyres_tread;
+    _photoUrls[10] = widget.vehicle.front_view;
+    _photoUrls[11] = widget.vehicle.left_front_45;
+    _photoUrls[12] = widget.vehicle.left_rear_45;
+    _photoUrls[13] = widget.vehicle.left_side_view;
+    _photoUrls[14] = widget.vehicle.rear_tyres_tread;
+    _photoUrls[15] = widget.vehicle.rear_view;
+    _photoUrls[16] = widget.vehicle.right_front_45;
+    _photoUrls[17] = widget.vehicle.right_rear_45;
+    _photoUrls[18] = widget.vehicle.right_side_view;
+    _photoUrls[19] = widget.vehicle.roof;
+    _photoUrls[20] = widget.vehicle.seats;
+    _photoUrls[21] = widget.vehicle.spare_wheel;
+    _photoUrls[22] = widget.vehicle.tyrePhoto1;
+    _photoUrls[23] = widget.vehicle.tyrePhoto2;
+
+    // Initialize settlement letter and Natis file URLs
+    _settlementLetterFileUrl = widget.vehicle.settlementLetterFile;
+    _rc1NatisFile = widget.vehicle.rc1NatisFile;
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _makeModelController.dispose();
-    _transmissionController.dispose();
     _yearController.dispose();
     _mileageController.dispose();
     _applicationController.dispose();
@@ -164,19 +197,21 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     _damageDescriptionController.dispose();
     _engineNumberController.dispose();
     _expectedSellingPriceController.dispose();
-    _hydraulicsController.dispose();
     _listDamagesController.dispose();
     _registrationNumberController.dispose();
     _settlementAmountController.dispose();
     _spareTyreController.dispose();
-    _suspensionController.dispose();
     _tyreTypeController.dispose();
     _vinNumberController.dispose();
     _warrantyTypeController.dispose();
-    _weightClassController.dispose();
+    _vehicleAvailableImmediatelyController.dispose();
+    _availableDateController.dispose();
+    _treadLeftController.dispose();
+    _oemInspectionController.dispose();
     super.dispose();
   }
 
+  // Upload Image Method
   Future<void> _uploadImage(int index) async {
     final ImageSource? source = await showDialog<ImageSource>(
       context: context,
@@ -227,6 +262,7 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     }
   }
 
+  // Upload Settlement Letter
   Future<void> _uploadSettlementLetterFile() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
 
@@ -250,61 +286,63 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     }
   }
 
-  Widget _buildSettlementLetterField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const Text(
-          'Settlement Letter',
-          style: TextStyle(color: Colors.white),
-          textAlign: TextAlign.center, // Center the heading
-        ),
-        const SizedBox(height: 8),
-        if (_settlementLetterFileUrl != null &&
-            _settlementLetterFileUrl!.isNotEmpty)
-          Column(
-            children: [
-              const Text(
-                'Document Uploaded',
-                style: TextStyle(color: Colors.white),
-                textAlign: TextAlign.center, // Center the heading
-              ),
-              CustomButton(
-                text: 'View Document',
-                borderColor: const Color(0xFFFF4E00),
-                onPressed: () async {
-                  if (await canLaunch(_settlementLetterFileUrl!)) {
-                    await launch(_settlementLetterFileUrl!);
-                  } else {
-                    print("Cannot open the document");
-                  }
-                },
-              ),
-            ],
-          )
-        else
-          const Text(
-            'No document uploaded',
-            style: TextStyle(color: Colors.white),
-            textAlign: TextAlign.center, // Center the heading
-          ),
-        const SizedBox(height: 8),
-        CustomButton(
-          text: "Upload Settlement Letter",
-          borderColor: const Color(0xFFFF4E00),
-          onPressed: _uploadSettlementLetterFile,
-        ),
-      ],
-    );
+  // Upload Natis Document
+  Future<void> _uploadNatisDocument() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      String fileName = path.basename(pickedFile.path);
+      Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('vehicles/${widget.vehicle.id}/natis/$fileName');
+
+      try {
+        File file = File(pickedFile.path);
+        await storageRef.putFile(file);
+        String fileUrl = await storageRef.getDownloadURL();
+
+        setState(() {
+          _rc1NatisFile = fileUrl;
+        });
+      } catch (e) {
+        print("Error uploading Natis document: $e");
+      }
+    }
   }
 
+  // Upload Fault Codes Photo
+  Future<void> _uploadFaultCodesPhoto() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      String fileName = path.basename(pickedFile.path);
+      Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('vehicles/${widget.vehicle.id}/fault_codes/$fileName');
+
+      try {
+        File file = File(pickedFile.path);
+        await storageRef.putFile(file);
+        String imageUrl = await storageRef.getDownloadURL();
+
+        // Update the state
+        setState(() {
+          _photoUrls[3] = imageUrl; // Update the fault codes photo URL
+        });
+      } catch (e) {
+        print("Error uploading fault codes photo: $e");
+      }
+    }
+  }
+
+  // Build Form Field
   Widget _buildFormField({
     required String label,
     required TextEditingController controller,
     String? hint,
     TextInputType keyboardType = TextInputType.text,
-    bool isCurrency = false, // Added to handle currency inputs
-    List<TextInputFormatter>? inputFormatter, // Added input formatters
+    bool isCurrency = false,
+    List<TextInputFormatter>? inputFormatter,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start, // Align labels to the left
@@ -316,7 +354,7 @@ class _EditVehiclePageState extends State<EditVehiclePage>
             color: Colors.white, // White text color for the label
             fontWeight: FontWeight.bold,
           ),
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.start,
         ),
         const SizedBox(height: 8), // Small space between the heading and input
         TextFormField(
@@ -348,7 +386,7 @@ class _EditVehiclePageState extends State<EditVehiclePage>
             ),
           ),
           style: const TextStyle(color: Colors.white),
-          inputFormatters: inputFormatter, // Apply input formatters if provided
+          inputFormatters: inputFormatter,
           onChanged: isCurrency
               ? (value) {
                   if (value.isNotEmpty) {
@@ -373,17 +411,76 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     );
   }
 
-  Widget _buildStyledRadioButton(
-    String label,
-    String value, {
-    required String? groupValue,
+  // Build Dropdown
+  Widget _buildDropdown({
+    required String? value,
+    required List<String> items,
+    required String hintText,
     required Function(String?) onChanged,
   }) {
-    bool isSelected = groupValue == value;
+    String? dropdownValue = items.contains(value) ? value : null;
+
+    return DropdownButtonFormField<String>(
+      value: dropdownValue,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: const TextStyle(color: Colors.white70),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.2),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: const BorderSide(
+            color: Color(0xFFFF4E00),
+            width: 2.0,
+          ),
+        ),
+      ),
+      hint: Text(
+        hintText,
+        style: const TextStyle(color: Colors.white70),
+      ),
+      items: items.map((String item) {
+        return DropdownMenuItem<String>(
+          value: item,
+          child: Text(
+            item,
+            style: const TextStyle(color: Colors.white),
+          ),
+        );
+      }).toList(),
+      dropdownColor: Colors.black.withOpacity(0.7),
+    );
+  }
+
+  // Build Radio Button
+  Widget _buildRadioButton(
+    String label,
+    String value, {
+    String? groupValue,
+    Function(String?)? onChanged,
+    bool isWeight = false,
+  }) {
+    bool isSelected =
+        (groupValue ?? (isWeight ? _weightClass : _vehicleType)) == value;
 
     return InkWell(
       onTap: () {
-        onChanged(value); // Trigger the onChanged callback
+        if (onChanged != null) {
+          onChanged(value);
+        } else {
+          setState(() {
+            if (isWeight) {
+              _weightClass = value;
+            } else {
+              _vehicleType = value;
+            }
+          });
+        }
       },
       child: Container(
         decoration: BoxDecoration(
@@ -399,411 +496,487 @@ class _EditVehiclePageState extends State<EditVehiclePage>
           borderRadius: BorderRadius.circular(10.0),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : Colors
-                        .white70, // White text if selected, slightly faded otherwise
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : Colors
+                    .white70, // White text if selected, slightly faded otherwise
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
       ),
     );
   }
 
+  // Build Styled Radio Field with multiple options
   Widget _buildStyledRadioField({
     required String label,
+    required List<String> options,
     required String? groupValue,
     required void Function(String?) onChanged,
+    bool isWeight = false,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center, // Align labels to the left
       children: [
         Text(
           label,
           style: const TextStyle(fontSize: 16, color: Colors.white),
-          textAlign: TextAlign.center, // Center the heading
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildStyledRadioButton(
-              'Yes', // Label for the first option
-              'yes',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-            const SizedBox(width: 20),
-            _buildStyledRadioButton(
-              'No', // Label for the second option
-              'no',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettlementTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildStyledRadioField(
-            label: 'Settle Before Selling',
-            groupValue: _settleBeforeSelling,
-            onChanged: (value) {
-              setState(() {
-                _settleBeforeSelling = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildFormField(
-            label: 'Settlement Amount',
-            controller: _settlementAmountController,
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 16),
-          _buildSettlementLetterField(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImageField(int index) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _getPhotoLabel(index),
-          style: GoogleFonts.lato(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center, // Center the heading
+          textAlign: TextAlign.start,
         ),
         const SizedBox(height: 8),
-        Container(
-          height: 150,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.grey[300], // Grey background for empty state
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-                color: Colors.white,
-                width: 2), // Border styling similar to VehicleUploadTabs
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: _photoUrls[index] != null && _photoUrls[index]!.isNotEmpty
-                ? Image.network(_photoUrls[index]!, fit: BoxFit.cover)
-                : const Center(
-                    child: Text(
-                      'No image available',
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        CustomButton(
-          text: "Change Image",
-          borderColor: const Color(0xFFFF4E00), // Orange color
-          onPressed: () => _uploadImage(index),
+        Wrap(
+          spacing: 10,
+          alignment: WrapAlignment.start,
+          children: options.map((option) {
+            return _buildRadioButton(
+              option,
+              option,
+              groupValue: groupValue,
+              onChanged: onChanged,
+              isWeight: isWeight,
+            );
+          }).toList(),
         ),
         const SizedBox(height: 16),
       ],
     );
   }
 
-  String _getPhotoLabel(int index) {
-    switch (index) {
-      case 0:
-        return 'Main Image';
-      case 1:
-        return 'Damage Photo';
-      case 2:
-        return 'Dashboard Photo';
-      case 3:
-        return 'Fault Codes Photo';
-      case 4:
-        return 'License Disk';
-      case 5:
-        return 'Mileage Image';
-      case 6:
-        return 'Tread Left';
-      case 7:
-        return 'Bed Bunk';
-      case 8:
-        return 'Dashboard';
-      case 9:
-        return 'Door Panels';
-      case 10:
-        return 'Front Tyres Tread';
-      case 11:
-        return 'Front View';
-      case 12:
-        return '45° Left Front View';
-      case 13:
-        return '45° Left Rear View';
-      case 14:
-        return 'Left Side View';
-      case 15:
-        return 'License Disk';
-      case 16:
-        return 'Rear Tyres Tread';
-      case 17:
-        return 'Rear View';
-      case 18:
-        return '45° Right Front View';
-      case 19:
-        return '45° Right Rear View';
-      case 20:
-        return 'Right Side View';
-      case 21:
-        return 'Roof';
-      case 22:
-        return 'Seats';
-      case 23:
-        return 'Spare Wheel';
-      case 24:
-        return 'Tyre Photo 1';
-      case 25:
-        return 'Tyre Photo 2';
-      default:
-        return 'Unknown Label';
-    }
+  // Build Vehicle Status Field
+  Widget _buildVehicleStatusField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Vehicle Status',
+          style: TextStyle(fontSize: 16, color: Colors.white),
+        ),
+        const SizedBox(height: 8),
+        _buildDropdown(
+          value: _vehicleStatus,
+          items: ['Live', 'Draft', 'Pending'],
+          hintText: 'Select Vehicle Status',
+          onChanged: (newValue) {
+            setState(() {
+              _vehicleStatus = newValue!;
+            });
+          },
+        ),
+      ],
+    );
   }
 
-  void _saveForm() async {
-    if (_formKey.currentState != null && _formKey.currentState!.validate()) {
-      try {
-        // Create an updated Vehicle object using the collected data from form fields
-        Vehicle updatedVehicle = widget.vehicle.copyWith(
-          makeModel: _makeModelController.text != widget.vehicle.makeModel
-              ? _makeModelController.text
-              : null,
-          transmission:
-              _transmissionController.text != widget.vehicle.transmission
-                  ? _transmissionController.text
-                  : null,
-          year: _yearController.text != widget.vehicle.year
-              ? _yearController.text
-              : null,
-          mileage: _mileageController.text != widget.vehicle.mileage
-              ? _mileageController.text
-              : null,
-          application: _applicationController.text != widget.vehicle.application
-              ? _applicationController.text
-              : null,
-          bookValue: _bookValueController.text != widget.vehicle.bookValue
-              ? _bookValueController.text
-              : null,
-          damageDescription: _damageDescriptionController.text !=
-                  widget.vehicle.damageDescription
-              ? _damageDescriptionController.text
-              : null,
-          engineNumber:
-              _engineNumberController.text != widget.vehicle.engineNumber
-                  ? _engineNumberController.text
-                  : null,
-          expectedSellingPrice: _expectedSellingPriceController.text !=
-                  widget.vehicle.expectedSellingPrice
-              ? _expectedSellingPriceController.text
-              : null,
-          hydraulics: _hydraulicsController.text != widget.vehicle.hydraulics
-              ? _hydraulicsController.text
-              : null,
-          listDamages: _listDamagesController.text != widget.vehicle.listDamages
-              ? _listDamagesController.text
-              : null,
-          registrationNumber: _registrationNumberController.text !=
-                  widget.vehicle.registrationNumber
-              ? _registrationNumberController.text
-              : null,
-          settlementAmount: _settlementAmountController.text !=
-                  widget.vehicle.settlementAmount
-              ? _settlementAmountController.text
-              : null,
-          spareTyre: _spareTyreController.text != widget.vehicle.spareTyre
-              ? _spareTyreController.text
-              : null,
-          suspension: _suspensionController.text != widget.vehicle.suspension
-              ? _suspensionController.text
-              : null,
-          tyreType: _tyreTypeController.text != widget.vehicle.tyreType
-              ? _tyreTypeController.text
-              : null,
-          vinNumber: _vinNumberController.text != widget.vehicle.vinNumber
-              ? _vinNumberController.text
-              : null,
-          warrantyType:
-              _warrantyTypeController.text != widget.vehicle.warrantyType
-                  ? _warrantyTypeController.text
-                  : null,
-          weightClass: _weightClassController.text != widget.vehicle.weightClass
-              ? _weightClassController.text
-              : null,
-          vehicleStatus: _vehicleStatus != widget.vehicle.vehicleStatus
-              ? _vehicleStatus
-              : null,
-          // Radio Button Values
-          maintenance:
-              _maintenance != widget.vehicle.maintenance ? _maintenance : null,
-          warranty: _warranty != widget.vehicle.warranty ? _warranty : null,
-          firstOwner:
-              _firstOwner != widget.vehicle.firstOwner ? _firstOwner : null,
-          accidentFree: _accidentFree != widget.vehicle.accidentFree
-              ? _accidentFree
-              : null,
-          roadWorthy:
-              _roadWorthy != widget.vehicle.roadWorthy ? _roadWorthy : null,
-          settleBeforeSelling:
-              _settleBeforeSelling != widget.vehicle.settleBeforeSelling
-                  ? _settleBeforeSelling
-                  : null,
-          rc1NatisFile: _rc1NatisFile != widget.vehicle.rc1NatisFile
-              ? _rc1NatisFile
-              : null,
-          settlementLetterFile:
-              _settlementLetterFileUrl != widget.vehicle.settlementLetterFile
-                  ? _settlementLetterFileUrl
-                  : null,
-          // Images
-          mainImageUrl: _photoUrls[0] != widget.vehicle.mainImageUrl
-              ? _photoUrls[0]
-              : null,
-          damagePhotos: _photoUrls[1] != null &&
-                  _photoUrls[1] != widget.vehicle.damagePhotos.first
-              ? [_photoUrls[1]!]
-              : null,
-          dashboardPhoto: _photoUrls[2] != widget.vehicle.dashboardPhoto
-              ? _photoUrls[2]
-              : null,
-          faultCodesPhoto: _photoUrls[3] != widget.vehicle.faultCodesPhoto
-              ? _photoUrls[3]
-              : null,
-          licenceDiskUrl: _photoUrls[4] != widget.vehicle.licenceDiskUrl
-              ? _photoUrls[4]
-              : null,
-          mileageImage: _photoUrls[5] != widget.vehicle.mileageImage
-              ? _photoUrls[5]
-              : null,
-          // Add similar checks for the rest of your image URLs
-          bed_bunk:
-              _photoUrls[7] != widget.vehicle.bed_bunk ? _photoUrls[7] : null,
-          dashboard:
-              _photoUrls[8] != widget.vehicle.dashboard ? _photoUrls[8] : null,
-          door_panels: _photoUrls[9] != widget.vehicle.door_panels
-              ? _photoUrls[9]
-              : null,
-          front_tyres_tread: _photoUrls[10] != widget.vehicle.front_tyres_tread
-              ? _photoUrls[10]
-              : null,
-          front_view: _photoUrls[11] != widget.vehicle.front_view
-              ? _photoUrls[11]
-              : null,
-          left_front_45: _photoUrls[12] != widget.vehicle.left_front_45
-              ? _photoUrls[12]
-              : null,
-          left_rear_45: _photoUrls[13] != widget.vehicle.left_rear_45
-              ? _photoUrls[13]
-              : null,
-          left_side_view: _photoUrls[14] != widget.vehicle.left_side_view
-              ? _photoUrls[14]
-              : null,
-          license_disk: _photoUrls[15] != widget.vehicle.license_disk
-              ? _photoUrls[15]
-              : null,
-          rear_tyres_tread: _photoUrls[16] != widget.vehicle.rear_tyres_tread
-              ? _photoUrls[16]
-              : null,
-          rear_view: _photoUrls[17] != widget.vehicle.rear_view
-              ? _photoUrls[17]
-              : null,
-          right_front_45: _photoUrls[18] != widget.vehicle.right_front_45
-              ? _photoUrls[18]
-              : null,
-          right_rear_45: _photoUrls[19] != widget.vehicle.right_rear_45
-              ? _photoUrls[19]
-              : null,
-          right_side_view: _photoUrls[20] != widget.vehicle.right_side_view
-              ? _photoUrls[20]
-              : null,
-          roof: _photoUrls[21] != widget.vehicle.roof ? _photoUrls[21] : null,
-          seats: _photoUrls[22] != widget.vehicle.seats ? _photoUrls[22] : null,
-          spare_wheel: _photoUrls[23] != widget.vehicle.spare_wheel
-              ? _photoUrls[23]
-              : null,
-          tyrePhoto1: _photoUrls[24] != widget.vehicle.tyrePhoto1
-              ? _photoUrls[24]
-              : null,
-          tyrePhoto2: _photoUrls[25] != widget.vehicle.tyrePhoto2
-              ? _photoUrls[25]
-              : null,
-        );
+  // Build Vehicle Details Tab
+  Widget _buildVehicleDetailsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildVehicleStatusField(),
+          // Vehicle Type as radio buttons
+          _buildStyledRadioField(
+            label: 'Vehicle Type',
+            options: _vehicleTypes,
+            groupValue: _vehicleType,
+            onChanged: (value) {
+              setState(() {
+                _vehicleType = value;
+              });
+            },
+          ),
+          _buildFormField(
+            label: 'Make & Model',
+            controller: _makeModelController,
+          ),
+          // Year and Mileage next to each other
+          Row(
+            children: [
+              Expanded(
+                child: _buildFormField(
+                  label: 'Year',
+                  controller: _yearController,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildFormField(
+                  label: 'Mileage',
+                  controller: _mileageController,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
+          _buildFormField(
+            label: 'VIN Number',
+            controller: _vinNumberController,
+            keyboardType: TextInputType.text,
+          ),
+          _buildFormField(
+            label: 'Book Value',
+            controller: _bookValueController,
+            keyboardType: TextInputType.number,
+          ),
+          _buildFormField(
+            label: 'Application of Use',
+            controller: _applicationController,
+          ),
+          // Transmission as dropdown
+          _buildDropdown(
+            value: _transmission,
+            items: _transmissionTypes,
+            hintText: 'Select Transmission',
+            onChanged: (value) {
+              setState(() {
+                _transmission = value;
+              });
+            },
+          ),
+          _buildFormField(
+            label: 'Engine Number',
+            controller: _engineNumberController,
+          ),
+          // Suspension as dropdown
+          _buildDropdown(
+            value: _suspension,
+            items: _suspensionTypes,
+            hintText: 'Select Suspension',
+            onChanged: (value) {
+              setState(() {
+                _suspension = value;
+              });
+            },
+          ),
+          _buildFormField(
+            label: 'Registration Number',
+            controller: _registrationNumberController,
+          ),
+          // Hydraulics as dropdown
+          _buildDropdown(
+            value: _hydraulics,
+            items: _hydraulicsTypes,
+            hintText: 'Select Hydraulics',
+            onChanged: (value) {
+              setState(() {
+                _hydraulics = value;
+              });
+            },
+          ),
+          _buildFormField(
+            label: 'Expected Selling Price',
+            controller: _expectedSellingPriceController,
+            keyboardType: TextInputType.number,
+          ),
+          // Warranty yes/no radio button
+          _buildStyledRadioField(
+            label: 'Warranty',
+            options: ['Yes', 'No'],
+            groupValue: _warranty,
+            onChanged: (value) {
+              setState(() {
+                _warranty = value;
+                if (_warranty == 'No') {
+                  _warrantyTypeController.text = '';
+                }
+              });
+            },
+          ),
+          // Warranty Type field, shown only if warranty is 'Yes'
+          if (_warranty == 'Yes')
+            _buildFormField(
+              label: 'Warranty Type',
+              controller: _warrantyTypeController,
+            ),
+          // Weight Class as radio buttons
+          _buildStyledRadioField(
+            label: 'Weight Class',
+            options: _weightClasses,
+            groupValue: _weightClass,
+            onChanged: (value) {
+              setState(() {
+                _weightClass = value;
+              });
+            },
+            isWeight: true,
+          ),
+          // Config as dropdown
+          _buildDropdown(
+            value: _config,
+            items: _configOptions,
+            hintText: 'Select Config',
+            onChanged: (value) {
+              setState(() {
+                _config = value;
+              });
+            },
+          ),
+          // Available Date as Date Picker
+          _buildDatePickerField(
+            label: 'Available Date',
+            controller: _availableDateController,
+            hintText: 'Select Available Date',
+          ),
 
-        // Call the provider method to update the vehicle in Firestore
-        await Provider.of<VehicleProvider>(context, listen: false)
-            .updateVehicle(updatedVehicle);
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vehicle updated successfully!')),
-        );
-
-        // Optionally, you can navigate back or reset the form
-        Navigator.of(context).pop();
-      } catch (e) {
-        print("Error updating vehicle: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Error saving vehicle. Please try again.')),
-        );
-      }
-    }
+          _buildFormField(
+            label: 'OEM Inspection',
+            controller: _oemInspectionController,
+          ),
+          // Vehicle Available Immediately
+          _buildStyledRadioField(
+            label: 'Vehicle Available Immediately',
+            options: ['Yes', 'No'],
+            groupValue: _vehicleAvailableImmediately,
+            onChanged: (value) {
+              setState(() {
+                _vehicleAvailableImmediately = value;
+              });
+            },
+          ),
+        ],
+      ),
+    );
   }
 
-  // Natis upload method
-  Future<void> _uploadNatisDocument() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      String fileName = path.basename(pickedFile.path);
-      Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('vehicles/${widget.vehicle.id}/natis/$fileName');
-
-      try {
-        File file = File(pickedFile.path);
-        await storageRef.putFile(file);
-        String fileUrl = await storageRef.getDownloadURL();
-
-        setState(() {
-          _rc1NatisFile = fileUrl;
-        });
-      } catch (e) {
-        print("Error uploading Natis document: $e");
-      }
-    }
+  // Build Specifications Tab
+  Widget _buildSpecificationsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildStyledRadioField(
+            label: 'Accident Free',
+            options: ['Yes', 'No'],
+            groupValue: _accidentFree,
+            onChanged: (value) {
+              setState(() {
+                _accidentFree = value;
+              });
+            },
+          ),
+          _buildStyledRadioField(
+            label: 'Road Worthy',
+            options: ['Yes', 'No'],
+            groupValue: _roadWorthy,
+            onChanged: (value) {
+              setState(() {
+                _roadWorthy = value;
+              });
+            },
+          ),
+          _buildStyledRadioField(
+            label: 'First Owner',
+            options: ['Yes', 'No'],
+            groupValue: _firstOwner,
+            onChanged: (value) {
+              setState(() {
+                _firstOwner = value;
+              });
+            },
+          ),
+          _buildStyledRadioField(
+            label: 'Maintenance',
+            options: ['Yes', 'No'],
+            groupValue: _maintenance,
+            onChanged: (value) {
+              setState(() {
+                _maintenance = value;
+              });
+            },
+          ),
+          // Tyre Type and other fields
+          _buildFormField(
+            label: 'Tyre Type',
+            controller: _tyreTypeController,
+          ),
+          _buildFormField(
+            label: 'Spare Tyre',
+            controller: _spareTyreController,
+          ),
+          _buildFormField(
+            label: 'Tread Left',
+            controller: _treadLeftController,
+          ),
+        ],
+      ),
+    );
   }
 
-  // Tab for Natis document
+  // Build Date Picker Field
+  Widget _buildDatePickerField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start, // Align labels to the left
+      children: [
+        Text(
+          label, // Heading for the date picker
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.white, // White text color for the label
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.start,
+        ),
+        const SizedBox(height: 8), // Small space between the heading and input
+        GestureDetector(
+          onTap: () async {
+            FocusScope.of(context).unfocus(); // Hide the keyboard
+            DateTime? pickedDate = await showDatePicker(
+              context: context,
+              initialDate: controller.text.isNotEmpty
+                  ? DateFormat('yyyy-MM-dd').parse(controller.text)
+                  : DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+              builder: (BuildContext context, Widget? child) {
+                return Theme(
+                  data: ThemeData.dark().copyWith(
+                    colorScheme: ColorScheme.dark(
+                      primary:
+                          const Color(0xFFFF4E00), // Header background color
+                      onPrimary: Colors.white, // Header text color
+                      surface: Colors.blueGrey, // Body background color
+                      onSurface: Colors.white, // Body text color
+                    ),
+                    dialogBackgroundColor: Colors.blueGrey,
+                  ),
+                  child: child!,
+                );
+              },
+            );
+
+            if (pickedDate != null) {
+              String formattedDate =
+                  DateFormat('yyyy-MM-dd').format(pickedDate);
+              setState(() {
+                controller.text = formattedDate;
+              });
+            }
+          },
+          child: AbsorbPointer(
+            child: TextFormField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle: const TextStyle(color: Colors.white70),
+                suffixIcon:
+                    const Icon(Icons.calendar_today, color: Colors.white),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.2),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                  borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFFF4E00), // Orange border when focused
+                    width: 2.0,
+                  ),
+                ),
+              ),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16), // Space after the input field
+      ],
+    );
+  }
+
+  // Build Settlement Tab
+  Widget _buildSettlementTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildStyledRadioField(
+            label: 'Settle Before Selling',
+            options: ['Yes', 'No'],
+            groupValue: _settleBeforeSelling,
+            onChanged: (value) {
+              setState(() {
+                _settleBeforeSelling = value;
+                if (_settleBeforeSelling == 'No') {
+                  _settlementAmountController.text = '';
+                  _settlementLetterFileUrl = null;
+                }
+              });
+            },
+          ),
+          if (_settleBeforeSelling == 'Yes')
+            _buildFormField(
+              label: 'Settlement Amount',
+              controller: _settlementAmountController,
+              keyboardType: TextInputType.number,
+            ),
+          if (_settleBeforeSelling == 'Yes') _buildSettlementLetterField(),
+        ],
+      ),
+    );
+  }
+
+  // Build Settlement Letter Field
+  Widget _buildSettlementLetterField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Text(
+          'Settlement Letter',
+          style: TextStyle(color: Colors.white),
+          textAlign: TextAlign.center, // Center the heading
+        ),
+        const SizedBox(height: 8),
+        if (_settlementLetterFileUrl != null &&
+            _settlementLetterFileUrl!.isNotEmpty)
+          Column(
+            children: [
+              const Text(
+                'Document Uploaded',
+                style: TextStyle(color: Colors.white),
+                textAlign: TextAlign.center, // Center the heading
+              ),
+              CustomButton(
+                text: 'View Document',
+                borderColor: const Color(0xFFFF4E00),
+                onPressed: () async {
+                  if (await canLaunchUrl(
+                      Uri.parse(_settlementLetterFileUrl!))) {
+                    await launchUrl(Uri.parse(_settlementLetterFileUrl!));
+                  } else {
+                    print("Cannot open the document");
+                  }
+                },
+              ),
+            ],
+          )
+        else
+          const Text(
+            'No document uploaded',
+            style: TextStyle(color: Colors.white),
+            textAlign: TextAlign.center, // Center the heading
+          ),
+        const SizedBox(height: 8),
+        CustomButton(
+          text: "Upload Settlement Letter",
+          borderColor: const Color(0xFFFF4E00),
+          onPressed: _uploadSettlementLetterFile,
+        ),
+      ],
+    );
+  }
+
+  // Build Natis Tab
   Widget _buildNatisTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildNatisField(),
         ],
@@ -811,70 +984,7 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     );
   }
 
-  Widget _buildDamagesAndFaultsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Damage description field
-          _buildFormField(
-            label: 'Damage Description',
-            controller: _damageDescriptionController,
-          ),
-          const SizedBox(height: 16),
-
-          // Fault codes photo field
-          _buildFaultCodesPhotoField(),
-
-          // List Damages field
-          _buildFormField(
-            label: 'List Damages',
-            controller: _listDamagesController,
-          ),
-          const SizedBox(height: 16),
-
-          // More fields related to faults and damages can be added here as needed
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFaultCodesPhotoField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Center(
-          // Center the heading
-          child: Text(
-            'Fault Codes Photo',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (widget.vehicle.faultCodesPhoto != null &&
-            widget.vehicle.faultCodesPhoto!.isNotEmpty)
-          Column(
-            children: [
-              Image.network(widget.vehicle.faultCodesPhoto!, height: 150),
-              const SizedBox(height: 8),
-              CustomButton(
-                text: "Change Fault Codes Photo",
-                borderColor: const Color(0xFFFF4E00), // Orange color
-                onPressed: () => _uploadFaultCodesPhoto(),
-              ),
-            ],
-          )
-        else
-          CustomButton(
-            text: "Upload Fault Codes Photo",
-            borderColor: const Color(0xFFFF4E00), // Orange color
-            onPressed: () => _uploadFaultCodesPhoto(),
-          ),
-      ],
-    );
-  }
-
+  // Build Natis Field
   Widget _buildNatisField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,8 +1031,8 @@ class _EditVehiclePageState extends State<EditVehiclePage>
                       text: "View PDF Document",
                       borderColor: const Color(0xFFFF4E00), // Orange color
                       onPressed: () async {
-                        if (await canLaunch(_rc1NatisFile!)) {
-                          await launch(_rc1NatisFile!);
+                        if (await canLaunchUrl(Uri.parse(_rc1NatisFile!))) {
+                          await launchUrl(Uri.parse(_rc1NatisFile!));
                         } else {
                           print("Cannot open the document");
                         }
@@ -960,161 +1070,382 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     );
   }
 
-  Future<void> _uploadFaultCodesPhoto() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      String fileName = path.basename(pickedFile.path);
-      Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('vehicles/${widget.vehicle.id}/fault_codes/$fileName');
-
-      try {
-        File file = File(pickedFile.path);
-        await storageRef.putFile(file);
-        String imageUrl = await storageRef.getDownloadURL();
-
-        // Update the state
-        setState(() {
-          _photoUrls[3] = imageUrl; // Update the fault codes photo URL
-        });
-      } catch (e) {
-        print("Error uploading fault codes photo: $e");
-      }
-    }
+  // Build Damages and Faults Tab
+  Widget _buildDamagesAndFaultsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildFormField(
+            label: 'Damage Description',
+            controller: _damageDescriptionController,
+          ),
+          _buildFormField(
+            label: 'List Damages',
+            controller: _listDamagesController,
+          ),
+          _buildFaultCodesPhotoField(),
+        ],
+      ),
+    );
   }
 
+  // Build Fault Codes Photo Field
+  Widget _buildFaultCodesPhotoField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Center(
+          // Center the heading
+          child: Text(
+            'Fault Codes Photo',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_photoUrls[3] != null && _photoUrls[3]!.isNotEmpty)
+          Column(
+            children: [
+              Image.network(_photoUrls[3]!, height: 150),
+              const SizedBox(height: 8),
+              CustomButton(
+                text: "Change Fault Codes Photo",
+                borderColor: const Color(0xFFFF4E00), // Orange color
+                onPressed: _uploadFaultCodesPhoto,
+              ),
+            ],
+          )
+        else
+          CustomButton(
+            text: "Upload Fault Codes Photo",
+            borderColor: const Color(0xFFFF4E00), // Orange color
+            onPressed: _uploadFaultCodesPhoto,
+          ),
+      ],
+    );
+  }
+
+  // Build Tyres Tab
   Widget _buildTyresTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildImageField(22), // Tyre Photo 1
+          _buildImageField(23), // Tyre Photo 2
+          _buildFormField(
+            label: 'Front Left Tyre Tread',
+            controller: _tyreTypeController, // Use appropriate controller
+          ),
+          _buildFormField(
+            label: 'Front Right Tyre Tread',
+            controller: _tyreTypeController, // Use appropriate controller
+          ),
+          _buildFormField(
+            label: 'Rear Tyre Tread',
+            controller: _tyreTypeController, // Use appropriate controller
+          ),
+          _buildFormField(
+            label: 'Spare Tyre',
+            controller: _spareTyreController,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build Images Tab
+  Widget _buildImagesTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildImageField(24), // Tyre Photo 1
-          _buildImageField(25), // Tyre Photo 2
-          _buildFormField(
-            label: 'Front Left Tyre Tread',
-            controller: _tyreTypeController, // Use appropriate controller
+          Text(
+            'Upload and manage vehicle images',
+            style: GoogleFonts.lato(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center, // Center the heading
           ),
           const SizedBox(height: 16),
-          _buildFormField(
-            label: 'Front Right Tyre Tread',
-            controller: _tyreTypeController, // Use appropriate controller
+          Wrap(
+            spacing: 16.0, // Horizontal space between image fields
+            runSpacing: 16.0, // Vertical space between image fields
+            children: List.generate(
+              _photoUrls.length,
+              (index) => SizedBox(
+                width: MediaQuery.of(context).size.width / 2 -
+                    24, // Adjust the size to fit two images per row
+                child: _buildImageField(index),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          _buildFormField(
-            label: 'Rear Tyre Tread',
-            controller: _tyreTypeController, // Use appropriate controller
-          ),
-          const SizedBox(height: 16),
-          _buildFormField(
-            label: 'Spare Tyre',
-            controller: _spareTyreController,
-          ),
-          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _buildSpecificationsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          // Adding the radio buttons to the specifications tab
-          _buildStyledRadioField(
-            label: 'Accident Free',
-            groupValue: _accidentFree,
-            onChanged: (value) {
-              setState(() {
-                _accidentFree = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildStyledRadioField(
-            label: 'Road Worthy',
-            groupValue: _roadWorthy,
-            onChanged: (value) {
-              setState(() {
-                _roadWorthy = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildStyledRadioField(
-            label: 'First Owner',
-            groupValue: _firstOwner,
-            onChanged: (value) {
-              setState(() {
-                _firstOwner = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildStyledRadioField(
-            label: 'Maintenance',
-            groupValue: _maintenance,
-            onChanged: (value) {
-              setState(() {
-                _maintenance = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildStyledRadioField(
-            label: 'Settle Before Selling',
-            groupValue: _settleBeforeSelling,
-            onChanged: (value) {
-              setState(() {
-                _settleBeforeSelling = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVehicleStatusField() {
+  // Build Image Field
+  Widget _buildImageField(int index) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Vehicle Status',
-          style: TextStyle(color: Colors.white),
-          textAlign: TextAlign.center,
+        Text(
+          _getPhotoLabel(index),
+          style: GoogleFonts.lato(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center, // Center the heading
         ),
         const SizedBox(height: 8),
-        DropdownButton<String>(
-          value: _vehicleStatus,
-          dropdownColor: Colors.blue[900],
-          iconEnabledColor: Colors.white, // Dropdown arrow color
-          items: <String>['Live', 'Draft', 'Pending'] // Corrected here
-              .map<DropdownMenuItem<String>>((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(
-                value,
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          }).toList(),
-          onChanged: _onStatusChanged,
+        Container(
+          height: 150,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.grey[300], // Grey background for empty state
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: Colors.white,
+                width: 2), // Border styling similar to VehicleUploadTabs
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: _photoUrls[index] != null && _photoUrls[index]!.isNotEmpty
+                ? Image.network(_photoUrls[index]!, fit: BoxFit.cover)
+                : const Center(
+                    child: Text(
+                      'No image available',
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        CustomButton(
+          text: "Change Image",
+          borderColor: const Color(0xFFFF4E00), // Orange color
+          onPressed: () => _uploadImage(index),
         ),
         const SizedBox(height: 16),
       ],
     );
   }
 
-  void _onStatusChanged(String? newValue) {
-    setState(() {
-      _vehicleStatus = newValue!;
-    });
+  // Get Photo Label
+  String _getPhotoLabel(int index) {
+    switch (index) {
+      case 0:
+        return 'Main Image';
+      case 1:
+        return 'Damage Photo';
+      case 2:
+        return 'Fault Codes Photo';
+      case 3:
+        return 'License Disk';
+      case 4:
+        return 'Mileage Image';
+      case 5:
+        return 'Tread Depth Image';
+      case 6:
+        return 'Bed Bunk';
+      case 7:
+        return 'Dashboard';
+      case 8:
+        return 'Door Panels';
+      case 9:
+        return 'Front Tyres Tread';
+      case 10:
+        return 'Front View';
+      case 11:
+        return '45° Left Front View';
+      case 12:
+        return '45° Left Rear View';
+      case 13:
+        return 'Left Side View';
+      case 14:
+        return 'Rear Tyres Tread';
+      case 15:
+        return 'Rear View';
+      case 16:
+        return '45° Right Front View';
+      case 17:
+        return '45° Right Rear View';
+      case 18:
+        return 'Right Side View';
+      case 19:
+        return 'Roof';
+      case 20:
+        return 'Seats';
+      case 21:
+        return 'Spare Wheel';
+      case 22:
+        return 'Tyre Photo 1';
+      case 23:
+        return 'Tyre Photo 2';
+      default:
+        return 'Unknown Label';
+    }
   }
 
+  // Save Form
+  void _saveForm() async {
+    if (_formKey.currentState != null && _formKey.currentState!.validate()) {
+      try {
+        // Determine the new status based on your logic
+        // For example, set to 'Live' when saving
+        String newStatus = 'Live';
+
+        // Create an updated Vehicle object using the collected data from form fields
+        Vehicle updatedVehicle = widget.vehicle.copyWith(
+          // Text fields
+          makeModel: _makeModelController.text,
+          transmission: _transmission,
+          year: _yearController.text,
+          mileage: _mileageController.text,
+          application: _applicationController.text,
+          bookValue: _bookValueController.text,
+          damageDescription: _damageDescriptionController.text,
+          engineNumber: _engineNumberController.text,
+          expectedSellingPrice: _expectedSellingPriceController.text,
+          hydraulics: _hydraulics,
+          listDamages: _listDamagesController.text,
+          registrationNumber: _registrationNumberController.text,
+          settlementAmount: _settlementAmountController.text,
+          spareTyre: _spareTyreController.text,
+          suspension: _suspension,
+          tyreType: _tyreTypeController.text,
+          vinNumber: _vinNumberController.text,
+          warrantyType: _warrantyTypeController.text,
+          weightClass: _weightClass,
+          vehicleAvailableImmediately: _vehicleAvailableImmediately,
+          availableDate: _availableDateController.text,
+          config: _config,
+          treadLeft: _treadLeftController.text,
+          oemInspection: _oemInspectionController.text,
+          // Radio buttons
+          maintenance: _maintenance,
+          warranty: _warranty,
+          firstOwner: _firstOwner,
+          accidentFree: _accidentFree,
+          roadWorthy: _roadWorthy,
+          settleBeforeSelling: _settleBeforeSelling,
+          vehicleStatus: newStatus, // Update the status here
+          vehicleType: _vehicleType,
+          // Images
+          mainImageUrl: _photoUrls[0],
+          damagePhotos: _photoUrls[1] != null ? [_photoUrls[1]!] : [],
+          dashboardPhoto: _photoUrls[2],
+          faultCodesPhoto: _photoUrls[3],
+          licenceDiskUrl: _photoUrls[4],
+          mileageImage: _photoUrls[5],
+          // Other images...
+          tyrePhoto1: _photoUrls[24],
+          tyrePhoto2: _photoUrls[25],
+          // Files
+          settlementLetterFile: _settlementLetterFileUrl,
+          rc1NatisFile: _rc1NatisFile,
+        );
+
+        // Call the provider method to update the vehicle in Firestore
+        await Provider.of<VehicleProvider>(context, listen: false)
+            .updateVehicle(updatedVehicle);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vehicle updated successfully!')),
+        );
+
+        // Navigate back or reset the form
+        Navigator.of(context).pop();
+      } catch (e) {
+        print("Error updating vehicle: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Error saving vehicle. Please try again.')),
+        );
+      }
+    }
+  }
+
+  // Add this method inside _EditVehiclePageState
+  Future<void> _deleteVehicle() async {
+    bool confirm = await _showDeleteConfirmationDialog();
+    if (confirm) {
+      try {
+        await Provider.of<VehicleProvider>(context, listen: false)
+            .deleteVehicle(widget.vehicle.id);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vehicle deleted successfully!')),
+        );
+
+        // Navigate back
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const VehiclesListPage()),
+        );
+      } catch (e) {
+        print("Error deleting vehicle: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Error deleting vehicle. Please try again.')),
+        );
+      }
+    }
+  }
+
+  Future<bool> _showDeleteConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Vehicle'),
+            content: const Text(
+                'Are you sure you want to delete this vehicle? This action cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+// Add this method inside the _EditVehiclePageState class
+  Future<bool> _showExitConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text(
+                'You have unsaved changes. Do you really want to exit?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  // Build the main form
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1125,160 +1456,63 @@ class _EditVehiclePageState extends State<EditVehiclePage>
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.delete),
+            color: Colors.white,
+            onPressed: _deleteVehicle, // Delete button
+          ),
+          IconButton(
             icon: const Icon(Icons.save),
             color: Colors.white,
             onPressed: _saveForm,
           ),
         ],
         backgroundColor: Colors.blue[900],
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: GradientBackground(
         child: SizedBox.expand(
           child: Form(
-            key: _formKey, // Move the Form here
-            child: Column(
-              children: [
-                TabBar(
-                  controller: _tabController,
-                  indicatorColor: Colors.white,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.grey[500],
-                  isScrollable: true, // Make the tabs scrollable
-                  tabs: const [
-                    Tab(text: 'Details'),
-                    Tab(text: 'Specifications'),
-                    Tab(text: 'Images'),
-                    Tab(text: 'Settlement'),
-                    Tab(text: 'Natis'),
-                    Tab(text: 'Damages and Faults'), // New tab added
-                    Tab(text: 'Tyres'), // New tab added
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
+            key: _formKey, // Existing form key
+            child: WillPopScope(
+              onWillPop: () async {
+                // Prompt the user to confirm exiting without saving
+                bool shouldExit = await _showExitConfirmationDialog();
+                return shouldExit;
+              },
+              child: Column(
+                children: [
+                  TabBar(
                     controller: _tabController,
-                    children: [
-                      // Tab 1: Vehicle Details
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            _buildVehicleStatusField(),
-                            _buildFormField(
-                              label: 'Make & Model',
-                              controller: _makeModelController,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Year',
-                              controller: _yearController,
-                              keyboardType: TextInputType.number,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Mileage',
-                              controller: _mileageController,
-                              keyboardType: TextInputType.number,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'VIN Number',
-                              controller: _vinNumberController,
-                              keyboardType: TextInputType.text,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Book Values',
-                              controller: _bookValueController,
-                              keyboardType: TextInputType.number,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Application Of Use',
-                              controller: _applicationController,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Transmission',
-                              controller: _transmissionController,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Engine No.',
-                              controller: _engineNumberController,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Suspension',
-                              controller: _suspensionController,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Registration No.',
-                              controller: _registrationNumberController,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Hydraulics',
-                              controller: _hydraulicsController,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildFormField(
-                              label: 'Expected Selling Price',
-                              controller: _expectedSellingPriceController,
-                              keyboardType: TextInputType.number,
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      ),
-                      _buildSpecificationsTab(),
-                      // Tab 3: Images
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Upload and manage vehicle images',
-                              style: GoogleFonts.lato(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center, // Center the heading
-                            ),
-                            const SizedBox(height: 16),
-                            Wrap(
-                              spacing:
-                                  16.0, // Horizontal space between image fields
-                              runSpacing:
-                                  16.0, // Vertical space between image fields
-                              children: List.generate(
-                                _photoUrls.length,
-                                (index) => SizedBox(
-                                  width: MediaQuery.of(context).size.width / 2 -
-                                      24, // Adjust the size to fit two images per row
-                                  child: _buildImageField(index),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Tab 4: Settlement
-                      _buildSettlementTab(),
-                      // Tab 5: Natis
-                      _buildNatisTab(),
-                      _buildDamagesAndFaultsTab(),
-                      // Tab 7: Tyres (New Tab)
-                      _buildTyresTab(), // Newly added Tyres tab
+                    indicatorColor: Colors.white,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.grey[500],
+                    isScrollable: true, // Make the tabs scrollable
+                    tabs: const [
+                      Tab(text: 'Details'),
+                      Tab(text: 'Specifications'),
+                      Tab(text: 'Images'),
+                      Tab(text: 'Settlement'),
+                      Tab(text: 'Natis'),
+                      Tab(text: 'Damages and Faults'),
+                      Tab(text: 'Tyres'),
                     ],
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildVehicleDetailsTab(),
+                        _buildSpecificationsTab(),
+                        _buildImagesTab(),
+                        _buildSettlementTab(),
+                        _buildNatisTab(),
+                        _buildDamagesAndFaultsTab(),
+                        _buildTyresTab(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -172,11 +172,11 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
           'ratingCount': ratingsDocs.length,
         });
 
-        // Update the offer status to 'Done'
-        await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(widget.offerId)
-            .update({'offerStatus': 'Done'});
+        // // Update the offer status to 'Done'
+        // await FirebaseFirestore.instance
+        //     .collection('offers')
+        //     .doc(widget.offerId)
+        //     .update({'offerStatus': 'Done'});
       } catch (e) {
         print('Error submitting rating: $e');
       }

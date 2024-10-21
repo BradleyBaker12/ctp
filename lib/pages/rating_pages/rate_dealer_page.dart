@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';

@@ -6,6 +6,7 @@ import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // For Firebase Auth
 
 class SetupInspectionPage extends StatefulWidget {
   final String vehicleId;
@@ -74,6 +75,15 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _postalCodeController = TextEditingController();
 
+  // List to store saved locations fetched from Firestore
+  List<Map<String, dynamic>> _savedLocations = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSavedLocations();
+  }
+
   @override
   void dispose() {
     _addressLine1Controller.dispose();
@@ -82,6 +92,26 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     _stateController.dispose();
     _postalCodeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchSavedLocations() async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        List<dynamic> savedLocations = userDoc.get('savedLocations') ?? [];
+        setState(() {
+          _savedLocations = List<Map<String, dynamic>>.from(savedLocations);
+        });
+      }
+    } catch (e) {
+      print('Error fetching saved locations: $e');
+      // Handle errors appropriately
+    }
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -211,6 +241,8 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
             .whereType<TimeOfDay>()
             .toList();
       }
+
+      _isAddingLocation = true;
     });
   }
 
@@ -346,6 +378,38 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       _isAddingLocation = false;
       _showBackToFormButton = true;
     });
+
+    // Save location to Firestore under user's profile
+    await _saveLocationToUserProfile({
+      'address': fullAddress,
+    });
+  }
+
+  Future<void> _saveLocationToUserProfile(
+      Map<String, dynamic> locationData) async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      DocumentReference userDoc =
+          FirebaseFirestore.instance.collection('users').doc(userId);
+
+      // Fetch existing saved locations
+      DocumentSnapshot userSnapshot = await userDoc.get();
+      List<dynamic> existingLocations =
+          userSnapshot.get('savedLocations') ?? [];
+
+      // Check if the location already exists
+      bool locationExists = existingLocations
+          .any((location) => location['address'] == locationData['address']);
+
+      if (!locationExists) {
+        await userDoc.set({
+          'savedLocations': FieldValue.arrayUnion([locationData]),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      print('Error saving location to user profile: $e');
+      // Handle errors appropriately
+    }
   }
 
   void _clearFields() {
@@ -413,6 +477,59 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
         return null;
       },
     );
+  }
+
+  Widget _buildSavedLocationsDropdown() {
+    if (_savedLocations.isEmpty) {
+      return Container(); // Return empty container if no saved locations
+    }
+
+    return DropdownButtonFormField<Map<String, dynamic>>(
+      decoration: InputDecoration(
+        labelText: 'Select a Saved Location',
+        labelStyle: const TextStyle(color: Colors.white),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.2),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
+        ),
+      ),
+      dropdownColor: Colors.black,
+      items: _savedLocations.map((location) {
+        return DropdownMenuItem<Map<String, dynamic>>(
+          value: location,
+          child: Text(
+            location['address'],
+            style: const TextStyle(color: Colors.white),
+          ),
+        );
+      }).toList(),
+      onChanged: (Map<String, dynamic>? selectedLocation) {
+        if (selectedLocation != null) {
+          _populateLocationFields(selectedLocation);
+        }
+      },
+    );
+  }
+
+  void _populateLocationFields(Map<String, dynamic> locationData) {
+    // Parse the address and populate the controllers
+    List<String> addressParts = locationData['address'].split(', ');
+    _addressLine1Controller.text = addressParts[0];
+    _addressLine2Controller.text =
+        addressParts.length > 1 ? addressParts[1] : '';
+    _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
+    _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
+    _postalCodeController.text = addressParts.length > 4 ? addressParts[4] : '';
+
+    // Clear selected days and time slots to allow the user to set new ones
+    setState(() {
+      _selectedDays.clear();
+      _dateTimeSlots.clear();
+      _selectedDay = null;
+      _selectedTimes = [null];
+    });
   }
 
   @override
@@ -502,6 +619,8 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
                                 // Show input fields and calendar only if adding location
                                 if (_isAddingLocation) ...[
+                                  _buildSavedLocationsDropdown(),
+                                  const SizedBox(height: 16),
                                   _buildTextField(
                                     controller: _addressLine1Controller,
                                     hintText: 'Address Line 1',

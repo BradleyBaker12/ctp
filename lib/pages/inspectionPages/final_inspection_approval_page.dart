@@ -116,10 +116,14 @@ class _FinalInspectionApprovalPageState
           );
         }
       } else {
+        // Display message indicating the other party still needs to approve
+        String waitingForMessage = userRole == 'dealer'
+            ? 'Waiting for the transporter to approve the inspection.'
+            : 'Waiting for the dealer to approve the inspection.';
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Waiting for the other party to approve the inspection.'),
+          SnackBar(
+            content: Text(waitingForMessage),
             backgroundColor: Colors.orange,
           ),
         );

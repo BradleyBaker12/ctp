@@ -1,3 +1,5 @@
+// lib/adminScreens/trading_interests_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -29,15 +31,28 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
     final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
     try {
+      // Update the tradingInterest field in Firestore
       await firestore.collection('users').doc(userId).update({
         'tradingInterest': interest,
       });
+
+      // Fetch updated user data
+      await Provider.of<UserProvider>(context, listen: false).fetchUserData();
+
+      // Retrieve the updated accountStatus
+      final String accountStatus =
+          Provider.of<UserProvider>(context, listen: false).getAccountStatus;
 
       setState(() {
         _isLoading = false;
       });
 
-      Navigator.pushReplacementNamed(context, '/home');
+      // Navigate based on accountStatus
+      if (accountStatus.toLowerCase() == 'active') {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/waiting-for-approval');
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -53,15 +68,13 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // var screenSize = MediaQuery.of(context).size;
-
           return Stack(
             children: [
               Column(
                 children: [
                   Container(
                     width: double.infinity,
-                    height: constraints.maxHeight * 0.5, // Adjust to your needs
+                    height: constraints.maxHeight * 0.5, // Adjust as needed
                     decoration: const BoxDecoration(
                       image: DecorationImage(
                         image: AssetImage('lib/assets/truckSelectImage.png'),
@@ -131,7 +144,8 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                 top: 0,
                 left: 0,
                 right: 0,
-                child: BlurryAppBar(// Adjust as needed
+                child: BlurryAppBar(
+                    // Adjust as needed
                     ),
               ),
               if (_isLoading) const LoadingScreen(),

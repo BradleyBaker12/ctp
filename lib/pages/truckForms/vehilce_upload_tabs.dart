@@ -75,7 +75,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   DateTime? _availableDate;
   String _maintenance = 'yes';
   String _oemInspection = 'yes';
-  String _warranty = 'yes';
+  final String _warranty = 'yes';
   String _firstOwner = 'yes';
   String _accidentFree = 'yes';
   String _roadWorthy = 'yes';
@@ -192,13 +192,13 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       // Ensure that _transmission has a valid value
       List<String> transmissionOptions = ['Manual', 'Automatic'];
       _transmission = transmissionOptions.contains(widget.vehicle!.transmission)
-          ? widget.vehicle!.transmission!
+          ? widget.vehicle!.transmission
           : 'Manual'; // Default to 'Manual' if invalid
 
       // Ensure that _suspension has a valid value
       List<String> suspensionOptions = ['Steel', 'Air'];
       _suspension = suspensionOptions.contains(widget.vehicle!.suspension)
-          ? widget.vehicle!.suspension!
+          ? widget.vehicle!.suspension
           : 'Steel'; // Default to 'Steel' if invalid
 
       // Load main image if it's available (e.g., from URL)
@@ -773,6 +773,29 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     });
 
     try {
+      QuerySnapshot existingVIN = await _firestore
+          .collection('vehicles')
+          .where('vinNumber', isEqualTo: _vinNumberController.text)
+          .get();
+
+      bool vinExists = false;
+      for (var doc in existingVIN.docs) {
+        if (doc.id != _vehicleId) {
+          vinExists = true;
+          break;
+        }
+      }
+
+      if (vinExists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('A vehicle with this VIN number already exists.')),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
       // Access the selectedMainImage from the provider
       final formData = Provider.of<FormDataProvider>(context, listen: false);
       print('selectedMainImage: ${formData.selectedMainImage}');

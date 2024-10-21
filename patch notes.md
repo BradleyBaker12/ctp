@@ -157,7 +157,19 @@ Moved some input field to the mandatory page
 Completed the Duplication added
 The Apps Icon has been changed and is now the CTP Logo
 Changed the Display name to CTP
-
-08/10/2024
 Added radio buttons to conditionaly show certain tabs
 Certain Tab's are shown based on what the user selected (Yes/No)
+
+08/10/2024
+Fixed the Edit Form so that the user can now edit most of the uploaded information
+Hide any offers that have been completed fully
+
+14/10/2024
+Make the Tab on the pending offers page scrollable for devives that are unsupported and repsoinsive for all devices
+Added a delete option
+Edited Items shouldn't be duplicated anymore (just needs for testing)
+Vehilces on the dealer side should not see vehicles on the dealer side
+Add a rejected Tab so that the dealer is able to see that they have vehilce offers that have been rejected
+
+15/09/2024
+Removed the extra dashboard and license disk upload

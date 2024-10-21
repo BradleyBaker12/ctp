@@ -97,8 +97,16 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     bool transporterInspectionComplete =
         offerSnapshot['transporterInspectionComplete'] ?? false;
 
-    // Navigate to Final Inspection Approval Page only if both parties have completed
-    if (dealerInspectionComplete && transporterInspectionComplete) {
+    // Transporter waits for dealer to complete the inspection
+    if (userRole == 'transporter' && !dealerInspectionComplete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Waiting for the dealer to complete the inspection.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } else if (dealerInspectionComplete && transporterInspectionComplete) {
+      // Navigate to Final Inspection Approval Page only if both parties have completed
       Navigator.push(
         context,
         MaterialPageRoute(

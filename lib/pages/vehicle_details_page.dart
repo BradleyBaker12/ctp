@@ -1,4 +1,4 @@
-// vehicle_details_page.dart
+// lib/pages/vehicle_details_page.dart
 
 import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +25,7 @@ class PhotoItem {
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
 
-  const VehicleDetailsPage({Key? key, required this.vehicle}) : super(key: key);
+  const VehicleDetailsPage({super.key, required this.vehicle});
 
   @override
   _VehicleDetailsPageState createState() => _VehicleDetailsPageState();
@@ -41,13 +41,17 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   bool _isAdditionalInfoExpanded = true; // State to track the dropdown
   List<PhotoItem> allPhotos = [];
   late PageController _pageController;
-  String _offerStatus = 'in-progress'; // default status for the offer
+  String _offerStatus = 'in-progress'; // Default status for the offer
+
+  // New state variables for admin functionality
+  Dealer? _selectedDealer;
+  bool _isDealersLoading = false;
 
   @override
   void initState() {
     super.initState();
     _checkIfOfferMade();
-    // No need to call _fetchOffersForVehicle() here since it's used in the FutureBuilder
+    _fetchAllDealers(); // Fetch dealers when the page initializes
 
     try {
       allPhotos = [];
@@ -118,6 +122,36 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       print('$photoLabel Added: $photoUrl');
     } else {
       print('$photoLabel is null or empty');
+    }
+  }
+
+  // New method to fetch all dealers using UserProvider
+  Future<void> _fetchAllDealers() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    setState(() {
+      _isDealersLoading = true;
+    });
+
+    try {
+      await userProvider.fetchDealers();
+      if (userProvider.dealers.isNotEmpty) {
+        setState(() {
+          _selectedDealer = userProvider.dealers.first;
+        });
+      }
+      print('Fetched ${userProvider.dealers.length} dealers.');
+    } catch (e) {
+      print('Error fetching dealers: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to load dealers. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isDealersLoading = false;
+      });
     }
   }
 
@@ -270,6 +304,37 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   Future<void> _makeOffer() async {
+    // Access user role
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+
+    print('User Role: $userRole'); // Debug statement
+
+    // Validate offer amount
+    if (_offerAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid offer amount.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // If user is admin, ensure a dealer is selected
+    if (isAdmin && _selectedDealer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Please select a dealer to make an offer on behalf of.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -277,10 +342,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        return;
+        throw Exception('User not authenticated');
       }
 
-      String dealerId = user.uid;
+      String dealerId = isAdmin
+          ? _selectedDealer!.id
+          : isDealer
+              ? user.uid
+              : ''; // Use selected dealer for admin, own userId for dealer
       String vehicleId = widget.vehicle.id;
       String transporterId = widget.vehicle.userId;
       DateTime createdAt = DateTime.now();
@@ -293,7 +362,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         'offerId': offerId,
         'dealerId': dealerId,
         'vehicleId': vehicleId,
-        'transportId': transporterId,
+        'transporterId': transporterId,
         'createdAt': createdAt,
         'collectionDates': null,
         'collectionLocation': null,
@@ -304,6 +373,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         'paymentStatus': 'pending',
         'offerStatus': 'in-progress',
         'offerAmount': _offerAmount,
+        'dealerInspectionComplete': false,
+        'transporterInspectionComplete': false,
       });
 
       _controller.clear();
@@ -312,6 +383,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         _offerAmount = 0.0;
         _hasMadeOffer = true;
         _offerStatus = 'in-progress';
+        if (isAdmin) {
+          _selectedDealer = userProvider.dealers.isNotEmpty
+              ? userProvider.dealers.first
+              : null;
+        }
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -321,10 +397,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         ),
       );
     } catch (e) {
-      print('Error making offer: $e');
+      print('Error making offer: $e'); // Debug statement
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error submitting offer. Please try again.'),
+        SnackBar(
+          content: Text('Error submitting offer: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -336,7 +412,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   String getDisplayStatus(String? offerStatus) {
-    switch (offerStatus) {
+    switch (offerStatus?.toLowerCase()) {
       case 'in-progress':
         return 'In Progress';
       case 'select location and time':
@@ -353,12 +429,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         return 'Step 3 of 4';
       case 'paid':
         return 'Paid';
-      case 'Issue reported':
+      case 'issue reported':
         return 'Issue Reported';
       case 'resolved':
         return 'Resolved';
       case 'done':
-      case 'Done':
         return 'Done';
       default:
         return offerStatus ?? 'Unknown';
@@ -369,7 +444,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     List<Widget> infoWidgets = [];
 
     void addInfo(String title, String? value) {
-      if (value != null && value.isNotEmpty && value != 'Unknown') {
+      if (value != null &&
+          value.isNotEmpty &&
+          value.toLowerCase() != 'unknown') {
         if (title == 'Damage Description') {
           infoWidgets.add(_buildInfoRowWithIcon(title, value));
         } else {
@@ -402,7 +479,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       addInfo('Warranty Type', widget.vehicle.warrantyType);
       addInfo('Weight Class', widget.vehicle.weightClass);
     } catch (e) {
-      print('Error building additional info: $e');
+      print('Error building additional info: $e'); // Debug statement
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error loading vehicle details. Please try again.'),
@@ -489,48 +566,75 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     final userProvider = Provider.of<UserProvider>(context);
-    final bool isTransporter = userProvider.getUserRole == 'transporter';
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     var blue = const Color(0xFF2F7FFF);
 
     final size = MediaQuery.of(context).size;
+
+    // Debug statement to check if user is admin
+    print('Is Admin: $isAdmin');
+    print('Is Dealer: $isTransporter');
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Row(
-          children: [
-            Text(
-              widget.vehicle.makeModel.toUpperCase(),
-              style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: blue,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.verified, color: Color(0xFFFF4E00), size: 24),
-          ],
-        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios,
-              color: Color(0xFFFF4E00), size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: Color(0xFFFF4E00),
+            size: 20,
+          ),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
+        title: Row(
+          children: [
+            // Wrap the Text widget with Expanded to prevent overflow
+            Expanded(
+              child: Text(
+                widget.vehicle.makeModel.toUpperCase(),
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: blue,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.verified,
+              color: Color(0xFFFF4E00),
+              size: 24,
+            ),
+          ],
+        ),
         actions: [
-          if (isTransporter)
+          // Updated condition to show Edit button for both Dealers and Admins
+          if (isTransporter || isAdmin)
             IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFFFF4E00), size: 24),
+              icon: const Icon(
+                Icons.edit,
+                color: Color(0xFFFF4E00),
+                size: 24,
+              ),
               onPressed: () {
                 _navigateToEditPage();
               },
             ),
           if (isTransporter)
             IconButton(
-              icon: const Icon(Icons.copy,
-                  color: Color(0xFFFF4E00), size: 24), // Duplicate button
+              icon: const Icon(
+                Icons.copy,
+                color: Color(0xFFFF4E00),
+                size: 24,
+              ), // Duplicate button
               onPressed: () {
                 _navigateToDuplicatePage(context);
               },
@@ -643,7 +747,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      if (!_hasMadeOffer && !isTransporter)
+                      if ((isAdmin || isTransporter) && !_hasMadeOffer)
                         Column(
                           children: [
                             Row(
@@ -660,6 +764,69 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 style: _customFont(
                                     20, FontWeight.bold, Colors.white)),
                             const SizedBox(height: 8),
+
+                            // Dealer Selection Dropdown for Admins at the Top
+                            if (isAdmin) ...[
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Select Dealer',
+                                  style: _customFont(
+                                      16, FontWeight.bold, Colors.white),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Consumer<UserProvider>(
+                                builder: (context, userProvider, child) {
+                                  if (userProvider.dealers.isEmpty) {
+                                    return const Text(
+                                      'No dealers available.',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 16,
+                                      ),
+                                    );
+                                  }
+
+                                  return DropdownButtonFormField<Dealer>(
+                                    value: _selectedDealer,
+                                    isExpanded: true, // Ensures full width
+                                    items: userProvider.dealers
+                                        .map((Dealer dealer) {
+                                      return DropdownMenuItem<Dealer>(
+                                        value: dealer,
+                                        child: Text(dealer.email),
+                                      );
+                                    }).toList(),
+                                    onChanged: (Dealer? newDealer) {
+                                      setState(() {
+                                        _selectedDealer = newDealer;
+                                        print(
+                                            'Selected Dealer: ${_selectedDealer?.email}');
+                                      });
+                                    },
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: Colors.grey[800],
+                                      border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8.0),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      hintText: 'Choose a dealer',
+                                      hintStyle: _customFont(
+                                          16, FontWeight.normal, Colors.grey),
+                                    ),
+                                    dropdownColor: Colors.grey[800],
+                                    style: _customFont(
+                                        16, FontWeight.normal, Colors.white),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+
+                            // Offer Input Field
                             TextField(
                               controller: _controller,
                               cursorColor: const Color(0xFFFF4E00),
@@ -688,21 +855,22 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 setState(() {
                                   if (value.isNotEmpty) {
                                     try {
-                                      // Format the input value
+                                      // Remove spaces before parsing
+                                      String numericValue =
+                                          value.replaceAll(' ', '');
+                                      _offerAmount = double.parse(numericValue);
+                                      _totalCost =
+                                          _calculateTotalCost(_offerAmount);
+
+                                      // Format the input value with spaces
                                       String formattedValue =
-                                          _formatNumberWithSpaces(value);
+                                          _formatNumberWithSpaces(numericValue);
                                       _controller.value =
                                           _controller.value.copyWith(
                                         text: formattedValue,
                                         selection: TextSelection.collapsed(
                                             offset: formattedValue.length),
                                       );
-
-                                      // Remove spaces for calculation
-                                      _offerAmount = double.parse(
-                                          value.replaceAll(' ', ''));
-                                      _totalCost =
-                                          _calculateTotalCost(_offerAmount);
                                     } catch (e) {
                                       print('Error parsing offer amount: $e');
                                       ScaffoldMessenger.of(context)
@@ -792,7 +960,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             ),
                           ],
                         )
-                      else if (!isTransporter)
+                      else if ((isAdmin || isTransporter) && !_hasMadeOffer)
                         Center(
                           child: Text(
                             "Offer Status: ${getDisplayStatus(_offerStatus)}",
@@ -854,12 +1022,17 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             ),
         ],
       ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: 1,
-        onItemTapped: (index) {
-          setState(() {});
-        },
-      ),
+      // Conditionally render the bottom navigation bar
+      bottomNavigationBar: isAdmin
+          ? null // Hide the bottom navigation bar for admin users
+          : isTransporter
+              ? CustomBottomNavigation(
+                  selectedIndex: 1,
+                  onItemTapped: (index) {
+                    setState(() {});
+                  },
+                )
+              : null, // Optionally handle other roles
     );
   }
 
@@ -959,6 +1132,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           fit: BoxFit.contain,
                           width: double.infinity,
                           height: double.infinity,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              'assets/default_vehicle_image.png',
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              height: double.infinity,
+                            );
+                          },
                         ),
                       ),
                       Positioned(
@@ -983,7 +1164,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 top: 10,
                 left: 10,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: const Icon(Icons.close, color: Colors.white),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },

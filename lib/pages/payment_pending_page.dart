@@ -6,6 +6,8 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/payment_approved.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/user_provider.dart';
 
 class PaymentPendingPage extends StatefulWidget {
   final String offerId;
@@ -82,6 +84,9 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userRole = userProvider.getUserRole ?? '';
+
     return Scaffold(
       body: GradientBackground(
         child: Container(
@@ -143,19 +148,20 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                   ),
                   Column(
                     children: [
-                      CustomButton(
-                        text: 'UPLOAD PROOF OF PAYMENT',
-                        borderColor: Colors.blue,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => UploadProofOfPaymentPage(
-                                  offerId: widget.offerId),
-                            ),
-                          );
-                        },
-                      ),
+                      if (userRole != 'transporter')
+                        CustomButton(
+                          text: 'UPLOAD PROOF OF PAYMENT',
+                          borderColor: Colors.blue,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => UploadProofOfPaymentPage(
+                                    offerId: widget.offerId),
+                              ),
+                            );
+                          },
+                        ),
                       CustomButton(
                         text: 'REPORT AN ISSUE',
                         borderColor: const Color(0xFFFF4E00),

@@ -1,9 +1,8 @@
-// lib/providers/vehicle_provider.dart
-
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart'; // Ensure this import for ValueListenableBuilder
+// lib/providers/vehicle_provider.dart
 
 class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
@@ -50,12 +49,12 @@ class VehicleProvider with ChangeNotifier {
       {String? vehicleType,
       String? userId,
       bool filterLikedDisliked = true,
-      int limit = 20}) async {
+      int limit = 1000}) async {
     try {
       _isLoading = true;
 
       Query query =
-          FirebaseFirestore.instance.collection('vehicles').limit(limit);
+          FirebaseFirestore.instance.collection('vehicles'); // Removed limit
 
       if (vehicleType != null) {
         query = query.where('vehicleType', isEqualTo: vehicleType);
@@ -67,6 +66,8 @@ class VehicleProvider with ChangeNotifier {
 
       QuerySnapshot querySnapshot = await query.get();
 
+      print('Fetched ${querySnapshot.docs.length} vehicles from Firestore.');
+
       if (querySnapshot.docs.isNotEmpty) {
         _lastFetchedDocument = querySnapshot.docs.last;
       }
@@ -77,11 +78,23 @@ class VehicleProvider with ChangeNotifier {
         return Vehicle.fromFirestore(data);
       }).toList();
 
+      print('Total vehicles after mapping: ${_vehicles.length}');
+      print(
+          'Vehicle IDs after fetching: ${_vehicles.map((v) => v.id).toList()}');
+
       if (filterLikedDisliked) {
+        print('Filtering out liked/disliked vehicles...');
         _vehicles = _vehicles.where((vehicle) {
-          return !userProvider.getLikedVehicles.contains(vehicle.id) &&
-              !userProvider.getDislikedVehicles.contains(vehicle.id);
+          bool isLiked = userProvider.getLikedVehicles.contains(vehicle.id);
+          bool isDisliked =
+              userProvider.getDislikedVehicles.contains(vehicle.id);
+          if (isLiked || isDisliked) {
+            print(
+                'Excluding vehicle ID ${vehicle.id} because it is ${isLiked ? 'liked' : 'disliked'}.');
+          }
+          return !isLiked && !isDisliked;
         }).toList();
+        print('Vehicles after filtering liked/disliked: ${_vehicles.length}');
       }
 
       _isLoading = false;
@@ -102,7 +115,6 @@ class VehicleProvider with ChangeNotifier {
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
           .startAfterDocument(_lastFetchedDocument!)
-          .limit(20) // Fetch 20 more vehicles
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
@@ -126,7 +138,7 @@ class VehicleProvider with ChangeNotifier {
   }
 
   List<String> getAllMakeModels() {
-    final List<String> brands = [
+    List<String> brands = [
       'DAF',
       'FUSO',
       'HINO',
@@ -158,7 +170,7 @@ class VehicleProvider with ChangeNotifier {
       'US TRUCKS'
     ];
 
-    final Set<String> matchedBrands = {};
+    Set<String> matchedBrands = {};
 
     for (var vehicle in _vehicles) {
       for (var brand in brands) {
@@ -193,7 +205,7 @@ class VehicleProvider with ChangeNotifier {
   }
 
   List<String> getAllTransmissions() {
-    final Set<String> normalizedTransmissions = {};
+    Set<String> normalizedTransmissions = {};
 
     for (var vehicle in _vehicles) {
       String normalized = _normalizeTransmission(vehicle.transmission);
@@ -240,13 +252,36 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  /// **New Method**: Update Vehicle
-  Future<void> updateVehicle(Vehicle updatedVehicle) async {
+  Future<void> deleteVehicle(String vehicleId) async {
     try {
       await FirebaseFirestore.instance
           .collection('vehicles')
-          .doc(updatedVehicle.id)
-          .update(updatedVehicle.toMap());
+          .doc(vehicleId)
+          .delete();
+
+      // Remove the vehicle from the local list
+      _vehicles.removeWhere((vehicle) => vehicle.id == vehicleId);
+      vehicleListenable.value = List.from(_vehicles);
+      notifyListeners();
+
+      print("Vehicle deleted successfully.");
+    } catch (e) {
+      print("Error deleting vehicle: $e");
+      rethrow; // Rethrow the error to handle it in the UI
+    }
+  }
+
+  Future<void> updateVehicle(Vehicle updatedVehicle) async {
+    try {
+      // Update the vehicle document
+      DocumentReference vehicleRef = FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(updatedVehicle.id);
+      await vehicleRef.update(updatedVehicle.toMap());
+      print("Vehicle updated successfully.");
+
+      // Clean up duplicate drafts
+      await cleanupDrafts(updatedVehicle.id);
 
       // Update the local list and notify listeners
       int index = _vehicles.indexWhere((v) => v.id == updatedVehicle.id);
@@ -256,12 +291,36 @@ class VehicleProvider with ChangeNotifier {
       }
     } catch (e) {
       print("Error updating vehicle: $e");
+      // Optionally, handle the error (e.g., notify the user)
     }
   }
 
-  // Other existing methods...
+  Future<void> cleanupDrafts(String vehicleId) async {
+    try {
+      QuerySnapshot draftSnapshots = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('id', isEqualTo: vehicleId)
+          .where('vehicleStatus', isEqualTo: 'Draft')
+          .get();
+
+      for (var doc in draftSnapshots.docs) {
+        if (doc.id != vehicleId) {
+          // Keep one draft
+          await doc.reference.delete();
+          print("Removed duplicate draft with ID: ${doc.id}");
+        }
+      }
+    } catch (e) {
+      print("Error cleaning up drafts: $e");
+    }
+  }
 }
 
+
+// Vehicle class remains the same as before, ensure it is included in your codebase
+// lib/models/vehicle.dart
+
+/// The Vehicle model representing each vehicle from Firestore.
 class Vehicle {
   final String id;
   final String accidentFree;
@@ -306,8 +365,8 @@ class Vehicle {
   final String weightClass;
   final String year;
   final DateTime createdAt;
-  String vehicleAvailableImmediately; // Add this property
-  String availableDate; // Add this property
+  final String vehicleAvailableImmediately; // Add this property
+  final String availableDate; // Add this property
 
   // New fields for additional photos
   final String? bed_bunk;
@@ -397,69 +456,71 @@ class Vehicle {
   });
 
   // Updated copyWith method
-  Vehicle copyWith({
-    String? id,
-    String? accidentFree,
-    String? application,
-    String? bookValue,
-    String? damageDescription,
-    List<String?>? damagePhotos,
-    String? dashboardPhoto,
-    String? engineNumber,
-    String? expectedSellingPrice,
-    String? faultCodesPhoto,
-    String? firstOwner,
-    String? hydraulics,
-    String? licenceDiskUrl,
-    String? listDamages,
-    String? maintenance,
-    String? makeModel,
-    String? mileage,
-    String? mileageImage,
-    String? oemInspection,
-    String? mainImageUrl,
-    List<String?>? photos,
-    String? rc1NatisFile,
-    String? registrationNumber,
-    String? roadWorthy,
-    String? settleBeforeSelling,
-    String? settlementAmount,
-    String? settlementLetterFile,
-    String? spareTyre,
-    String? suspension,
-    String? transmission,
-    String? config,
-    String? treadLeft,
-    String? tyrePhoto1,
-    String? tyrePhoto2,
-    String? tyreType,
-    String? userId,
-    String? vehicleType,
-    String? vinNumber,
-    String? warranty,
-    String? warrantyType,
-    String? weightClass,
-    String? year,
-    DateTime? createdAt,
-    String? bed_bunk,
-    String? dashboard,
-    String? door_panels,
-    String? front_tyres_tread,
-    String? front_view,
-    String? left_front_45,
-    String? left_rear_45,
-    String? left_side_view,
-    String? license_disk,
-    String? rear_tyres_tread,
-    String? rear_view,
-    String? right_front_45,
-    String? right_rear_45,
-    String? right_side_view,
-    String? roof,
-    String? seats,
-    String? spare_wheel,
-    String? vehicleStatus,
-  }) {
+  Vehicle copyWith(
+      {String? id,
+      String? accidentFree,
+      String? application,
+      String? bookValue,
+      String? damageDescription,
+      List<String?>? damagePhotos,
+      String? dashboardPhoto,
+      String? engineNumber,
+      String? expectedSellingPrice,
+      String? faultCodesPhoto,
+      String? firstOwner,
+      String? hydraulics,
+      String? licenceDiskUrl,
+      String? listDamages,
+      String? maintenance,
+      String? makeModel,
+      String? mileage,
+      String? mileageImage,
+      String? oemInspection,
+      String? mainImageUrl,
+      List<String?>? photos,
+      String? rc1NatisFile,
+      String? registrationNumber,
+      String? roadWorthy,
+      String? settleBeforeSelling,
+      String? settlementAmount,
+      String? settlementLetterFile,
+      String? spareTyre,
+      String? suspension,
+      String? transmission,
+      String? config,
+      String? treadLeft,
+      String? tyrePhoto1,
+      String? tyrePhoto2,
+      String? tyreType,
+      String? userId,
+      String? vehicleType,
+      String? vinNumber,
+      String? warranty,
+      String? warrantyType,
+      String? weightClass,
+      String? year,
+      DateTime? createdAt,
+      String? bed_bunk,
+      String? dashboard,
+      String? door_panels,
+      String? front_tyres_tread,
+      String? front_view,
+      String? left_front_45,
+      String? left_rear_45,
+      String? left_side_view,
+      String? license_disk,
+      String? rear_tyres_tread,
+      String? rear_view,
+      String? right_front_45,
+      String? right_rear_45,
+      String? right_side_view,
+      String? roof,
+      String? seats,
+      String? spare_wheel,
+      String? vehicleStatus,
+      String? vehicleAvailableImmediately, // Add this property
+      String? availableDate // Add this property
+      }) {
     return Vehicle(
       id: id ?? this.id,
       accidentFree: accidentFree ?? this.accidentFree,
@@ -469,7 +530,8 @@ class Vehicle {
       damagePhotos: damagePhotos ?? this.damagePhotos,
       dashboardPhoto: dashboardPhoto ?? this.dashboardPhoto,
       engineNumber: engineNumber ?? this.engineNumber,
-      expectedSellingPrice: expectedSellingPrice ?? this.expectedSellingPrice,
+      expectedSellingPrice:
+          expectedSellingPrice ?? this.expectedSellingPrice,
       faultCodesPhoto: faultCodesPhoto ?? this.faultCodesPhoto,
       firstOwner: firstOwner ?? this.firstOwner,
       hydraulics: hydraulics ?? this.hydraulics,
@@ -483,11 +545,15 @@ class Vehicle {
       mainImageUrl: mainImageUrl ?? this.mainImageUrl,
       photos: photos ?? this.photos,
       rc1NatisFile: rc1NatisFile ?? this.rc1NatisFile,
-      registrationNumber: registrationNumber ?? this.registrationNumber,
+      registrationNumber:
+          registrationNumber ?? this.registrationNumber,
       roadWorthy: roadWorthy ?? this.roadWorthy,
-      settleBeforeSelling: settleBeforeSelling ?? this.settleBeforeSelling,
-      settlementAmount: settlementAmount ?? this.settlementAmount,
-      settlementLetterFile: settlementLetterFile ?? this.settlementLetterFile,
+      settleBeforeSelling:
+          settleBeforeSelling ?? this.settleBeforeSelling,
+      settlementAmount:
+          settlementAmount ?? this.settlementAmount,
+      settlementLetterFile:
+          settlementLetterFile ?? this.settlementLetterFile,
       spareTyre: spareTyre ?? this.spareTyre,
       suspension: suspension ?? this.suspension,
       transmission: transmission ?? this.transmission,
@@ -591,7 +657,6 @@ class Vehicle {
       roof: data['roof'],
       seats: data['seats'],
       spare_wheel: data['spare_wheel'],
-
       vehicleStatus: data['vehicleStatus'] ?? 'Live',
       vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
       availableDate: data['availableDate'] ?? '',
@@ -677,6 +742,8 @@ class Vehicle {
       'seats': seats,
       'spare_wheel': spare_wheel,
       'vehicleStatus': vehicleStatus,
+      'vehicleAvailableImmediately': vehicleAvailableImmediately,
+      'availableDate': availableDate,
     };
   }
 }

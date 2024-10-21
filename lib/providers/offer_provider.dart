@@ -1,6 +1,9 @@
-import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// lib/models/offer.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+
+/// The Offer model representing each offer from Firestore.
 class Offer extends ChangeNotifier {
   final String offerId;
   final String dealerId;
@@ -8,6 +11,7 @@ class Offer extends ChangeNotifier {
   final String transportId;
   double? offerAmount; // This can now be modified
   String offerStatus; // Made mutable to update locally
+  String? description; // Added description field
   String? vehicleMakeModel;
   String? vehicleMainImage;
   String? reason;
@@ -38,6 +42,9 @@ class Offer extends ChangeNotifier {
   final List<dynamic>? collectionDates;
   final List<dynamic>? collectionLocations;
 
+  // Loading state
+  bool isVehicleDetailsLoading = false;
+
   Offer({
     required this.offerId,
     required this.dealerId,
@@ -45,6 +52,7 @@ class Offer extends ChangeNotifier {
     required this.transportId,
     this.offerAmount,
     required this.offerStatus,
+    this.description, // Initialize description
     this.vehicleMakeModel,
     this.vehicleMainImage,
     this.reason,
@@ -63,15 +71,19 @@ class Offer extends ChangeNotifier {
     this.collectionLocations,
   });
 
+  /// Factory constructor to create an Offer instance from Firestore DocumentSnapshot.
   factory Offer.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Offer(
-      offerId: data['offerId'] ?? '',
+      offerId: doc.id, // Use document ID as offerId
       dealerId: data['dealerId'] ?? '',
       vehicleId: data['vehicleId'] ?? '',
       transportId: data['transportId'] ?? '',
       offerAmount: data['offerAmount']?.toDouble(),
-      offerStatus: data['offerStatus'] ?? 'Unknown',
+      offerStatus:
+          data['offerStatus'] ?? 'pending', // Updated to match Firestore field
+      description:
+          data['description'] ?? 'No Description', // Initialize description
       vehicleMakeModel: data['vehicleMakeModel'],
       vehicleMainImage: data['vehicleMainImage'],
       reason: data['reason'],
@@ -99,7 +111,11 @@ class Offer extends ChangeNotifier {
     );
   }
 
+  /// Fetches related vehicle details from Firestore.
   Future<void> fetchVehicleDetails() async {
+    isVehicleDetailsLoading = true;
+    notifyListeners();
+
     try {
       DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
@@ -121,7 +137,6 @@ class Offer extends ChangeNotifier {
         vehicleMileage = vehicleData['mileage'];
         vehicleTransmission = vehicleData['transmission'];
         print('Fetched vehicle details for $vehicleId');
-        notifyListeners(); // Notify listeners after fetching vehicle details
       } else {
         vehicleMakeModel = 'Unknown';
         vehicleMainImage = null;
@@ -129,9 +144,13 @@ class Offer extends ChangeNotifier {
       }
     } catch (e) {
       print('Error fetching vehicle details: $e');
+    } finally {
+      isVehicleDetailsLoading = false;
+      notifyListeners();
     }
   }
 
+  /// Updates the offer amount both locally and in Firestore.
   Future<void> updateOfferAmount(double newAmount) async {
     try {
       offerAmount = newAmount; // Update local value
@@ -146,117 +165,249 @@ class Offer extends ChangeNotifier {
   }
 }
 
-class OfferProvider extends ChangeNotifier {
-  List<Offer> _offers = [];
-
-  List<Offer> get offers => _offers;
-
-  // Method to fetch a specific offer by its ID
-  Future<void> fetchOfferById(String offerId) async {
-    try {
-      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(offerId)
-          .get();
-
-      if (offerSnapshot.exists) {
-        Offer offer = Offer.fromFirestore(offerSnapshot);
-        _offers.add(offer);
-        await offer.fetchVehicleDetails(); // Fetch related vehicle details
-      } else {
-        print('No offer found with ID $offerId');
-      }
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching offer: $e');
-    }
-  }
-
-  Offer? getOfferById(String offerId) {
-    for (var offer in _offers) {
-      if (offer.offerId == offerId) {
-        return offer;
-      }
+/// Extension to safely retrieve the first element that matches a condition or return null.
+extension IterableExtensions<E> on Iterable<E> {
+  E? firstWhereOrNull(bool Function(E) test) {
+    for (E element in this) {
+      if (test(element)) return element;
     }
     return null;
   }
+}
 
-  // Method to update the offer amount
+/// The OfferProvider manages the state and operations related to offers, including pagination.
+class OfferProvider extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<Offer> _offers = [];
+  bool _isFetching = false;
+  bool _hasMore = true;
+  DocumentSnapshot? _lastDocument;
+  final int _limit = 10; // Number of offers to fetch per page
+  String _currentUserId = '';
+  String _currentUserRole = '';
+  String? _errorMessage; // Optional: Track error messages
+
+  List<Offer> get offers => _offers;
+  bool get isFetching => _isFetching;
+  bool get hasMore => _hasMore;
+  String? get errorMessage => _errorMessage;
+
+  /// Fetches the initial batch of offers based on user ID and role.
+  Future<void> fetchOffers(String userId, String userRole) async {
+    if (_isFetching) return;
+
+    _currentUserId = userId;
+    _currentUserRole = userRole;
+
+    _isFetching = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      Query query = _buildQuery(userId, userRole);
+
+      QuerySnapshot querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastDocument = querySnapshot.docs.last;
+        _offers =
+            querySnapshot.docs.map((doc) => Offer.fromFirestore(doc)).toList();
+
+        // Fetch related vehicle details for each offer
+        for (Offer offer in _offers) {
+          await offer.fetchVehicleDetails();
+        }
+
+        if (querySnapshot.docs.length < _limit) {
+          _hasMore = false;
+        }
+      } else {
+        _hasMore = false;
+      }
+    } catch (e) {
+      print('Error fetching offers: $e');
+      _errorMessage = 'Failed to load offers. Please try again.';
+    }
+
+    _isFetching = false;
+    notifyListeners();
+  }
+
+  /// Fetches the next batch of offers for pagination.
+  Future<void> fetchMoreOffers() async {
+    if (_isFetching || !_hasMore) return;
+
+    _isFetching = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      Query query = _buildQuery(_currentUserId, _currentUserRole)
+          .startAfterDocument(_lastDocument!)
+          .limit(_limit);
+
+      QuerySnapshot querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastDocument = querySnapshot.docs.last;
+        List<Offer> newOffers =
+            querySnapshot.docs.map((doc) => Offer.fromFirestore(doc)).toList();
+
+        // Fetch related vehicle details for each new offer
+        for (Offer offer in newOffers) {
+          await offer.fetchVehicleDetails();
+        }
+
+        _offers.addAll(newOffers);
+
+        if (querySnapshot.docs.length < _limit) {
+          _hasMore = false;
+        }
+      } else {
+        _hasMore = false;
+      }
+    } catch (e) {
+      print('Error fetching more offers: $e');
+      _errorMessage = 'Failed to load more offers. Please try again.';
+    }
+
+    _isFetching = false;
+    notifyListeners();
+  }
+
+  /// Refreshes the offers by clearing existing ones and fetching the initial batch again.
+  Future<void> refreshOffers() async {
+    _offers.clear();
+    _lastDocument = null;
+    _hasMore = true;
+    await fetchOffers(_currentUserId, _currentUserRole);
+  }
+
+  /// Builds the Firestore query based on user role.
+  Query _buildQuery(String userId, String userRole) {
+    Query query = _firestore
+        .collection('offers')
+        .orderBy('createdAt', descending: true)
+        .limit(_limit);
+
+    if (userRole == 'dealer') {
+      query = query.where('dealerId', isEqualTo: userId);
+    } else if (userRole == 'transporter') {
+      query = query.where('transportId', isEqualTo: userId);
+    } else if (userRole == 'admin') {
+      // Admin can fetch all offers, already handled by the base query
+    } else {
+      // Handle other roles or throw an error
+      print('Unsupported user role: $userRole');
+    }
+
+    return query;
+  }
+
+  /// Updates the status of an offer (e.g., Approve, Reject).
+  Future<void> updateOfferStatus(String offerId, String newStatus) async {
+    try {
+      await _firestore
+          .collection('offers')
+          .doc(offerId)
+          .update({'status': newStatus});
+      print('Offer $offerId status updated to $newStatus');
+
+      // Update local state
+      Offer? offer = getOfferById(offerId);
+      if (offer != null) {
+        offer.offerStatus = newStatus;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating offer status: $e');
+      _errorMessage = 'Failed to update offer status. Please try again.';
+      notifyListeners();
+    }
+  }
+
+  /// Deletes an offer from Firestore and updates the local list.
+  Future<void> deleteOffer(String offerId) async {
+    try {
+      await _firestore.collection('offers').doc(offerId).delete();
+      print('Offer $offerId deleted');
+
+      // Update local state
+      _offers.removeWhere((offer) => offer.offerId == offerId);
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting offer: $e');
+      _errorMessage = 'Failed to delete offer. Please try again.';
+      notifyListeners();
+    }
+  }
+
+  /// Retrieves an offer by its ID using the `firstWhereOrNull` extension.
+  Offer? getOfferById(String offerId) {
+    return _offers.firstWhereOrNull((offer) => offer.offerId == offerId);
+  }
+
+  /// Fetches a specific offer by its ID.
+  Future<void> fetchOfferById(String offerId) async {
+    try {
+      DocumentSnapshot offerSnapshot =
+          await _firestore.collection('offers').doc(offerId).get();
+
+      if (offerSnapshot.exists) {
+        Offer offer = Offer.fromFirestore(offerSnapshot);
+        await offer.fetchVehicleDetails();
+        _offers.add(offer);
+        notifyListeners();
+      } else {
+        print('No offer found with ID $offerId');
+      }
+    } catch (e) {
+      print('Error fetching offer: $e');
+      _errorMessage = 'Failed to fetch offer details. Please try again.';
+      notifyListeners();
+    }
+  }
+
+  /// Updates the offer amount for a specific offer.
   Future<void> updateOfferAmount(String offerId, double newAmount) async {
     try {
       Offer? offer = getOfferById(offerId);
       if (offer != null) {
-        offer.offerAmount = newAmount; // Update local value
-        await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(offerId)
-            .update({'offerAmount': newAmount});
+        await offer.updateOfferAmount(newAmount);
         notifyListeners(); // Notify listeners after updating
       } else {
         print('Offer not found for update');
+        _errorMessage = 'Offer not found.';
+        notifyListeners();
       }
     } catch (e) {
       print('Error updating offer amount: $e');
+      _errorMessage = 'Failed to update offer amount. Please try again.';
+      notifyListeners();
     }
   }
 
-  Future<void> fetchOffers(String userId, String userRole) async {
-    try {
-      print('Fetching offers for user $userId with role $userRole');
-
-      QuerySnapshot offersSnapshot;
-      if (userRole == 'dealer') {
-        // Fetch offers for dealer
-        offersSnapshot = await FirebaseFirestore.instance
-            .collection('offers')
-            .where('dealerId', isEqualTo: userId)
-            .get();
-      } else if (userRole == 'transporter') {
-        // Fetch offers for transporter
-        offersSnapshot = await FirebaseFirestore.instance
-            .collection('offers')
-            .where('transportId', isEqualTo: userId)
-            .get();
-      } else {
-        // Handle other roles or throw an error
-        print('Unsupported user role: $userRole');
-        return;
-      }
-
-      _offers = offersSnapshot.docs.map((doc) {
-        return Offer.fromFirestore(doc);
-      }).toList();
-
-      for (Offer offer in _offers) {
-        await offer.fetchVehicleDetails();
-      }
-      print('Fetched ${_offers.length} offers for user $userId');
-      notifyListeners(); // Notify listeners after fetching offers
-    } catch (e) {
-      print('Error fetching offers: $e');
-    }
-  }
-
-  Future<void> refreshOffers(String userId, String userRole) async {
-    await fetchOffers(userId, userRole);
-  }
-
-  // Added method to fetch offers for a specific vehicle
+  /// Fetches offers related to a specific vehicle.
   Future<List<Offer>> fetchOffersForVehicle(String vehicleId) async {
     try {
-      QuerySnapshot offersSnapshot = await FirebaseFirestore.instance
+      QuerySnapshot offersSnapshot = await _firestore
           .collection('offers')
           .where('vehicleId', isEqualTo: vehicleId)
           .get();
 
-      List<Offer> vehicleOffers = offersSnapshot.docs.map((doc) {
-        return Offer.fromFirestore(doc);
-      }).toList();
+      List<Offer> vehicleOffers =
+          offersSnapshot.docs.map((doc) => Offer.fromFirestore(doc)).toList();
 
-      // Optionally, you can add these offers to _offers list or handle them separately
+      // Fetch related vehicle details for each offer
+      for (Offer offer in vehicleOffers) {
+        await offer.fetchVehicleDetails();
+      }
+
       return vehicleOffers;
     } catch (e) {
       print('Error fetching offers for vehicle: $e');
+      _errorMessage = 'Failed to fetch offers for vehicle. Please try again.';
+      notifyListeners();
       return [];
     }
   }

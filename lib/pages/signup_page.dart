@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/loading_screen.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -18,212 +10,131 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   bool _isLoading = false;
 
-  bool _isEmailValid(String email) {
-    final RegExp emailRegExp = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    return emailRegExp.hasMatch(email);
-  }
-
-  bool _isPasswordValid(String password) {
-    final RegExp passwordRegExp = RegExp(
-      r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&\-])[A-Za-z\d@$!%*?&\-]{8,}$',
-    );
-
-    return passwordRegExp.hasMatch(password);
-  }
-
   Future<void> _signUp() async {
     FocusScope.of(context).unfocus();
 
-    if (!_isEmailValid(_emailController.text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address.')),
-      );
-      return;
-    }
-
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
-      return;
-    }
-
-    if (!_isPasswordValid(_passwordController.text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Password must be at least 8 characters long, include a number, and a special character.'),
-        ),
-      );
-      return;
-    }
+    // Your sign-up logic here
 
     setState(() {
       _isLoading = true;
     });
 
-    try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
+    // Simulate loading and completion of the sign-up process
+    await Future.delayed(const Duration(seconds: 2));
 
-      User? user = userCredential.user;
+    setState(() {
+      _isLoading = false;
+    });
 
-      if (user != null) {
-        WriteBatch batch = _firestore.batch();
-
-        DocumentReference userRef =
-            _firestore.collection('users').doc(user.uid);
-        batch.set(userRef, {
-          'email': user.email,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        await batch.commit();
-
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        userProvider.setUser(user);
-        await userProvider.fetchUserData();
-
-        Navigator.pushReplacementNamed(context, '/phoneNumber');
-      }
-    } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      if (e.code == 'email-already-in-use') {
-        errorMessage =
-            'The email address is already in use by another account.';
-      } else {
-        errorMessage = 'An error occurred. Please try again.';
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
-    } catch (e) {
-      print("SignUp Error: ${e.toString()}");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    // Proceed with navigation or error handling based on success/failure
   }
 
   @override
   Widget build(BuildContext context) {
+    var screenWidth = MediaQuery.of(context).size.width;
+    var screenHeight = MediaQuery.of(context).size.height;
+    var orange = const Color(0xFFFF4E00);
+
     return Scaffold(
-      resizeToAvoidBottomInset: true,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          var orange = const Color(0xFFFF4E00);
-          return Stack(
-            children: [
-              GradientBackground(
+      body: Row(
+        children: [
+          // Left side: Form content
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.all(40.0),
+              color: const Color(0xFF1A1A2E), // Dark background
+              child: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const BlurryAppBar(),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: constraints.maxWidth * 0.05,
-                            vertical: constraints.maxHeight * 0.02,
+                    Center(
+                      child: Column(
+                        children: [
+                          const Text(
+                            'WELCOME TO',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                children: [
-                                  SizedBox(
-                                      height: constraints.maxHeight * 0.03),
-                                  Text(
-                                    'WELCOME TO',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: constraints.maxHeight * 0.025,
-                                      fontWeight: FontWeight.w900,
-                                      color: orange,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      height: constraints.maxHeight * 0.06),
-                                  Image.asset('lib/assets/CTPLogo.png',
-                                      height: constraints.maxHeight * 0.2),
-                                  SizedBox(
-                                      height: constraints.maxHeight * 0.06),
-                                  Text(
-                                    'SIGN-UP',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: constraints.maxHeight * 0.028,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      height: constraints.maxHeight * 0.07),
-                                  CustomTextField(
-                                    hintText: 'USERNAME OR EMAIL',
-                                    controller: _emailController,
-                                  ),
-                                  SizedBox(
-                                      height: constraints.maxHeight * 0.02),
-                                  CustomTextField(
-                                    hintText: 'PASSWORD',
-                                    obscureText: true,
-                                    controller: _passwordController,
-                                  ),
-                                  SizedBox(
-                                      height: constraints.maxHeight * 0.02),
-                                  CustomTextField(
-                                    hintText: 'CONFIRM PASSWORD',
-                                    obscureText: true,
-                                    controller: _confirmPasswordController,
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: constraints.maxHeight * 0.07),
-                              CustomButton(
-                                text: 'SIGN-UP',
-                                borderColor: const Color(0xFF2F7FFF),
-                                onPressed: _signUp,
-                              ),
-                              SizedBox(height: constraints.maxHeight * 0.02),
-                              CustomButton(
-                                text: 'CANCLE',
-                                borderColor: const Color(0xFFFF4E00),
-                                onPressed: _signUp,
-                              ),
-                              SizedBox(height: constraints.maxHeight * 0.02),
-                            ],
+                          const SizedBox(height: 30),
+                          Image.asset(
+                            'lib/assets/CTPLogo.png', // Your logo path
+                            height: 100,
+                            width: 100,
                           ),
-                        ),
+                          const SizedBox(height: 30),
+                          const Text(
+                            'SIGN-UP',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          CustomTextField(
+                            hintText: 'USERNAME OR EMAIL',
+                            controller: _emailController,
+                          ),
+                          const SizedBox(height: 20),
+                          CustomTextField(
+                            hintText: 'PASSWORD',
+                            obscureText: true,
+                            controller: _passwordController,
+                          ),
+                          const SizedBox(height: 20),
+                          CustomTextField(
+                            hintText: 'CONFIRM PASSWORD',
+                            obscureText: true,
+                            controller: _confirmPasswordController,
+                          ),
+                          const SizedBox(height: 40),
+                          CustomButton(
+                            text: 'SIGN-UP',
+                            borderColor: const Color(0xFF2F7FFF),
+                            onPressed: _signUp,
+                          ),
+                          const SizedBox(height: 20),
+                          CustomButton(
+                            text: 'CANCEL',
+                            borderColor: const Color(0xFFFF4E00),
+                            onPressed: () {
+                              // Handle cancel action
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              if (_isLoading)
-                const LoadingScreen(
-                  backgroundColor: Colors.black,
-                  indicatorColor: Color(0xFFFF4E00),
+            ),
+          ),
+          // Right side: Background image
+          Expanded(
+            flex: 1,
+            child: Container(
+              height: screenHeight,
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(
+                      'lib/assets/HeroImageLoginPage.png'), // Path to the image
+                  fit: BoxFit.cover,
                 ),
-            ],
-          );
-        },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

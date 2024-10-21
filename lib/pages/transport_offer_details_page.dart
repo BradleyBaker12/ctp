@@ -354,16 +354,20 @@ class _TransporterOfferDetailsPageState
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            CustomButton(
-                              text: 'Accept',
-                              borderColor: Colors.blue,
-                              onPressed: () => _handleAccept(context),
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Accept',
+                                borderColor: Colors.blue,
+                                onPressed: () => _handleAccept(context),
+                              ),
                             ),
                             const SizedBox(width: 16),
-                            CustomButton(
-                              text: 'Reject',
-                              borderColor: const Color(0xFFFF4E00),
-                              onPressed: () => _handleReject(context),
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Reject',
+                                borderColor: const Color(0xFFFF4E00),
+                                onPressed: () => _handleReject(context),
+                              ),
                             ),
                           ],
                         ),

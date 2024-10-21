@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/build_sign_in_button.dart';
@@ -19,20 +20,202 @@ class _LoginPageState extends State<LoginPage> {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       final GoogleSignInAuthentication? googleAuth =
           await googleUser?.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth?.accessToken,
-        idToken: googleAuth?.idToken,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      Navigator.pushReplacementNamed(context, '/home');
+
+      if (googleUser != null && googleAuth != null) {
+        // Create credential but do not sign in immediately
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Show a confirmation dialog before signing in
+        bool confirmSignIn = await showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Confirm Sign In'),
+              content: const Text('Do you want to sign in with this account?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          },
+        );
+
+        // If the user confirms, proceed with signing in
+        if (confirmSignIn) {
+          await FirebaseAuth.instance.signInWithCredential(credential);
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
     } catch (e) {
       print(e);
+      // Handle error, show appropriate message to the user
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // var screenSize = MediaQuery.of(context).size;
+    if (kIsWeb) {
+      return _buildWebLoginPage();
+    } else {
+      return _buildMobileLoginPage();
+    }
+  }
+
+  // Web version of the login page with gradient background
+  Widget _buildWebLoginPage() {
+    var screenWidth = MediaQuery.of(context).size.width;
+    var screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      body: Row(
+        children: [
+          // Left section with login form
+          Expanded(
+            flex: 1,
+            child: GradientBackground(
+              child: Container(
+                padding: const EdgeInsets.all(40.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'lib/assets/CTPLogo.png', // Use your logo path here
+                      height: 100,
+                      width: 100,
+                    ),
+                    const SizedBox(height: 30),
+                    const Text(
+                      'COMMERCIAL TRADER PORTAL',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white, // All text is white
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Navigate with Confidence, Drive with Ease.\nYour trusted partner on the road.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white, // Changed to white
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Handle Apple sign-in
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[850],
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text(
+                        'Sign In with Apple',
+                        style: TextStyle(color: Colors.white), // Text is white
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Handle Facebook sign-in
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[850],
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text(
+                        'Sign In with Facebook',
+                        style: TextStyle(color: Colors.white), // Text is white
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: _signInWithGoogle,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2F7FFF),
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text(
+                        'Sign In with Google',
+                        style: TextStyle(color: Colors.white), // Text is white
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/signin');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF4E00),
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text(
+                        'Sign In with Email',
+                        style: TextStyle(color: Colors.white), // Text is white
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Trouble Signing In?',
+                          style: TextStyle(
+                            color: Colors.white, // Changed to white
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/signup');
+                          },
+                          child: const Text(
+                            'Sign Up',
+                            style: TextStyle(
+                              color: Color(0xFFFF4E00), // Changed to white
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Right section with background image
+          Expanded(
+            flex: 1,
+            child: Container(
+              height: screenHeight,
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(
+                      'lib/assets/LoginImageWeb.png'), // Use your image path here
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Mobile version of the login page
+  Widget _buildMobileLoginPage() {
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(

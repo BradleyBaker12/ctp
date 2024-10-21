@@ -40,18 +40,24 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   }
 
   Future<void> _fetchCollectionLocations() async {
+    // Set loading state to true
     setState(() {
       _isLoading = true;
     });
 
     try {
+      debugPrint('Fetching offer document with ID: ${widget.offerId}');
       // Fetch the offer document to get the vehicleId
       DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
           .get();
 
+      debugPrint('Offer document data: ${offerSnapshot.data()}');
+
+      // If the offer document doesn't exist, show an error message and return
       if (!offerSnapshot.exists) {
+        debugPrint('Offer document does not exist.');
         setState(() {
           _isLoading = false;
         });
@@ -63,12 +69,16 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         return;
       }
 
+      // Extract vehicleId from the offer document
       Map<String, dynamic>? offerData =
           offerSnapshot.data() as Map<String, dynamic>?;
-      print('Offer Document Data: $offerData');
-
       String? vehicleId = offerData?['vehicleId'];
+
+      debugPrint('Vehicle ID extracted: $vehicleId');
+
+      // If vehicleId is not found, show an error message and return
       if (vehicleId == null || vehicleId.isEmpty) {
+        debugPrint('Vehicle ID not found in the offer.');
         setState(() {
           _isLoading = false;
         });
@@ -81,12 +91,17 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       }
 
       // Fetch the vehicle document using vehicleId
+      debugPrint('Fetching vehicle document with ID: $vehicleId');
       DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
           .doc(vehicleId)
           .get();
 
+      debugPrint('Vehicle document data: ${vehicleSnapshot.data()}');
+
+      // If the vehicle document doesn't exist, show an error message and return
       if (!vehicleSnapshot.exists) {
+        debugPrint('Vehicle document does not exist.');
         setState(() {
           _isLoading = false;
         });
@@ -98,16 +113,18 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         return;
       }
 
+      // Extract collection locations from the vehicle document
       Map<String, dynamic>? vehicleData =
           vehicleSnapshot.data() as Map<String, dynamic>?;
-      print('Vehicle Document Data: $vehicleData');
+      var collectionLocations = vehicleData?['collectionDetails']
+          ?['collectionLocations']?['locations'] as List<dynamic>?;
 
-      var collectionLocations =
-          vehicleData?['collectionLocations']?['locations'] as List<dynamic>?;
+      debugPrint(
+          'Collection locations extracted (updated access): \$collectionLocations');
 
-      print('Collection Locations Data: $collectionLocations');
-
+      // If no collection locations are available, show an error message and return
       if (collectionLocations == null || collectionLocations.isEmpty) {
+        debugPrint('No collection locations available for this offer.');
         setState(() {
           _isLoading = false;
         });
@@ -119,28 +136,33 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         return;
       }
 
+      // Initialize lists to store location data
       List<String> locations = [];
       List<String> addresses = [];
       List<List<DateTime>> locationDates = [];
       List<List<Map<String, dynamic>>> locationTimeSlots = [];
       List<LatLng> latLngs = [];
 
+      // Loop through each collection location entry
       for (var locationEntry in collectionLocations) {
         if (locationEntry == null) continue;
 
         String address = locationEntry['address'] ?? '';
         List<dynamic> timeSlots = locationEntry['timeSlots'] ?? [];
 
+        debugPrint('Processing location entry: $locationEntry');
+
+        // Skip if address or time slots are empty
         if (address.isEmpty || timeSlots.isEmpty) {
+          debugPrint('Skipping location with empty address or time slots.');
           continue;
         }
-
-        print('Processing location: $address');
 
         // Lists to hold dates and time slots for this location
         List<DateTime> dates = [];
         List<Map<String, dynamic>> timeSlotsList = [];
 
+        // Loop through each time slot for the current location
         for (var timeSlot in timeSlots) {
           if (timeSlot == null) continue;
 
@@ -149,34 +171,40 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
 
           DateTime date;
           try {
+            // Parse the date string
             date = DateFormat('d-M-yyyy').parse(dateString);
-            print('Parsed dateString $dateString to date $date');
+            debugPrint('Parsed date: $date');
           } catch (e) {
-            print('Error parsing date: $dateString');
+            debugPrint('Error parsing date: $e');
             continue;
           }
 
+          // Add date to the list if not already present
           if (!dates.contains(date)) {
             dates.add(date);
           }
 
+          // Extract times for the current date
           List<dynamic> times = timeSlot['times'] ?? [];
           if (times.isEmpty) {
+            debugPrint('Skipping date with empty times.');
             continue;
           }
 
-          print('Date: $date, Times: $times');
-
+          // Add date and corresponding time slots to the list
           timeSlotsList.add({
             'date': date,
             'times': times,
           });
         }
 
+        // Skip if no valid dates or time slots are found
         if (dates.isEmpty || timeSlotsList.isEmpty) {
+          debugPrint('Skipping location with no valid dates or time slots.');
           continue;
         }
 
+        // Add location data to the lists
         locations.add(address);
         addresses.add(address);
         locationDates.add(dates);
@@ -184,7 +212,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
 
         // Convert address to LatLng
         try {
-          print('Getting coordinates for address: $address');
           List<Location> geoLocations = await locationFromAddress(address);
           if (geoLocations.isNotEmpty) {
             final location = geoLocations.first;
@@ -193,12 +220,14 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             latLngs.add(const LatLng(0, 0));
           }
         } catch (e) {
-          print('Error converting address to LatLng: $e');
+          debugPrint('Error converting address to LatLng: $e');
           latLngs.add(const LatLng(0, 0));
         }
       }
 
+      // If no valid locations are found, show an error message and return
       if (locations.isEmpty) {
+        debugPrint('No valid collection locations found.');
         setState(() {
           _isLoading = false;
         });
@@ -223,9 +252,13 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         }
       }
 
+      debugPrint('First available date: $firstAvailableDate');
+
+      // Set the focused and selected day to the first available date or today
       _focusedDay = firstAvailableDate ?? DateTime.now();
       _selectedDay = _focusedDay;
 
+      // Update the state with the fetched location data
       setState(() {
         _locations = locations;
         _addresses = addresses;
@@ -234,14 +267,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         _latLngs = latLngs;
         _isLoading = false;
       });
-
-      // Debugging statements
-      print('Final Locations: $_locations');
-      print('Final Addresses: $_addresses');
-      print('Final Location Dates: $_locationDates');
-      print('Final Location Time Slots: $_locationTimeSlots');
     } catch (e) {
-      print('Error fetching collection locations: $e');
+      // Handle any errors that occur during the fetching process
+      debugPrint('Failed to fetch collection locations: $e');
       setState(() {
         _isLoading = false;
       });
@@ -253,6 +281,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     }
   }
 
+// Getter to retrieve available time slots for the selected day
   List<String> get _availableTimes {
     if (_selectedDay != null &&
         _locationTimeSlots.isNotEmpty &&
@@ -260,7 +289,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       final normalizedSelectedDay = _normalizeDate(_selectedDay!);
       List<Map<String, dynamic>> timeSlots =
           _locationTimeSlots[_selectedLocation];
-
       for (var timeSlot in timeSlots) {
         DateTime date = _normalizeDate(timeSlot['date']);
         if (date.isAtSameMomentAs(normalizedSelectedDay)) {
@@ -272,17 +300,18 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     return [];
   }
 
+// Helper method to normalize a DateTime object to year, month, and day
   DateTime _normalizeDate(DateTime date) {
     return DateTime(date.year, date.month, date.day);
   }
 
+// Method to check if a date is available for the selected location
   bool isDateAvailable(DateTime day) {
     if (_locationDates.isEmpty ||
         _selectedLocation >= _locationDates.length ||
         _locationDates[_selectedLocation].isEmpty) {
       return false;
     }
-
     DateTime checkDay = _normalizeDate(day);
     List<DateTime> dates = _locationDates[_selectedLocation];
     for (var date in dates) {
