@@ -3,6 +3,7 @@ import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/pages/admin_home_page.dart';
+import 'package:ctp/pages/truckForms/trailer_upload_tabs.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -63,6 +64,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // Fetch user data first
       await userProvider.fetchUserData();
 
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      // Check if the user is authenticated and has valid data
+      if (currentUser == null || userProvider.userId == null) {
+        // If no user is found, sign out and navigate back to the login page
+        await FirebaseAuth.instance.signOut();
+        Navigator.pushReplacementNamed(context, '/login');
+        return;
+      }
+
+      // Check if the user role is unsupported (e.g., guest)
+      if (userProvider.getUserRole == 'guest') {
+        // Sign out and redirect guest users back to login
+        await FirebaseAuth.instance.signOut();
+        Navigator.pushReplacementNamed(context, '/login');
+        return;
+      }
+
       // Check if the user is an admin, if yes, navigate to the admin home screen
       if (userProvider.getUserRole == 'admin') {
         Navigator.pushReplacement(
@@ -75,19 +94,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // Fetch vehicles after ensuring user data is ready
       await vehicleProvider.fetchVehicles(userProvider);
 
-      // Ensure recent vehicles are also loaded after fetching all vehicles
       recentVehicles = await vehicleProvider.fetchRecentVehicles();
       displayedVehiclesNotifier.value = recentVehicles.take(5).toList();
 
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final userRole = userProvider.getUserRole;
-        await _offerProvider.fetchOffers(user.uid, userRole);
-
-        likedVehicles = userProvider.getLikedVehicles;
-        dislikedVehicles = userProvider.getDislikedVehicles;
-      }
-    } catch (e, stackTrace) {
+      await _offerProvider.fetchOffers(
+          currentUser.uid, userProvider.getUserRole);
+      likedVehicles = userProvider.getLikedVehicles;
+      dislikedVehicles = userProvider.getDislikedVehicles;
+        } catch (e, stackTrace) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Failed to initialize data. Please try again.')),
@@ -591,8 +605,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => VehicleUploadTabs(
-                          ),
+                          builder: (context) => VehicleUploadTabs(),
                         ),
                       );
                     } else {
@@ -840,6 +853,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           case 'PEUGEOT':
                             logoPath = 'lib/assets/Logo/PEUGEOT.png';
                             break;
+                          case 'FREIGHTLINER':
+                            logoPath =
+                                'lib/assets/Freightliner-logo-6000x2000.png';
+                            break;
                           case 'US TRUCKS':
                             return Icon(
                               Icons.image_outlined,
@@ -897,7 +914,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'HYUNDAI',
       'JOYLONG',
       'PEUGEOT',
-      'US TRUCKS'
+      'US TRUCKS',
+      'FREIGHTLINER'
     ];
 
     List<String> selectedBrands = List.from(userProvider.getPreferredBrands);

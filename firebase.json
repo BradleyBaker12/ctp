@@ -1,1 +1,47 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"ctp-central-database","appId":"1:656287296553:android:b819f014d9cb2161408038","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"ctp-central-database","appId":"1:656287296553:ios:2f83e65294413a11408038","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"ctp-central-database","configurations":{"android":"1:656287296553:android:b819f014d9cb2161408038","ios":"1:656287296553:ios:2f83e65294413a11408038","web":"1:656287296553:web:75f8a76bd7a63a96408038"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "ctp-central-database",
+          "appId": "1:656287296553:android:b819f014d9cb2161408038",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "ctp-central-database",
+          "appId": "1:656287296553:ios:2f83e65294413a11408038",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "ctp-central-database",
+          "configurations": {
+            "android": "1:656287296553:android:b819f014d9cb2161408038",
+            "ios": "1:656287296553:ios:2f83e65294413a11408038",
+            "web": "1:656287296553:web:75f8a76bd7a63a96408038"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

@@ -20,6 +20,7 @@ import 'package:ctp/pages/signup_page.dart';
 import 'package:ctp/pages/trading_category_page.dart';
 import 'package:ctp/pages/trading_intrests_page.dart';
 import 'package:ctp/pages/transporter_reg.dart';
+import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/tutorial_page.dart';
 import 'package:ctp/pages/tutorial_started.dart';
@@ -32,14 +33,21 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print('Handling a background message: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Enable Crashlytics for Flutter framework errors
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
@@ -97,6 +105,7 @@ class MyApp extends StatelessWidget {
         '/waiting-for-approval': (context) => const WaitingForApprovalPage(),
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
+        '/vehicleUpload': (context) => VehicleUploadTabs(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {

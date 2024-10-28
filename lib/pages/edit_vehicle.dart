@@ -1341,8 +1341,8 @@ class _EditVehiclePageState extends State<EditVehiclePage>
           licenceDiskUrl: _photoUrls[4],
           mileageImage: _photoUrls[5],
           // Other images...
-          tyrePhoto1: _photoUrls[24],
-          tyrePhoto2: _photoUrls[25],
+          tyrePhoto1: _photoUrls[22],
+          tyrePhoto2: _photoUrls[23],
           // Files
           settlementLetterFile: _settlementLetterFileUrl,
           rc1NatisFile: _rc1NatisFile,

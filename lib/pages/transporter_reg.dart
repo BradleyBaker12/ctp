@@ -163,7 +163,7 @@ class _TransporterRegistrationPageState
         const SnackBar(content: Text('Registration completed successfully!')),
       );
       Navigator.pushReplacementNamed(context,
-          '/firstTruckForm'); // Navigate to the first truck upload form page
+          '/vehicleUpload'); // Navigate to the first truck upload form page
     } catch (e) {
       print("Error submitting form: $e");
       ScaffoldMessenger.of(context).showSnackBar(

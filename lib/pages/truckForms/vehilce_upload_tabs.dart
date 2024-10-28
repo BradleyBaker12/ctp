@@ -70,7 +70,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   String? _vehicleId; // Document ID (vehicleId) of the current vehicle
   String? _selectedMileage;
   String _transmission = 'Manual';
-  String _suspension = 'Steel';
+  String _suspension = 'Spring';
   String? _listDamages = 'yes'; // Store radio button selection
   DateTime? _availableDate;
   String _maintenance = 'yes';
@@ -87,6 +87,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   String _weightClass = 'heavy';
   String? _settleBeforeSelling;
   String? _mainImageUrl;
+  String? _hydraulics = 'yes';
 
 // State management for UI sections
   bool _showSettlementTab = false;
@@ -159,23 +160,27 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       formData.setSelectedMainImage(null);
     });
 
-    _tabController.addListener(() async {
+    _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
-        if (_tabController.index != 0) {
-          if (!_formKeys[0].currentState!.validate()) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Please complete Section 1 before proceeding.')));
-            _tabController.animateTo(0);
-          } else {
-            // Save Section 1 data
-            await _saveSection1Data();
-            if (_vehicleId == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (_tabController.index != 0) {
+            if (!_formKeys[0].currentState!.validate()) {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Error saving Section 1. Please try again.')));
+                  content:
+                      Text('Please complete Section 1 before proceeding.')));
               _tabController.animateTo(0);
+            } else {
+              // Save Section 1 data
+              await _saveSection1Data();
+              if (_vehicleId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content:
+                        Text('Error saving Section 1. Please try again.')));
+                _tabController.animateTo(0);
+              }
             }
           }
-        }
+        });
       }
     });
 
@@ -196,10 +201,12 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
           : 'Manual'; // Default to 'Manual' if invalid
 
       // Ensure that _suspension has a valid value
-      List<String> suspensionOptions = ['Steel', 'Air'];
+      List<String> suspensionOptions = ['Spring', 'Air'];
       _suspension = suspensionOptions.contains(widget.vehicle!.suspension)
           ? widget.vehicle!.suspension
-          : 'Steel'; // Default to 'Steel' if invalid
+          : 'Spring'; // Default to 'Steel' if invalid
+
+      _hydraulics = 'yes';
 
       // Load main image if it's available (e.g., from URL)
       if (widget.vehicle!.mainImageUrl != null &&
@@ -485,7 +492,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     _vehicleId = null;
     _selectedMileage = null;
     _transmission = 'Manual';
-    _suspension = 'Steel';
+    _suspension = 'Spring';
     _isLoading = false;
     _listDamages = 'yes';
 
@@ -840,7 +847,6 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       Map<String, dynamic> section1Data = {
         'userId': userId, // Include the userId
         'vehicleType': _vehicleType,
-        'weightClass': _weightClass,
         'year': _yearController.text,
         'makeModel': _makeModelController.text,
         'vinNumber': _vinNumberController.text,
@@ -999,25 +1005,27 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white70,
                   indicatorColor: Colors.white,
-                  onTap: (index) async {
+                  onTap: (index) {
                     if (index != 0) {
-                      if (!_formKeys[0].currentState!.validate()) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text(
-                                'Please complete Section 1 before proceeding.')));
-                        _tabController.animateTo(0);
-                      } else {
-                        // Save Section 1 data
-                        await _saveSection1Data();
-                        if (_vehicleId == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Error saving Section 1. Please try again.')),
-                          );
+                      WidgetsBinding.instance.addPostFrameCallback((_) async {
+                        if (!_formKeys[0].currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text(
+                                  'Please complete Section 1 before proceeding.')));
                           _tabController.animateTo(0);
+                        } else {
+                          // Save Section 1 data
+                          await _saveSection1Data();
+                          if (_vehicleId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Error saving Section 1. Please try again.')),
+                            );
+                            _tabController.animateTo(0);
+                          }
                         }
-                      }
+                      });
                     }
                   },
                 ),
@@ -1214,52 +1222,68 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       green,
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            const Center(
-              child: Text(
-                'MANDATORY INFORMATION',
-                style: TextStyle(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+
+              // Section Title
+              Center(
+                child: Text(
+                  'MANDATORY INFORMATION',
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white),
-                textAlign: TextAlign.center,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            const Center(
-              child: Text(
-                'Please fill out the required details below\nYour trusted partner on the road.',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
+
+              const SizedBox(height: 10),
+
+              // Section Subtitle
+              Center(
+                child: Text(
+                  'Please fill out the required details below\nYour trusted partner on the road.',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
 
-            // Vehicle Type
-            const Center(
-              child: Text(
-                'VEHICLE TYPE',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
+              const SizedBox(height: 20),
+
+              // Vehicle Information Section
+              _buildSectionHeader('VEHICLE INFORMATION'),
+
+              const SizedBox(height: 10),
+
+              // Vehicle Type
+              Center(
+                child: Text(
+                  'VEHICLE TYPE',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton('Truck', 'truck'),
-                const SizedBox(width: 20),
-                _buildRadioButton('Trailer', 'trailer'),
-              ],
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
-            // Weight Class
-            const Center(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton('Truck', 'truck'),
+                  const SizedBox(width: 20),
+                  _buildRadioButton('Trailer', 'trailer'),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Weight Class (Currently Commented Out)
+              /*
+            Center(
               child: Text(
                 'WEIGHT CLASS',
                 style: TextStyle(fontSize: 14, color: Colors.white),
@@ -1278,504 +1302,698 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
               ],
             ),
             const SizedBox(height: 20),
+            */
 
-            // Input Fields Grouped Together
-            Form(
-              key: _formKeys[0],
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _yearController,
-                          hintText: 'Year',
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the year';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _makeModelController,
-                          hintText: 'Make/Model',
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the make/model';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 15),
-                  _buildTextField(
-                    controller: _mileageController,
-                    hintText: 'Mileage',
-                    keyboardType: TextInputType.number,
-                    inputFormatter: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter the mileage';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  _buildTextField(
-                    controller: _sellingPriceController,
-                    hintText: 'Selling Price',
-                    isCurrency: true,
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter the selling price';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  _buildTextField(
-                    controller: _vinNumberController,
-                    hintText: 'VIN Number',
-                    inputFormatter: [
-                      UpperCaseTextFormatter()
-                    ], // Added this line
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter the VIN number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  _buildTextArea(
-                    controller: _applicationController,
-                    hintText: 'Application of Use',
-                    maxLines: 5,
-                  ),
-                  const SizedBox(height: 15),
-
-                  // Transmission Dropdown
-                  const Text(
-                    "Transmission",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  _buildDropdown(
-                    value: _transmission,
-                    items: ['Manual', 'Automatic'],
-                    hintText: 'Transmission',
-                    onChanged: (value) {
-                      setState(() {
-                        _transmission = value!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 15),
-
-                  // Engine Number Field
-                  _buildTextField(
-                    controller: _engineNumberController,
-                    hintText: 'Engine No.',
-                    inputFormatter: [UpperCaseTextFormatter()],
-                    // No validator
-                  ),
-                  const SizedBox(height: 15),
-
-                  // Suspension Dropdown
-                  const Text(
-                    "Suspension",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  _buildDropdown(
-                    value: _suspension,
-                    items: ['Steel', 'Air'],
-                    hintText: 'Suspension',
-                    onChanged: (value) {
-                      setState(() {
-                        _suspension = value!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 15),
-
-                  // Registration Number Field
-                  _buildTextField(
-                    controller: _registrationNumberController,
-                    hintText: 'Registration No.',
-                    inputFormatter: [UpperCaseTextFormatter()],
-                    // No validator
-                  ),
-                  const SizedBox(height: 15),
-
-                  // Expected Selling Price Field
-                  _buildSellingPriceTextField(
-                    controller: _expectedSellingPriceController,
-                    hintText: 'Expected Selling Price',
-                    // No validator
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Radio Buttons Grouped Together
-            const Center(
-              child: Text(
-                'IS VEHICLE AVAILABLE IMMEDIATELY',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton(
-                  'Yes',
-                  'yes',
-                  groupValue: _vehicleAvailableImmediately,
-                  onChanged: (value) {
-                    setState(() {
-                      _vehicleAvailableImmediately = value;
-                    });
-                  },
-                ),
-                const SizedBox(width: 20),
-                _buildRadioButton(
-                  'No',
-                  'no',
-                  groupValue: _vehicleAvailableImmediately,
-                  onChanged: (value) {
-                    setState(() {
-                      _vehicleAvailableImmediately = value;
-                    });
-                  },
-                ),
-              ],
-            ),
-            if (_vehicleAvailableImmediately == 'no')
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                child: GestureDetector(
-                  onTap: () => _selectAvailableDate(context),
-                  child: AbsorbPointer(
-                    child: TextFormField(
-                      controller: _availableDateController,
-                      decoration: InputDecoration(
-                        hintText: 'What is the date available for sale?',
-                        hintStyle: const TextStyle(color: Colors.white70),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.2),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                          borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.5),
+              // Vehicle Details Form
+              Form(
+                key: _formKeys[0],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Year and Make/Model
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _yearController,
+                            hintText: 'Year',
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the year';
+                              }
+                              return null;
+                            },
                           ),
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFFF4E00),
-                            width: 2.0,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _makeModelController,
+                            hintText: 'Make/Model',
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the make/model';
+                              }
+                              return null;
+                            },
                           ),
                         ),
-                      ),
-                      style: const TextStyle(color: Colors.white),
+                      ],
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // Mileage
+                    _buildTextField(
+                      controller: _mileageController,
+                      hintText: 'Mileage',
+                      keyboardType: TextInputType.number,
+                      inputFormatter: [FilteringTextInputFormatter.digitsOnly],
                       validator: (value) {
-                        if (_vehicleAvailableImmediately == 'no') {
-                          if (value == null || value.isEmpty) {
-                            return 'Please select the available date';
-                          }
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the mileage';
                         }
                         return null;
                       },
                     ),
+
+                    const SizedBox(height: 15),
+
+                    // Selling Price
+                    _buildTextField(
+                      controller: _sellingPriceController,
+                      hintText: 'Selling Price',
+                      isCurrency: true,
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the selling price';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // VIN Number
+                    _buildTextField(
+                      controller: _vinNumberController,
+                      hintText: 'VIN Number',
+                      inputFormatter: [UpperCaseTextFormatter()],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the VIN number';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // Application of Use
+                    _buildTextArea(
+                      controller: _applicationController,
+                      hintText: 'Application of Use',
+                      maxLines: 1,
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // Engine Number
+                    _buildTextField(
+                      controller: _engineNumberController,
+                      hintText: 'Engine No.',
+                      inputFormatter: [UpperCaseTextFormatter()],
+                      // No validator
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // Registration Number
+                    _buildTextField(
+                      controller: _registrationNumberController,
+                      hintText: 'Registration No.',
+                      inputFormatter: [UpperCaseTextFormatter()],
+                      // No validator
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // Expected Selling Price
+                    _buildSellingPriceTextField(
+                      controller: _expectedSellingPriceController,
+                      hintText: 'Expected Selling Price',
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // Transmission
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Gearbox",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildRadioButton(
+                              'Manual',
+                              'manual',
+                              groupValue: _transmission,
+                              onChanged: (value) {
+                                setState(() {
+                                  _transmission = value!;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 20),
+                            _buildRadioButton(
+                              'Automatic',
+                              'automatic',
+                              groupValue: _transmission,
+                              onChanged: (value) {
+                                setState(() {
+                                  _transmission = value!;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+
+                    // Suspension
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Suspension",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildRadioButton(
+                              'Spring',
+                              'spring',
+                              groupValue: _suspension,
+                              onChanged: (value) {
+                                setState(() {
+                                  _suspension = value!;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 20),
+                            _buildRadioButton(
+                              'Air',
+                              'air',
+                              groupValue: _suspension,
+                              onChanged: (value) {
+                                setState(() {
+                                  _suspension = value!;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Additional Details Section
+              // _buildSectionHeader('ADDITIONAL DETAILS'),
+
+              const SizedBox(height: 10),
+
+              // Hydraulics
+              Center(
+                child: Text(
+                  'Hydraulics',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _hydraulics,
+                    onChanged: (value) {
+                      setState(() {
+                        _hydraulics = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _hydraulics,
+                    onChanged: (value) {
+                      setState(() {
+                        _hydraulics = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Vehicle Availability
+              Center(
+                child: Text(
+                  'IS VEHICLE AVAILABLE IMMEDIATELY',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _vehicleAvailableImmediately,
+                    onChanged: (value) {
+                      setState(() {
+                        _vehicleAvailableImmediately = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _vehicleAvailableImmediately,
+                    onChanged: (value) {
+                      setState(() {
+                        _vehicleAvailableImmediately = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+
+              // Available Date Field (Conditionally Visible)
+              if (_vehicleAvailableImmediately == 'no')
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: GestureDetector(
+                    onTap: () => _selectAvailableDate(context),
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        controller: _availableDateController,
+                        decoration: InputDecoration(
+                          hintText: 'What is the date available for sale?',
+                          hintStyle: const TextStyle(color: Colors.white70),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.2),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.5),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFFF4E00),
+                              width: 2.0,
+                            ),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        validator: (value) {
+                          if (_vehicleAvailableImmediately == 'no') {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select the available date';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+
+              // Maintenance
+              Center(
+                child: Text(
+                  'MAINTENANCE',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _maintenance,
+                    onChanged: (value) {
+                      setState(() {
+                        _maintenance = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _maintenance,
+                    onChanged: (value) {
+                      setState(() {
+                        _maintenance = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // OEM Inspection
+              Center(
+                child: Text(
+                  'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Center(
+                child: Text(
+                  'Please note that OEM will charge you for inspection',
+                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _oemInspection,
+                    onChanged: (value) {
+                      setState(() {
+                        _oemInspection = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _oemInspection,
+                    onChanged: (value) {
+                      setState(() {
+                        _oemInspection = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Warranty
+              Center(
+                child: Text(
+                  "Warranty",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            const SizedBox(height: 20),
-            const Center(
-              child: Text(
-                'MAINTENANCE',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
+
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _settleBeforeSelling,
+                    onChanged: (value) {
+                      setState(() {
+                        _settleBeforeSelling = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _settleBeforeSelling,
+                    onChanged: (value) {
+                      setState(() {
+                        _settleBeforeSelling = value!;
+                      });
+                    },
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton('Yes', 'yes', groupValue: _maintenance,
-                    onChanged: (value) {
-                  setState(() {
-                    _maintenance = value!;
-                  });
-                }),
-                const SizedBox(width: 20),
-                _buildRadioButton('No', 'no', groupValue: _maintenance,
-                    onChanged: (value) {
-                  setState(() {
-                    _maintenance = value!;
-                  });
-                }),
-              ],
-            ),
 
-            const SizedBox(height: 20),
+              // Warranty Type Field (Conditionally Visible)
+              if (_settleBeforeSelling == 'yes')
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: _buildTextField(
+                    controller: _warrantyTypeController,
+                    hintText:
+                        "WHAT TYPE OF MAIN WARRANTY DOES YOUR VEHICLE HAVE",
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please specify the warranty type';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
 
-            const Center(
-              child: Text(
-                'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Center(
-              child: Text(
-                'Please note that OEM will charge you for inspection',
-                style: TextStyle(fontSize: 12, color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 15),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton('Yes', 'yes', groupValue: _oemInspection,
-                    onChanged: (value) {
-                  setState(() {
-                    _oemInspection = value!;
-                  });
-                }),
-                const SizedBox(width: 20),
-                _buildRadioButton('No', 'no', groupValue: _oemInspection,
-                    onChanged: (value) {
-                  setState(() {
-                    _oemInspection = value!;
-                  });
-                }),
-              ],
-            ),
+              const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
-
-            const Center(
-              child: Text(
-                "Warranty",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
+              // Outstanding Settlement
+              Center(
+                child: Text(
+                  'Outstanding Settlement?',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton(
-                  'Yes',
-                  'yes',
-                  groupValue: _settleBeforeSelling,
-                  onChanged: (value) {
-                    setState(() {
-                      _settleBeforeSelling = value;
-                    });
-                  },
+
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _outstandingSettlement,
+                    onChanged: (value) {
+                      setState(() {
+                        _outstandingSettlement = value!;
+                        _showSettlementTab = value == 'yes';
+                        _updateTabController();
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _outstandingSettlement,
+                    onChanged: (value) {
+                      setState(() {
+                        _outstandingSettlement = value!;
+                        _showSettlementTab = value == 'yes';
+                        _updateTabController();
+                      });
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Damages or Faults
+              Center(
+                child: Text(
+                  'Any Damages or Faults?',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(width: 20),
-                _buildRadioButton(
-                  'No',
-                  'no',
-                  groupValue: _settleBeforeSelling,
-                  onChanged: (value) {
-                    setState(() {
-                      _settleBeforeSelling = value;
-                    });
-                  },
+              ),
+
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _damagesOrFaults,
+                    onChanged: (value) {
+                      setState(() {
+                        _damagesOrFaults = value!;
+                        _showDamagesFaultsTab = value == 'yes';
+                        _updateTabController();
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _damagesOrFaults,
+                    onChanged: (value) {
+                      setState(() {
+                        _damagesOrFaults = value!;
+                        _showDamagesFaultsTab = value == 'yes';
+                        _updateTabController();
+                      });
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Tyre Info
+              Center(
+                child: Text(
+                  'Include Tyre Info?',
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  textAlign: TextAlign.center,
                 ),
-              ],
-            ),
-
-            if (_settleBeforeSelling == 'yes')
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                child: _buildTextField(
-                  controller: _warrantyTypeController,
-                  hintText: "WHAT TYPE OF MAIN WARRANTY DOES YOUR VEHICLE HAVE",
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please specify the warranty type';
-                    }
-                    return null;
-                  },
-                ),
               ),
-            const SizedBox(height: 20),
 
-            // New Radio Button: Outstanding Settlement
-            const Center(
-              child: Text(
-                'Outstanding Settlement?',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRadioButton(
+                    'Yes',
+                    'yes',
+                    groupValue: _includeTyreInfo,
+                    onChanged: (value) {
+                      setState(() {
+                        _includeTyreInfo = value!;
+                        _showTyresTab = value == 'yes';
+                        _updateTabController();
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildRadioButton(
+                    'No',
+                    'no',
+                    groupValue: _includeTyreInfo,
+                    onChanged: (value) {
+                      setState(() {
+                        _includeTyreInfo = value!;
+                        _showTyresTab = value == 'yes';
+                        _updateTabController();
+                      });
+                    },
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 10),
-            // Outstanding Settlement Radio Button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton('Yes', 'yes',
-                    groupValue: _outstandingSettlement, onChanged: (value) {
-                  setState(() {
-                    _outstandingSettlement = value!;
-                    _showSettlementTab = value == 'yes';
-                    _updateTabController();
-                  });
-                }),
-                const SizedBox(width: 20),
-                _buildRadioButton('No', 'no',
-                    groupValue: _outstandingSettlement, onChanged: (value) {
-                  setState(() {
-                    _outstandingSettlement = value!;
-                    _showSettlementTab = value == 'yes';
-                    _updateTabController();
-                  });
-                }),
-              ],
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
-            // New Radio Button: Any Damages or Faults
-            const Center(
-              child: Text(
-                'Any Damages or Faults?',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton('Yes', 'yes', groupValue: _damagesOrFaults,
-                    onChanged: (value) {
-                  setState(() {
-                    _damagesOrFaults = value!;
-                    _showDamagesFaultsTab = value == 'yes';
-                    _updateTabController();
-                  });
-                }),
-                const SizedBox(width: 20),
-                _buildRadioButton('No', 'no', groupValue: _damagesOrFaults,
-                    onChanged: (value) {
-                  setState(() {
-                    _damagesOrFaults = value!;
-                    _showDamagesFaultsTab = value == 'yes';
-                    _updateTabController();
-                  });
-                }),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // New Radio Button: Include Tyre Info
-            const Center(
-              child: Text(
-                'Include Tyre Info?',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRadioButton('Yes', 'yes', groupValue: _includeTyreInfo,
-                    onChanged: (value) {
-                  setState(() {
-                    _includeTyreInfo = value!;
-                    _showTyresTab = value == 'yes';
-                    _updateTabController();
-                  });
-                }),
-                const SizedBox(width: 20),
-                _buildRadioButton('No', 'no', groupValue: _includeTyreInfo,
-                    onChanged: (value) {
-                  setState(() {
-                    _includeTyreInfo = value!;
-                    _showTyresTab = value == 'yes';
-                    _updateTabController();
-                  });
-                }),
-              ],
-            ),
-            const SizedBox(height: 10),
-            CustomButton(
-              text: 'Next',
-              borderColor: blue,
-              onPressed: () async {
-                if (!_formKeys[0].currentState!.validate()) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Please fill in all required fields in Section 1.')),
-                  );
-                  return;
-                } else {
-                  // Save Section 1 data and move to the next tab
-                  await _saveSection1Data();
-                  if (_vehicleId != null) {
-                    int nextIndex = _getNextTabIndex(_tabController.index);
-                    _tabController.animateTo(1);
-                  }
-                }
-              },
-            ),
-            if (_tabController.index == 0)
-              CustomButton(
-                text: 'Done',
-                borderColor: orange,
-                onPressed: _isLoading
-                    ? null
-                    : () async {
-                        if (!_formKeys[0].currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Please fill in all required fields in Section 1.')),
-                          );
-                          return;
-                        } else {
-                          await _saveAllSectionsAndNavigateHome();
+              // Action Buttons
+              Column(
+                children: [
+                  CustomButton(
+                    text: 'Next',
+                    borderColor: blue,
+                    onPressed: () async {
+                      if (!_formKeys[0].currentState!.validate()) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please fill in all required fields in Section 1.',
+                            ),
+                          ),
+                        );
+                        return;
+                      } else {
+                        // Save Section 1 data and move to the next tab
+                        await _saveSection1Data();
+                        if (_vehicleId != null) {
+                          int nextIndex =
+                              _getNextTabIndex(_tabController.index);
+                          _tabController.animateTo(nextIndex);
                         }
-                      },
+                      }
+                    },
+                  ),
+                  if (_tabController.index == 0)
+                    CustomButton(
+                      text: 'Done',
+                      borderColor: orange,
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              if (!_formKeys[0].currentState!.validate()) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Please fill in all required fields in Section 1.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              } else {
+                                await _saveAllSectionsAndNavigateHome();
+                              }
+                            },
+                    ),
+                ],
               ),
-            const SizedBox(height: 30),
-          ],
+
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
       0,
+    );
+  }
+
+// Helper Method for Section Headers
+  Widget _buildSectionHeader(String header) {
+    return Text(
+      header,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      ),
     );
   }
 
@@ -2837,16 +3055,22 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatter,
     String? Function(String?)? validator,
+    TextCapitalization textCapitalization =
+        TextCapitalization.none, // New Parameter
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType ?? TextInputType.text,
+      textCapitalization: textCapitalization, // Apply Text Capitalization
       cursorColor: const Color(0xFFFF4E00), // Orange cursor color
       decoration: InputDecoration(
-        hintText: hintText,
+        hintText: _capitalizeHintText(
+            hintText), // Ensure Proper Hint Text Capitalization
         prefixText: isCurrency ? 'R ' : '',
-        prefixStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        prefixStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
         fillColor: Colors.white.withOpacity(0.2),
@@ -2888,6 +3112,12 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
     );
   }
 
+  /// Helper method to capitalize the first letter of the hint text
+  String _capitalizeHintText(String hint) {
+    if (hint.isEmpty) return hint;
+    return hint[0].toUpperCase() + hint.substring(1);
+  }
+
   Widget _buildSellingPriceTextField({
     required TextEditingController controller,
     required String hintText,
@@ -2900,6 +3130,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
       inputFormatter: [
         FilteringTextInputFormatter.digitsOnly,
       ],
+      // No validator passed to make it optional
     );
   }
 
@@ -2910,6 +3141,7 @@ class _VehicleUploadTabsState extends State<VehicleUploadTabs>
   }) {
     return TextFormField(
       controller: controller,
+      textCapitalization: TextCapitalization.sentences,
       cursorColor: const Color(0xFFFF4E00),
       maxLines: maxLines,
       decoration: InputDecoration(

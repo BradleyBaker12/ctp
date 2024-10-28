@@ -63,7 +63,7 @@ class _TruckPageState extends State<TruckPage> {
         List<Vehicle> preferredVehicles = [];
         List<Vehicle> nonPreferredVehicles = [];
 
-        vehicleProvider.vehicles.forEach((vehicle) {
+        for (var vehicle in vehicleProvider.vehicles) {
           bool matchesPreferredBrand = userProvider.getPreferredBrands.any(
               (brand) => vehicle.makeModel
                   .toLowerCase()
@@ -76,7 +76,7 @@ class _TruckPageState extends State<TruckPage> {
           } else if (isNotDraft) {
             nonPreferredVehicles.add(vehicle);
           }
-        });
+        }
 
         // Combine preferred vehicles first, followed by non-preferred vehicles
         displayedVehicles = [...preferredVehicles, ...nonPreferredVehicles];
@@ -321,21 +321,21 @@ class _TruckPageState extends State<TruckPage> {
         .map(
             (makeModel) => makeModel.split(" ")[0]) // Extracting the brand name
         .toSet(); // Ensure uniqueness
-    List<String> allMakeModels = ['All', ...allMakeModelsSet.toList()];
+    List<String> allMakeModels = ['All', ...allMakeModelsSet];
 
     // Get all unique years from the fetched vehicles
     Set<String> allYearsSet = vehicleProvider.vehicles
         .map((vehicle) => vehicle.year)
         .where((year) => year.isNotEmpty)
         .toSet();
-    List<String> allYears = ['All', ...allYearsSet.toList()];
+    List<String> allYears = ['All', ...allYearsSet];
 
     // Get all unique transmissions from the fetched vehicles
     Set<String> allTransmissionsSet = vehicleProvider.vehicles
         .map((vehicle) => vehicle.transmission)
         .where((transmission) => transmission.isNotEmpty)
         .toSet();
-    List<String> allTransmissions = ['All', ...allTransmissionsSet.toList()];
+    List<String> allTransmissions = ['All', ...allTransmissionsSet];
 
     // Define mileage ranges
     List<String> allMileages = [
@@ -614,37 +614,37 @@ class _TruckPageState extends State<TruckPage> {
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
-                    Stack(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.notifications,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            // Implement bell notification action
-                          },
-                        ),
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Text(
-                              '1',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // Stack(
+                    //   children: [
+                    //     IconButton(
+                    //       icon: const Icon(
+                    //         Icons.notifications,
+                    //         color: Colors.white,
+                    //       ),
+                    //       onPressed: () {
+                    //         // Implement bell notification action
+                    //       },
+                    //     ),
+                    //     Positioned(
+                    //       right: 8,
+                    //       top: 8,
+                    //       child: Container(
+                    //         padding: const EdgeInsets.all(2),
+                    //         decoration: const BoxDecoration(
+                    //           color: Colors.red,
+                    //           shape: BoxShape.circle,
+                    //         ),
+                    //         child: const Text(
+                    //           '1',
+                    //           style: TextStyle(
+                    //             color: Colors.white,
+                    //             fontSize: 12,
+                    //           ),
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
                   ],
                 ),
               ],

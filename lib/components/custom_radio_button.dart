@@ -10,7 +10,7 @@ class CustomRadioButton extends StatelessWidget {
   final Color textColor;
 
   const CustomRadioButton({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     required this.groupValue,
@@ -18,7 +18,7 @@ class CustomRadioButton extends StatelessWidget {
     this.selectedColor = const Color(0xFFFF4E00),
     this.unselectedColor = Colors.transparent,
     this.textColor = Colors.white,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +15,7 @@ class UserProvider extends ChangeNotifier {
   String _userRole = 'guest'; // Default role
   String? _profileImageUrl;
   bool _isLoading = true;
+  bool _hasNotifications = false; // Add this field to track notifications
 
   // User details
   String? _companyName;
@@ -63,6 +65,10 @@ class UserProvider extends ChangeNotifier {
   // Getter for dealers
   List<Dealer> get dealers => _dealers;
 
+  // Getter for notifications
+  bool get hasNotifications => _hasNotifications;
+  String? _fcmToken;
+
   UserProvider() {
     _checkAuthState();
     FirebaseAuth.instance.authStateChanges().listen((User? newUser) {
@@ -73,6 +79,22 @@ class UserProvider extends ChangeNotifier {
         _clearUserData();
       }
     });
+  }
+
+  // Method to check for notifications
+  Future<void> checkForNotifications() async {
+    if (_user != null) {
+      // Example logic: fetch notifications from Firestore or any other logic
+      QuerySnapshot notificationSnapshot = await FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: _user!.uid)
+          .where('isRead',
+              isEqualTo: false) // Assuming you store notification read status
+          .get();
+
+      _hasNotifications = notificationSnapshot.docs.isNotEmpty;
+      notifyListeners();
+    }
   }
 
   Future<void> _checkAuthState() async {
@@ -170,6 +192,7 @@ class UserProvider extends ChangeNotifier {
           }
 
           _isLoading = false;
+          await checkForNotifications();
           notifyListeners();
         } else {
           _clearUserData();
@@ -199,6 +222,19 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       print('Error fetching dealers: $e');
       // Optionally handle errors (e.g., set an error state, show a message)
+    }
+  }
+
+  Future<void> saveFcmToken() async {
+    if (_user != null) {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null && token != _fcmToken) {
+        _fcmToken = token;
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({'fcmToken': token});
+      }
     }
   }
 

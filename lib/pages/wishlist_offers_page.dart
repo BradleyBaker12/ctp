@@ -165,7 +165,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                   } else if (snapshot.hasError) {
                     return const Center(
                       child: Text(
-                        'Error fetching offers',
+                        'No Liked Vehicles',
                         style: TextStyle(color: Colors.red),
                       ),
                     );
@@ -223,6 +223,9 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             vehicleStatus: 'N/A',
                             vehicleAvailableImmediately: 'N/A',
                             availableDate: 'N/A',
+                            trailerType: 'N/A',
+                            axles: 'N/A',
+                            trailerLength: 'N/A',
                           ),
                         );
 

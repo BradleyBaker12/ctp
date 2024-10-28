@@ -91,99 +91,137 @@ class CustomBottomNavigation extends StatelessWidget {
       builder: (context, userProvider, child) {
         final userRole = userProvider.getUserRole;
 
+        List<Widget> navBarItems = [];
+
+        // Home Icon - Available for all roles
+        navBarItems.add(Expanded(
+          child: _buildNavBarItem(
+            context,
+            Icon(
+              Icons.home,
+              size: iconSize,
+              color: selectedIndex == 0
+                  ? Colors.black
+                  : Colors.black.withOpacity(0.6),
+            ),
+            selectedIndex == 0,
+            0,
+          ),
+        ));
+
+        navBarItems.add(_buildVerticalDivider());
+
+        // Vehicles or Truck Icon
+        navBarItems.add(Expanded(
+          child: _buildNavBarItem(
+            context,
+            Icon(
+              Icons.local_shipping,
+              size: iconSize,
+              color: selectedIndex == 1
+                  ? Colors.black
+                  : Colors.black.withOpacity(0.6),
+            ),
+            selectedIndex == 1,
+            1,
+          ),
+        ));
+
+        if (userRole == 'transporter') {
+          navBarItems.add(_buildVerticalDivider());
+          // Transporter Offers Icon - Only for transporters
+          navBarItems.add(Expanded(
+            child: _buildNavBarItem(
+              context,
+              ImageIcon(
+                const AssetImage('lib/assets/transporter_handshake.png'),
+                size: iconSize,
+                color: selectedIndex == 2
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6),
+              ),
+              selectedIndex == 2,
+              2,
+            ),
+          ));
+        }
+
+        if (userRole != 'transporter') {
+          navBarItems.add(_buildVerticalDivider());
+          // Wishlist Icon - Only for non-transporters
+          navBarItems.add(Expanded(
+            child: _buildNavBarItem(
+              context,
+              Icon(
+                Icons.favorite,
+                size: iconSize,
+                color: selectedIndex == 3
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6),
+              ),
+              selectedIndex == 3,
+              3,
+            ),
+          ));
+        }
+
+        if (userRole == 'dealer') {
+          navBarItems.add(_buildVerticalDivider());
+          // Dealer Offers Icon - Only for dealers
+          navBarItems.add(Expanded(
+            child: _buildNavBarItem(
+              context,
+              ImageIcon(
+                const AssetImage('lib/assets/dealer_handshake.png'),
+                size: iconSize,
+                color: selectedIndex == 4
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6),
+              ),
+              selectedIndex == 4,
+              4,
+            ),
+          ));
+        }
+
+        if (userRole != 'dealer') {
+          navBarItems.add(_buildVerticalDivider());
+          // Profile Icon - Only for non-dealers
+          navBarItems.add(Expanded(
+            child: _buildNavBarItem(
+              context,
+              Icon(
+                Icons.person,
+                size: iconSize,
+                color: selectedIndex == 5
+                    ? Colors.black
+                    : Colors.black.withOpacity(0.6),
+              ),
+              selectedIndex == 5,
+              5,
+            ),
+          ));
+        }
+
         return Container(
           height: 80,
           color: const Color(0xFF2F7FFF),
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // Home Icon - Available for all roles
-              _buildNavBarItem(
-                context,
-                Icon(
-                  Icons.home,
-                  size: iconSize,
-                  color: selectedIndex == 0
-                      ? Colors.black
-                      : Colors.black.withOpacity(0.6),
-                ),
-                selectedIndex == 0,
-                0,
-              ),
-              // Vehicles or Truck Icon
-              _buildNavBarItem(
-                context,
-                Icon(
-                  Icons.local_shipping,
-                  size: iconSize,
-                  color: selectedIndex == 1
-                      ? Colors.black
-                      : Colors.black.withOpacity(0.6),
-                ),
-                selectedIndex == 1,
-                1,
-              ),
-              // Transporter Offers Icon - Only for transporters
-              if (userRole == 'transporter')
-                _buildNavBarItem(
-                  context,
-                  ImageIcon(
-                    const AssetImage('lib/assets/transporter_handshake.png'),
-                    size: iconSize,
-                    color: selectedIndex == 2
-                        ? Colors.black
-                        : Colors.black.withOpacity(0.6),
-                  ),
-                  selectedIndex == 2,
-                  2,
-                ),
-              // Wishlist Icon - Only for non-transporters
-              if (userRole != 'transporter')
-                _buildNavBarItem(
-                  context,
-                  Icon(
-                    Icons.favorite,
-                    size: iconSize,
-                    color: selectedIndex == 3
-                        ? Colors.black
-                        : Colors.black.withOpacity(0.6),
-                  ),
-                  selectedIndex == 3,
-                  3,
-                ),
-              // Dealer Offers Icon - Only for dealers
-              if (userRole == 'dealer')
-                _buildNavBarItem(
-                  context,
-                  ImageIcon(
-                    const AssetImage('lib/assets/dealer_handshake.png'),
-                    size: iconSize,
-                    color: selectedIndex == 4
-                        ? Colors.black
-                        : Colors.black.withOpacity(0.6),
-                  ),
-                  selectedIndex == 4,
-                  4,
-                ),
-              // Profile Icon - Only for non-dealers
-              if (userRole != 'dealer')
-                _buildNavBarItem(
-                  context,
-                  Icon(
-                    Icons.person,
-                    size: iconSize,
-                    color: selectedIndex == 5
-                        ? Colors.black
-                        : Colors.black.withOpacity(0.6),
-                  ),
-                  selectedIndex == 5,
-                  5,
-                ),
-            ],
+            children: navBarItems,
           ),
         );
       },
+    );
+  }
+
+  // Add this helper method for the vertical divider
+  Widget _buildVerticalDivider() {
+    return Container(
+      width: 1,
+      height: 80,
+      color: Colors.white.withOpacity(0.5),
     );
   }
 }

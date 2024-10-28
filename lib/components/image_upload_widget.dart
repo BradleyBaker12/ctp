@@ -1,7 +1,6 @@
 // lib/components/image_upload_widget.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 class ImageUploadWidget extends StatelessWidget {
   final File? imageFile;
@@ -9,11 +8,11 @@ class ImageUploadWidget extends StatelessWidget {
   final VoidCallback onTap;
 
   const ImageUploadWidget({
-    Key? key,
+    super.key,
     required this.imageFile,
     required this.label,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,3 @@
-// lib/pages/vehicle_details_page.dart
-
 import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
@@ -309,6 +307,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
 
     print('User Role: $userRole'); // Debug statement
 
@@ -431,6 +431,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         return 'Paid';
       case 'issue reported':
         return 'Issue Reported';
+      case 'rejected':
+        return 'Rejected'; // Add rejected status here
       case 'resolved':
         return 'Resolved';
       case 'done':
@@ -568,15 +570,17 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final userProvider = Provider.of<UserProvider>(context);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
     final bool isTransporter =
         userRole == 'transporter'; // Check if the user is a dealer
+
     var blue = const Color(0xFF2F7FFF);
 
     final size = MediaQuery.of(context).size;
 
     // Debug statement to check if user is admin
     print('Is Admin: $isAdmin');
-    print('Is Dealer: $isTransporter');
+    print('Is Dealer: $isDealer');
 
     return Scaffold(
       appBar: AppBar(
@@ -747,7 +751,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      if ((isAdmin || isTransporter) && !_hasMadeOffer)
+                      if ((isAdmin || isDealer) &&
+                          (!_hasMadeOffer ||
+                              _offerStatus ==
+                                  'rejected')) // Allow making another offer if rejected
                         Column(
                           children: [
                             Row(
@@ -960,7 +967,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             ),
                           ],
                         )
-                      else if ((isAdmin || isTransporter) && !_hasMadeOffer)
+                      else if ((isAdmin || isDealer) && !_hasMadeOffer)
                         Center(
                           child: Text(
                             "Offer Status: ${getDisplayStatus(_offerStatus)}",
@@ -997,7 +1004,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       const SizedBox(height: 32),
                       if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
                       const SizedBox(height: 30),
-                      if (isTransporter)
+                      if (isDealer)
                         Column(children: [
                           Text(
                             "Offers Made on This Vehicle:",
@@ -1025,7 +1032,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       // Conditionally render the bottom navigation bar
       bottomNavigationBar: isAdmin
           ? null // Hide the bottom navigation bar for admin users
-          : isTransporter
+          : isDealer
               ? CustomBottomNavigation(
                   selectedIndex: 1,
                   onItemTapped: (index) {

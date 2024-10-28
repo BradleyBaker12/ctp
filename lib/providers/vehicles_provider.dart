@@ -316,7 +316,6 @@ class VehicleProvider with ChangeNotifier {
   }
 }
 
-
 // Vehicle class remains the same as before, ensure it is included in your codebase
 // lib/models/vehicle.dart
 
@@ -367,6 +366,9 @@ class Vehicle {
   final DateTime createdAt;
   final String vehicleAvailableImmediately; // Add this property
   final String availableDate; // Add this property
+  final String trailerType;
+  final String axles;
+  final String trailerLength;
 
   // New fields for additional photos
   final String? bed_bunk;
@@ -453,6 +455,9 @@ class Vehicle {
     required this.vehicleStatus,
     required this.vehicleAvailableImmediately, // Initialize this property
     required this.availableDate, // Initialize this property
+    required this.trailerType,
+    required this.axles,
+    required this.trailerLength,
   });
 
   // Updated copyWith method
@@ -530,8 +535,7 @@ class Vehicle {
       damagePhotos: damagePhotos ?? this.damagePhotos,
       dashboardPhoto: dashboardPhoto ?? this.dashboardPhoto,
       engineNumber: engineNumber ?? this.engineNumber,
-      expectedSellingPrice:
-          expectedSellingPrice ?? this.expectedSellingPrice,
+      expectedSellingPrice: expectedSellingPrice ?? this.expectedSellingPrice,
       faultCodesPhoto: faultCodesPhoto ?? this.faultCodesPhoto,
       firstOwner: firstOwner ?? this.firstOwner,
       hydraulics: hydraulics ?? this.hydraulics,
@@ -545,15 +549,11 @@ class Vehicle {
       mainImageUrl: mainImageUrl ?? this.mainImageUrl,
       photos: photos ?? this.photos,
       rc1NatisFile: rc1NatisFile ?? this.rc1NatisFile,
-      registrationNumber:
-          registrationNumber ?? this.registrationNumber,
+      registrationNumber: registrationNumber ?? this.registrationNumber,
       roadWorthy: roadWorthy ?? this.roadWorthy,
-      settleBeforeSelling:
-          settleBeforeSelling ?? this.settleBeforeSelling,
-      settlementAmount:
-          settlementAmount ?? this.settlementAmount,
-      settlementLetterFile:
-          settlementLetterFile ?? this.settlementLetterFile,
+      settleBeforeSelling: settleBeforeSelling ?? this.settleBeforeSelling,
+      settlementAmount: settlementAmount ?? this.settlementAmount,
+      settlementLetterFile: settlementLetterFile ?? this.settlementLetterFile,
       spareTyre: spareTyre ?? this.spareTyre,
       suspension: suspension ?? this.suspension,
       transmission: transmission ?? this.transmission,
@@ -591,6 +591,9 @@ class Vehicle {
       vehicleAvailableImmediately:
           vehicleAvailableImmediately ?? this.vehicleAvailableImmediately,
       availableDate: availableDate ?? this.availableDate,
+      trailerType: trailerType ?? trailerType,
+      axles: axles ?? axles,
+      trailerLength: trailerLength ?? trailerLength,
     );
   }
 
@@ -660,6 +663,9 @@ class Vehicle {
       vehicleStatus: data['vehicleStatus'] ?? 'Live',
       vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
       availableDate: data['availableDate'] ?? '',
+      trailerType: data['trailerType'] ?? '',
+      axles: data['axles'] ?? '',
+      trailerLength: data['trailerLength'] ?? '',
     );
   }
 
@@ -744,6 +750,9 @@ class Vehicle {
       'vehicleStatus': vehicleStatus,
       'vehicleAvailableImmediately': vehicleAvailableImmediately,
       'availableDate': availableDate,
+      'trailerType': trailerType,
+      'axles': axles,
+      "trailerLength": trailerLength,
     };
   }
 }

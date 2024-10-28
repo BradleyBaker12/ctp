@@ -167,7 +167,7 @@ class _WishlistPageState extends State<WishlistPage> {
                   } else if (snapshot.hasError) {
                     return const Center(
                       child: Text(
-                        'Error fetching offers',
+                        'Error fetching wishlist',
                         style: TextStyle(color: Colors.red),
                       ),
                     );
@@ -220,6 +220,9 @@ class _WishlistPageState extends State<WishlistPage> {
                             vehicleStatus: 'N/A',
                             vehicleAvailableImmediately: 'N/A',
                             availableDate: 'N/A',
+                            trailerType: 'N/A',
+                            axles: "N/A",
+                            trailerLength: "N/A",
                           ),
                         );
 

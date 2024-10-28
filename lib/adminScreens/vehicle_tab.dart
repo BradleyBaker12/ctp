@@ -251,6 +251,9 @@ class _VehiclesTabState extends State<VehiclesTab> {
                       vehicleAvailableImmediately:
                           vehicleData['vehicleAvailableImmediately'] ?? '',
                       availableDate: vehicleData['availableDate'] ?? '',
+                      trailerType: vehicleData['trailerType'] ?? '',
+                      axles: vehicleData['axles'] ?? '',
+                      trailerLength: vehicleData['trailerLength'] ?? '',
                     );
 
                     return Card(

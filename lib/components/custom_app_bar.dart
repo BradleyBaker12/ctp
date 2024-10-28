@@ -41,6 +41,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: Consumer<UserProvider>(
                 builder: (context, userProvider, _) {
                   final profileImageUrl = userProvider.getProfileImageUrl;
+                  final hasNotifications = userProvider
+                      .hasNotifications; // Assuming you have a boolean flag for notifications
+
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -50,13 +53,31 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       );
                     },
-                    child: CircleAvatar(
-                      radius: 26,
-                      backgroundImage: profileImageUrl.isNotEmpty
-                          ? NetworkImage(profileImageUrl)
-                          : const AssetImage(
-                                  'lib/assets/default-profile-photo.jpg')
-                              as ImageProvider,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundImage: profileImageUrl.isNotEmpty
+                              ? NetworkImage(profileImageUrl)
+                              : const AssetImage(
+                                      'lib/assets/default-profile-photo.jpg')
+                                  as ImageProvider,
+                        ),
+                        // Conditionally show the red dot if there are notifications
+                        if (hasNotifications)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   );
                 },
