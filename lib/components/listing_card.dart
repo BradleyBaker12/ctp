@@ -1,22 +1,27 @@
+// lib/widgets/listing_card.dart
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 
 class ListingCard extends StatelessWidget {
+  final String vehicleId;
   final String vehicleMakeModel;
-  final String? vehicleImageUrl; // Now nullable
+  final String? vehicleImageUrl;
   final String vehicleYear;
   final String vehicleMileage;
   final String vehicleTransmission;
   final VoidCallback onTap;
 
   const ListingCard({
-    super.key,
+    Key? key,
+    required this.vehicleId,
     required this.vehicleMakeModel,
     required this.vehicleImageUrl,
     required this.vehicleYear,
     required this.vehicleMileage,
     required this.vehicleTransmission,
     required this.onTap,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +59,7 @@ class ListingCard extends StatelessWidget {
                                     true)
                             ? NetworkImage(vehicleImageUrl!)
                             : const AssetImage(
-                                    'lib/assets/default_vehicle_image.png')
+                                    'assets/default_vehicle_image.png')
                                 as ImageProvider,
                         fit: BoxFit.cover,
                       ),
@@ -75,26 +80,26 @@ class ListingCard extends StatelessWidget {
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white),
-                            overflow: TextOverflow.ellipsis, // Added ellipsis
-                            maxLines: 1, // Limit to one line
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                           const SizedBox(height: 5),
                           Text(
                             'Year: $vehicleYear',
                             style: const TextStyle(color: Colors.white70),
-                            overflow: TextOverflow.ellipsis, // Added ellipsis
+                            overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
                           Text(
                             'Mileage: $vehicleMileage',
                             style: const TextStyle(color: Colors.white70),
-                            overflow: TextOverflow.ellipsis, // Added ellipsis
+                            overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
                           Text(
                             'Transmission: $vehicleTransmission',
                             style: const TextStyle(color: Colors.white70),
-                            overflow: TextOverflow.ellipsis, // Added ellipsis
+                            overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
                         ],

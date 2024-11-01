@@ -2,6 +2,7 @@
 
 import 'dart:io'; // For file handling
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
@@ -30,21 +31,59 @@ class _EditVehiclePageState extends State<EditVehiclePage>
   late TabController _tabController;
   final ImagePicker _picker = ImagePicker(); // Image picker instance
 
-  // Controllers for text fields
-  late TextEditingController _makeModelController;
+  // Controllers
   late TextEditingController _yearController;
+  late TextEditingController _makeModelController;
   late TextEditingController _mileageController;
+  late TextEditingController _vinNumberController;
+  late TextEditingController _engineNumberController;
+  late TextEditingController _registrationNumberController;
+  late TextEditingController _sellingPriceController;
+  late TextEditingController _warrantyDetailsController;
+
+// Radio Button Values
+  String? _vehicleType;
+  String? _suspension;
+  String? _transmissionType;
+  String? _hydraulics;
+  String? _maintenance;
+  String? _warranty;
+  String? _settleBeforeSelling;
+
+// Dropdown Values
+  String? _config;
+  String? _application;
+
+// Options Lists
+  final List<String> _vehicleTypes = ['Truck', 'Trailer'];
+  final List<String> _suspensionOptions = ['Spring', 'Coil'];
+  final List<String> _transmissionTypeOptions = ['Automatic', 'Manual'];
+  final List<String> _hydraulicsOptions = ['Yes', 'No'];
+  final List<String> _configOptions = ['6X4', '6X2', '4X2', '8X4'];
+  final List<String> _applicationOptions = [
+    'Tractor Units',
+    'Tipper Trucks',
+    'Box Trucks',
+    'Curtain Side Trucks',
+    'Chassis Cab Truck',
+    'Flatbed Truck',
+    'Refrigerated Truck',
+    'Crane Truck',
+    'Hook Loader Truck',
+    'Concrete Truck',
+    'Municipal Truck',
+    'Dismantled Truck',
+  ];
+
+  // Controllers for text fields
   late TextEditingController _applicationController;
   late TextEditingController _bookValueController;
   late TextEditingController _damageDescriptionController;
-  late TextEditingController _engineNumberController;
   late TextEditingController _expectedSellingPriceController;
   late TextEditingController _listDamagesController;
-  late TextEditingController _registrationNumberController;
   late TextEditingController _settlementAmountController;
   late TextEditingController _spareTyreController;
   late TextEditingController _tyreTypeController;
-  late TextEditingController _vinNumberController;
   late TextEditingController _warrantyTypeController;
   late TextEditingController _vehicleAvailableImmediatelyController;
   late TextEditingController _availableDateController;
@@ -52,22 +91,15 @@ class _EditVehiclePageState extends State<EditVehiclePage>
   late TextEditingController _oemInspectionController;
 
   // Radio Button Values
-  String? _maintenance;
-  String? _warranty;
   String? _firstOwner;
   String? _accidentFree;
   String? _roadWorthy;
-  String? _settleBeforeSelling;
   String? _vehicleStatus;
-  String? _vehicleType;
   String? _vehicleAvailableImmediately;
   String? _weightClass;
 
   // Dropdown Values
-  String? _transmission;
-  String? _suspension;
-  String? _hydraulics;
-  String? _config;
+  String? _hydraluicType;
 
   // Settlement Letter
   String? _settlementLetterFileUrl;
@@ -81,17 +113,40 @@ class _EditVehiclePageState extends State<EditVehiclePage>
   final NumberFormat _numberFormat = NumberFormat('#,##0', 'en_US');
 
   // Dropdown options and radio button options
-  final List<String> _vehicleTypes = ['Truck', 'Trailer'];
-  final List<String> _transmissionTypes = ['AUTO', 'MANUAL'];
+  final List<String> _transmission = ['AUTO', 'MANUAL'];
   final List<String> _suspensionTypes = ['Air', 'Spring', 'Hydraulic'];
-  final List<String> _hydraulicsTypes = ['Yes', 'No'];
-  final List<String> _configOptions = ['4x2', '6x4', '8x4'];
+  final List<String> _hydraluicTypeTypes = ['Yes', 'No'];
   final List<String> _weightClasses = ['Light', 'Medium', 'Heavy'];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 7, vsync: this);
+
+    _makeModelController =
+        TextEditingController(text: widget.vehicle.makeModel ?? '');
+    _yearController = TextEditingController(text: widget.vehicle.year ?? '');
+    _mileageController =
+        TextEditingController(text: widget.vehicle.mileage ?? '');
+    _vinNumberController =
+        TextEditingController(text: widget.vehicle.vinNumber ?? '');
+    _engineNumberController =
+        TextEditingController(text: widget.vehicle.engineNumber ?? '');
+    _registrationNumberController =
+        TextEditingController(text: widget.vehicle.registrationNumber ?? '');
+    _sellingPriceController =
+        TextEditingController(text: widget.vehicle.expectedSellingPrice ?? '');
+    _warrantyDetailsController =
+        TextEditingController(text: widget.vehicle.warrentyType ?? '');
+
+    _vehicleType = widget.vehicle.vehicleType;
+    _suspension = widget.vehicle.suspensionType;
+    _transmissionType = widget.vehicle.transmissionType;
+    _hydraulics = widget.vehicle.hydraluicType;
+    _warranty = widget.vehicle.warrentyType;
+    _settleBeforeSelling = widget.vehicle.adminData.settlementAmount;
+    _config = widget.vehicle.config;
+    _application = widget.vehicle.application;
 
     // Initialize controllers with existing values
     _makeModelController =
@@ -101,53 +156,44 @@ class _EditVehiclePageState extends State<EditVehiclePage>
         TextEditingController(text: widget.vehicle.mileage ?? '');
     _applicationController =
         TextEditingController(text: widget.vehicle.application ?? '');
-    _bookValueController =
-        TextEditingController(text: widget.vehicle.bookValue ?? '');
     _damageDescriptionController =
         TextEditingController(text: widget.vehicle.damageDescription ?? '');
     _engineNumberController =
         TextEditingController(text: widget.vehicle.engineNumber ?? '');
     _expectedSellingPriceController =
         TextEditingController(text: widget.vehicle.expectedSellingPrice ?? '');
-    _listDamagesController =
-        TextEditingController(text: widget.vehicle.listDamages ?? '');
     _registrationNumberController =
         TextEditingController(text: widget.vehicle.registrationNumber ?? '');
-    _settlementAmountController =
-        TextEditingController(text: widget.vehicle.settlementAmount ?? '');
-    _spareTyreController =
-        TextEditingController(text: widget.vehicle.spareTyre ?? '');
-    _tyreTypeController =
-        TextEditingController(text: widget.vehicle.tyreType ?? '');
     _vinNumberController =
         TextEditingController(text: widget.vehicle.vinNumber ?? '');
     _warrantyTypeController =
-        TextEditingController(text: widget.vehicle.warrantyType ?? '');
+        TextEditingController(text: widget.vehicle.warrentyType ?? '');
     _vehicleAvailableImmediatelyController = TextEditingController(
         text: widget.vehicle.vehicleAvailableImmediately ?? '');
     _availableDateController =
         TextEditingController(text: widget.vehicle.availableDate ?? '');
-    _treadLeftController =
-        TextEditingController(text: widget.vehicle.treadLeft ?? '');
-    _oemInspectionController =
-        TextEditingController(text: widget.vehicle.oemInspection ?? '');
+    _bookValueController = TextEditingController(); // Initialize if needed
+    _listDamagesController = TextEditingController(); // Initialize if needed
+    _settlementAmountController =
+        TextEditingController(); // Initialize if needed
+    _spareTyreController = TextEditingController(); // Initialize if needed
+    _tyreTypeController = TextEditingController(); // Initialize if needed
+    _treadLeftController = TextEditingController(); // Initialize if needed
+
+    // Initialize OEM Inspection Controller
+    _oemInspectionController = TextEditingController(
+        text: widget.vehicle.maintenance.oemInspectionType ?? '');
 
     // Initialize radio button values
-    _maintenance = widget.vehicle.maintenance;
-    _warranty = widget.vehicle.warranty;
-    _firstOwner = widget.vehicle.firstOwner;
-    _accidentFree = widget.vehicle.accidentFree;
-    _roadWorthy = widget.vehicle.roadWorthy;
-    _settleBeforeSelling = widget.vehicle.settleBeforeSelling;
+    // _maintenance = widget.vehicle.maintenance;
     _vehicleStatus = widget.vehicle.vehicleStatus ?? 'Pending';
     _vehicleType = widget.vehicle.vehicleType;
     _vehicleAvailableImmediately = widget.vehicle.vehicleAvailableImmediately;
-    _weightClass = widget.vehicle.weightClass;
 
     // Dropdown values
-    _transmission = widget.vehicle.transmission;
-    _hydraulics = widget.vehicle.hydraulics;
-    _suspension = widget.vehicle.suspension;
+    _transmissionType = widget.vehicle.transmissionType;
+    _hydraluicType = widget.vehicle.hydraluicType;
+    _suspension = widget.vehicle.suspensionType;
     _config = widget.vehicle.config;
 
     // Initialize the photo URLs with the correct number of elements
@@ -162,27 +208,8 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     _photoUrls[3] = widget.vehicle.faultCodesPhoto;
     _photoUrls[4] = widget.vehicle.licenceDiskUrl;
     _photoUrls[5] = widget.vehicle.mileageImage;
-    _photoUrls[6] = widget.vehicle.treadLeft;
-    _photoUrls[7] = widget.vehicle.bed_bunk;
-    _photoUrls[8] = widget.vehicle.door_panels;
-    _photoUrls[9] = widget.vehicle.front_tyres_tread;
-    _photoUrls[10] = widget.vehicle.front_view;
-    _photoUrls[11] = widget.vehicle.left_front_45;
-    _photoUrls[12] = widget.vehicle.left_rear_45;
-    _photoUrls[13] = widget.vehicle.left_side_view;
-    _photoUrls[14] = widget.vehicle.rear_tyres_tread;
-    _photoUrls[15] = widget.vehicle.rear_view;
-    _photoUrls[16] = widget.vehicle.right_front_45;
-    _photoUrls[17] = widget.vehicle.right_rear_45;
-    _photoUrls[18] = widget.vehicle.right_side_view;
-    _photoUrls[19] = widget.vehicle.roof;
-    _photoUrls[20] = widget.vehicle.seats;
-    _photoUrls[21] = widget.vehicle.spare_wheel;
-    _photoUrls[22] = widget.vehicle.tyrePhoto1;
-    _photoUrls[23] = widget.vehicle.tyrePhoto2;
 
     // Initialize settlement letter and Natis file URLs
-    _settlementLetterFileUrl = widget.vehicle.settlementLetterFile;
     _rc1NatisFile = widget.vehicle.rc1NatisFile;
   }
 
@@ -207,7 +234,7 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     _vehicleAvailableImmediatelyController.dispose();
     _availableDateController.dispose();
     _treadLeftController.dispose();
-    _oemInspectionController.dispose();
+    _oemInspectionController.dispose(); // Dispose the controller
     super.dispose();
   }
 
@@ -569,14 +596,13 @@ class _EditVehiclePageState extends State<EditVehiclePage>
     );
   }
 
-  // Build Vehicle Details Tab
   Widget _buildVehicleDetailsTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildVehicleStatusField(),
-          // Vehicle Type as radio buttons
+          // Vehicle Type Radio Buttons
           _buildStyledRadioField(
             label: 'Vehicle Type',
             options: _vehicleTypes,
@@ -587,11 +613,8 @@ class _EditVehiclePageState extends State<EditVehiclePage>
               });
             },
           ),
-          _buildFormField(
-            label: 'Make & Model',
-            controller: _makeModelController,
-          ),
-          // Year and Mileage next to each other
+          const SizedBox(height: 16),
+          // Year and Make/Model Fields
           Row(
             children: [
               Expanded(
@@ -604,74 +627,119 @@ class _EditVehiclePageState extends State<EditVehiclePage>
               const SizedBox(width: 16),
               Expanded(
                 child: _buildFormField(
-                  label: 'Mileage',
-                  controller: _mileageController,
-                  keyboardType: TextInputType.number,
+                  label: 'Make/Model',
+                  controller: _makeModelController,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          // Mileage Field
           _buildFormField(
-            label: 'VIN Number',
-            controller: _vinNumberController,
-            keyboardType: TextInputType.text,
-          ),
-          _buildFormField(
-            label: 'Book Value',
-            controller: _bookValueController,
+            label: 'Mileage',
+            controller: _mileageController,
             keyboardType: TextInputType.number,
           ),
-          _buildFormField(
-            label: 'Application of Use',
-            controller: _applicationController,
-          ),
-          // Transmission as dropdown
+          const SizedBox(height: 16),
+          // Configuration Dropdown
           _buildDropdown(
-            value: _transmission,
-            items: _transmissionTypes,
-            hintText: 'Select Transmission',
+            value: _config,
+            items: _configOptions,
+            hintText: 'Select Configuration',
             onChanged: (value) {
               setState(() {
-                _transmission = value;
+                _config = value;
               });
             },
           ),
+          const SizedBox(height: 16),
+          // Application of Use Dropdown
+          _buildDropdown(
+            value: _application,
+            items: _applicationOptions,
+            hintText: 'Select Application of Use',
+            onChanged: (value) {
+              setState(() {
+                _application = value;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          // VIN Number Field
+          _buildFormField(
+            label: 'VIN Number',
+            controller: _vinNumberController,
+          ),
+          const SizedBox(height: 16),
+          // Engine Number Field
           _buildFormField(
             label: 'Engine Number',
             controller: _engineNumberController,
           ),
-          // Suspension as dropdown
-          _buildDropdown(
-            value: _suspension,
-            items: _suspensionTypes,
-            hintText: 'Select Suspension',
+          const SizedBox(height: 16),
+          // Registration Number Field
+          _buildFormField(
+            label: 'Registration Number',
+            controller: _registrationNumberController,
+          ),
+          const SizedBox(height: 16),
+          // Selling Price Field
+          _buildFormField(
+            label: 'Selling Price',
+            controller: _sellingPriceController,
+            keyboardType: TextInputType.number,
+            isCurrency: true,
+          ),
+          const SizedBox(height: 16),
+          // Suspension Radio Buttons
+          _buildStyledRadioField(
+            label: 'Suspension',
+            options: _suspensionOptions,
+            groupValue: _suspension,
             onChanged: (value) {
               setState(() {
                 _suspension = value;
               });
             },
           ),
-          _buildFormField(
-            label: 'Registration Number',
-            controller: _registrationNumberController,
+          const SizedBox(height: 16),
+          // Transmission Radio Buttons
+          _buildStyledRadioField(
+            label: 'Transmission',
+            options: _transmissionTypeOptions,
+            groupValue: _transmissionType,
+            onChanged: (value) {
+              setState(() {
+                _transmissionType = value;
+              });
+            },
           ),
-          // Hydraulics as dropdown
-          _buildDropdown(
-            value: _hydraulics,
-            items: _hydraulicsTypes,
-            hintText: 'Select Hydraulics',
+          const SizedBox(height: 16),
+          // Hydraulics Radio Buttons
+          _buildStyledRadioField(
+            label: 'Hydraulics',
+            options: _hydraulicsOptions,
+            groupValue: _hydraulics,
             onChanged: (value) {
               setState(() {
                 _hydraulics = value;
               });
             },
           ),
-          _buildFormField(
-            label: 'Expected Selling Price',
-            controller: _expectedSellingPriceController,
-            keyboardType: TextInputType.number,
+          const SizedBox(height: 16),
+          // Maintenance Radio Buttons
+          _buildStyledRadioField(
+            label: 'Maintenance',
+            options: ['Yes', 'No'],
+            groupValue: _maintenance,
+            onChanged: (value) {
+              setState(() {
+                _maintenance = value;
+              });
+            },
           ),
-          // Warranty yes/no radio button
+          const SizedBox(height: 16),
+          // Warranty Radio Buttons
           _buildStyledRadioField(
             label: 'Warranty',
             options: ['Yes', 'No'],
@@ -679,63 +747,29 @@ class _EditVehiclePageState extends State<EditVehiclePage>
             onChanged: (value) {
               setState(() {
                 _warranty = value;
-                if (_warranty == 'No') {
-                  _warrantyTypeController.text = '';
-                }
               });
             },
           ),
-          // Warranty Type field, shown only if warranty is 'Yes'
+          const SizedBox(height: 16),
+          // Warranty Details Field (if Warranty is Yes)
           if (_warranty == 'Yes')
             _buildFormField(
-              label: 'Warranty Type',
-              controller: _warrantyTypeController,
+              label: 'Warranty Details',
+              controller: _warrantyDetailsController,
             ),
-          // Weight Class as radio buttons
+          const SizedBox(height: 16),
+          // Require to Settle Before Selling Radio Buttons
           _buildStyledRadioField(
-            label: 'Weight Class',
-            options: _weightClasses,
-            groupValue: _weightClass,
-            onChanged: (value) {
-              setState(() {
-                _weightClass = value;
-              });
-            },
-            isWeight: true,
-          ),
-          // Config as dropdown
-          _buildDropdown(
-            value: _config,
-            items: _configOptions,
-            hintText: 'Select Config',
-            onChanged: (value) {
-              setState(() {
-                _config = value;
-              });
-            },
-          ),
-          // Available Date as Date Picker
-          _buildDatePickerField(
-            label: 'Available Date',
-            controller: _availableDateController,
-            hintText: 'Select Available Date',
-          ),
-
-          _buildFormField(
-            label: 'OEM Inspection',
-            controller: _oemInspectionController,
-          ),
-          // Vehicle Available Immediately
-          _buildStyledRadioField(
-            label: 'Vehicle Available Immediately',
+            label: 'Require to Settle Before Selling',
             options: ['Yes', 'No'],
-            groupValue: _vehicleAvailableImmediately,
+            groupValue: _settleBeforeSelling,
             onChanged: (value) {
               setState(() {
-                _vehicleAvailableImmediately = value;
+                _settleBeforeSelling = value;
               });
             },
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1298,59 +1332,8 @@ class _EditVehiclePageState extends State<EditVehiclePage>
         String newStatus = 'Live';
 
         // Create an updated Vehicle object using the collected data from form fields
-        Vehicle updatedVehicle = widget.vehicle.copyWith(
-          // Text fields
-          makeModel: _makeModelController.text,
-          transmission: _transmission,
-          year: _yearController.text,
-          mileage: _mileageController.text,
-          application: _applicationController.text,
-          bookValue: _bookValueController.text,
-          damageDescription: _damageDescriptionController.text,
-          engineNumber: _engineNumberController.text,
-          expectedSellingPrice: _expectedSellingPriceController.text,
-          hydraulics: _hydraulics,
-          listDamages: _listDamagesController.text,
-          registrationNumber: _registrationNumberController.text,
-          settlementAmount: _settlementAmountController.text,
-          spareTyre: _spareTyreController.text,
-          suspension: _suspension,
-          tyreType: _tyreTypeController.text,
-          vinNumber: _vinNumberController.text,
-          warrantyType: _warrantyTypeController.text,
-          weightClass: _weightClass,
-          vehicleAvailableImmediately: _vehicleAvailableImmediately,
-          availableDate: _availableDateController.text,
-          config: _config,
-          treadLeft: _treadLeftController.text,
-          oemInspection: _oemInspectionController.text,
-          // Radio buttons
-          maintenance: _maintenance,
-          warranty: _warranty,
-          firstOwner: _firstOwner,
-          accidentFree: _accidentFree,
-          roadWorthy: _roadWorthy,
-          settleBeforeSelling: _settleBeforeSelling,
-          vehicleStatus: newStatus, // Update the status here
-          vehicleType: _vehicleType,
-          // Images
-          mainImageUrl: _photoUrls[0],
-          damagePhotos: _photoUrls[1] != null ? [_photoUrls[1]!] : [],
-          dashboardPhoto: _photoUrls[2],
-          faultCodesPhoto: _photoUrls[3],
-          licenceDiskUrl: _photoUrls[4],
-          mileageImage: _photoUrls[5],
-          // Other images...
-          tyrePhoto1: _photoUrls[22],
-          tyrePhoto2: _photoUrls[23],
-          // Files
-          settlementLetterFile: _settlementLetterFileUrl,
-          rc1NatisFile: _rc1NatisFile,
-        );
 
         // Call the provider method to update the vehicle in Firestore
-        await Provider.of<VehicleProvider>(context, listen: false)
-            .updateVehicle(updatedVehicle);
 
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1422,7 +1405,7 @@ class _EditVehiclePageState extends State<EditVehiclePage>
         false;
   }
 
-// Add this method inside the _EditVehiclePageState class
+  // Add this method inside the _EditVehiclePageState class
   Future<bool> _showExitConfirmationDialog() async {
     return await showDialog<bool>(
           context: context,

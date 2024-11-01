@@ -33,7 +33,6 @@ class CustomRadioButton extends StatelessWidget {
             color: isSelected ? selectedColor : Colors.white54,
             width: 2.0,
           ),
-          borderRadius: BorderRadius.circular(10.0),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Text(

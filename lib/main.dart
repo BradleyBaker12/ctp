@@ -20,7 +20,7 @@ import 'package:ctp/pages/signup_page.dart';
 import 'package:ctp/pages/trading_category_page.dart';
 import 'package:ctp/pages/trading_intrests_page.dart';
 import 'package:ctp/pages/transporter_reg.dart';
-import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
+import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/tutorial_page.dart';
 import 'package:ctp/pages/tutorial_started.dart';
@@ -105,7 +105,7 @@ class MyApp extends StatelessWidget {
         '/waiting-for-approval': (context) => const WaitingForApprovalPage(),
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
-        '/vehicleUpload': (context) => VehicleUploadTabs(),
+        '/vehicleUpload': (context) => VehicleUploadScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {

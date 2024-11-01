@@ -1,15 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-
-class DamageEntry {
-  String? damageDescription;
-  File? damagePhoto;
-
-  DamageEntry({this.damageDescription, this.damagePhoto});
-}
+import 'package:flutter/material.dart';
 
 class FormDataProvider with ChangeNotifier {
-  // Form index management
+  // Form index management (if still needed)
   int _currentFormIndex = 0;
 
   int get currentFormIndex => _currentFormIndex;
@@ -34,383 +28,663 @@ class FormDataProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // List of damage entries
-  final List<DamageEntry> _damageEntries = [];
+  // SECTION 1: Basic Vehicle Information
+  String? _vehicleType;
+  String? _year;
+  String? _makeModel;
+  String? _sellingPrice;
+  String? _vinNumber;
+  String? _mileage;
+  File? _selectedMainImage;
+  String? _mainImageUrl;
+  String? _natisRc1Url;
 
-  List<DamageEntry> get damageEntries => _damageEntries;
+  String? get year => _year;
+  String? get makeModel => _makeModel;
+  String? get sellingPrice => _sellingPrice;
+  String? get vinNumber => _vinNumber;
+  String? get mileage => _mileage;
+  File? get selectedMainImage => _selectedMainImage;
+  String? get mainImageUrl => _mainImageUrl;
+  String? get natisRc1Url => _natisRc1Url;
 
-  void addDamageEntry() {
-    _damageEntries.add(DamageEntry());
+  void setDataFromMap(Map<String, dynamic> data) {
+    _year = data['year'];
+    _makeModel = data['makeModel'];
+    _vinNumber = data['vinNumber'];
+    _config = data['config'];
+    _mileage = data['mileage'];
+    _application = data['application'];
+    _engineNumber = data['engineNumber'];
+    _registrationNumber = data['registrationNumber'];
+    _sellingPrice = data['sellingPrice'];
+    _vehicleType = data['vehicleType'];
+    _suspension = data['suspensionType'];
+    _transmissionType = data['transmissionType'];
+    _hydraulics = data['hydraulics'];
+    _maintenance = data['maintenance'];
+    _warranty = data['warranty'];
+    _warrantyDetails = data['warrantyDetails'];
+    _requireToSettleType = data['requireToSettleType'];
+    _mainImageUrl = data['mainImageUrl'];
+    _natisRc1Url = data['natisRc1Url'];
+
     notifyListeners();
   }
 
-  void removeDamageEntry(int index) {
-    if (index >= 0 && index < _damageEntries.length) {
-      _damageEntries.removeAt(index);
-      notifyListeners();
-    }
+  void setMainImageUrl(String? url, {bool notify = true}) {
+    _mainImageUrl = url;
+    if (notify) notifyListeners();
   }
 
-  void updateDamageDescription(int index, String description) {
-    if (index >= 0 && index < _damageEntries.length) {
-      _damageEntries[index].damageDescription = description;
-      notifyListeners();
-    }
+  void setNatisRc1UrlUrl(String? url, {bool notify = true}) {
+    _natisRc1Url = url;
+    if (notify) notifyListeners();
   }
 
-  void updateDamagePhoto(int index, File? photo) {
-    if (index >= 0 && index < _damageEntries.length) {
-      _damageEntries[index].damagePhoto = photo;
-      notifyListeners();
-    }
+  void setVehicleType(String? type, {bool notify = true}) {
+    _vehicleType = type ?? 'truck';
+    if (notify) notifyListeners();
   }
 
-  // Fields for the first form section
-  String? vehicleType;
-  String? year;
-  String? makeModel;
-  String? sellingPrice;
-  String? vinNumber;
-  String? mileage;
-  File? selectedMainImage;
-  File? selectedLicenceDiskImage;
-  List<String>? inspectionDates;
-  List<Map<String, dynamic>>? inspectionLocations;
-  List<String>? collectionDates;
-  List<Map<String, dynamic>>? collectionLocations;
-
-  // Additional fields
-  String? weightClass;
-
-  // Fields for the second form section
-  String? application;
-  String? transmission;
-  String? engineNumber;
-  String? suspension;
-  String? registrationNumber;
-  String? expectedSellingPrice;
-  String? hydraulics;
-  String? maintenance;
-  String? oemInspection;
-  String? warranty;
-  String? warrantyType;
-  String? firstOwner;
-  String? accidentFree;
-  String? roadWorthy;
-
-  // Fields for the third form section
-  String? settleBeforeSelling;
-  File? settlementLetterFile;
-  String? settlementAmount;
-
-  // Fields for the fourth form section
-  File? rc1NatisFile;
-
-  // Fields for the fifth form section
-  String? listDamages;
-  String? damageDescription;
-  File? dashboardPhoto;
-  File? faultCodesPhoto;
-  List<File?>? damagePhotos;
-
-  // Fields for the sixth form section
-  String? tyreType;
-  String? spareTyre;
-  File? frontRightTyre;
-  File? frontLeftTyre;
-  File? spareWheelTyre;
-  String? treadLeft;
-
-  // Fields for the seventh form section
-  List<File?> photoPaths = List<File?>.filled(18, null, growable: false);
-
-  // Constructor
-  FormDataProvider();
-
-  // Methods for the first form section
-  void setVehicleType(String type) {
-    vehicleType = type;
-    notifyListeners();
+  void setYear(String? yearValue, {bool notify = true}) {
+    _year = yearValue;
+    if (notify) notifyListeners();
   }
 
-  void setYear(String yearValue) {
-    year = yearValue;
-    notifyListeners();
+  void setMakeModel(String? makeModelValue, {bool notify = true}) {
+    _makeModel = makeModelValue;
+    if (notify) notifyListeners();
   }
 
-  void setMakeModel(String makeModelValue) {
-    makeModel = makeModelValue;
-    notifyListeners();
+  void setSellingPrice(String? sellingPriceValue, {bool notify = true}) {
+    _sellingPrice = sellingPriceValue;
+    if (notify) notifyListeners();
   }
 
-  void setSellingPrice(String sellingPriceValue) {
-    sellingPrice = sellingPriceValue;
-    notifyListeners();
+  void setVinNumber(String? vinValue, {bool notify = true}) {
+    _vinNumber = vinValue;
+    if (notify) notifyListeners();
   }
 
-  void setVinNumber(String vinValue) {
-    vinNumber = vinValue;
-    notifyListeners();
-  }
-
-  void setMileage(String mileageValue) {
-    mileage = mileageValue;
-    notifyListeners();
+  void setMileage(String? mileageValue, {bool notify = true}) {
+    _mileage = mileageValue;
+    if (notify) notifyListeners();
   }
 
   void setSelectedMainImage(File? image) {
-    selectedMainImage = image;
-    notifyListeners();
+    _selectedMainImage = image;
+    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
   }
 
-  void setSelectedLicenceDiskImage(File? image) {
-    selectedLicenceDiskImage = image;
-    notifyListeners();
+  // SECTION 2: Additional Vehicle Details
+  String? _application;
+  String? _config;
+  String? _transmissionType;
+  String? _engineNumber;
+  String? _suspension;
+  String? _registrationNumber;
+  String? _expectedSellingPrice;
+  String? _hydraulics;
+  String? _maintenance;
+  String? _maintanenceType;
+  String? _warranty;
+  String? _warrantyType;
+  String? _requireToSettleType;
+  // Maintenance and Warranty Data
+  File? _maintenanceDocFile;
+  File? _warrantyDocFile;
+  String _oemInspectionType = 'yes';
+  String? _oemInspectionExplanation;
+
+  String get vehicleType => _vehicleType ?? 'truck';
+  String get suspension => _suspension ?? 'spring';
+  String get transmissionType => _transmissionType ?? 'automatic';
+  String get hydraulics => _hydraulics ?? 'yes';
+  String get maintenance => _maintenance ?? 'yes';
+  String get warranty => _warranty ?? 'yes';
+  String get requireToSettleType => _requireToSettleType ?? 'yes';
+  String get maintanenceType => _maintanenceType ?? 'yes';
+
+  String? get application => _application;
+  String? get config => _config;
+
+  String? get engineNumber => _engineNumber;
+
+  String? get registrationNumber => _registrationNumber;
+  String? get expectedSellingPrice => _expectedSellingPrice;
+
+  String? get warrantyType => _warrantyType;
+  File? get maintenanceDocFile => _maintenanceDocFile;
+  File? get warrantyDocFile => _warrantyDocFile;
+  String get oemInspectionType => _oemInspectionType;
+  String? get oemInspectionExplanation => _oemInspectionExplanation;
+
+  void setMaintenanceDocFile(File? file, {bool notify = true}) {
+    _maintenanceDocFile = file;
+    if (notify) notifyListeners();
   }
 
-  void setInspectionDates(List<String>? dates) {
-    inspectionDates = dates;
-    notifyListeners();
+  void setWarrantyDocFile(File? file, {bool notify = true}) {
+    _warrantyDocFile = file;
+    if (notify) notifyListeners();
   }
 
-  void setInspectionLocations(List<Map<String, dynamic>>? locations) {
-    inspectionLocations = locations;
-    notifyListeners();
+  void setOemInspectionType(String value, {bool notify = true}) {
+    _oemInspectionType = value;
+    if (notify) notifyListeners();
   }
 
-  void setCollectionDates(List<String>? dates) {
-    collectionDates = dates;
-    notifyListeners();
+  void setOemInspectionExplanation(String? explanation, {bool notify = true}) {
+    _oemInspectionExplanation = explanation;
+    if (notify) notifyListeners();
   }
 
-  void setCollectionLocations(List<Map<String, dynamic>>? locations) {
-    collectionLocations = locations;
-    notifyListeners();
+  void setApplication(String? value, {bool notify = true}) {
+    _application = value;
+    if (notify) notifyListeners();
   }
 
-  void setWeightClass(String classValue) {
-    weightClass = classValue;
-    notifyListeners();
+  void setConfig(String? value, {bool notify = true}) {
+    _config = value;
+    if (notify) notifyListeners();
   }
 
-  // Methods for the second form section
-  void setApplication(String applicationValue) {
-    application = applicationValue;
-    notifyListeners();
+  void setTransmissionType(String? value, {bool notify = true}) {
+    _transmissionType = value;
+    if (notify) notifyListeners();
   }
 
-  void setTransmission(String transmissionValue) {
-    transmission = transmissionValue;
-    notifyListeners();
+  void setEngineNumber(String? value, {bool notify = true}) {
+    _engineNumber = value;
+    if (notify) notifyListeners();
   }
 
-  void setEngineNumber(String engineNumberValue) {
-    engineNumber = engineNumberValue;
-    notifyListeners();
+  void setSuspension(String? value, {bool notify = true}) {
+    _suspension = value;
+    if (notify) notifyListeners();
   }
 
-  void setSuspension(String suspensionValue) {
-    suspension = suspensionValue;
-    notifyListeners();
+  void setRegistrationNumber(String? value, {bool notify = true}) {
+    _registrationNumber = value;
+    if (notify) notifyListeners();
   }
 
-  void setRegistrationNumber(String registrationNumberValue) {
-    registrationNumber = registrationNumberValue;
-    notifyListeners();
+  void setExpectedSellingPrice(String? value, {bool notify = true}) {
+    _expectedSellingPrice = value;
+    if (notify) notifyListeners();
   }
 
-  void setExpectedSellingPrice(String expectedSellingPriceValue) {
-    expectedSellingPrice = expectedSellingPriceValue;
-    notifyListeners();
+  void setHydraulics(String? value, {bool notify = true}) {
+    _hydraulics = value;
+    if (notify) notifyListeners();
   }
 
-  void setHydraulics(String hydraulicsValue) {
-    hydraulics = hydraulicsValue;
-    notifyListeners();
+  void setMaintenance(String? value, {bool notify = true}) {
+    _maintenance = value;
+    if (notify) notifyListeners();
   }
 
-  void setMaintenance(String maintenanceValue) {
-    maintenance = maintenanceValue;
-    notifyListeners();
+  void setMaintanenceType(String? value, {bool notify = true}) {
+    _maintanenceType = value;
+    if (notify) notifyListeners();
   }
 
-  void setOemInspection(String oemInspectionValue) {
-    oemInspection = oemInspectionValue;
-    notifyListeners();
+  void setWarranty(String? value, {bool notify = true}) {
+    _warranty = value;
+    if (notify) notifyListeners();
   }
 
-  void setWarranty(String warrantyValue) {
-    warranty = warrantyValue;
-    notifyListeners();
+  void setWarrantyType(String? value, {bool notify = true}) {
+    _warrantyType = value;
+    if (notify) notifyListeners();
   }
 
-  void setWarrantyType(String warrantyTypeValue) {
-    warrantyType = warrantyTypeValue;
-    notifyListeners();
+  void setWarrantyDetails(String? value, {bool notify = true}) {
+    _warrantyDetails = value;
+    if (notify) notifyListeners();
   }
 
-  void setFirstOwner(String firstOwnerValue) {
-    firstOwner = firstOwnerValue;
-    notifyListeners();
+  void setRequireToSettleType(String? value, {bool notify = true}) {
+    _requireToSettleType = value;
+    if (notify) notifyListeners();
   }
 
-  void setAccidentFree(String accidentFreeValue) {
-    accidentFree = accidentFreeValue;
-    notifyListeners();
+  // SECTION 3: Warranty Details (Conditional)
+  String? _warrantyDetails;
+
+  String? get warrantyDetails => _warrantyDetails;
+
+  // SECTION 4: External Cab Data
+  String _externalCabCondition = 'good';
+  String _externalCabAnyDamages = 'no';
+  String _externalCabAnyAdditionalFeatures = 'no';
+  Map<String, File?> _externalCabSelectedImages = {
+    'FRONT VIEW': null,
+    'RIGHT SIDE VIEW': null,
+    'REAR VIEW': null,
+    'LEFT SIDE VIEW': null,
+  };
+  List<Map<String, dynamic>> _externalCabDamageList = [];
+  List<Map<String, dynamic>> _externalCabAdditionalFeaturesList = [];
+
+  String get externalCabCondition => _externalCabCondition;
+  String get externalCabAnyDamages => _externalCabAnyDamages;
+  String get externalCabAnyAdditionalFeatures =>
+      _externalCabAnyAdditionalFeatures;
+  Map<String, File?> get externalCabSelectedImages =>
+      _externalCabSelectedImages;
+  List<Map<String, dynamic>> get externalCabDamageList =>
+      _externalCabDamageList;
+  List<Map<String, dynamic>> get externalCabAdditionalFeaturesList =>
+      _externalCabAdditionalFeaturesList;
+
+  void setExternalCabCondition(String value, {bool notify = true}) {
+    _externalCabCondition = value;
+    if (notify) notifyListeners();
   }
 
-  void setRoadWorthy(String roadWorthyValue) {
-    roadWorthy = roadWorthyValue;
-    notifyListeners();
+  void setExternalCabAnyDamages(String value, {bool notify = true}) {
+    _externalCabAnyDamages = value;
+    if (notify) notifyListeners();
   }
 
-  // Methods for the third form section
-  void setSettleBeforeSelling(String value) {
-    settleBeforeSelling = value;
-    notifyListeners();
+  void setExternalCabAnyAdditionalFeatures(String value, {bool notify = true}) {
+    _externalCabAnyAdditionalFeatures = value;
+    if (notify) notifyListeners();
   }
 
-  void setSettlementLetterFile(File? file) {
-    settlementLetterFile = file;
-    notifyListeners();
+  void setExternalCabSelectedImage(String key, File? file,
+      {bool notify = true}) {
+    _externalCabSelectedImages[key] = file;
+    if (notify) notifyListeners();
   }
 
-  void setSettlementAmount(String amount) {
-    settlementAmount = amount;
-    notifyListeners();
+  void addExternalCabDamage(Map<String, dynamic> damage, {bool notify = true}) {
+    _externalCabDamageList.add(damage);
+    if (notify) notifyListeners();
   }
 
-  // Methods for the fourth form section
-  void setRc1NatisFile(File? file) {
-    rc1NatisFile = file;
-    notifyListeners();
+  void removeExternalCabDamage(int index, {bool notify = true}) {
+    _externalCabDamageList.removeAt(index);
+    if (notify) notifyListeners();
   }
 
-  // Methods for the fifth form section
-  void setListDamages(String value) {
-    listDamages = value;
-    notifyListeners();
+  void addExternalCabAdditionalFeature(Map<String, dynamic> feature,
+      {bool notify = true}) {
+    _externalCabAdditionalFeaturesList.add(feature);
+    if (notify) notifyListeners();
   }
 
-  void setDamageDescription(String value) {
-    damageDescription = value;
-    notifyListeners();
+  void removeExternalCabAdditionalFeature(int index, {bool notify = true}) {
+    _externalCabAdditionalFeaturesList.removeAt(index);
+    if (notify) notifyListeners();
   }
 
-  void setDashboardPhoto(File? file) {
-    dashboardPhoto = file;
-    notifyListeners();
+  // SECTION 5: Internal Cab Data
+  String _internalCabCondition = 'good';
+  String _internalCabDamagesCondition = 'no';
+  String _internalCabAdditionalFeaturesCondition = 'no';
+  String _internalCabFaultCodesCondition = 'no';
+  Map<String, File?> _internalCabSelectedImages = {
+    'Center Dash': null,
+    'Left Dash': null,
+    'Right Dash (Vehicle On)': null,
+    'Mileage': null,
+    'Sun Visors': null,
+    'Center Console': null,
+    'Steering': null,
+    'Left Door Panel': null,
+    'Left Seat': null,
+    'Roof': null,
+    'Bunk Beds': null,
+    'Rear Panel': null,
+    'Right Door Panel': null,
+    'Right Seat': null,
+  };
+  List<Map<String, dynamic>> _internalCabDamageList = [];
+  List<Map<String, dynamic>> _internalCabAdditionalFeaturesList = [];
+  List<Map<String, dynamic>> _internalCabFaultCodesList = [];
+
+  String get internalCabCondition => _internalCabCondition;
+  String get internalCabDamagesCondition => _internalCabDamagesCondition;
+  String get internalCabAdditionalFeaturesCondition =>
+      _internalCabAdditionalFeaturesCondition;
+  String get internalCabFaultCodesCondition => _internalCabFaultCodesCondition;
+  Map<String, File?> get internalCabSelectedImages =>
+      _internalCabSelectedImages;
+  List<Map<String, dynamic>> get internalCabDamageList =>
+      _internalCabDamageList;
+  List<Map<String, dynamic>> get internalCabAdditionalFeaturesList =>
+      _internalCabAdditionalFeaturesList;
+  List<Map<String, dynamic>> get internalCabFaultCodesList =>
+      _internalCabFaultCodesList;
+
+  void setInternalCabCondition(String value, {bool notify = true}) {
+    _internalCabCondition = value;
+    if (notify) notifyListeners();
   }
 
-  void setFaultCodesPhoto(File? file) {
-    faultCodesPhoto = file;
-    notifyListeners();
+  void setInternalCabDamagesCondition(String value, {bool notify = true}) {
+    _internalCabDamagesCondition = value;
+    if (notify) notifyListeners();
   }
 
-  void setDamagePhotos(List<File?> files) {
-    damagePhotos = files;
-    notifyListeners();
+  void setInternalCabAdditionalFeaturesCondition(String value,
+      {bool notify = true}) {
+    _internalCabAdditionalFeaturesCondition = value;
+    if (notify) notifyListeners();
   }
 
-  // Methods for the sixth form section
-  void setTyreType(String value) {
-    tyreType = value;
-    notifyListeners();
+  void setInternalCabFaultCodesCondition(String value, {bool notify = true}) {
+    _internalCabFaultCodesCondition = value;
+    if (notify) notifyListeners();
   }
 
-  void setSpareTyre(String value) {
-    spareTyre = value;
-    notifyListeners();
+  void setInternalCabSelectedImage(String key, File? file,
+      {bool notify = true}) {
+    _internalCabSelectedImages[key] = file;
+    if (notify) notifyListeners();
   }
 
-  void setFrontRightTyre(File? file) {
-    frontRightTyre = file;
-    notifyListeners();
+  void addInternalCabDamage(Map<String, dynamic> damage, {bool notify = true}) {
+    _internalCabDamageList.add(damage);
+    if (notify) notifyListeners();
   }
 
-  void setFrontLeftTyre(File? file) {
-    frontLeftTyre = file;
-    notifyListeners();
+  void removeInternalCabDamage(int index, {bool notify = true}) {
+    _internalCabDamageList.removeAt(index);
+    if (notify) notifyListeners();
   }
 
-  void setSpareWheelTyre(File? file) {
-    spareWheelTyre = file;
-    notifyListeners();
+  void addInternalCabAdditionalFeature(Map<String, dynamic> feature,
+      {bool notify = true}) {
+    _internalCabAdditionalFeaturesList.add(feature);
+    if (notify) notifyListeners();
   }
 
-  void setTreadLeft(String value) {
-    treadLeft = value;
-    notifyListeners();
+  void removeInternalCabAdditionalFeature(int index, {bool notify = true}) {
+    _internalCabAdditionalFeaturesList.removeAt(index);
+    if (notify) notifyListeners();
   }
 
-  // Methods for the seventh form section
-  void setPhotoAtIndex(int index, File? file) {
-    if (index >= 0 && index < photoPaths.length) {
-      photoPaths[index] = file;
-      notifyListeners();
-    }
+  void addInternalCabFaultCode(Map<String, dynamic> faultCode,
+      {bool notify = true}) {
+    _internalCabFaultCodesList.add(faultCode);
+    if (notify) notifyListeners();
   }
 
-  void setPhotoPaths(List<File?> files) {
-    photoPaths = files;
-    notifyListeners();
+  void removeInternalCabFaultCode(int index, {bool notify = true}) {
+    _internalCabFaultCodesList.removeAt(index);
+    if (notify) notifyListeners();
+  }
+
+  // SECTION 6: Drive Train Data
+  String _driveTrainCondition = 'good';
+  String _oilLeakConditionEngine = 'no';
+  String _waterLeakConditionEngine = 'no';
+  String _blowbyCondition = 'no';
+  String _oilLeakConditionGearbox = 'no';
+  String _retarderCondition = 'no';
+  Map<String, File?> _driveTrainSelectedImages = {
+    'Down': null,
+    'Left': null,
+    'Up': null,
+    'Right': null,
+    'Engine Left': null,
+    'Engine Right': null,
+    'Gearbox Top View': null,
+    'Gearbox Bottom View': null,
+    'Gearbox Rear Panel': null,
+    'Diffs top view of front diff': null,
+    'Diffs bottom view of diff front': null,
+    'Diffs top view of rear diff': null,
+    'Diffs bottom view of rear diff': null,
+    'Engine Oil Leak': null,
+    'Engine Water Leak': null,
+    'Gearbox Oil Leak': null,
+  };
+
+  String get driveTrainCondition => _driveTrainCondition;
+  String get oilLeakConditionEngine => _oilLeakConditionEngine;
+  String get waterLeakConditionEngine => _waterLeakConditionEngine;
+  String get blowbyCondition => _blowbyCondition;
+  String get oilLeakConditionGearbox => _oilLeakConditionGearbox;
+  String get retarderCondition => _retarderCondition;
+  Map<String, File?> get driveTrainSelectedImages => _driveTrainSelectedImages;
+
+  void setDriveTrainCondition(String value, {bool notify = true}) {
+    _driveTrainCondition = value;
+    if (notify) notifyListeners();
+  }
+
+  void setOilLeakConditionEngine(String value, {bool notify = true}) {
+    _oilLeakConditionEngine = value;
+    if (notify) notifyListeners();
+  }
+
+  void setWaterLeakConditionEngine(String value, {bool notify = true}) {
+    _waterLeakConditionEngine = value;
+    if (notify) notifyListeners();
+  }
+
+  void setBlowbyCondition(String value, {bool notify = true}) {
+    _blowbyCondition = value;
+    if (notify) notifyListeners();
+  }
+
+  void setOilLeakConditionGearbox(String value, {bool notify = true}) {
+    _oilLeakConditionGearbox = value;
+    if (notify) notifyListeners();
+  }
+
+  void setRetarderCondition(String value, {bool notify = true}) {
+    _retarderCondition = value;
+    if (notify) notifyListeners();
+  }
+
+  void setDriveTrainSelectedImage(String key, File? file,
+      {bool notify = true}) {
+    _driveTrainSelectedImages[key] = file;
+    if (notify) notifyListeners();
+  }
+
+  // SECTION 7: Chassis Data
+  String _chassisCondition = 'good';
+  String _chassisDamagesCondition = 'no';
+  String _chassisAdditionalFeaturesCondition = 'no';
+  Map<String, String?> _chassisImageUrls = {
+    'Right Brake': null,
+    'Left Brake': null,
+    'Front Axel': null,
+    'Suspension': null,
+    'Fuel Tank': null,
+    'Battery': null,
+    'Cat Walk': null,
+    'Electrical Cable Black': null,
+    'Air Cable Yellow': null,
+    'Air Cable Red': null,
+    'Tail Board': null,
+    '5th Wheel': null,
+    'Left Brake Rear Axel': null,
+    'Right Brake Rear Axel': null,
+  };
+  Map<String, File?> _chassisSelectedImages = {
+    'Right Brake': null,
+    'Left Brake': null,
+    'Front Axel': null,
+    'Suspension': null,
+    'Fuel Tank': null,
+    'Battery': null,
+    'Cat Walk': null,
+    'Electrical Cable Black': null,
+    'Air Cable Yellow': null,
+    'Air Cable Red': null,
+    'Tail Board': null,
+    '5th Wheel': null,
+    'Left Brake Rear Axel': null,
+    'Right Brake Rear Axel': null,
+  };
+  List<Map<String, dynamic>> _chassisDamageList = [];
+  List<Map<String, dynamic>> _chassisAdditionalFeaturesList = [];
+
+  String get chassisCondition => _chassisCondition;
+  String get chassisDamagesCondition => _chassisDamagesCondition;
+  String get chassisAdditionalFeaturesCondition =>
+      _chassisAdditionalFeaturesCondition;
+  Map<String, String?> get chassisImageUrls => _chassisImageUrls;
+  Map<String, File?> get chassisSelectedImages => _chassisSelectedImages;
+  List<Map<String, dynamic>> get chassisDamageList => _chassisDamageList;
+  List<Map<String, dynamic>> get chassisAdditionalFeaturesList =>
+      _chassisAdditionalFeaturesList;
+
+  void setChassisCondition(String value, {bool notify = true}) {
+    _chassisCondition = value;
+    if (notify) notifyListeners();
+  }
+
+  void setChassisDamagesCondition(String value, {bool notify = true}) {
+    _chassisDamagesCondition = value;
+    if (notify) notifyListeners();
+  }
+
+  void setChassisAdditionalFeaturesCondition(String value,
+      {bool notify = true}) {
+    _chassisAdditionalFeaturesCondition = value;
+    if (notify) notifyListeners();
+  }
+
+  void setChassisSelectedImage(String key, File? file, {bool notify = true}) {
+    _chassisSelectedImages[key] = file;
+    if (notify) notifyListeners();
+  }
+
+  void addChassisDamage(Map<String, dynamic> damage, {bool notify = true}) {
+    _chassisDamageList.add(damage);
+    if (notify) notifyListeners();
+  }
+
+  void removeChassisDamage(int index, {bool notify = true}) {
+    _chassisDamageList.removeAt(index);
+    if (notify) notifyListeners();
+  }
+
+  void addChassisAdditionalFeature(Map<String, dynamic> feature,
+      {bool notify = true}) {
+    _chassisAdditionalFeaturesList.add(feature);
+    if (notify) notifyListeners();
+  }
+
+  void removeChassisAdditionalFeature(int index, {bool notify = true}) {
+    _chassisAdditionalFeaturesList.removeAt(index);
+    if (notify) notifyListeners();
+  }
+
+  // SECTION 8: Tyres Data
+  String _tyresChassisCondition = 'good';
+  String _tyresVirginOrRecap = 'virgin';
+  String _tyresRimType = 'aluminium';
+  Map<String, File?> _tyresSelectedImages = {};
+  // Add any additional fields as needed
+
+  String get tyresChassisCondition => _tyresChassisCondition;
+  String get tyresVirginOrRecap => _tyresVirginOrRecap;
+  String get tyresRimType => _tyresRimType;
+  Map<String, File?> get tyresSelectedImages => _tyresSelectedImages;
+
+  void setTyresChassisCondition(String value, {bool notify = true}) {
+    _tyresChassisCondition = value;
+    if (notify) notifyListeners();
+  }
+
+  void setTyresVirginOrRecap(String value, {bool notify = true}) {
+    _tyresVirginOrRecap = value;
+    if (notify) notifyListeners();
+  }
+
+  void setTyresRimType(String value, {bool notify = true}) {
+    _tyresRimType = value;
+    if (notify) notifyListeners();
+  }
+
+  void setTyresSelectedImage(String key, File? file, {bool notify = true}) {
+    _tyresSelectedImages[key] = file;
+    if (notify) notifyListeners();
   }
 
   // Method to reset all data
   void resetFormData() {
-    // Reset all form data including damage entries
-    vehicleType = null;
-    year = null;
-    makeModel = null;
-    sellingPrice = null;
-    vinNumber = null;
-    mileage = null;
-    selectedMainImage = null;
-    selectedLicenceDiskImage = null;
-    inspectionDates = null;
-    inspectionLocations = null;
-    collectionDates = null;
-    collectionLocations = null;
-    weightClass = null;
+    // Reset form index and vehicle ID
+    _currentFormIndex = 0;
+    _vehicleId = null;
 
-    application = null;
-    transmission = null;
-    engineNumber = null;
-    suspension = null;
-    registrationNumber = null;
-    expectedSellingPrice = null;
-    hydraulics = null;
-    maintenance = null;
-    oemInspection = null;
-    warranty = null;
-    warrantyType = null;
-    firstOwner = null;
-    accidentFree = null;
-    roadWorthy = null;
+    // Reset SECTION 1: Basic Vehicle Information
+    _vehicleType = null;
+    _year = null;
+    _makeModel = null;
+    _sellingPrice = null;
+    _vinNumber = null;
+    _mileage = null;
+    _selectedMainImage = null;
 
-    settleBeforeSelling = null;
-    settlementLetterFile = null;
-    settlementAmount = null;
+    // Reset SECTION 2: Additional Vehicle Details
+    _application = null;
+    _config = null;
+    _transmissionType = null;
+    _engineNumber = null;
+    _suspension = null;
+    _registrationNumber = null;
+    _expectedSellingPrice = null;
+    _hydraulics = null;
+    _maintenance = null;
+    _warranty = null;
+    _warrantyType = null;
+    _requireToSettleType = null;
 
-    rc1NatisFile = null;
+    // Reset SECTION 3: Warranty Details
+    _warrantyDetails = null;
 
-    listDamages = null;
-    damageDescription = null;
-    dashboardPhoto = null;
-    faultCodesPhoto = null;
-    damagePhotos = null;
+    // Reset SECTION 4: External Cab Data
+    _externalCabCondition = 'good';
+    _externalCabAnyDamages = 'no';
+    _externalCabAnyAdditionalFeatures = 'no';
+    _externalCabSelectedImages.updateAll((key, value) => null);
+    _externalCabDamageList.clear();
+    _externalCabAdditionalFeaturesList.clear();
 
-    tyreType = null;
-    spareTyre = null;
-    frontRightTyre = null;
-    frontLeftTyre = null;
-    spareWheelTyre = null;
-    treadLeft = null;
+    // Reset SECTION 5: Internal Cab Data
+    _internalCabCondition = 'good';
+    _internalCabDamagesCondition = 'no';
+    _internalCabAdditionalFeaturesCondition = 'no';
+    _internalCabFaultCodesCondition = 'no';
+    _internalCabSelectedImages.updateAll((key, value) => null);
+    _internalCabDamageList.clear();
+    _internalCabAdditionalFeaturesList.clear();
+    _internalCabFaultCodesList.clear();
 
-    photoPaths = List<File?>.filled(18, null, growable: false);
+    // Reset SECTION 6: Drive Train Data
+    _driveTrainCondition = 'good';
+    _oilLeakConditionEngine = 'no';
+    _waterLeakConditionEngine = 'no';
+    _blowbyCondition = 'no';
+    _oilLeakConditionGearbox = 'no';
+    _retarderCondition = 'no';
+    _driveTrainSelectedImages.updateAll((key, value) => null);
 
-    // Reset damage entries
-    _damageEntries.clear();
+    // Reset SECTION 7: Chassis Data
+    _chassisCondition = 'good';
+    _chassisDamagesCondition = 'no';
+    _chassisAdditionalFeaturesCondition = 'no';
+    _chassisImageUrls.updateAll((key, value) => null);
+    _chassisSelectedImages.updateAll((key, value) => null);
+    _chassisDamageList.clear();
+    _chassisAdditionalFeaturesList.clear();
+
+    // Reset SECTION 8: Tyres Data
+    _tyresChassisCondition = 'good';
+    _tyresVirginOrRecap = 'virgin';
+    _tyresRimType = 'aluminium';
+    _tyresSelectedImages.clear();
 
     notifyListeners();
   }

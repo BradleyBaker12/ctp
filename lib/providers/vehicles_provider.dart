@@ -1,8 +1,9 @@
-import 'package:ctp/providers/user_provider.dart';
+// lib/providers/vehicle_provider.dart
+
+import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/widgets.dart'; // Ensure this import for ValueListenableBuilder
-// lib/providers/vehicle_provider.dart
+import 'user_provider.dart';
 
 class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
@@ -12,8 +13,7 @@ class VehicleProvider with ChangeNotifier {
 
   List<Vehicle> get vehicles => _vehicles;
   bool get isLoading => _isLoading;
-
-  String? get vehicleId => _vehicleId; // Getter for vehicleId
+  String? get vehicleId => _vehicleId;
 
   // Setter for vehicleId
   void setVehicleId(String id) {
@@ -25,26 +25,31 @@ class VehicleProvider with ChangeNotifier {
 
   VehicleProvider();
 
+  // Initialize the provider by fetching vehicles
   void initialize(UserProvider userProvider) {
     fetchVehicles(userProvider); // Fetch vehicles as usual
   }
 
+  // Add a vehicle to the local list
   void addVehicle(Vehicle vehicle) {
     _vehicles.add(vehicle);
     vehicleListenable.value = List.from(_vehicles);
     notifyListeners();
   }
 
+  // Remove a vehicle from the local list by index
   void removeVehicle(int index) {
     _vehicles.removeAt(index);
     vehicleListenable.value = List.from(_vehicles);
     notifyListeners();
   }
 
+  // Get vehicles by a specific user ID
   List<Vehicle> getVehiclesByUserId(String userId) {
     return _vehicles.where((vehicle) => vehicle.userId == userId).toList();
   }
 
+  // Fetch vehicles from Firestore with optional filters
   Future<void> fetchVehicles(UserProvider userProvider,
       {String? vehicleType,
       String? userId,
@@ -52,9 +57,9 @@ class VehicleProvider with ChangeNotifier {
       int limit = 1000}) async {
     try {
       _isLoading = true;
+      notifyListeners(); // Notify listeners about loading state
 
-      Query query =
-          FirebaseFirestore.instance.collection('vehicles'); // Removed limit
+      Query query = FirebaseFirestore.instance.collection('vehicles');
 
       if (vehicleType != null) {
         query = query.where('vehicleType', isEqualTo: vehicleType);
@@ -62,6 +67,11 @@ class VehicleProvider with ChangeNotifier {
 
       if (userId != null) {
         query = query.where('userId', isEqualTo: userId);
+      }
+
+      // Apply limit if needed
+      if (limit > 0) {
+        query = query.limit(limit);
       }
 
       QuerySnapshot querySnapshot = await query.get();
@@ -72,10 +82,10 @@ class VehicleProvider with ChangeNotifier {
         _lastFetchedDocument = querySnapshot.docs.last;
       }
 
+      // Pass the document ID to Vehicle.fromFirestore
       _vehicles = querySnapshot.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id;
-        return Vehicle.fromFirestore(data);
+        return Vehicle.fromFirestore(
+            doc.id, doc.data() as Map<String, dynamic>);
       }).toList();
 
       print('Total vehicles after mapping: ${_vehicles.length}');
@@ -99,6 +109,7 @@ class VehicleProvider with ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+      vehicleListenable.value = List.from(_vehicles);
     } catch (e) {
       print('Error fetching vehicles: $e');
       _isLoading = false;
@@ -106,15 +117,18 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
+  // Fetch more vehicles for pagination
   Future<void> fetchMoreVehicles() async {
     if (_lastFetchedDocument == null) return;
 
     try {
       _isLoading = true;
+      notifyListeners();
 
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
           .startAfterDocument(_lastFetchedDocument!)
+          .limit(1000) // Adjust as needed
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
@@ -122,12 +136,12 @@ class VehicleProvider with ChangeNotifier {
       }
 
       final moreVehicles = querySnapshot.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id;
-        return Vehicle.fromFirestore(data);
+        return Vehicle.fromFirestore(
+            doc.id, doc.data() as Map<String, dynamic>);
       }).toList();
 
       _vehicles.addAll(moreVehicles);
+      vehicleListenable.value = List.from(_vehicles);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -137,6 +151,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
+  // Get all unique makeModels
   List<String> getAllMakeModels() {
     List<String> brands = [
       'DAF',
@@ -208,7 +223,7 @@ class VehicleProvider with ChangeNotifier {
     Set<String> normalizedTransmissions = {};
 
     for (var vehicle in _vehicles) {
-      String normalized = _normalizeTransmission(vehicle.transmission);
+      String normalized = _normalizeTransmission(vehicle.transmissionType);
       if (normalized.isNotEmpty && normalized != 'n/a') {
         normalizedTransmissions.add(normalized);
       }
@@ -231,6 +246,7 @@ class VehicleProvider with ChangeNotifier {
     return transmission;
   }
 
+  // Fetch recent vehicles (e.g., latest 5)
   Future<List<Vehicle>> fetchRecentVehicles() async {
     try {
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
@@ -240,9 +256,8 @@ class VehicleProvider with ChangeNotifier {
           .get();
 
       final recentVehicles = querySnapshot.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id;
-        return Vehicle.fromFirestore(data);
+        return Vehicle.fromFirestore(
+            doc.id, doc.data() as Map<String, dynamic>);
       }).toList();
 
       return recentVehicles;
@@ -252,6 +267,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
+  // Delete a vehicle
   Future<void> deleteVehicle(String vehicleId) async {
     try {
       await FirebaseFirestore.instance
@@ -271,6 +287,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
+  // Update a vehicle
   Future<void> updateVehicle(Vehicle updatedVehicle) async {
     try {
       // Update the vehicle document
@@ -287,6 +304,7 @@ class VehicleProvider with ChangeNotifier {
       int index = _vehicles.indexWhere((v) => v.id == updatedVehicle.id);
       if (index != -1) {
         _vehicles[index] = updatedVehicle;
+        vehicleListenable.value = List.from(_vehicles);
         notifyListeners();
       }
     } catch (e) {
@@ -295,6 +313,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
+  // Cleanup duplicate drafts
   Future<void> cleanupDrafts(String vehicleId) async {
     try {
       QuerySnapshot draftSnapshots = await FirebaseFirestore.instance
@@ -313,446 +332,5 @@ class VehicleProvider with ChangeNotifier {
     } catch (e) {
       print("Error cleaning up drafts: $e");
     }
-  }
-}
-
-// Vehicle class remains the same as before, ensure it is included in your codebase
-// lib/models/vehicle.dart
-
-/// The Vehicle model representing each vehicle from Firestore.
-class Vehicle {
-  final String id;
-  final String accidentFree;
-  final String application;
-  final String bookValue;
-  final String damageDescription;
-  final List<String?> damagePhotos;
-  final String? dashboardPhoto;
-  final String engineNumber;
-  final String expectedSellingPrice;
-  final String? faultCodesPhoto;
-  final String firstOwner;
-  final String hydraulics;
-  final String? licenceDiskUrl;
-  final String listDamages;
-  final String maintenance;
-  final String makeModel;
-  final String mileage;
-  final String? mileageImage;
-  final String oemInspection;
-  final String? mainImageUrl;
-  final List<String?> photos;
-  final String? rc1NatisFile;
-  final String registrationNumber;
-  final String roadWorthy;
-  final String settleBeforeSelling;
-  final String settlementAmount;
-  final String? settlementLetterFile;
-  final String spareTyre;
-  final String suspension;
-  final String transmission;
-  final String? config;
-  final String? treadLeft;
-  final String? tyrePhoto1;
-  final String? tyrePhoto2;
-  final String tyreType;
-  final String userId;
-  final String vehicleType;
-  final String vinNumber;
-  final String warranty;
-  final String warrantyType;
-  final String weightClass;
-  final String year;
-  final DateTime createdAt;
-  final String vehicleAvailableImmediately; // Add this property
-  final String availableDate; // Add this property
-  final String trailerType;
-  final String axles;
-  final String trailerLength;
-
-  // New fields for additional photos
-  final String? bed_bunk;
-  final String? dashboard;
-  final String? door_panels;
-  final String? front_tyres_tread;
-  final String? front_view;
-  final String? left_front_45;
-  final String? left_rear_45;
-  final String? left_side_view;
-  final String? license_disk;
-  final String? rear_tyres_tread;
-  final String? rear_view;
-  final String? right_front_45;
-  final String? right_rear_45;
-  final String? right_side_view;
-  final String? roof;
-  final String? seats;
-  final String? spare_wheel;
-
-  final String vehicleStatus;
-
-  Vehicle({
-    required this.id,
-    required this.accidentFree,
-    required this.application,
-    required this.bookValue,
-    required this.damageDescription,
-    required this.damagePhotos,
-    this.dashboardPhoto,
-    required this.engineNumber,
-    required this.expectedSellingPrice,
-    this.faultCodesPhoto,
-    required this.firstOwner,
-    required this.hydraulics,
-    this.licenceDiskUrl,
-    required this.listDamages,
-    required this.maintenance,
-    required this.makeModel,
-    required this.mileage,
-    this.mileageImage,
-    required this.oemInspection,
-    this.mainImageUrl,
-    required this.photos,
-    this.rc1NatisFile,
-    required this.registrationNumber,
-    required this.roadWorthy,
-    required this.settleBeforeSelling,
-    required this.settlementAmount,
-    this.settlementLetterFile,
-    required this.spareTyre,
-    required this.suspension,
-    required this.transmission,
-    this.config,
-    this.treadLeft,
-    this.tyrePhoto1,
-    this.tyrePhoto2,
-    required this.tyreType,
-    required this.userId,
-    required this.vehicleType,
-    required this.vinNumber,
-    required this.warranty,
-    required this.warrantyType,
-    required this.weightClass,
-    required this.year,
-    required this.createdAt,
-    this.bed_bunk,
-    this.dashboard,
-    this.door_panels,
-    this.front_tyres_tread,
-    this.front_view,
-    this.left_front_45,
-    this.left_rear_45,
-    this.left_side_view,
-    this.license_disk,
-    this.rear_tyres_tread,
-    this.rear_view,
-    this.right_front_45,
-    this.right_rear_45,
-    this.right_side_view,
-    this.roof,
-    this.seats,
-    this.spare_wheel,
-    required this.vehicleStatus,
-    required this.vehicleAvailableImmediately, // Initialize this property
-    required this.availableDate, // Initialize this property
-    required this.trailerType,
-    required this.axles,
-    required this.trailerLength,
-  });
-
-  // Updated copyWith method
-  Vehicle copyWith(
-      {String? id,
-      String? accidentFree,
-      String? application,
-      String? bookValue,
-      String? damageDescription,
-      List<String?>? damagePhotos,
-      String? dashboardPhoto,
-      String? engineNumber,
-      String? expectedSellingPrice,
-      String? faultCodesPhoto,
-      String? firstOwner,
-      String? hydraulics,
-      String? licenceDiskUrl,
-      String? listDamages,
-      String? maintenance,
-      String? makeModel,
-      String? mileage,
-      String? mileageImage,
-      String? oemInspection,
-      String? mainImageUrl,
-      List<String?>? photos,
-      String? rc1NatisFile,
-      String? registrationNumber,
-      String? roadWorthy,
-      String? settleBeforeSelling,
-      String? settlementAmount,
-      String? settlementLetterFile,
-      String? spareTyre,
-      String? suspension,
-      String? transmission,
-      String? config,
-      String? treadLeft,
-      String? tyrePhoto1,
-      String? tyrePhoto2,
-      String? tyreType,
-      String? userId,
-      String? vehicleType,
-      String? vinNumber,
-      String? warranty,
-      String? warrantyType,
-      String? weightClass,
-      String? year,
-      DateTime? createdAt,
-      String? bed_bunk,
-      String? dashboard,
-      String? door_panels,
-      String? front_tyres_tread,
-      String? front_view,
-      String? left_front_45,
-      String? left_rear_45,
-      String? left_side_view,
-      String? license_disk,
-      String? rear_tyres_tread,
-      String? rear_view,
-      String? right_front_45,
-      String? right_rear_45,
-      String? right_side_view,
-      String? roof,
-      String? seats,
-      String? spare_wheel,
-      String? vehicleStatus,
-      String? vehicleAvailableImmediately, // Add this property
-      String? availableDate // Add this property
-      }) {
-    return Vehicle(
-      id: id ?? this.id,
-      accidentFree: accidentFree ?? this.accidentFree,
-      application: application ?? this.application,
-      bookValue: bookValue ?? this.bookValue,
-      damageDescription: damageDescription ?? this.damageDescription,
-      damagePhotos: damagePhotos ?? this.damagePhotos,
-      dashboardPhoto: dashboardPhoto ?? this.dashboardPhoto,
-      engineNumber: engineNumber ?? this.engineNumber,
-      expectedSellingPrice: expectedSellingPrice ?? this.expectedSellingPrice,
-      faultCodesPhoto: faultCodesPhoto ?? this.faultCodesPhoto,
-      firstOwner: firstOwner ?? this.firstOwner,
-      hydraulics: hydraulics ?? this.hydraulics,
-      licenceDiskUrl: licenceDiskUrl ?? this.licenceDiskUrl,
-      listDamages: listDamages ?? this.listDamages,
-      maintenance: maintenance ?? this.maintenance,
-      makeModel: makeModel ?? this.makeModel,
-      mileage: mileage ?? this.mileage,
-      mileageImage: mileageImage ?? this.mileageImage,
-      oemInspection: oemInspection ?? this.oemInspection,
-      mainImageUrl: mainImageUrl ?? this.mainImageUrl,
-      photos: photos ?? this.photos,
-      rc1NatisFile: rc1NatisFile ?? this.rc1NatisFile,
-      registrationNumber: registrationNumber ?? this.registrationNumber,
-      roadWorthy: roadWorthy ?? this.roadWorthy,
-      settleBeforeSelling: settleBeforeSelling ?? this.settleBeforeSelling,
-      settlementAmount: settlementAmount ?? this.settlementAmount,
-      settlementLetterFile: settlementLetterFile ?? this.settlementLetterFile,
-      spareTyre: spareTyre ?? this.spareTyre,
-      suspension: suspension ?? this.suspension,
-      transmission: transmission ?? this.transmission,
-      config: config ?? this.config,
-      treadLeft: treadLeft ?? this.treadLeft,
-      tyrePhoto1: tyrePhoto1 ?? this.tyrePhoto1,
-      tyrePhoto2: tyrePhoto2 ?? this.tyrePhoto2,
-      tyreType: tyreType ?? this.tyreType,
-      userId: userId ?? this.userId,
-      vehicleType: vehicleType ?? this.vehicleType,
-      vinNumber: vinNumber ?? this.vinNumber,
-      warranty: warranty ?? this.warranty,
-      warrantyType: warrantyType ?? this.warrantyType,
-      weightClass: weightClass ?? this.weightClass,
-      year: year ?? this.year,
-      createdAt: createdAt ?? this.createdAt,
-      bed_bunk: bed_bunk ?? this.bed_bunk,
-      dashboard: dashboard ?? this.dashboard,
-      door_panels: door_panels ?? this.door_panels,
-      front_tyres_tread: front_tyres_tread ?? this.front_tyres_tread,
-      front_view: front_view ?? this.front_view,
-      left_front_45: left_front_45 ?? this.left_front_45,
-      left_rear_45: left_rear_45 ?? this.left_rear_45,
-      left_side_view: left_side_view ?? this.left_side_view,
-      license_disk: license_disk ?? this.license_disk,
-      rear_tyres_tread: rear_tyres_tread ?? this.rear_tyres_tread,
-      rear_view: rear_view ?? this.rear_view,
-      right_front_45: right_front_45 ?? this.right_front_45,
-      right_rear_45: right_rear_45 ?? this.right_rear_45,
-      right_side_view: right_side_view ?? this.right_side_view,
-      roof: roof ?? this.roof,
-      seats: seats ?? this.seats,
-      spare_wheel: spare_wheel ?? this.spare_wheel,
-      vehicleStatus: vehicleStatus ?? this.vehicleStatus,
-      vehicleAvailableImmediately:
-          vehicleAvailableImmediately ?? this.vehicleAvailableImmediately,
-      availableDate: availableDate ?? this.availableDate,
-      trailerType: trailerType ?? trailerType,
-      axles: axles ?? axles,
-      trailerLength: trailerLength ?? trailerLength,
-    );
-  }
-
-  factory Vehicle.fromFirestore(Map<String, dynamic> data) {
-    return Vehicle(
-      id: data['id'] ?? '',
-      accidentFree: data['accidentFree'] ?? 'N/A',
-      application: data['application'] ?? 'N/A',
-      bookValue: data['bookValue'] ?? 'N/A',
-      damageDescription: data['damageDescription'] ?? '',
-      damagePhotos: List<String?>.from(
-          data['damagePhotos'] ?? []), // Ensure a list is always provided
-      dashboardPhoto: data['dashboardPhoto'],
-      engineNumber: data['engineNumber'] ?? 'N/A',
-      expectedSellingPrice: data['expectedSellingPrice'] ?? 'N/A',
-      faultCodesPhoto: data['faultCodesPhoto'],
-      firstOwner: data['firstOwner'] ?? 'N/A',
-      hydraulics: data['hydraulics'] ?? 'N/A',
-      licenceDiskUrl: data['licenceDiskUrl'],
-      listDamages: data['listDamages'] ?? 'N/A',
-      maintenance: data['maintenance'] ?? 'N/A',
-      makeModel: data['makeModel'] ?? 'N/A',
-      mileage: data['mileage'] ?? 'N/A',
-      mileageImage: data['mileageImage'],
-      oemInspection: data['oemInspection'] ?? 'N/A',
-      mainImageUrl: data['mainImageUrl'],
-      photos: List<String?>.from(
-          data['photos'] ?? []), // Same here to ensure a valid list
-      rc1NatisFile: data['rc1NatisFile'],
-      registrationNumber: data['registrationNumber'] ?? 'N/A',
-      roadWorthy: data['roadWorthy'] ?? 'N/A',
-      settleBeforeSelling: data['settleBeforeSelling'] ?? 'N/A',
-      settlementAmount: data['settlementAmount'] ?? 'N/A',
-      settlementLetterFile: data['settlementLetterFile'],
-      spareTyre: data['spareTyre'] ?? 'N/A',
-      suspension: data['suspension'] ?? 'N/A',
-      transmission: data['transmission'] ?? 'N/A',
-      treadLeft: data['treadLeft'],
-      tyrePhoto1: data['tyrePhoto1'],
-      tyrePhoto2: data['tyrePhoto2'],
-      tyreType: data['tyreType'] ?? 'N/A',
-      userId: data['userId'] ?? 'N/A',
-      vehicleType: data['vehicleType'] ?? 'N/A',
-      vinNumber: data['vinNumber'] ?? 'N/A',
-      warranty: data['warranty'] ?? 'N/A',
-      warrantyType: data['warrantyType'] ?? 'N/A',
-      weightClass: data['weightClass'] ?? 'N/A',
-      year: data['year'] ?? 'N/A',
-      createdAt: _parseTimestamp(data['createdAt'], data['id']),
-      bed_bunk: data['bed_bunk'],
-      dashboard: data['dashboard'],
-      door_panels: data['door_panels'],
-      front_tyres_tread: data['front_tyres_tread'],
-      front_view: data['front_view'],
-      left_front_45: data['left_front_45'],
-      left_rear_45: data['left_rear_45'],
-      left_side_view: data['left_side_view'],
-      license_disk: data['license_disk'],
-      rear_tyres_tread: data['rear_tyres_tread'],
-      rear_view: data['rear_view'],
-      right_front_45: data['right_front_45'],
-      right_rear_45: data['right_rear_45'],
-      right_side_view: data['right_side_view'],
-      roof: data['roof'],
-      seats: data['seats'],
-      spare_wheel: data['spare_wheel'],
-      vehicleStatus: data['vehicleStatus'] ?? 'Live',
-      vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
-      availableDate: data['availableDate'] ?? '',
-      trailerType: data['trailerType'] ?? '',
-      axles: data['axles'] ?? '',
-      trailerLength: data['trailerLength'] ?? '',
-    );
-  }
-
-  static DateTime _parseTimestamp(dynamic timestamp, String vehicleId) {
-    if (timestamp is Timestamp) {
-      return timestamp.toDate();
-    } else {
-      print(
-          'Warning: createdAt is null or invalid for vehicle ID $vehicleId. Using DateTime.now() as default.');
-      return DateTime.now();
-    }
-  }
-
-  factory Vehicle.fromDocument(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    data['id'] = doc.id;
-    return Vehicle.fromFirestore(data);
-  }
-
-  /// **New Method**: Convert Vehicle to Map for Firestore
-  Map<String, dynamic> toMap() {
-    return {
-      'accidentFree': accidentFree,
-      'application': application,
-      'bookValue': bookValue,
-      'damageDescription': damageDescription,
-      'damagePhotos': damagePhotos,
-      'dashboardPhoto': dashboardPhoto,
-      'engineNumber': engineNumber,
-      'expectedSellingPrice': expectedSellingPrice,
-      'faultCodesPhoto': faultCodesPhoto,
-      'firstOwner': firstOwner,
-      'hydraulics': hydraulics,
-      'licenceDiskUrl': licenceDiskUrl,
-      'listDamages': listDamages,
-      'maintenance': maintenance,
-      'makeModel': makeModel,
-      'mileage': mileage,
-      'mileageImage': mileageImage,
-      'oemInspection': oemInspection,
-      'mainImageUrl': mainImageUrl,
-      'photos': photos,
-      'rc1NatisFile': rc1NatisFile,
-      'registrationNumber': registrationNumber,
-      'roadWorthy': roadWorthy,
-      'settleBeforeSelling': settleBeforeSelling,
-      'settlementAmount': settlementAmount,
-      'settlementLetterFile': settlementLetterFile,
-      'spareTyre': spareTyre,
-      'suspension': suspension,
-      'transmission': transmission,
-      'config': config,
-      'treadLeft': treadLeft,
-      'tyrePhoto1': tyrePhoto1,
-      'tyrePhoto2': tyrePhoto2,
-      'tyreType': tyreType,
-      'userId': userId,
-      'vehicleType': vehicleType,
-      'vinNumber': vinNumber,
-      'warranty': warranty,
-      'warrantyType': warrantyType,
-      'weightClass': weightClass,
-      'year': year,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'bed_bunk': bed_bunk,
-      'dashboard': dashboard,
-      'door_panels': door_panels,
-      'front_tyres_tread': front_tyres_tread,
-      'front_view': front_view,
-      'left_front_45': left_front_45,
-      'left_rear_45': left_rear_45,
-      'left_side_view': left_side_view,
-      'license_disk': license_disk,
-      'rear_tyres_tread': rear_tyres_tread,
-      'rear_view': rear_view,
-      'right_front_45': right_front_45,
-      'right_rear_45': right_rear_45,
-      'right_side_view': right_side_view,
-      'roof': roof,
-      'seats': seats,
-      'spare_wheel': spare_wheel,
-      'vehicleStatus': vehicleStatus,
-      'vehicleAvailableImmediately': vehicleAvailableImmediately,
-      'availableDate': availableDate,
-      'trailerType': trailerType,
-      'axles': axles,
-      "trailerLength": trailerLength,
-    };
   }
 }

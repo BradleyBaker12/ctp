@@ -9,7 +9,8 @@ class UploadService {
   /// Returns the download URL of the uploaded file.
   Future<String> uploadFile(File file, String folderName) async {
     try {
-      String fileName = "${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}";
+      String fileName =
+          "${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}";
       Reference ref = _storage.ref().child('$folderName/$fileName');
       UploadTask uploadTask = ref.putFile(file);
       TaskSnapshot snapshot = await uploadTask.whenComplete(() => {});

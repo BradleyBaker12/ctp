@@ -50,7 +50,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final offerProvider = Provider.of<OfferProvider>(context);
+    final offerProvider = Provider.of<OfferProvider>(context, listen: false);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     return GradientBackground(

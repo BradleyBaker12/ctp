@@ -1,14 +1,36 @@
+// lib/pages/truck_page.dart
+
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/honesty_bar.dart';
+import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:google_fonts/google_fonts.dart';
-// Required for the AppBar's blur effect
+
+// Define the FilterOperation enum to handle various filter operations
+enum FilterOperation {
+  equals,
+  contains,
+  // Since we're using predefined values, we might not need greaterThan, lessThan
+}
+
+// Define the FilterCriterion class to encapsulate filter criteria
+class FilterCriterion {
+  String fieldName;
+  FilterOperation operation;
+  dynamic value;
+
+  FilterCriterion({
+    required this.fieldName,
+    required this.operation,
+    required this.value,
+  });
+}
 
 class TruckPage extends StatefulWidget {
   final String? vehicleType; // Optional vehicleType, null means show all
@@ -28,11 +50,13 @@ class _TruckPageState extends State<TruckPage> {
   int loadedVehicleIndex = 0; // Index to track loaded vehicles
   bool _hasReachedEnd = false; // Track if all cards are swiped
   bool _isLoading = true; // Track loading state
-  String? selectedMakeModel;
-  String? selectedYear;
-  String? selectedTransmission;
-  String? selectedMileage; // <--- Add selectedMileage variable here
   bool _isFiltering = false; // Track filtering state
+
+  // List to hold dynamic filter criteria
+  List<FilterCriterion> filterCriteria = [];
+
+  // Map to hold filter options for each field
+  Map<String, List<dynamic>> filterOptions = {};
 
   @override
   void initState() {
@@ -78,6 +102,9 @@ class _TruckPageState extends State<TruckPage> {
           }
         }
 
+        print('Preferred Vehicles: ${preferredVehicles.length}');
+        print('Non-Preferred Vehicles: ${nonPreferredVehicles.length}');
+
         // Combine preferred vehicles first, followed by non-preferred vehicles
         displayedVehicles = [...preferredVehicles, ...nonPreferredVehicles];
 
@@ -87,6 +114,9 @@ class _TruckPageState extends State<TruckPage> {
         print('Displayed Vehicles: ${displayedVehicles.length}');
         print(
             'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
+
+        // Initialize filter options
+        _initializeFilterOptions(vehicleProvider.vehicles);
       });
     } catch (e) {
       print('Error in _loadInitialVehicles: $e');
@@ -96,6 +126,78 @@ class _TruckPageState extends State<TruckPage> {
         ),
       );
     }
+  }
+
+  void _initializeFilterOptions(List<Vehicle> vehicles) {
+    // Collect distinct values for each filterable field
+    filterOptions = {
+      'application': vehicles
+          .map((v) => v.application)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+      'expectedSellingPrice': _getPriceRanges(vehicles),
+      'hydraluicType': vehicles
+          .map((v) => v.hydraluicType)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+      'makeModel': vehicles
+          .map((v) => v.makeModel)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+      'mileage': _getMileageRanges(vehicles),
+      'transmissionType': vehicles
+          .map((v) => v.transmissionType)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+      'configuration': vehicles
+          .map((v) => v.config)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+      'vehicleType': vehicles
+          .map((v) => v.vehicleType)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+      'year': vehicles
+          .map((v) => v.year)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .map((year) => int.tryParse(year) ?? 0)
+          .toSet()
+          .toList()
+        ..sort(),
+      'adminData.settlementAmount': _getSettlementAmountRanges(vehicles),
+      'maintenance.oemInspectionType': vehicles
+          .map((v) => v.maintenance.oemInspectionType)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+    };
+  }
+
+  List<String> _getPriceRanges(List<Vehicle> vehicles) {
+    // You can define your own price ranges
+    return [
+      '< 100,000',
+      '100,000 - 500,000',
+      '500,000 - 1,000,000',
+      '> 1,000,000'
+    ];
+  }
+
+  List<String> _getMileageRanges(List<Vehicle> vehicles) {
+    // Define mileage ranges
+    return ['< 50,000', '50,000 - 100,000', '100,000 - 200,000', '> 200,000'];
+  }
+
+  List<String> _getSettlementAmountRanges(List<Vehicle> vehicles) {
+    // Define settlement amount ranges
+    return ['< 50,000', '50,000 - 100,000', '100,000 - 200,000', '> 200,000'];
   }
 
   void _loadNextVehicle() {
@@ -149,32 +251,19 @@ class _TruckPageState extends State<TruckPage> {
 
     try {
       final fieldsToCheck = [
-        vehicle.accidentFree,
         vehicle.application,
-        vehicle.bookValue,
         vehicle.damageDescription,
         vehicle.engineNumber,
         vehicle.expectedSellingPrice,
-        vehicle.firstOwner,
-        vehicle.hydraulics,
-        vehicle.listDamages,
-        vehicle.maintenance,
+        vehicle.hydraluicType,
         vehicle.makeModel,
         vehicle.mileage,
-        vehicle.oemInspection,
         vehicle.registrationNumber,
-        vehicle.roadWorthy,
-        vehicle.settleBeforeSelling,
-        vehicle.settlementAmount,
-        vehicle.spareTyre,
-        vehicle.suspension,
-        vehicle.transmission,
-        vehicle.tyreType,
+        vehicle.suspensionType,
+        vehicle.transmissionType,
         vehicle.userId,
         vehicle.vinNumber,
-        vehicle.warranty,
-        vehicle.warrantyType,
-        vehicle.weightClass,
+        vehicle.warrentyType,
         vehicle.year,
         vehicle.vehicleType,
       ];
@@ -191,14 +280,10 @@ class _TruckPageState extends State<TruckPage> {
         vehicle.licenceDiskUrl,
         vehicle.mileageImage,
         vehicle.rc1NatisFile,
-        vehicle.settlementLetterFile,
-        vehicle.treadLeft,
-        vehicle.tyrePhoto1,
-        vehicle.tyrePhoto2,
       ];
 
       for (var field in nullableFieldsToCheck) {
-        if (field != null) {
+        if (field != null && field.isNotEmpty) {
           filledFields++;
         }
       }
@@ -217,75 +302,39 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
-  void _applyFilters(
-      String? makeModel, String? year, String? transmission, String? mileage) {
+  void _applyFilters(List<FilterCriterion> filters) {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     setState(() {
-      _isFiltering = true; // Start filtering
+      _isFiltering = true;
     });
 
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
-        displayedVehicles = vehicleProvider.vehicles
-            .where((vehicle) {
-              bool matchesMakeModel = makeModel == null ||
-                  makeModel == 'All' ||
-                  vehicle.makeModel
-                      .toLowerCase()
-                      .contains(makeModel.toLowerCase());
+        displayedVehicles = vehicleProvider.vehicles.where((vehicle) {
+          // Apply each filter criterion
+          for (var filter in filters) {
+            var fieldValue = _getFieldValue(vehicle, filter.fieldName);
+            if (!_evaluateFilter(fieldValue, filter)) {
+              return false; // If any filter fails, exclude the vehicle
+            }
+          }
 
-              bool matchesYear =
-                  year == null || year == 'All' || vehicle.year == year;
+          // Existing conditions
+          bool isLikedOrDisliked =
+              userProvider.getLikedVehicles.contains(vehicle.id) ||
+                  userProvider.getDislikedVehicles.contains(vehicle.id);
+          bool isNotDraft = vehicle.vehicleStatus != 'Draft';
+          bool matchesVehicleType = widget.vehicleType == null ||
+              vehicle.vehicleType == widget.vehicleType;
 
-              bool matchesTransmission = transmission == null ||
-                  transmission == 'All' ||
-                  vehicle.transmission.toLowerCase() ==
-                      transmission.toLowerCase();
-
-              bool matchesMileage = true;
-              if (mileage != null && mileage != 'All') {
-                int vehicleMileage =
-                    int.tryParse(vehicle.mileage.replaceAll(',', '')) ?? 0;
-                if (mileage == '0 - 50,000') {
-                  matchesMileage =
-                      vehicleMileage >= 0 && vehicleMileage <= 50000;
-                } else if (mileage == '50,001 - 100,000') {
-                  matchesMileage =
-                      vehicleMileage >= 50001 && vehicleMileage <= 100000;
-                } else if (mileage == '100,001 - 150,000') {
-                  matchesMileage =
-                      vehicleMileage >= 100001 && vehicleMileage <= 150000;
-                } else if (mileage == '150,001 - 200,000') {
-                  matchesMileage =
-                      vehicleMileage >= 150001 && vehicleMileage <= 200000;
-                } else if (mileage == '200,001+') {
-                  matchesMileage = vehicleMileage >= 200001;
-                }
-              }
-
-              bool isLikedOrDisliked =
-                  userProvider.getLikedVehicles.contains(vehicle.id) ||
-                      userProvider.getDislikedVehicles.contains(vehicle.id);
-
-              bool isNotDraft = vehicle.vehicleStatus != 'Draft';
-
-              return matchesMakeModel &&
-                  matchesYear &&
-                  matchesTransmission &&
-                  matchesMileage &&
-                  !isLikedOrDisliked &&
-                  isNotDraft;
-            })
-            .where((vehicle) =>
-                widget.vehicleType == null ||
-                vehicle.vehicleType == widget.vehicleType)
-            .toList();
+          return !isLikedOrDisliked && isNotDraft && matchesVehicleType;
+        }).toList();
 
         loadedVehicleIndex = displayedVehicles.length;
-        _isFiltering = false; // End filtering
+        _isFiltering = false;
 
         print('Vehicles after applying filters: ${displayedVehicles.length}');
         print(
@@ -294,13 +343,71 @@ class _TruckPageState extends State<TruckPage> {
     });
   }
 
+  // Helper method to retrieve field value from Vehicle based on field name
+  dynamic _getFieldValue(Vehicle vehicle, String fieldName) {
+    switch (fieldName) {
+      case 'application':
+        return vehicle.application;
+      case 'expectedSellingPrice':
+        return double.tryParse(vehicle.expectedSellingPrice
+                .replaceAll(',', '')
+                .replaceAll(' ', '')) ??
+            0.0;
+      case 'expectedSellingPriceRange':
+        return vehicle.expectedSellingPrice; // We will handle ranges in filter
+      case 'hydraluicType':
+        return vehicle.hydraluicType;
+      case 'makeModel':
+        return vehicle.makeModel;
+      case 'mileage':
+        return int.tryParse(
+                vehicle.mileage.replaceAll(',', '').replaceAll(' ', '')) ??
+            0;
+      case 'mileageRange':
+        return vehicle.mileage; // Handle ranges
+      case 'transmissionType':
+        return vehicle.transmissionType;
+      case 'config':
+        return vehicle.config;
+      case 'vehicleType':
+        return vehicle.vehicleType;
+      case 'year':
+        return int.tryParse(vehicle.year.replaceAll(' ', '')) ?? 0;
+      case 'adminData.settlementAmount':
+        return double.tryParse(vehicle.adminData.settlementAmount
+                .replaceAll(',', '')
+                .replaceAll(' ', '')) ??
+            0.0;
+      case 'settlementAmountRange':
+        return vehicle.adminData.settlementAmount; // Handle ranges
+      case 'maintenance.oemInspectionType':
+        return vehicle.maintenance.oemInspectionType;
+      // Add more cases for additional fields
+      default:
+        return null;
+    }
+  }
+
+  // Helper method to evaluate a single filter criterion
+  bool _evaluateFilter(dynamic fieldValue, FilterCriterion filter) {
+    switch (filter.operation) {
+      case FilterOperation.equals:
+        return fieldValue == filter.value;
+      case FilterOperation.contains:
+        if (fieldValue is String && filter.value is String) {
+          return fieldValue.toLowerCase() == filter.value.toLowerCase();
+        }
+        return false;
+      // Since we're using predefined values, we might not need greaterThan, lessThan
+      default:
+        return false;
+    }
+  }
+
   void _clearFilters() {
     setState(() {
       _isFiltering = true; // Start filtering
-      selectedMakeModel = null;
-      selectedYear = null;
-      selectedTransmission = null;
-      selectedMileage = null;
+      filterCriteria.clear();
     });
 
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -315,127 +422,159 @@ class _TruckPageState extends State<TruckPage> {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
 
-    // Get all unique make models from the fetched vehicles
-    Set<String> allMakeModelsSet = vehicleProvider.vehicles
-        .map((vehicle) => vehicle.makeModel)
-        .map(
-            (makeModel) => makeModel.split(" ")[0]) // Extracting the brand name
-        .toSet(); // Ensure uniqueness
-    List<String> allMakeModels = ['All', ...allMakeModelsSet];
-
-    // Get all unique years from the fetched vehicles
-    Set<String> allYearsSet = vehicleProvider.vehicles
-        .map((vehicle) => vehicle.year)
-        .where((year) => year.isNotEmpty)
-        .toSet();
-    List<String> allYears = ['All', ...allYearsSet];
-
-    // Get all unique transmissions from the fetched vehicles
-    Set<String> allTransmissionsSet = vehicleProvider.vehicles
-        .map((vehicle) => vehicle.transmission)
-        .where((transmission) => transmission.isNotEmpty)
-        .toSet();
-    List<String> allTransmissions = ['All', ...allTransmissionsSet];
-
-    // Define mileage ranges
-    List<String> allMileages = [
-      'All',
-      '0 - 50,000',
-      '50,001 - 100,000',
-      '100,001 - 150,000',
-      '150,001 - 200,000',
-      '200,001+'
+    // Define all filterable fields along with their data types
+    final List<Map<String, dynamic>> filterableFields = [
+      {'name': 'Application', 'field': 'application', 'type': 'String'},
+      {
+        'name': 'Expected Selling Price',
+        'field': 'expectedSellingPriceRange',
+        'type': 'range'
+      },
+      {'name': 'Hydraulic Type', 'field': 'hydraluicType', 'type': 'String'},
+      {'name': 'Make Model', 'field': 'makeModel', 'type': 'String'},
+      {'name': 'Mileage', 'field': 'mileageRange', 'type': 'range'},
+      {'name': 'Transmission', 'field': 'transmissionType', 'type': 'String'},
+      {'name': 'Config', 'field': 'config', 'type': 'String'},
+      {'name': 'Vehicle Type', 'field': 'vehicleType', 'type': 'String'},
+      {'name': 'Year', 'field': 'year', 'type': 'int'},
+      {
+        'name': 'Settlement Amount',
+        'field': 'settlementAmountRange',
+        'type': 'range'
+      },
+      {
+        'name': 'OEM Inspection Type',
+        'field': 'maintenance.oemInspectionType',
+        'type': 'String'
+      },
+      // Add more fields as needed
     ];
 
     await showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Filter Vehicles'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Make Model'),
-                  value: selectedMakeModel,
-                  items: allMakeModels.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      selectedMakeModel = newValue;
-                    });
-                  },
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Filter Vehicles'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Display existing filter criteria
+                    ...filterCriteria.map((criterion) {
+                      // Find the field details
+                      final fieldDetails = filterableFields.firstWhere(
+                          (field) => field['field'] == criterion.fieldName,
+                          orElse: () => {});
+
+                      if (fieldDetails == null) return SizedBox.shrink();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Field Selection Dropdown
+                          DropdownButtonFormField<String>(
+                            decoration:
+                                const InputDecoration(labelText: 'Field'),
+                            value: criterion.fieldName,
+                            items: filterableFields.map((field) {
+                              return DropdownMenuItem<String>(
+                                value: field['field'],
+                                child: Text(field['name']),
+                              );
+                            }).toList(),
+                            onChanged: (newField) {
+                              setStateDialog(() {
+                                criterion.fieldName = newField!;
+                                // Optionally reset operation and value
+                                criterion.operation = FilterOperation.equals;
+                                criterion.value = null;
+                              });
+                            },
+                          ),
+                          SizedBox(height: 8),
+                          // Value Selection
+                          _buildValueDropdown(fieldDetails['field'] as String,
+                              criterion, setStateDialog),
+                          SizedBox(height: 8),
+                          // Remove Button aligned to the right
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              icon:
+                                  Icon(Icons.remove_circle, color: Colors.red),
+                              onPressed: () {
+                                setStateDialog(() {
+                                  filterCriteria.remove(criterion);
+                                });
+                              },
+                            ),
+                          ),
+                          Divider(), // Optional: add a divider between filters
+                        ],
+                      );
+                    }).toList(),
+                    SizedBox(height: 10),
+                    // Button to add a new filter criterion
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setStateDialog(() {
+                          filterCriteria.add(
+                            FilterCriterion(
+                              fieldName: filterableFields.first['field'],
+                              operation: FilterOperation.equals,
+                              value: null,
+                            ),
+                          );
+                        });
+                      },
+                      icon: Icon(Icons.add),
+                      label: Text('Add Filter'),
+                    ),
+                  ],
                 ),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Year'),
-                  value: selectedYear,
-                  items: allYears.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      selectedYear = newValue;
-                    });
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
                   },
+                  child: const Text('Cancel'),
                 ),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Transmission'),
-                  value: selectedTransmission,
-                  items: allTransmissions.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      selectedTransmission = newValue;
-                    });
+                TextButton(
+                  onPressed: () {
+                    _applyFilters(filterCriteria);
+                    Navigator.of(context).pop();
                   },
-                ),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Mileage'),
-                  value: selectedMileage,
-                  items: allMileages.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      selectedMileage = newValue;
-                    });
-                  },
+                  child: const Text('Apply'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                _applyFilters(selectedMakeModel, selectedYear,
-                    selectedTransmission, selectedMileage);
-                Navigator.of(context).pop();
-              },
-              child: const Text('Apply'),
-            ),
-          ],
+            );
+          },
         );
+      },
+    );
+  }
+
+  // Helper method to build value dropdown based on field
+  Widget _buildValueDropdown(
+      String fieldName, FilterCriterion criterion, StateSetter setStateDialog) {
+    List<dynamic> options = filterOptions[fieldName] ?? [];
+
+    return DropdownButtonFormField<dynamic>(
+      decoration: const InputDecoration(labelText: 'Value'),
+      value: criterion.value,
+      items: options.map((option) {
+        return DropdownMenuItem<dynamic>(
+          value: option,
+          child: Text(option.toString()),
+        );
+      }).toList(),
+      onChanged: (newValue) {
+        setStateDialog(() {
+          criterion.value = newValue;
+        });
       },
     );
   }
@@ -445,10 +584,12 @@ class _TruckPageState extends State<TruckPage> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
       await userProvider.clearDislikedVehicles();
+      await userProvider
+          .clearLikedVehicles(); // Assuming you want to clear liked as well
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Disliked vehicles have been cleared.'),
+          content: Text('Liked and disliked vehicles have been cleared.'),
         ),
       );
 
@@ -470,183 +611,156 @@ class _TruckPageState extends State<TruckPage> {
     return Scaffold(
       appBar: CustomAppBar(),
       backgroundColor: Colors.black,
-      body: Stack(
+      body: Column(
         children: [
-          _isLoading ||
-                  _isFiltering // Show loading icon during initial load or filtering
-              ? Center(
-                  child: Image.asset(
-                    'lib/assets/Loading_Logo_CTP.gif',
-                    width: 100, // Adjust width and height as needed
-                    height: 100,
-                  ),
-                )
-              : displayedVehicles.isNotEmpty
-                  ? !_hasReachedEnd
-                      ? AppinioSwiper(
-                          key: ValueKey(displayedVehicles.length),
-                          controller: controller,
-                          swipeOptions: const SwipeOptions.symmetric(
-                              vertical: false, horizontal: false),
-                          cardCount: displayedVehicles.length,
-                          cardBuilder: (BuildContext context, int index) {
-                            if (index < displayedVehicles.length) {
-                              return _buildTruckCard(context, controller,
-                                  displayedVehicles[index], size);
-                            } else {
-                              return const SizedBox.shrink();
-                            }
-                          },
-                          onSwipeEnd: (int previousIndex, int? targetIndex,
-                              direction) async {
-                            try {
-                              if (direction == AxisDirection.left ||
-                                  direction == AxisDirection.right) {
-                                final vehicle =
-                                    displayedVehicles[previousIndex];
-                                setState(() {
-                                  swipedVehicles.add(vehicle);
-                                  swipedDirections.add(
-                                      direction == AxisDirection.right
-                                          ? 'right'
-                                          : 'left');
-                                  displayedVehicles.removeAt(previousIndex);
-                                });
-                                _loadNextVehicle();
-
-                                final userProvider = Provider.of<UserProvider>(
-                                    context,
-                                    listen: false);
-                                if (direction == AxisDirection.right) {
-                                  await userProvider.likeVehicle(vehicle.id);
-                                } else if (direction == AxisDirection.left) {
-                                  await userProvider.dislikeVehicle(vehicle.id);
-                                }
-                              }
-                              if (targetIndex == null) {
-                                setState(() {
-                                  _hasReachedEnd = true;
-                                });
-                              }
-                            } catch (e) {
-                              print('Error in onSwipeEnd: $e');
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'An error occurred while processing your swipe.'),
-                                ),
-                              );
-                            }
-                          },
-                          onEnd: () {
-                            setState(() {
-                              _hasReachedEnd = true;
-                            });
-                          },
-                        )
-                      : Center(
-                          child: Text(
-                            "You've seen all the vehicles!",
-                            style: _customFont(
-                                16, FontWeight.normal, Colors.white),
-                          ),
-                        )
-                  : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "No vehicles available",
-                            style: _customFont(
-                                16, FontWeight.normal, Colors.white),
-                          ),
-                          const SizedBox(height: 16),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 20.0),
-                            child: Text(
-                              "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the the database",
-                              style: _customFont(
-                                  16, FontWeight.normal, Colors.white),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _clearLikedAndDislikedVehicles,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                            ),
-                            child: Text(
-                              'Clear Disliked Vehicles',
-                              style: _customFont(
-                                  14, FontWeight.bold, Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-          Positioned(
-            top: 25,
-            left: 16,
-            right: 16,
+          // Move the filter controls here
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.end, // Adjusted to remove the logo
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.tune,
-                        color: Colors.white,
-                      ),
-                      onPressed: _showFilterDialog,
-                    ),
-                    if (selectedMakeModel != null ||
-                        selectedYear != null ||
-                        selectedTransmission != null ||
-                        selectedMileage != null)
-                      TextButton(
-                        onPressed: _clearFilters,
-                        child: const Text(
-                          "Clear Filters",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    // Stack(
-                    //   children: [
-                    //     IconButton(
-                    //       icon: const Icon(
-                    //         Icons.notifications,
-                    //         color: Colors.white,
-                    //       ),
-                    //       onPressed: () {
-                    //         // Implement bell notification action
-                    //       },
-                    //     ),
-                    //     Positioned(
-                    //       right: 8,
-                    //       top: 8,
-                    //       child: Container(
-                    //         padding: const EdgeInsets.all(2),
-                    //         decoration: const BoxDecoration(
-                    //           color: Colors.red,
-                    //           shape: BoxShape.circle,
-                    //         ),
-                    //         child: const Text(
-                    //           '1',
-                    //           style: TextStyle(
-                    //             color: Colors.white,
-                    //             fontSize: 12,
-                    //           ),
-                    //         ),
-                    //       ),
-                    //     ),
-                    //   ],
-                    // ),
-                  ],
+                // Filter Icon Button
+                IconButton(
+                  icon: const Icon(
+                    Icons.tune,
+                    color: Colors.white,
+                  ),
+                  onPressed: _showFilterDialog,
                 ),
+                // Clear Filters Button
+                if (filterCriteria.isNotEmpty)
+                  TextButton(
+                    onPressed: _clearFilters,
+                    child: const Text(
+                      "Clear Filters",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Stack(
+              children: [
+                _isLoading ||
+                        _isFiltering // Show loading icon during initial load or filtering
+                    ? Center(
+                        child: Image.asset(
+                          'lib/assets/Loading_Logo_CTP.gif',
+                          width: 100, // Adjust width and height as needed
+                          height: 100,
+                        ),
+                      )
+                    : displayedVehicles.isNotEmpty
+                        ? !_hasReachedEnd
+                            ? AppinioSwiper(
+                                key: ValueKey(displayedVehicles.length),
+                                controller: controller,
+                                swipeOptions: const SwipeOptions.symmetric(
+                                    vertical: false, horizontal: false),
+                                cardCount: displayedVehicles.length,
+                                cardBuilder: (BuildContext context, int index) {
+                                  if (index < displayedVehicles.length) {
+                                    return _buildTruckCard(context, controller,
+                                        displayedVehicles[index], size);
+                                  } else {
+                                    return const SizedBox.shrink();
+                                  }
+                                },
+                                onSwipeEnd: (int previousIndex,
+                                    int? targetIndex, direction) async {
+                                  try {
+                                    if (direction == AxisDirection.left ||
+                                        direction == AxisDirection.right) {
+                                      final vehicle =
+                                          displayedVehicles[previousIndex];
+                                      setState(() {
+                                        swipedVehicles.add(vehicle);
+                                        swipedDirections.add(
+                                            direction == AxisDirection.right
+                                                ? 'right'
+                                                : 'left');
+                                        displayedVehicles
+                                            .removeAt(previousIndex);
+                                      });
+                                      _loadNextVehicle();
+
+                                      final userProvider =
+                                          Provider.of<UserProvider>(context,
+                                              listen: false);
+                                      if (direction == AxisDirection.right) {
+                                        await userProvider
+                                            .likeVehicle(vehicle.id);
+                                      } else if (direction ==
+                                          AxisDirection.left) {
+                                        await userProvider
+                                            .dislikeVehicle(vehicle.id);
+                                      }
+                                    }
+                                    if (targetIndex == null) {
+                                      setState(() {
+                                        _hasReachedEnd = true;
+                                      });
+                                    }
+                                  } catch (e) {
+                                    print('Error in onSwipeEnd: $e');
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'An error occurred while processing your swipe.'),
+                                      ),
+                                    );
+                                  }
+                                },
+                                onEnd: () {
+                                  setState(() {
+                                    _hasReachedEnd = true;
+                                  });
+                                },
+                              )
+                            : Center(
+                                child: Text(
+                                  "You've seen all the vehicles!",
+                                  style: _customFont(
+                                      16, FontWeight.normal, Colors.white),
+                                ),
+                              )
+                        : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "No vehicles available",
+                                  style: _customFont(
+                                      16, FontWeight.normal, Colors.white),
+                                ),
+                                const SizedBox(height: 16),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20.0),
+                                  child: Text(
+                                    "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the database",
+                                    style: _customFont(
+                                        16, FontWeight.normal, Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _clearLikedAndDislikedVehicles,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                  ),
+                                  child: Text(
+                                    'Clear Liked & Disliked Vehicles',
+                                    style: _customFont(
+                                        14, FontWeight.bold, Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
               ],
             ),
           ),
@@ -711,8 +825,8 @@ class _TruckPageState extends State<TruckPage> {
                   // Image Section
                   Positioned.fill(
                     top: 0,
-                    bottom: size.height *
-                        0.23, // Set to 0 to allow the image to fill the entire height
+                    bottom:
+                        size.height * 0.23, // Adjusted to prevent overlapping
                     child: Stack(
                       children: [
                         // The vehicle image or placeholder
@@ -794,7 +908,7 @@ class _TruckPageState extends State<TruckPage> {
                                       child: Text(
                                         vehicle.makeModel.length > 16
                                             ? '${vehicle.makeModel.substring(0, 15).toUpperCase()}...'
-                                            : vehicle.makeModel,
+                                            : vehicle.makeModel.toUpperCase(),
                                         style: _customFont(
                                           size.height * 0.03,
                                           FontWeight.w900,
@@ -833,14 +947,14 @@ class _TruckPageState extends State<TruckPage> {
                               const SizedBox(width: 8),
                               _buildInfoContainer(
                                   'GEARBOX',
-                                  vehicle.transmission.isNotEmpty
-                                      ? vehicle.transmission
+                                  vehicle.transmissionType.isNotEmpty
+                                      ? vehicle.transmissionType
                                       : "N/A"),
                               const SizedBox(width: 8),
                               _buildInfoContainer(
-                                  'TYPE',
-                                  vehicle.vehicleType.isNotEmpty
-                                      ? vehicle.vehicleType
+                                  'CONFIG',
+                                  vehicle.config.isNotEmpty
+                                      ? vehicle.config
                                       : "N/A"),
                             ],
                           ),
@@ -848,19 +962,24 @@ class _TruckPageState extends State<TruckPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // Update the calls to _buildIconButton to include the label
                               _buildIconButton(
-                                  Icons.close,
-                                  const Color(0xFF2F7FFF),
-                                  controller,
-                                  'left',
-                                  vehicle),
+                                Icons.close,
+                                const Color(0xFF2F7FFF),
+                                controller,
+                                'left',
+                                vehicle,
+                                'Not Interested', // Added label
+                              ),
                               _buildCenterButton(controller),
                               _buildIconButton(
-                                  Icons.favorite,
-                                  const Color(0xFFFF4E00),
-                                  controller,
-                                  'right',
-                                  vehicle),
+                                Icons.favorite,
+                                const Color(0xFFFF4E00),
+                                controller,
+                                'right',
+                                vehicle,
+                                'Interested', // Added label
+                              ),
                             ],
                           ),
                           SizedBox(height: size.height * 0.015),
@@ -872,7 +991,7 @@ class _TruckPageState extends State<TruckPage> {
                   // Honesty Bar Widget
                   Positioned(
                     top: size.height *
-                        0.055, // Dynamically adjusted based on screen size
+                        0.01, // Dynamically adjusted based on screen size
                     right: size.width * 0.03, // Dynamically adjusted
                     child: HonestyBarWidget(vehicle: vehicle),
                   ),
@@ -925,8 +1044,15 @@ class _TruckPageState extends State<TruckPage> {
     );
   }
 
-  Widget _buildIconButton(IconData icon, Color color,
-      AppinioSwiperController controller, String direction, Vehicle vehicle) {
+  // Update the _buildIconButton function to accept a label parameter
+  Widget _buildIconButton(
+    IconData icon,
+    Color color,
+    AppinioSwiperController controller,
+    String direction,
+    Vehicle vehicle,
+    String label, // Added label
+  ) {
     final size = MediaQuery.of(context).size;
     return Expanded(
       child: GestureDetector(
@@ -975,6 +1101,15 @@ class _TruckPageState extends State<TruckPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, color: Colors.black, size: size.height * 0.025),
+              SizedBox(height: 4), // Space between the icon and text
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
@@ -1028,7 +1163,20 @@ class _TruckPageState extends State<TruckPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.undo, color: Colors.white, size: size.height * 0.025),
+              Icon(
+                Icons.undo,
+                color: Colors.white,
+                size: size.height * 0.025,
+              ),
+              SizedBox(height: 4), // Space between icon and text
+              Text(
+                'Undo',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),

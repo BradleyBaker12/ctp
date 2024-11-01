@@ -2,9 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
+import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/admin_home_page.dart';
-import 'package:ctp/pages/truckForms/trailer_upload_tabs.dart';
-import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
+import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
@@ -101,7 +101,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           currentUser.uid, userProvider.getUserRole);
       likedVehicles = userProvider.getLikedVehicles;
       dislikedVehicles = userProvider.getDislikedVehicles;
-        } catch (e, stackTrace) {
+    } catch (e, stackTrace) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Failed to initialize data. Please try again.')),
@@ -579,7 +579,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => VehicleUploadTabs()),
+                            builder: (context) => VehicleUploadScreen()),
                       );
                     } else {
                       Navigator.push(
@@ -605,7 +605,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => VehicleUploadTabs(),
+                          builder: (context) => VehicleUploadScreen(),
                         ),
                       );
                     } else {
@@ -1152,7 +1152,7 @@ class SwiperWidget extends StatelessWidget {
                                   context), // Pass context here
                               _buildBlurryContainer(
                                   'GEARBOX',
-                                  vehicle.transmission,
+                                  vehicle.transmissionType,
                                   context), // Pass context here
                               _buildBlurryContainer('CONFIG', 'N/A',
                                   context), // Pass context here
@@ -1168,15 +1168,23 @@ class SwiperWidget extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildIconButton(Icons.close, Color(0xFF2F7FFF),
-                              controller, 'left', vehicle),
+                          _buildIconButton(
+                            Icons.close,
+                            Color(0xFF2F7FFF),
+                            controller,
+                            'left',
+                            vehicle,
+                            'Not Interested', // Label for the 'X' button
+                          ),
                           SizedBox(width: screenSize.height * 0.015),
                           _buildIconButton(
-                              Icons.favorite,
-                              const Color(0xFFFF4E00),
-                              controller,
-                              'right',
-                              vehicle),
+                            Icons.favorite,
+                            const Color(0xFFFF4E00),
+                            controller,
+                            'right',
+                            vehicle,
+                            'Interested', // Label for the heart button
+                          ),
                         ],
                       ),
                     ),
@@ -1188,7 +1196,7 @@ class SwiperWidget extends StatelessWidget {
                   right: screenSize.height * 0.01,
                   child: HonestyBarWidget(
                     vehicle: vehicle,
-                    heightFactor: 0.34,
+                    heightFactor: 0.325,
                   ),
                 ),
               ],
@@ -1199,8 +1207,14 @@ class SwiperWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildIconButton(IconData icon, Color color,
-      AppinioSwiperController controller, String direction, Vehicle vehicle) {
+  Widget _buildIconButton(
+    IconData icon,
+    Color color,
+    AppinioSwiperController controller,
+    String direction,
+    Vehicle vehicle,
+    String label,
+  ) {
     final size = MediaQuery.of(parentContext).size;
     return Expanded(
       child: GestureDetector(
@@ -1247,7 +1261,20 @@ class SwiperWidget extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.black, size: size.height * 0.025),
+              Icon(
+                icon,
+                color: Colors.black,
+                size: size.height * 0.025,
+              ),
+              SizedBox(height: 4),
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),

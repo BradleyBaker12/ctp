@@ -1,3 +1,4 @@
+import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 
@@ -8,7 +9,7 @@ class HonestyBarWidget extends StatelessWidget {
   const HonestyBarWidget({
     super.key,
     required this.vehicle,
-    this.heightFactor = 0.422, // Default height factor
+    this.heightFactor = 0.38, // Default height factor
   });
 
   double _calculateHonestyPercentage() {
@@ -17,32 +18,22 @@ class HonestyBarWidget extends StatelessWidget {
 
     try {
       final fieldsToCheck = [
-        vehicle.accidentFree,
         vehicle.application,
-        vehicle.bookValue,
         vehicle.damageDescription,
         vehicle.engineNumber,
         vehicle.expectedSellingPrice,
-        vehicle.firstOwner,
-        vehicle.hydraulics,
-        vehicle.listDamages,
-        vehicle.maintenance,
+        vehicle.hydraluicType,
+        // vehicle.maintenance,
         vehicle.makeModel,
         vehicle.mileage,
-        vehicle.oemInspection,
         vehicle.registrationNumber,
-        vehicle.roadWorthy,
-        vehicle.settleBeforeSelling,
-        vehicle.settlementAmount,
-        vehicle.spareTyre,
-        vehicle.suspension,
-        vehicle.transmission,
-        vehicle.tyreType,
+        vehicle.suspensionType,
+        vehicle.transmissionType,
+
         vehicle.userId,
         vehicle.vinNumber,
-        vehicle.warranty,
-        vehicle.warrantyType,
-        vehicle.weightClass,
+        vehicle.warrentyType,
+
         vehicle.year,
         vehicle.vehicleType,
       ];
@@ -59,10 +50,6 @@ class HonestyBarWidget extends StatelessWidget {
         vehicle.licenceDiskUrl,
         vehicle.mileageImage,
         vehicle.rc1NatisFile,
-        vehicle.settlementLetterFile,
-        vehicle.treadLeft,
-        vehicle.tyrePhoto1,
-        vehicle.tyrePhoto2,
       ];
 
       for (var field in nullableFieldsToCheck) {

@@ -43,7 +43,7 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final offerProvider = Provider.of<OfferProvider>(context);
+    final offerProvider = Provider.of<OfferProvider>(context, listen: false);
 
     List<Offer> getFilteredOffers() {
       print('Filtering offers with tab: $_selectedTab');

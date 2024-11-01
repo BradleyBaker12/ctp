@@ -18,19 +18,39 @@ class PreferredBrandsPage extends StatefulWidget {
 }
 
 class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
-  final List<Map<String, String>> semiTruckBrands = [
-    {'name': 'DAF', 'path': 'lib/assets/Logo/DAF.png'}, // Replace with PNG
+  final List<Map<String, dynamic>> semiTruckBrands = [
+    {'name': 'ASHOK LEYLAND', 'path': 'lib/assets/Logo/ASHOK LEYLAND.png'},
+    {'name': 'CNHTC', 'path': 'lib/assets/Logo/CNHTC.png'},
+    {'name': 'DAF', 'path': 'lib/assets/Logo/DAF.png'},
+    {'name': 'DAYUN', 'path': 'lib/assets/Logo/DAYUN.png'},
+    {'name': 'EICHER', 'path': 'lib/assets/Logo/EICHER.png'},
+    {'name': 'FAW', 'path': 'lib/assets/Logo/FAW.png'},
+    {'name': 'FIAT', 'path': 'lib/assets/Logo/FIAT.png'},
+    {'name': 'FORD', 'path': 'lib/assets/Logo/FORD.png'},
+    {'name': 'FOTON', 'path': 'lib/assets/Logo/FOTON.png'},
+    {
+      'name': 'FREIGHTLINER',
+      'path': 'lib/assets/Freightliner-logo-6000x2000.png'
+    },
     {'name': 'FUSO', 'path': 'lib/assets/Logo/FUSO.png'},
     {'name': 'HINO', 'path': 'lib/assets/Logo/HINO.png'},
+    {'name': 'HYUNDAI', 'path': 'lib/assets/Logo/HYUNDAI.png'},
     {'name': 'ISUZU', 'path': 'lib/assets/Logo/ISUZU.png'},
-    {'name': 'IVECO', 'path': 'lib/assets/Logo/IVECO.png'},
+    {'name': 'IVECO', 'path': null}, // Logo not available, will use an Icon
+    {'name': 'JAC', 'path': 'lib/assets/Logo/JAC.png'},
+    {'name': 'JOYLONG', 'path': 'lib/assets/Logo/JOYLONG.png'},
     {'name': 'MAN', 'path': 'lib/assets/Logo/MAN.png'},
-    {'name': 'MERCEDES BENZ', 'path': 'lib/assets/Logo/MERCEDES BENZ.png'},
+    {'name': 'MERCEDES-BENZ', 'path': 'lib/assets/Logo/MERCEDES BENZ.png'},
+    {'name': 'PEUGEOT', 'path': 'lib/assets/Logo/PEUGEOT.png'},
+    {'name': 'POWERSTAR', 'path': 'lib/assets/Logo/POWERSTAR.png'},
+    {'name': 'RENAULT', 'path': 'lib/assets/Logo/RENAULT.png'},
     {'name': 'SCANIA', 'path': 'lib/assets/Logo/SCANIA.png'},
-    {'name': 'UD TRUCKS', 'path': 'lib/assets/Logo/UD TRUCKS.png'},
-    {'name': 'VOLVO', 'path': 'lib/assets/Logo/VOLVO.png'},
-    {'name': 'FORD', 'path': 'lib/assets/Logo/FORD.png'},
+    {'name': 'TATA', 'path': 'lib/assets/Logo/TATA.png'},
     {'name': 'TOYOTA', 'path': 'lib/assets/Logo/TOYOTA.png'},
+    {'name': 'UD TRUCKS', 'path': 'lib/assets/Logo/UD TRUCKS.png'},
+    {'name': 'US TRUCKS', 'path': null}, // Logo not available, will use an Icon
+    {'name': 'VOLVO', 'path': 'lib/assets/Logo/VOLVO.png'},
+    {'name': 'VW', 'path': 'lib/assets/Logo/VW.png'},
   ];
 
   final Set<String> selectedBrands = {};

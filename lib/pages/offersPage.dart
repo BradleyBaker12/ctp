@@ -149,7 +149,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
     // Determine selectedIndex based on userRole
     int selectedIndex;
     if (userRole == 'dealer') {
-      selectedIndex = 2; // OffersPage index for dealer
+      selectedIndex = 4; // OffersPage index for dealer
     } else if (userRole == 'transporter') {
       selectedIndex = 2; // OffersPage index for transporter
     } else {

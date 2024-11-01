@@ -1,5 +1,6 @@
 // lib/components/offer_card.dart
 
+import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/pages/transport_offer_details_page.dart';
@@ -297,8 +298,8 @@ class _OfferCardState extends State<OfferCard> {
             .get();
 
         if (vehicleSnapshot.exists) {
-          vehicle = Vehicle.fromDocument(vehicleSnapshot);
-          vehicleProvider.addVehicle(vehicle); // Add to provider
+          // vehicle = Vehicle.fromDocument(vehicleSnapshot);
+          // vehicleProvider.addVehicle(vehicle); // Add to provider
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -618,8 +619,8 @@ class _OfferCardState extends State<OfferCard> {
             .get();
 
         if (vehicleSnapshot.exists) {
-          vehicle = Vehicle.fromDocument(vehicleSnapshot);
-          vehicleProvider.addVehicle(vehicle); // Add to provider
+          // vehicle = Vehicle.fromDocument(vehicleSnapshot);
+          // vehicleProvider.addVehicle(vehicle); // Add to provider
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

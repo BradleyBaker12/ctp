@@ -2,6 +2,7 @@
 
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
+import 'package:ctp/models/maintenance_data.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/offersPage.dart';
 import 'package:ctp/pages/profile_page.dart';
@@ -13,6 +14,16 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
+
+// Import nested models
+import 'package:ctp/models/admin_data.dart';
+import 'package:ctp/models/maintenance.dart';
+import 'package:ctp/models/truck_conditions.dart';
+import 'package:ctp/models/external_cab.dart';
+import 'package:ctp/models/internal_cab.dart';
+import 'package:ctp/models/chassis.dart';
+import 'package:ctp/models/drive_train.dart';
+import 'package:ctp/models/tyres.dart';
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
@@ -63,6 +74,138 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     _scrollController.dispose();
     _tabController.dispose(); // Dispose of the TabController
     super.dispose();
+  }
+
+  // Helper methods to create default nested instances
+  AdminData _getDefaultAdminData() {
+    return AdminData(
+      settlementAmount: '0',
+      natisRc1Url: '',
+      licenseDiskUrl: '',
+      settlementLetterUrl: '',
+    );
+  }
+
+  Maintenance _getDefaultMaintenance(String vehicleId) {
+    return Maintenance(
+      maintenanceDocumentUrl: '',
+      warrantyDocumentUrl: '',
+      oemInspectionType: '',
+      oemInspectionReason: '',
+      updatedAt: DateTime.now(),
+      maintenanceData: MaintenanceData(
+        vehicleId: vehicleId,
+        oemInspectionType: '',
+        oemReason: '',
+      ),
+    );
+  }
+
+  TruckConditions _getDefaultTruckConditions() {
+    return TruckConditions(
+      externalCab: ExternalCab(
+        selectedCondition: '',
+        anyDamages: '',
+        anyAdditionalFeatures: '',
+        photos: {
+          'FRONT VIEW': '',
+          'RIGHT SIDE VIEW': '',
+          'REAR VIEW': '',
+          'LEFT SIDE VIEW': '',
+        },
+        lastUpdated: DateTime.now(),
+        damages: [],
+        additionalFeatures: [],
+      ),
+      internalCab: InternalCab(
+        condition: '',
+        oemInspectionType: '',
+        oemInspectionReason: '',
+        lastUpdated: DateTime.now(),
+        photos: {
+          'Center Dash': '',
+          'Left Dash': '',
+          'Right Dash (Vehicle On)': '',
+          'Mileage': '',
+          'Sun Visors': '',
+          'Center Console': '',
+          'Steering': '',
+          'Left Door Panel': '',
+          'Left Seat': '',
+          'Roof': '',
+          'Bunk Beds': '',
+          'Rear Panel': '',
+          'Right Door Panel': '',
+          'Right Seat': '',
+        },
+        damages: [],
+        additionalFeatures: [],
+        faultCodes: [],
+      ),
+      chassis: Chassis(
+        condition: '',
+        damagesCondition: '',
+        additionalFeaturesCondition: '',
+        photos: {
+          'Fuel Tank': '',
+          'Battery': '',
+          'Cat Walk': '',
+          'Electrical Cable Black': '',
+          'Air Cable Yellow': '',
+          'Air Cable Red': '',
+          'Tail Board': '',
+          '5th Wheel': '',
+          'Left Brake Rear Axel': '',
+          'Right Brake Rear Axel': '',
+        },
+        lastUpdated: DateTime.now(),
+        damages: [],
+        additionalFeatures: [],
+        faultCodes: [],
+      ),
+      driveTrain: DriveTrain(
+        condition: '',
+        oilLeakConditionEngine: '',
+        waterLeakConditionEngine: '',
+        blowbyCondition: '',
+        oilLeakConditionGearbox: '',
+        retarderCondition: '',
+        lastUpdated: DateTime.now(),
+        photos: {
+          'Right Brake': '',
+          'Left Brake': '',
+          'Front Axel': '',
+          'Suspension': '',
+          'Fuel Tank': '',
+          'Battery': '',
+          'Cat Walk': '',
+          'Electrical Cable Black': '',
+          'Air Cable Yellow': '',
+          'Air Cable Red': '',
+          'Tail Board': '',
+          '5th Wheel': '',
+          'Left Brake Rear Axel': '',
+          'Right Brake Rear Axel': '',
+        },
+        damages: [],
+        additionalFeatures: [],
+        faultCodes: [],
+      ),
+      tyres: Tyres(
+        chassisCondition: '',
+        virginOrRecap: '',
+        rimType: '',
+        lastUpdated: DateTime.now(),
+        photos: {
+          'Tyre_Pos_1 Photo': '',
+          'Tyre_Pos_2 Photo': '',
+          'Tyre_Pos_3 Photo': '',
+          'Tyre_Pos_4 Photo': '',
+          'Tyre_Pos_5 Photo': '',
+          'Tyre_Pos_6 Photo': '',
+        },
+      ),
+    );
   }
 
   @override
@@ -166,16 +309,18 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                               vehicleImageUrl: vehicle.mainImageUrl,
                               vehicleYear: vehicle.year,
                               vehicleMileage: vehicle.mileage,
-                              vehicleTransmission: vehicle.transmission,
+                              vehicleTransmission: vehicle.transmissionType,
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        VehicleDetailsPage(vehicle: vehicle),
+                                    builder: (context) => VehicleDetailsPage(
+                                      vehicle: vehicle,
+                                    ),
                                   ),
                                 );
                               },
+                              vehicleId: vehicle.id,
                             );
                           },
                         ),
@@ -195,16 +340,18 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                               vehicleImageUrl: vehicle.mainImageUrl,
                               vehicleYear: vehicle.year,
                               vehicleMileage: vehicle.mileage,
-                              vehicleTransmission: vehicle.transmission,
+                              vehicleTransmission: vehicle.transmissionType,
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        VehicleDetailsPage(vehicle: vehicle),
+                                    builder: (context) => VehicleDetailsPage(
+                                      vehicle: vehicle,
+                                    ),
                                   ),
                                 );
                               },
+                              vehicleId: vehicle.id,
                             );
                           },
                         ),
@@ -224,16 +371,18 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                               vehicleImageUrl: vehicle.mainImageUrl,
                               vehicleYear: vehicle.year,
                               vehicleMileage: vehicle.mileage,
-                              vehicleTransmission: vehicle.transmission,
+                              vehicleTransmission: vehicle.transmissionType,
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        VehicleDetailsPage(vehicle: vehicle),
+                                    builder: (context) => VehicleDetailsPage(
+                                      vehicle: vehicle,
+                                    ),
                                   ),
                                 );
                               },
+                              vehicleId: vehicle.id,
                             );
                           },
                         ),

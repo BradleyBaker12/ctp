@@ -201,7 +201,9 @@ class OfferProvider extends ChangeNotifier {
 
     _isFetching = true;
     _errorMessage = null;
-    notifyListeners();
+    Future.microtask(() {
+      notifyListeners();
+    });
 
     try {
       Query query = _buildQuery(userId, userRole);
@@ -224,6 +226,7 @@ class OfferProvider extends ChangeNotifier {
       } else {
         _hasMore = false;
       }
+      notifyListeners();
     } catch (e) {
       print('Error fetching offers: $e');
       _errorMessage = 'Failed to load offers. Please try again.';

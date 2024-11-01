@@ -1,3 +1,13 @@
+import 'package:ctp/models/admin_data.dart';
+import 'package:ctp/models/chassis.dart';
+import 'package:ctp/models/drive_train.dart';
+import 'package:ctp/models/external_cab.dart';
+import 'package:ctp/models/internal_cab.dart';
+import 'package:ctp/models/maintenance.dart';
+import 'package:ctp/models/maintenance_data.dart';
+import 'package:ctp/models/truck_conditions.dart';
+import 'package:ctp/models/tyres.dart';
+import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -32,7 +42,7 @@ class _WishlistPageState extends State<WishlistPage> {
     _offerProvider = Provider.of<OfferProvider>(context, listen: false);
     _fetchUserProfile();
     _fetchWishlist();
-    _fetchOffersFuture = _fetchOffers();
+    _fetchOffersFuture = _fetchOffers(); // Moved initialization here
   }
 
   Future<void> _fetchUserProfile() async {
@@ -60,16 +70,13 @@ class _WishlistPageState extends State<WishlistPage> {
       if (userDoc.exists) {
         List<String> wishlistItems =
             List<String>.from(userDoc['likedVehicles'] ?? []);
-        for (String vehicleId in wishlistItems) {
-          DocumentSnapshot vehicleDoc = await FirebaseFirestore.instance
-              .collection('vehicles')
-              .doc(vehicleId)
-              .get();
-          if (vehicleDoc.exists) {
-            _wishlistVehicles.add(vehicleDoc);
-          }
-        }
-        setState(() {});
+        QuerySnapshot vehiclesSnapshot = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where(FieldPath.documentId, whereIn: wishlistItems)
+            .get();
+        setState(() {
+          _wishlistVehicles.addAll(vehiclesSnapshot.docs);
+        });
       }
     }
   }
@@ -81,7 +88,6 @@ class _WishlistPageState extends State<WishlistPage> {
       final userRole = userProvider.getUserRole;
 
       await _offerProvider.fetchOffers(user.uid, userRole);
-      setState(() {});
     }
   }
 
@@ -159,8 +165,7 @@ class _WishlistPageState extends State<WishlistPage> {
                     return Center(
                       child: Image.asset(
                         'lib/assets/Loading_Logo_CTP.gif',
-                        width:
-                            100, // You can adjust the width and height as needed
+                        width: 100,
                         height: 100,
                       ),
                     );
@@ -182,47 +187,165 @@ class _WishlistPageState extends State<WishlistPage> {
                           (v) => v.id == vehicleDoc.id,
                           orElse: () => Vehicle(
                             id: vehicleDoc.id,
-                            accidentFree: 'N/A',
                             application: 'N/A',
-                            bookValue: 'N/A',
+                            warrantyDetails: 'N/A',
                             damageDescription: '',
                             damagePhotos: [],
                             engineNumber: 'N/A',
                             expectedSellingPrice: 'N/A',
-                            firstOwner: 'N/A',
-                            hydraulics: 'N/A',
-                            listDamages: 'N/A',
-                            maintenance: 'N/A',
+                            hydraluicType: 'N/A',
                             makeModel: data != null && data['makeModel'] != null
                                 ? data['makeModel']
                                 : 'Unknown',
                             mileage: 'N/A',
-                            oemInspection: 'N/A',
                             mainImageUrl: null,
                             photos: [],
                             registrationNumber: 'N/A',
-                            roadWorthy: 'N/A',
-                            settleBeforeSelling: 'N/A',
-                            settlementAmount: 'N/A',
-                            suspension: 'N/A',
-                            transmission: 'N/A',
-                            tyreType: 'N/A',
+                            suspensionType: 'N/A',
+                            transmissionType: 'N/A',
                             userId: 'N/A',
-                            vehicleType: _selectedTab.toLowerCase(),
+                            vehicleType: data != null
+                                ? data['vehicleType'].toLowerCase()
+                                : 'unknown',
                             vinNumber: 'N/A',
-                            warranty: 'N/A',
-                            warrantyType: 'N/A',
-                            weightClass: 'N/A',
+                            warrentyType: 'N/A',
                             year: 'N/A',
                             createdAt:
                                 (vehicleDoc['createdAt'] as Timestamp).toDate(),
-                            spareTyre: 'N/A',
-                            vehicleStatus: 'N/A',
                             vehicleAvailableImmediately: 'N/A',
                             availableDate: 'N/A',
                             trailerType: 'N/A',
-                            axles: "N/A",
-                            trailerLength: "N/A",
+                            axles: 'N/A',
+                            trailerLength: 'N/A',
+                            adminData: AdminData(
+                              settlementAmount: '0',
+                              natisRc1Url: '',
+                              licenseDiskUrl: '',
+                              settlementLetterUrl: '',
+                            ),
+                            maintenance: Maintenance(
+                              maintenanceDocumentUrl: '',
+                              warrantyDocumentUrl: '',
+                              oemInspectionType: '',
+                              oemInspectionReason: '',
+                              updatedAt: DateTime.now(),
+                              maintenanceData: MaintenanceData(
+                                vehicleId: vehicleDoc.id,
+                                oemInspectionType: '',
+                                oemReason: '',
+                              ),
+                            ),
+                            truckConditions: TruckConditions(
+                              externalCab: ExternalCab(
+                                selectedCondition: '',
+                                anyDamages: '',
+                                anyAdditionalFeatures: '',
+                                photos: {
+                                  'FRONT VIEW': '',
+                                  'RIGHT SIDE VIEW': '',
+                                  'REAR VIEW': '',
+                                  'LEFT SIDE VIEW': '',
+                                },
+                                lastUpdated: DateTime.now(),
+                                damages: [],
+                                additionalFeatures: [],
+                              ),
+                              internalCab: InternalCab(
+                                condition: '',
+                                oemInspectionType: '',
+                                oemInspectionReason: '',
+                                lastUpdated: DateTime.now(),
+                                photos: {
+                                  'Center Dash': '',
+                                  'Left Dash': '',
+                                  'Right Dash (Vehicle On)': '',
+                                  'Mileage': '',
+                                  'Sun Visors': '',
+                                  'Center Console': '',
+                                  'Steering': '',
+                                  'Left Door Panel': '',
+                                  'Left Seat': '',
+                                  'Roof': '',
+                                  'Bunk Beds': '',
+                                  'Rear Panel': '',
+                                  'Right Door Panel': '',
+                                  'Right Seat': '',
+                                },
+                                damages: [],
+                                additionalFeatures: [],
+                                faultCodes: [],
+                              ),
+                              chassis: Chassis(
+                                condition: '',
+                                damagesCondition: '',
+                                additionalFeaturesCondition: '',
+                                photos: {
+                                  'Fuel Tank': '',
+                                  'Battery': '',
+                                  'Cat Walk': '',
+                                  'Electrical Cable Black': '',
+                                  'Air Cable Yellow': '',
+                                  'Air Cable Red': '',
+                                  'Tail Board': '',
+                                  '5th Wheel': '',
+                                  'Left Brake Rear Axel': '',
+                                  'Right Brake Rear Axel': '',
+                                },
+                                lastUpdated: DateTime.now(),
+                                damages: [],
+                                additionalFeatures: [],
+                                faultCodes: [],
+                              ),
+                              driveTrain: DriveTrain(
+                                condition: '',
+                                oilLeakConditionEngine: '',
+                                waterLeakConditionEngine: '',
+                                blowbyCondition: '',
+                                oilLeakConditionGearbox: '',
+                                retarderCondition: '',
+                                lastUpdated: DateTime.now(),
+                                photos: {
+                                  'Right Brake': '',
+                                  'Left Brake': '',
+                                  'Front Axel': '',
+                                  'Suspension': '',
+                                  'Fuel Tank': '',
+                                  'Battery': '',
+                                  'Cat Walk': '',
+                                  'Electrical Cable Black': '',
+                                  'Air Cable Yellow': '',
+                                  'Air Cable Red': '',
+                                  'Tail Board': '',
+                                  '5th Wheel': '',
+                                  'Left Brake Rear Axel': '',
+                                  'Right Brake Rear Axel': '',
+                                },
+                                damages: [],
+                                additionalFeatures: [],
+                                faultCodes: [],
+                              ),
+                              tyres: Tyres(
+                                chassisCondition: '',
+                                virginOrRecap: '',
+                                rimType: '',
+                                lastUpdated: DateTime.now(),
+                                photos: {
+                                  'Tyre_Pos_1 Photo': '',
+                                  'Tyre_Pos_2 Photo': '',
+                                  'Tyre_Pos_3 Photo': '',
+                                  'Tyre_Pos_4 Photo': '',
+                                  'Tyre_Pos_5 Photo': '',
+                                  'Tyre_Pos_6 Photo': '',
+                                },
+                              ),
+                            ),
+                            vehicleStatus: 'N/A',
+                            dashboardPhoto: '',
+                            faultCodesPhoto: '',
+                            licenceDiskUrl: '',
+                            mileageImage: '',
+                            rc1NatisFile: '',
+                            config: '',
                           ),
                         );
 
@@ -236,14 +359,10 @@ class _WishlistPageState extends State<WishlistPage> {
                         bool hasOffer = offerProvider.offers
                             .any((offer) => offer.vehicleId == vehicle.id);
 
-                        // Debugging statement to check the offer status
-                        print(
-                            'Vehicle ID: ${vehicle.id}, Has Offer: $hasOffer');
-
                         return WishCard(
                           vehicleMakeModel: vehicle.makeModel,
                           vehicleImageUrl: imageUrl,
-                          size: screenSize, // Use screenSize instead of size
+                          size: screenSize,
                           customFont: (double fontSize, FontWeight fontWeight,
                               Color color) {
                             return TextStyle(
@@ -253,7 +372,7 @@ class _WishlistPageState extends State<WishlistPage> {
                               fontFamily: 'Montserrat',
                             );
                           },
-                          hasOffer: hasOffer, // Pass offer status to WishCard
+                          hasOffer: hasOffer,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -273,15 +392,13 @@ class _WishlistPageState extends State<WishlistPage> {
                                   .doc(user.uid);
 
                               await userDocRef.update({
-                                'likedVehicles': FieldValue.arrayRemove([
-                                  vehicleDoc.id
-                                ]), // Remove vehicle ID from the array
+                                'likedVehicles':
+                                    FieldValue.arrayRemove([vehicleDoc.id]),
                               });
 
                               // Remove the vehicle from the local wishlist
                               setState(() {
-                                _wishlistVehicles.remove(
-                                    vehicleDoc); // Remove vehicle locally
+                                _wishlistVehicles.remove(vehicleDoc);
                               });
 
                               // Show a confirmation snackbar

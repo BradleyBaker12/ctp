@@ -1,3 +1,4 @@
+import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:provider/provider.dart';
@@ -135,7 +136,6 @@ class WishCard extends StatelessWidget {
     );
   }
 
-  // Navigate to VehicleDetailsPage with vehicle information
   void navigateToVehicleDetails(BuildContext context) async {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
@@ -153,8 +153,11 @@ class WishCard extends StatelessWidget {
             .doc(vehicleId)
             .get();
 
-        if (vehicleSnapshot.exists) {
-          vehicle = Vehicle.fromDocument(vehicleSnapshot);
+        if (vehicleSnapshot.exists && vehicleSnapshot.data() != null) {
+          vehicle = Vehicle.fromFirestore(
+            vehicleSnapshot.id,
+            vehicleSnapshot.data() as Map<String, dynamic>,
+          );
           vehicleProvider.addVehicle(vehicle); // Add to provider
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -176,12 +179,21 @@ class WishCard extends StatelessWidget {
       }
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-      ),
-    );
+    if (vehicle != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vehicle details not found.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Build the offer status widget based on the offer details
@@ -237,7 +249,7 @@ Future<Vehicle?> getVehicleFromProvider(
   final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
   try {
     // Check if vehicle is already in the provider
-    Vehicle? vehicle = vehicleProvider.vehicles.firstWhere(
+    Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
       (v) => v.id == vehicleId,
       orElse: () => throw Exception('Vehicle not found in provider'),
     );
@@ -250,17 +262,22 @@ Future<Vehicle?> getVehicleFromProvider(
           .doc(vehicleId)
           .get();
 
-      if (vehicleSnapshot.exists) {
-        Vehicle vehicle = Vehicle.fromDocument(vehicleSnapshot);
+      if (vehicleSnapshot.exists && vehicleSnapshot.data() != null) {
+        Vehicle vehicle = Vehicle.fromFirestore(
+          vehicleSnapshot.id,
+          vehicleSnapshot.data() as Map<String, dynamic>,
+        );
         vehicleProvider.addVehicle(vehicle); // Add to provider
         return vehicle;
+      } else {
+        print('Vehicle data is null for ID $vehicleId');
+        return null;
       }
     } catch (e) {
       print('Error fetching vehicle: $e');
       return null;
     }
   }
-  return null;
 }
 
 // Example function to fetch offer status

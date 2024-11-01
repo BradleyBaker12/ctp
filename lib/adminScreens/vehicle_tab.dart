@@ -1,8 +1,19 @@
+// lib/adminScreens/vehicle_tab.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/pages/vehicle_details_page.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/models/maintenance_data.dart';
+import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/models/admin_data.dart';
+import 'package:ctp/models/maintenance.dart';
+import 'package:ctp/models/truck_conditions.dart';
+import 'package:ctp/models/external_cab.dart';
+import 'package:ctp/models/internal_cab.dart';
+import 'package:ctp/models/chassis.dart';
+import 'package:ctp/models/drive_train.dart';
+import 'package:ctp/models/tyres.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
 
 class VehiclesTab extends StatefulWidget {
   const VehiclesTab({super.key});
@@ -120,6 +131,140 @@ class _VehiclesTabState extends State<VehiclesTab> {
     });
   }
 
+  // Helper method to create default AdminData
+  AdminData _getDefaultAdminData() {
+    return AdminData(
+      settlementAmount: '0',
+      natisRc1Url: '',
+      licenseDiskUrl: '',
+      settlementLetterUrl: '',
+    );
+  }
+
+  // Helper method to create default Maintenance
+  Maintenance _getDefaultMaintenance(String vehicleId) {
+    return Maintenance(
+      maintenanceDocumentUrl: '',
+      warrantyDocumentUrl: '',
+      oemInspectionType: '',
+      oemInspectionReason: '',
+      updatedAt: DateTime.now(),
+      maintenanceData: MaintenanceData(
+        vehicleId: vehicleId,
+        oemInspectionType: '',
+        oemReason: '',
+      ),
+    );
+  }
+
+  // Helper method to create default TruckConditions
+  TruckConditions _getDefaultTruckConditions() {
+    return TruckConditions(
+      externalCab: ExternalCab(
+        selectedCondition: '',
+        anyDamages: '',
+        anyAdditionalFeatures: '',
+        photos: {
+          'FRONT VIEW': '',
+          'RIGHT SIDE VIEW': '',
+          'REAR VIEW': '',
+          'LEFT SIDE VIEW': '',
+        },
+        lastUpdated: DateTime.now(),
+        damages: [],
+        additionalFeatures: [],
+      ),
+      internalCab: InternalCab(
+        condition: '',
+        oemInspectionType: '',
+        oemInspectionReason: '',
+        lastUpdated: DateTime.now(),
+        photos: {
+          'Center Dash': '',
+          'Left Dash': '',
+          'Right Dash (Vehicle On)': '',
+          'Mileage': '',
+          'Sun Visors': '',
+          'Center Console': '',
+          'Steering': '',
+          'Left Door Panel': '',
+          'Left Seat': '',
+          'Roof': '',
+          'Bunk Beds': '',
+          'Rear Panel': '',
+          'Right Door Panel': '',
+          'Right Seat': '',
+        },
+        damages: [],
+        additionalFeatures: [],
+        faultCodes: [],
+      ),
+      chassis: Chassis(
+        condition: '',
+        damagesCondition: '',
+        additionalFeaturesCondition: '',
+        photos: {
+          'Fuel Tank': '',
+          'Battery': '',
+          'Cat Walk': '',
+          'Electrical Cable Black': '',
+          'Air Cable Yellow': '',
+          'Air Cable Red': '',
+          'Tail Board': '',
+          '5th Wheel': '',
+          'Left Brake Rear Axel': '',
+          'Right Brake Rear Axel': '',
+        },
+        lastUpdated: DateTime.now(),
+        damages: [],
+        additionalFeatures: [],
+        faultCodes: [],
+      ),
+      driveTrain: DriveTrain(
+        condition: '',
+        oilLeakConditionEngine: '',
+        waterLeakConditionEngine: '',
+        blowbyCondition: '',
+        oilLeakConditionGearbox: '',
+        retarderCondition: '',
+        lastUpdated: DateTime.now(),
+        photos: {
+          'Right Brake': '',
+          'Left Brake': '',
+          'Front Axel': '',
+          'Suspension': '',
+          'Fuel Tank': '',
+          'Battery': '',
+          'Cat Walk': '',
+          'Electrical Cable Black': '',
+          'Air Cable Yellow': '',
+          'Air Cable Red': '',
+          'Tail Board': '',
+          '5th Wheel': '',
+          'Left Brake Rear Axel': '',
+          'Right Brake Rear Axel': '',
+        },
+        damages: [],
+        additionalFeatures: [],
+        faultCodes: [],
+      ),
+      tyres: Tyres(
+        chassisCondition: '',
+        virginOrRecap: '',
+        rimType: '',
+        lastUpdated: DateTime.now(),
+        photos: {
+          'Tyre_Pos_1 Photo': '',
+          'Tyre_Pos_2 Photo': '',
+          'Tyre_Pos_3 Photo': '',
+          'Tyre_Pos_4 Photo': '',
+          'Tyre_Pos_5 Photo': '',
+          'Tyre_Pos_6 Photo': '',
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Apply filtering based on search query
@@ -154,6 +299,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
             onChanged: (value) {
               setState(() {
                 _searchQuery = value;
+                // Reset pagination and fetch again
                 _vehicles.clear();
                 _lastDocument = null;
                 _hasMore = true;
@@ -192,69 +338,9 @@ class _VehiclesTabState extends State<VehiclesTab> {
                     String vehicleId = filteredVehicles[index].id;
                     String make = vehicleData['makeModel'] ?? 'Unknown';
 
-                    // Construct the Vehicle object with all fields, adding default values for null
-                    Vehicle vehicle = Vehicle(
-                      id: vehicleId,
-                      accidentFree: vehicleData['accidentFree'] ?? 'N/A',
-                      application: vehicleData['application'] ?? 'N/A',
-                      bookValue: vehicleData['bookValue'] ?? 'N/A',
-                      damageDescription: vehicleData['damageDescription'] ?? '',
-                      damagePhotos: vehicleData['damagePhotos'] != null
-                          ? List<String?>.from(
-                              vehicleData['damagePhotos'] ?? [])
-                          : [],
-                      dashboardPhoto: vehicleData['dashboardPhoto'] ?? '',
-                      engineNumber: vehicleData['engineNumber'] ?? 'N/A',
-                      expectedSellingPrice:
-                          vehicleData['expectedSellingPrice'] ?? 'N/A',
-                      faultCodesPhoto: vehicleData['faultCodesPhoto'] ?? '',
-                      firstOwner: vehicleData['firstOwner'] ?? 'N/A',
-                      hydraulics: vehicleData['hydraulics'] ?? 'N/A',
-                      licenceDiskUrl: vehicleData['licenceDiskUrl'] ?? '',
-                      listDamages: vehicleData['listDamages'] ?? 'N/A',
-                      maintenance: vehicleData['maintenance'] ?? 'N/A',
-                      makeModel: vehicleData['makeModel'] ?? 'N/A',
-                      mileage: vehicleData['mileage'] ?? 'N/A',
-                      mileageImage: vehicleData['mileageImage'] ?? '',
-                      oemInspection: vehicleData['oemInspection'] ?? 'N/A',
-                      mainImageUrl: vehicleData['mainImageUrl'] ?? '',
-                      photos: List<String?>.from(vehicleData['photos'] ?? []),
-                      rc1NatisFile: vehicleData['rc1NatisFile'] ?? '',
-                      registrationNumber:
-                          vehicleData['registrationNumber'] ?? 'N/A',
-                      roadWorthy: vehicleData['roadWorthy'] ?? 'N/A',
-                      settleBeforeSelling:
-                          vehicleData['settleBeforeSelling'] ?? 'N/A',
-                      settlementAmount:
-                          vehicleData['settlementAmount'] ?? 'N/A',
-                      settlementLetterFile:
-                          vehicleData['settlementLetterFile'] ?? '',
-                      spareTyre: vehicleData['spareTyre'] ?? 'N/A',
-                      suspension: vehicleData['suspension'] ?? 'N/A',
-                      transmission: vehicleData['transmission'] ?? 'N/A',
-                      config: vehicleData['config'] ?? '',
-                      treadLeft: vehicleData['treadLeft'] ?? '',
-                      tyrePhoto1: vehicleData['tyrePhoto1'] ?? '',
-                      tyrePhoto2: vehicleData['tyrePhoto2'] ?? '',
-                      tyreType: vehicleData['tyreType'] ?? 'N/A',
-                      userId: vehicleData['userId'] ?? 'N/A',
-                      vehicleType: vehicleData['vehicleType'] ?? 'N/A',
-                      vinNumber: vehicleData['vinNumber'] ?? 'N/A',
-                      warranty: vehicleData['warranty'] ?? 'N/A',
-                      warrantyType: vehicleData['warrantyType'] ?? 'N/A',
-                      weightClass: vehicleData['weightClass'] ?? 'N/A',
-                      year: vehicleData['year'] ?? 'N/A',
-                      createdAt: vehicleData['createdAt'] != null
-                          ? (vehicleData['createdAt'] as Timestamp).toDate()
-                          : DateTime.now(),
-                      vehicleStatus: vehicleData['vehicleStatus'] ?? 'Live',
-                      vehicleAvailableImmediately:
-                          vehicleData['vehicleAvailableImmediately'] ?? '',
-                      availableDate: vehicleData['availableDate'] ?? '',
-                      trailerType: vehicleData['trailerType'] ?? '',
-                      axles: vehicleData['axles'] ?? '',
-                      trailerLength: vehicleData['trailerLength'] ?? '',
-                    );
+                    // Corrected constructor call with both docId and data
+                    Vehicle vehicle =
+                        Vehicle.fromFirestore(vehicleId, vehicleData);
 
                     return Card(
                       color: Colors.grey[900],

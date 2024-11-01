@@ -3,8 +3,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/edit_vehicle.dart';
-import 'package:ctp/pages/truckForms/vehilce_upload_tabs.dart';
+import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
@@ -81,43 +82,8 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
       // Additional photo fields
       _addPhotoIfExists(widget.vehicle.dashboardPhoto, 'Dashboard Photo');
       _addPhotoIfExists(widget.vehicle.faultCodesPhoto, 'Fault Codes Photo');
-      _addPhotoIfExists(widget.vehicle.treadLeft, 'Tread Left Photo');
-      _addPhotoIfExists(widget.vehicle.tyrePhoto1, 'Tyre Photo 1');
-      _addPhotoIfExists(widget.vehicle.tyrePhoto2, 'Tyre Photo 2');
-      _addPhotoIfExists(widget.vehicle.bed_bunk, 'Bed Bunk Photo');
-      _addPhotoIfExists(widget.vehicle.dashboard, 'Dashboard');
-      _addPhotoIfExists(widget.vehicle.door_panels, 'Door Panels Photo');
-      _addPhotoIfExists(
-        widget.vehicle.front_tyres_tread,
-        'Front Tyres Tread Photo',
-      );
-      _addPhotoIfExists(widget.vehicle.front_view, 'Front View Photo');
-      _addPhotoIfExists(widget.vehicle.left_front_45, 'Left Front 45° Photo');
-      _addPhotoIfExists(widget.vehicle.left_rear_45, 'Left Rear 45° Photo');
-      _addPhotoIfExists(widget.vehicle.left_side_view, 'Left Side View Photo');
       _addPhotoIfExists(widget.vehicle.licenceDiskUrl, 'Licence Disk Photo');
-      _addPhotoIfExists(widget.vehicle.license_disk, 'License Disk Photo');
       _addPhotoIfExists(widget.vehicle.mileageImage, 'Mileage Image');
-      _addPhotoIfExists(
-        widget.vehicle.rear_tyres_tread,
-        'Rear Tyres Tread Photo',
-      );
-      _addPhotoIfExists(widget.vehicle.rear_view, 'Rear View Photo');
-      _addPhotoIfExists(
-        widget.vehicle.right_front_45,
-        'Right Front 45° Photo',
-      );
-      _addPhotoIfExists(
-        widget.vehicle.right_rear_45,
-        'Right Rear 45° Photo',
-      );
-      _addPhotoIfExists(
-        widget.vehicle.right_side_view,
-        'Right Side View Photo',
-      );
-      _addPhotoIfExists(widget.vehicle.roof, 'Roof Photo');
-      _addPhotoIfExists(widget.vehicle.seats, 'Seats Photo');
-      _addPhotoIfExists(widget.vehicle.spare_wheel, 'Spare Wheel Photo');
 
       print('Total photos added: ${allPhotos.length}');
 
@@ -255,7 +221,7 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => VehicleUploadTabs(
+        builder: (context) => VehicleUploadScreen(
           vehicle: widget.vehicle,
           isDuplicating: true,
         ),
@@ -413,28 +379,17 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
     }
 
     try {
-      addInfo('Accident Free', widget.vehicle.accidentFree);
       addInfo('Application', widget.vehicle.application);
-      addInfo('Book Value', widget.vehicle.bookValue);
       addInfo('Damage Description', widget.vehicle.damageDescription);
       addInfo('Engine Number', widget.vehicle.engineNumber);
-      addInfo('First Owner', widget.vehicle.firstOwner);
-      addInfo('Hydraulics', widget.vehicle.hydraulics);
-      addInfo('List Damages', widget.vehicle.listDamages);
-      addInfo('Maintenance', widget.vehicle.maintenance);
-      addInfo('OEM Inspection', widget.vehicle.oemInspection);
+      addInfo('Hydraulics', widget.vehicle.hydraluicType);
+      // addInfo('Maintenance', widget.vehicle.maintenance);
+      addInfo('OEM Inspection', widget.vehicle.maintenance.oemInspectionType);
       addInfo('Registration Number', widget.vehicle.registrationNumber);
-      addInfo('Road Worthy', widget.vehicle.roadWorthy);
-      addInfo('Settle Before Selling', widget.vehicle.settleBeforeSelling);
-      addInfo('Settlement Amount', widget.vehicle.settlementAmount);
-      addInfo('Spare Tyre', widget.vehicle.spareTyre);
-      addInfo('Suspension', widget.vehicle.suspension);
-      addInfo('Tread Left', widget.vehicle.treadLeft);
-      addInfo('Tyre Type', widget.vehicle.tyreType);
+      addInfo('Settlement Amount', widget.vehicle.adminData.settlementAmount);
+      addInfo('Suspension', widget.vehicle.suspensionType);
       addInfo('VIN Number', widget.vehicle.vinNumber);
-      addInfo('Warranty', widget.vehicle.warranty);
-      addInfo('Warranty Type', widget.vehicle.warrantyType);
-      addInfo('Weight Class', widget.vehicle.weightClass);
+      addInfo('Warranty', widget.vehicle.warrentyType);
     } catch (e) {
       print('Error building additional info: $e');
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,5 @@
 import 'package:ctp/components/custom_text_field.dart';
+import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';

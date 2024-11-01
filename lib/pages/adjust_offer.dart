@@ -82,7 +82,7 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
   @override
   Widget build(BuildContext context) {
     // Access the OfferProvider
-    OfferProvider offerProvider = Provider.of<OfferProvider>(context);
+    OfferProvider offerProvider = Provider.of<OfferProvider>(context, listen: false);
     Offer? offer = offerProvider.getOfferById(widget.offerId);
 
     if (offer == null) {
