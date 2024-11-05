@@ -192,18 +192,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         faultCodes: [],
       ),
       tyres: Tyres(
-        chassisCondition: '',
-        virginOrRecap: '',
-        rimType: '',
         lastUpdated: DateTime.now(),
-        photos: {
-          'Tyre_Pos_1 Photo': '',
-          'Tyre_Pos_2 Photo': '',
-          'Tyre_Pos_3 Photo': '',
-          'Tyre_Pos_4 Photo': '',
-          'Tyre_Pos_5 Photo': '',
-          'Tyre_Pos_6 Photo': '',
-        },
+        positions: {},
       ),
     );
   }

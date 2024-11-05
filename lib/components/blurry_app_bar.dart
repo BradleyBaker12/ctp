@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 
 class BlurryAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final double height;
+  final Widget? leading;
 
-  const BlurryAppBar({super.key, this.height = kToolbarHeight});
+  const BlurryAppBar({super.key, this.leading});
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +28,7 @@ class BlurryAppBar extends StatelessWidget implements PreferredSizeWidget {
               height: screenSize.height * 0.001,
               width: screenSize.width,
               child: AppBar(
+                leading: leading,
                 backgroundColor: Colors.transparent,
                 elevation: 0.0,
               ),
@@ -39,5 +40,5 @@ class BlurryAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(height);
+  Size get preferredSize => Size.fromHeight(kToolbarHeight);
 }

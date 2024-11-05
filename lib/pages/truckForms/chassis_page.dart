@@ -7,10 +7,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/form_data_provider.dart';
 
 class ChassisPage extends StatefulWidget {
   final String vehicleId;
-  const ChassisPage({Key? key, required this.vehicleId}) : super(key: key);
+  const ChassisPage({super.key, required this.vehicleId});
 
   @override
   ChassisPageState createState() => ChassisPageState();
@@ -28,7 +30,7 @@ class ChassisPageState extends State<ChassisPage>
   String _damagesCondition = 'no';
 
   // Maps to store selected images and their URLs
-  Map<String, String?> _imageUrls = {
+  final Map<String, String?> _imageUrls = {
     'Right Brake': null,
     'Left Brake': null,
     'Front Axel': null,
@@ -45,7 +47,7 @@ class ChassisPageState extends State<ChassisPage>
     'Right Brake Rear Axel': null,
   };
 
-  Map<String, File?> _selectedImages = {
+  final Map<String, File?> _selectedImages = {
     'Right Brake': null,
     'Left Brake': null,
     'Front Axel': null,
@@ -66,6 +68,11 @@ class ChassisPageState extends State<ChassisPage>
   List<Map<String, dynamic>> _damageList = [];
   List<Map<String, dynamic>> _additionalFeaturesList = [];
 
+  // Add a loading state tracker
+  final Map<String, bool> _imageUploading = {};
+
+  bool _isInitialized = false;
+
   @override
   bool get wantKeepAlive => true; // Properly implementing the getter
 
@@ -77,56 +84,129 @@ class ChassisPageState extends State<ChassisPage>
 
   // Method to load existing data from Firestore (if any)
   Future<void> _loadExistingData() async {
+    if (_isInitialized) return;
+
     try {
-      final chassisRef = _firestore
+      final doc = await FirebaseFirestore.instance
           .collection('vehicles')
           .doc(widget.vehicleId)
-          .collection('truckConditions')
-          .doc('Chassis');
+          .collection('inspections')
+          .doc('chassis')
+          .get();
 
-      final snapshot = await chassisRef.get();
-      if (snapshot.exists) {
-        final data = snapshot.data()!;
+      if (doc.exists && mounted) {
+        final data = doc.data() ?? {};
         setState(() {
+          _isInitialized = true;
+
+          // Load basic conditions
           _selectedCondition = data['condition'] ?? 'good';
+          _damagesCondition = data['damagesCondition'] ?? 'no';
           _additionalFeaturesCondition =
               data['additionalFeaturesCondition'] ?? 'no';
-          _damagesCondition = data['damagesCondition'] ?? 'no';
 
-          // Load image URLs
-          _imageUrls.updateAll((key, value) => data[key] ?? null);
-        });
+          // Load images and URLs
+          if (data['images'] != null) {
+            final images = Map<String, dynamic>.from(data['images']);
+            images.forEach((key, value) {
+              if (value != null) {
+                _imageUrls[key] = value.toString();
+              }
+            });
+          }
 
-        // Load damages
-        final damagesSnapshot = await chassisRef.collection('damages').get();
-        setState(() {
-          _damageList = damagesSnapshot.docs
-              .map((doc) => {
-                    'description': doc['description'] ?? '',
-                    'imageUrl': doc['imageUrl'] ?? '',
-                  })
-              .toList();
-        });
+          // Load damages
+          if (data['damages'] != null) {
+            _damageList = (data['damages'] as List).map((damage) {
+              return {
+                'description': damage['description'] ?? '',
+                'imageUrl': damage['imageUrl'],
+                'key': damage['key'] ??
+                    DateTime.now().millisecondsSinceEpoch.toString(),
+              };
+            }).toList();
+          }
 
-        // Load additional features
-        final featuresSnapshot =
-            await chassisRef.collection('additionalFeatures').get();
-        setState(() {
-          _additionalFeaturesList = featuresSnapshot.docs
-              .map((doc) => {
-                    'description': doc['description'] ?? '',
-                    'imageUrl': doc['imageUrl'] ?? '',
-                  })
-              .toList();
+          // Load additional features
+          if (data['additionalFeatures'] != null) {
+            _additionalFeaturesList =
+                (data['additionalFeatures'] as List).map((feature) {
+              return {
+                'description': feature['description'] ?? '',
+                'imageUrl': feature['imageUrl'],
+                'key': feature['key'] ??
+                    DateTime.now().millisecondsSinceEpoch.toString(),
+              };
+            }).toList();
+          }
         });
       }
     } catch (e) {
+      print('Error loading chassis data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading existing data: $e')),
+          SnackBar(content: Text('Error loading data: $e')),
         );
       }
     }
+  }
+
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty || _isInitialized) return;
+
+    setState(() {
+      _isInitialized = true;
+
+      // Initialize basic fields
+      _selectedCondition = data['condition'] ?? 'good';
+      _damagesCondition = data['damagesCondition'] ?? 'no';
+      _additionalFeaturesCondition =
+          data['additionalFeaturesCondition'] ?? 'no';
+
+      // Initialize images
+      if (data['images'] != null) {
+        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
+        images.forEach((key, value) {
+          if (value is Map) {
+            if (value['path'] != null) {
+              _selectedImages[key] = File(value['path']);
+            } else if (value['url'] != null) {
+              _imageUrls[key] = value['url'];
+            }
+          }
+        });
+      }
+
+      // Initialize damage list
+      if (data['damages'] != null) {
+        _damageList = (data['damages'] as List).map((damage) {
+          return {
+            'description': damage['description'] ?? '',
+            'image':
+                damage['imagePath'] != null ? File(damage['imagePath']) : null,
+            'imageUrl': damage['imageUrl'],
+            'key': damage['key'] ??
+                DateTime.now().millisecondsSinceEpoch.toString(),
+          };
+        }).toList();
+      }
+
+      // Initialize additional features list
+      if (data['additionalFeatures'] != null) {
+        _additionalFeaturesList =
+            (data['additionalFeatures'] as List).map((feature) {
+          return {
+            'description': feature['description'] ?? '',
+            'image': feature['imagePath'] != null
+                ? File(feature['imagePath'])
+                : null,
+            'imageUrl': feature['imageUrl'],
+            'key': feature['key'] ??
+                DateTime.now().millisecondsSinceEpoch.toString(),
+          };
+        }).toList();
+      }
+    });
   }
 
   @override
@@ -518,12 +598,8 @@ class ChassisPageState extends State<ChassisPage>
   }) {
     return Column(
       children: [
-        ...items
-            .asMap()
-            .entries
-            .map((entry) => _buildItemWidget(
-                entry.key, entry.value, showImageSourceDialog, items))
-            .toList(),
+        ...items.asMap().entries.map((entry) => _buildItemWidget(
+            entry.key, entry.value, showImageSourceDialog, items)),
         const SizedBox(height: 16.0),
         GestureDetector(
           onTap: addItem,
@@ -559,6 +635,9 @@ class ChassisPageState extends State<ChassisPage>
           children: [
             Expanded(
               child: TextField(
+                controller: TextEditingController(text: item['description'])
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: item['description']?.length ?? 0)),
                 onChanged: (value) {
                   setState(() {
                     item['description'] = value;
@@ -597,30 +676,7 @@ class ChassisPageState extends State<ChassisPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: item['imageUrl'] != null && item['imageUrl']!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      item['imageUrl'],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildImagePlaceholder();
-                      },
-                    ),
-                  )
-                : item['image'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.file(
-                          item['image'],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-                      )
-                    : _buildImagePlaceholder(),
+            child: _buildImageWidget(item),
           ),
         ),
       ],
@@ -643,45 +699,53 @@ class ChassisPageState extends State<ChassisPage>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Choose Image Source'),
+          title: Text('Choose Image Source for ${item['title']}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    setState(() {
-                      item['image'] = File(pickedFile.path);
-                      item['imageUrl'] = null; // Reset imageUrl
-                    });
-                  }
-                },
+                onTap: () => _handleImageSelection(ImageSource.camera, item),
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.gallery);
-                  if (pickedFile != null) {
-                    setState(() {
-                      item['image'] = File(pickedFile.path);
-                      item['imageUrl'] = null; // Reset imageUrl
-                    });
-                  }
-                },
+                onTap: () => _handleImageSelection(ImageSource.gallery, item),
               ),
             ],
           ),
         );
       },
     );
+  }
+
+  // Optimize image selection handling
+  Future<void> _handleImageSelection(
+      ImageSource source, Map<String, dynamic> item) async {
+    try {
+      Navigator.pop(context);
+
+      setState(() => _imageUploading[item['key']] = true);
+
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 70, // Optimize image quality
+        maxWidth: 1200, // Limit image dimensions
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImages[item['key']] = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error selecting image: $e')),
+      );
+    } finally {
+      setState(() => _imageUploading[item['key']] = false);
+    }
   }
 
   // Helper method to build yes/no section with optional image upload
@@ -767,98 +831,80 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  // Helper method to upload a single image to Firebase Storage and get its URL
-  Future<String?> _uploadImage(File file, String key) async {
-    try {
-      String fileName =
-          'chassis/${widget.vehicleId}_$key${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = _storage.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(file);
-
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading image: $e')),
-        );
-      }
-      return null;
-    }
-  }
-
-  // Method to save data to Firestore
+  // Optimize save method
   Future<bool> saveData() async {
     try {
-      final chassisRef = _firestore
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('truckConditions')
-          .doc('Chassis');
-
-      // Preparing data to save
-      Map<String, dynamic> dataToSave = {
-        'condition': _selectedCondition,
-        'damagesCondition': _damagesCondition,
-        'additionalFeaturesCondition': _additionalFeaturesCondition,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      };
-
-      // Uploading and saving images
+      // Upload view images and get URLs
+      Map<String, String> imageUrls = {};
       for (var entry in _selectedImages.entries) {
-        if (_selectedImages[entry.key] != null) {
-          String? imageUrl =
-              await _uploadImage(_selectedImages[entry.key]!, entry.key);
-          if (imageUrl != null && imageUrl.isNotEmpty) {
-            dataToSave[entry.key] = imageUrl;
-            _imageUrls[entry.key] = imageUrl;
+        if (entry.value != null) {
+          String imagePath =
+              'vehicles/${widget.vehicleId}/chassis/views/${entry.key}_${DateTime.now().millisecondsSinceEpoch}';
+          String downloadUrl = await _uploadImage(entry.value!, imagePath);
+          if (downloadUrl.isNotEmpty) {
+            imageUrls[entry.key] = downloadUrl;
+            _imageUrls[entry.key] = downloadUrl;
           }
+        } else if (_imageUrls.containsKey(entry.key)) {
+          imageUrls[entry.key] = _imageUrls[entry.key]!;
         }
       }
 
-      // Saving main chassis data
-      await chassisRef.set(dataToSave, SetOptions(merge: true));
-
-      // Saving damages
+      // Upload and prepare damages data
+      List<Map<String, dynamic>> damagesData = [];
       if (_damagesCondition == 'yes') {
         for (var damage in _damageList) {
-          String? imageUrl;
+          String imageUrl = damage['imageUrl'] ?? '';
           if (damage['image'] != null) {
-            imageUrl = await _uploadImage(damage['image']!,
-                'damage_${DateTime.now().millisecondsSinceEpoch}');
+            String imagePath =
+                'vehicles/${widget.vehicleId}/chassis/damages/damage_${damage['key']}';
+            imageUrl = await _uploadImage(damage['image'], imagePath);
           }
-          await chassisRef.collection('damages').add({
+          damagesData.add({
             'description': damage['description'] ?? '',
-            'imageUrl': imageUrl ?? '',
+            'imageUrl': imageUrl,
+            'key': damage['key'],
           });
         }
       }
 
-      // Saving additional features
+      // Upload and prepare additional features data
+      List<Map<String, dynamic>> featuresData = [];
       if (_additionalFeaturesCondition == 'yes') {
         for (var feature in _additionalFeaturesList) {
-          String? imageUrl;
+          String imageUrl = feature['imageUrl'] ?? '';
           if (feature['image'] != null) {
-            imageUrl = await _uploadImage(feature['image']!,
-                'feature_${DateTime.now().millisecondsSinceEpoch}');
+            String imagePath =
+                'vehicles/${widget.vehicleId}/chassis/features/feature_${feature['key']}';
+            imageUrl = await _uploadImage(feature['image'], imagePath);
           }
-          await chassisRef.collection('additionalFeatures').add({
+          featuresData.add({
             'description': feature['description'] ?? '',
-            'imageUrl': imageUrl ?? '',
+            'imageUrl': imageUrl,
+            'key': feature['key'],
           });
         }
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chassis data saved successfully!')),
-        );
-      }
+      // Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .collection('inspections')
+          .doc('chassis')
+          .set({
+        'condition': _selectedCondition,
+        'images': imageUrls,
+        'damagesCondition': _damagesCondition,
+        'damages': damagesData,
+        'additionalFeaturesCondition': _additionalFeaturesCondition,
+        'additionalFeatures': featuresData,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       return true;
     } catch (e) {
+      print('Error saving chassis data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save chassis data: $e')),
@@ -867,4 +913,129 @@ class ChassisPageState extends State<ChassisPage>
       return false;
     }
   }
+
+  Future<Map<String, dynamic>> getData() async {
+    // Create a sanitized copy of the data
+    Map<String, dynamic> sanitizedData = {
+      'condition': _selectedCondition,
+      'damagesCondition': _damagesCondition,
+      'additionalFeaturesCondition': _additionalFeaturesCondition,
+    };
+
+    // Handle images
+    Map<String, dynamic> imageData = {};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        imageData[entry.key] = {
+          'path': entry.value!.path,
+          'isNew': true,
+        };
+      } else if (_imageUrls.containsKey(entry.key)) {
+        imageData[entry.key] = {
+          'url': _imageUrls[entry.key],
+          'isNew': false,
+        };
+      }
+    }
+
+    // Handle damages
+    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
+      return {
+        'description': damage['description'] ?? '',
+        'imagePath': damage['image']?.path,
+        'imageUrl': damage['imageUrl'],
+        'key': damage['key'],
+        'isNew': damage['image'] != null,
+      };
+    }).toList();
+
+    // Handle additional features
+    List<Map<String, dynamic>> serializedFeatures =
+        _additionalFeaturesList.map((feature) {
+      return {
+        'description': feature['description'] ?? '',
+        'imagePath': feature['image']?.path,
+        'imageUrl': feature['imageUrl'],
+        'key': feature['key'],
+        'isNew': feature['image'] != null,
+      };
+    }).toList();
+
+    sanitizedData['images'] = imageData;
+    sanitizedData['damages'] = serializedDamages;
+    sanitizedData['additionalFeatures'] = serializedFeatures;
+
+    return sanitizedData;
+  }
+
+  Future<String> _uploadImage(File imageFile, String imageName) async {
+    try {
+      final ref =
+          _storage.ref().child('chassis/${widget.vehicleId}/$imageName');
+      final uploadTask = ref.putFile(imageFile);
+      final snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print('Error uploading image: $e');
+      return '';
+    }
+  }
+
+  // Add helper method to build image widget
+  Widget _buildImageWidget(Map<String, dynamic> item) {
+    if (item['image'] != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.file(
+          item['image'],
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      );
+    } else if (item['imageUrl'] != null && item['imageUrl'].isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.network(
+          item['imageUrl'],
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+                child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+            ));
+          },
+          errorBuilder: (context, error, stackTrace) =>
+              _buildImagePlaceholder(),
+        ),
+      );
+    } else {
+      return _buildImagePlaceholder();
+    }
+  }
+
+  // // Add helper method for image placeholder
+  // Widget _buildImagePlaceholder() {
+  //   return const Column(
+  //     mainAxisAlignment: MainAxisAlignment.center,
+  //     children: [
+  //       Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+  //       SizedBox(height: 8.0),
+  //       Text(
+  //         'Add Image',
+  //         style: TextStyle(
+  //           color: Colors.white,
+  //           fontSize: 16,
+  //           fontWeight: FontWeight.w600
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 }

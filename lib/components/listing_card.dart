@@ -13,7 +13,7 @@ class ListingCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const ListingCard({
-    Key? key,
+    super.key,
     required this.vehicleId,
     required this.vehicleMakeModel,
     required this.vehicleImageUrl,
@@ -21,7 +21,7 @@ class ListingCard extends StatelessWidget {
     required this.vehicleMileage,
     required this.vehicleTransmission,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

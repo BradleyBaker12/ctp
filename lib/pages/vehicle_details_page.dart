@@ -1,7 +1,6 @@
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -11,7 +10,6 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'edit_vehicle.dart';
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {

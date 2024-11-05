@@ -17,8 +17,13 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class CropPhotoPage extends StatefulWidget {
   final XFile imageFile;
+  final Map<String, dynamic> userData;
 
-  const CropPhotoPage({super.key, required this.imageFile});
+  const CropPhotoPage({
+    super.key,
+    required this.imageFile,
+    required this.userData,
+  });
 
   @override
   _CropPhotoPageState createState() => _CropPhotoPageState();
@@ -61,92 +66,66 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _croppedFile = imageFile;
-          _isLoading = false;
-        });
+        // User canceled cropping, go back to previous screen
+        Navigator.pop(context);
       }
     } catch (e) {
       print("Error cropping image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error cropping image: $e')),
       );
-      setState(() {
-        _isLoading = false;
-      });
+      Navigator.pop(context); // Go back on error
     }
   }
 
   Future<void> _uploadProfileImage() async {
-    if (_croppedFile == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
-      final userId = Provider.of<UserProvider>(context, listen: false).userId!;
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(userProvider.user?.uid);
+
+      // Upload image
       final storageRef = FirebaseStorage.instance
           .ref()
-          .child('profile_images')
-          .child('$userId.jpg');
-
-      // Compress the file
-      final compressedFile = await _compressImageFile(_croppedFile!);
-
-      // Upload the compressed file
-      await storageRef.putFile(compressedFile);
+          .child('profile_images/${userProvider.user?.uid}');
+      await storageRef.putFile(_croppedFile!);
       final imageUrl = await storageRef.getDownloadURL();
 
-      // Update user's profile image URL in Firestore
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      // Merge all user data with profile image URL
+      final Map<String, dynamic> finalUserData = {
+        ...widget.userData,
         'profileImageUrl': imageUrl,
-      });
+        'userRole': widget.userData['userType'],
+      };
+      
+      // Remove userType from final data
+      finalUserData.remove('userType');
 
-      // Check user role and navigate accordingly
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      final userRole = userDoc['userRole'];
+      // Save all user data
+      await userRef.set(finalUserData);
 
-      if (userRole == 'transporter') {
+      if (mounted) {
+        // Navigate based on user role
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-              builder: (context) =>
-                  const TransporterRegistrationPage()), // Ensure this page exists
+            builder: (context) => finalUserData['userRole'] == 'dealer'
+                ? const DealerRegPage()
+                : const TransporterRegistrationPage(),
+          ),
         );
-      } else if (userRole == 'dealer') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DealerRegPage()),
-        );
-      } else {
-        Navigator.pushReplacementNamed(
-            context, '/home'); // Fallback or home page
       }
     } catch (e) {
-      print("Error uploading image: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading image: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  Future<File> _compressImageFile(File file) async {
-    final compressedFile = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      file.absolute.path.replaceAll('.jpg', '_compressed.jpg'),
-      quality: 70, // Adjust quality here (0-100)
-    );
-
-    // Convert compressedFile to File and return
-    return compressedFile != null ? File(compressedFile.path) : file;
   }
 
   @override
@@ -177,7 +156,7 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                                 height: screenSize.height * 0.2,
                                 width: screenSize.height * 0.2,
                                 fit: BoxFit.cover,
-                              ), // Adjust the height as needed
+                              ),
                               SizedBox(height: screenSize.height * 0.07),
                               Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -201,7 +180,8 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                                   backgroundImage: _croppedFile != null
                                       ? FileImage(_croppedFile!)
                                       : const AssetImage(
-                                          'lib/assets/placeholder_image.png'), // Placeholder image
+                                              'lib/assets/placeholder_image.png')
+                                          as ImageProvider,
                                   child: _croppedFile == null
                                       ? const Icon(Icons.person,
                                           size: 80, color: Colors.grey)
@@ -217,11 +197,6 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                             ],
                           ),
                         ),
-                        // const Positioned(
-                        //   top: 40,
-                        //   left: 16,
-                        //   child: CustomBackButton(),
-                        // ),
                       ],
                     ),
                   ),

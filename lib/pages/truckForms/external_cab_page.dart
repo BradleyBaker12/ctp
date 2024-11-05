@@ -8,10 +8,13 @@ import 'package:ctp/components/custom_radio_button.dart'; // Ensure this import 
 
 class ExternalCabPage extends StatefulWidget {
   final String vehicleId;
+  final VoidCallback? onContinue;
+
   const ExternalCabPage({
-    Key? key,
+    super.key,
     required this.vehicleId,
-  }) : super(key: key);
+    this.onContinue,
+  });
 
   @override
   ExternalCabPageState createState() => ExternalCabPageState();
@@ -29,7 +32,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
   final ScrollController _scrollController = ScrollController();
 
   // Map to store selected images for each view
-  Map<String, File?> _selectedImages = {
+  final Map<String, File?> _selectedImages = {
     'FRONT VIEW': null,
     'RIGHT SIDE VIEW': null,
     'REAR VIEW': null,
@@ -57,229 +60,328 @@ class ExternalCabPageState extends State<ExternalCabPage>
     super.build(context);
     return SingleChildScrollView(
       controller: _scrollController, // Attach the scroll controller
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.transparent, // Transparent background
-          borderRadius: BorderRadius.circular(12.0),
-          boxShadow: [
-            const BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6.0,
-              offset: Offset(0, 2),
+      // child: Container(
+      //   decoration: BoxDecoration(
+      //     color: Colors.transparent, // Transparent background
+      //     borderRadius: BorderRadius.circular(12.0),
+      //     boxShadow: const [
+      //       BoxShadow(
+      //         color: Colors.black26,
+      //         blurRadius: 6.0,
+      //         offset: Offset(0, 2),
+      //       ),
+      //     ],
+      //   ),
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 16.0),
+          Text(
+            'Details for EXTERNAL CAB'.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 25,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w900,
             ),
-          ],
-        ),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 16.0),
-            Text(
-              'Details for EXTERNAL CAB'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 25,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16.0),
+          const Text(
+            'Condition of the Outside CAB',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(height: 16.0),
-            const Text(
-              'Condition of the Outside CAB',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                CustomRadioButton(
-                  label: 'Poor',
-                  value: 'poor',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                ),
-                CustomRadioButton(
-                  label: 'Good',
-                  value: 'good',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                ),
-                CustomRadioButton(
-                  label: 'Excellent',
-                  value: 'excellent',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            Text(
-              'Front Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 25,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            // Photo Blocks Section
-            GridView.count(
-              shrinkWrap: true, // Allows GridView to fit inside the Column
-              physics:
-                  const NeverScrollableScrollPhysics(), // Prevent GridView from scrolling independently
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              childAspectRatio: 1.5, // Controls the aspect ratio of the blocks
-              children: _selectedImages.keys
-                  .map((title) => _buildPhotoBlock(title))
-                  .toList(),
-            ),
-            const SizedBox(height: 70.0),
-            // Damage Section
-            _buildAdditionalSection(
-              title: 'Are there any damages on the cab',
-              anyItemsType: _anyDamagesType,
-              onChange: (value) {
-                setState(() {
-                  _anyDamagesType = value!;
-                  if (_anyDamagesType == 'yes' && _damageList.isEmpty) {
-                    _damageList.add(
-                        {'description': '', 'image': null, 'imageUrl': ''});
-                    // Scroll down to damage section
-                    _scrollToBottom();
-                  } else if (_anyDamagesType == 'no') {
-                    _damageList.clear();
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16.0),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              CustomRadioButton(
+                label: 'Poor',
+                value: 'poor',
+                groupValue: _selectedCondition,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedCondition = value;
+                    });
                   }
-                });
-              },
-              buildItemSection: _buildDamageSection,
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Additional Features Section
-            _buildAdditionalSection(
-              title: 'Are there any additional features on the cab',
-              anyItemsType: _anyAdditionalFeaturesType,
-              onChange: (value) {
-                setState(() {
-                  _anyAdditionalFeaturesType = value!;
-                  if (_anyAdditionalFeaturesType == 'yes' &&
-                      _additionalFeaturesList.isEmpty) {
-                    _additionalFeaturesList.add(
-                        {'description': '', 'image': null, 'imageUrl': ''});
-                    // Scroll down to additional features section
-                    _scrollToBottom();
-                  } else if (_anyAdditionalFeaturesType == 'no') {
-                    _additionalFeaturesList.clear();
+                },
+              ),
+              CustomRadioButton(
+                label: 'Good',
+                value: 'good',
+                groupValue: _selectedCondition,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedCondition = value;
+                    });
                   }
-                });
-              },
-              buildItemSection: _buildAdditionalFeaturesSection,
+                },
+              ),
+              CustomRadioButton(
+                label: 'Excellent',
+                value: 'excellent',
+                groupValue: _selectedCondition,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedCondition = value;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16.0),
+          const Divider(thickness: 1.0),
+          const SizedBox(height: 16.0),
+          Text(
+            'Front Side of Cab'.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 25,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w900,
             ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16.0),
+          // Photo Blocks Section
+          GridView.count(
+            shrinkWrap: true, // Allows GridView to fit inside the Column
+            physics:
+                const NeverScrollableScrollPhysics(), // Prevent GridView from scrolling independently
+            crossAxisCount: 2,
+            crossAxisSpacing: 16.0,
+            mainAxisSpacing: 16.0,
+            childAspectRatio: 1.5, // Controls the aspect ratio of the blocks
+            children: _selectedImages.keys
+                .map((title) => _buildPhotoBlock(title))
+                .toList(),
+          ),
+          const SizedBox(height: 70.0),
+          // Damage Section
+          _buildAdditionalSection(
+            title: 'Are there any damages on the cab',
+            anyItemsType: _anyDamagesType,
+            onChange: (value) {
+              setState(() {
+                _anyDamagesType = value!;
+                if (_anyDamagesType == 'yes' && _damageList.isEmpty) {
+                  _damageList
+                      .add({'description': '', 'image': null, 'imageUrl': ''});
+                  // Scroll down to damage section
+                  _scrollToBottom();
+                } else if (_anyDamagesType == 'no') {
+                  _damageList.clear();
+                }
+              });
+            },
+            buildItemSection: _buildDamageSection,
+          ),
+          const SizedBox(height: 16.0),
+          const Divider(thickness: 1.0),
+          const SizedBox(height: 16.0),
+          // Additional Features Section
+          _buildAdditionalSection(
+            title: 'Are there any additional features on the cab',
+            anyItemsType: _anyAdditionalFeaturesType,
+            onChange: (value) {
+              setState(() {
+                _anyAdditionalFeaturesType = value!;
+                if (_anyAdditionalFeaturesType == 'yes' &&
+                    _additionalFeaturesList.isEmpty) {
+                  _additionalFeaturesList
+                      .add({'description': '', 'image': null, 'imageUrl': ''});
+                  // Scroll down to additional features section
+                  _scrollToBottom();
+                } else if (_anyAdditionalFeaturesType == 'no') {
+                  _additionalFeaturesList.clear();
+                }
+              });
+            },
+            buildItemSection: _buildAdditionalFeaturesSection,
+          ),
+        ],
       ),
     );
+    // );
   }
 
-  // Public method to save data, can be called from parent using GlobalKey
+  @override
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    setState(() {
+      // Initialize basic fields
+      _selectedCondition = data['condition'] ?? 'good';
+      _anyDamagesType = data['damagesCondition'] ?? 'no';
+      _anyAdditionalFeaturesType = data['additionalFeaturesCondition'] ?? 'no';
+
+      // Initialize images
+      if (data['images'] != null) {
+        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
+        images.forEach((key, value) {
+          if (value is Map && value['path'] != null) {
+            _selectedImages[key] = File(value['path']);
+          }
+        });
+      }
+
+      // Initialize damage list
+      if (data['damages'] != null) {
+        _damageList = (data['damages'] as List).map((damage) {
+          return {
+            'description': damage['description'] ?? '',
+            'image':
+                damage['imagePath'] != null ? File(damage['imagePath']) : null,
+            'imageUrl': damage['imageUrl'] ?? '',
+          };
+        }).toList();
+
+        // Ensure at least one damage item if damages condition is yes
+        if (_anyDamagesType == 'yes' && _damageList.isEmpty) {
+          _damageList.add({'description': '', 'image': null, 'imageUrl': ''});
+        }
+      }
+
+      // Initialize additional features list
+      if (data['additionalFeatures'] != null) {
+        _additionalFeaturesList =
+            (data['additionalFeatures'] as List).map((feature) {
+          return {
+            'description': feature['description'] ?? '',
+            'image': feature['imagePath'] != null
+                ? File(feature['imagePath'])
+                : null,
+            'imageUrl': feature['imageUrl'] ?? '',
+          };
+        }).toList();
+
+        // Ensure at least one feature item if additional features condition is yes
+        if (_anyAdditionalFeaturesType == 'yes' &&
+            _additionalFeaturesList.isEmpty) {
+          _additionalFeaturesList
+              .add({'description': '', 'image': null, 'imageUrl': ''});
+        }
+      }
+    });
+  }
+
+  @override
   Future<bool> saveData() async {
     try {
-      // Preparing the data to save
-      Map<String, dynamic> dataToSave = {
-        'selectedCondition': _selectedCondition,
-        'anyDamages': _anyDamagesType,
-        'anyAdditionalFeatures': _anyAdditionalFeaturesType,
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'damageList': [],
-        'additionalFeaturesList': [],
-      };
+      // Upload all view images first
+      Map<String, String> imageUrls = {};
+      for (var entry in _selectedImages.entries) {
+        if (entry.value != null) {
+          String downloadUrl = await _uploadImage(entry.value!, entry.key);
+          imageUrls[entry.key] = downloadUrl;
+        }
+      }
 
-      // Upload damage images and set URLs
+      // Upload damage images and create damage data
+      List<Map<String, dynamic>> damageData = [];
       for (var damage in _damageList) {
-        if (damage['image'] != null) {
-          String imageUrl = await _uploadImage(damage['image'], 'damage');
-          damage['imageUrl'] = imageUrl;
+        String imageUrl = '';
+        if (damage['image'] != null && damage['image'] is File) {
+          imageUrl = await _uploadImage(damage['image'],
+              'damage_${DateTime.now().millisecondsSinceEpoch}');
         }
-        dataToSave['damageList'].add({
-          'description': damage['description'],
-          'imageUrl': damage['imageUrl'] ?? '',
+        damageData.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': imageUrl,
         });
       }
 
-      // Upload additional feature images and set URLs
+      // Upload additional features images and create features data
+      List<Map<String, dynamic>> featuresData = [];
       for (var feature in _additionalFeaturesList) {
-        if (feature['image'] != null) {
-          String imageUrl = await _uploadImage(feature['image'], 'feature');
-          feature['imageUrl'] = imageUrl;
+        String imageUrl = '';
+        if (feature['image'] != null && feature['image'] is File) {
+          imageUrl = await _uploadImage(feature['image'],
+              'feature_${DateTime.now().millisecondsSinceEpoch}');
         }
-        dataToSave['additionalFeaturesList'].add({
-          'description': feature['description'],
-          'imageUrl': feature['imageUrl'] ?? '',
+        featuresData.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': imageUrl,
         });
       }
 
-      // Upload selected images
-      for (String key in _selectedImages.keys) {
-        if (_selectedImages[key] != null) {
-          String imageUrl = await _uploadImage(_selectedImages[key]!, key);
-          dataToSave[key] = imageUrl;
-        }
-      }
-
-      // Save to Firestore
+      // Save all data to Firestore
       await FirebaseFirestore.instance
           .collection('vehicles')
           .doc(widget.vehicleId)
-          .collection('truckConditions')
-          .doc('ExternalCab')
-          .set(dataToSave, SetOptions(merge: true));
+          .collection('inspections')
+          .doc('external_cab')
+          .set({
+        'condition': _selectedCondition,
+        'viewImages': imageUrls,
+        'hasDamages': _anyDamagesType == 'yes',
+        'damages': damageData,
+        'hasAdditionalFeatures': _anyAdditionalFeaturesType == 'yes',
+        'additionalFeatures': featuresData,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
 
-      // Check if the widget is still mounted before attempting to show a SnackBar
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('External Cab data saved successfully')),
-        );
+      if (widget.onContinue != null) {
+        widget.onContinue!();
       }
-
       return true;
     } catch (e) {
-      // Check if the widget is still mounted before attempting to show a SnackBar
+      print('Error saving external cab data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save External Cab data: $e')),
+          SnackBar(content: Text('Error saving data: $e')),
         );
       }
       return false;
     }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getData() async {
+    // Convert File objects to paths for serialization
+    Map<String, dynamic> serializedImages = {};
+    _selectedImages.forEach((key, value) {
+      if (value != null) {
+        serializedImages[key] = {'path': value.path, 'isNew': true};
+      }
+    });
+
+    // Convert damage list to serializable format
+    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
+      return {
+        'description': damage['description'] ?? '',
+        'imagePath': damage['image']?.path,
+        'imageUrl': damage['imageUrl'] ?? '',
+        'isNew': damage['image'] != null
+      };
+    }).toList();
+
+    // Convert additional features list to serializable format
+    List<Map<String, dynamic>> serializedFeatures =
+        _additionalFeaturesList.map((feature) {
+      return {
+        'description': feature['description'] ?? '',
+        'imagePath': feature['image']?.path,
+        'imageUrl': feature['imageUrl'] ?? '',
+        'isNew': feature['image'] != null
+      };
+    }).toList();
+
+    return {
+      'condition': _selectedCondition,
+      'images': serializedImages,
+      'damagesCondition': _anyDamagesType,
+      'damages': serializedDamages,
+      'additionalFeaturesCondition': _anyAdditionalFeaturesType,
+      'additionalFeatures': serializedFeatures,
+    };
   }
 
   // Helper method to upload a single image to Firebase Storage
@@ -480,7 +582,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
           int index = entry.key;
           Map<String, dynamic> item = entry.value;
           return _buildItemWidget(index, item, showImageSourceDialog);
-        }).toList(),
+        }),
         const SizedBox(height: 16.0),
         GestureDetector(
           onTap: addItem,

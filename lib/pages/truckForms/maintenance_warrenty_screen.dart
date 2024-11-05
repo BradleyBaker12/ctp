@@ -16,14 +16,18 @@ import 'package:file_picker/file_picker.dart';
 
 class MaintenanceWarrantyScreen extends StatefulWidget {
   final String vehicleId;
-  final File? mainImageFile;
-  final String? mainImageUrl;
+  final String? natisRc1Url;
+  final String maintenanceSelection;
+  final String warrantySelection;
+  final String requireToSettleType;
 
   const MaintenanceWarrantyScreen({
     Key? key,
     required this.vehicleId,
-    this.mainImageFile,
-    this.mainImageUrl,
+    this.natisRc1Url,
+    required this.maintenanceSelection,
+    required this.warrantySelection,
+    required this.requireToSettleType,
   }) : super(key: key);
 
   @override
@@ -55,10 +59,128 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
   final GlobalKey<AdminSectionState> _adminSectionKey =
       GlobalKey<AdminSectionState>();
 
+  File? _adminDoc1File;
+  File? _adminDoc2File;
+  File? _adminDoc3File;
+
+  bool isNewUpload = false;
+
+  List<String> _tabTitles = [];
+  List<Widget> _tabContents = [];
+
   @override
   void initState() {
     super.initState();
-    _fetchVehicleData();
+
+    // Determine if this is a new upload based on vehicleId
+    isNewUpload = widget.vehicleId.isEmpty;
+
+    // Build tabs dynamically based on user selections
+    _buildTabs();
+
+    // Only fetch data if we have a vehicleId and it's not a new vehicle
+    if (!isNewUpload) {
+      _fetchVehicleData();
+    } else {
+      // Clear all data for new vehicles
+      _clearAllData();
+
+      // Also clear data in child sections
+      if (_maintenanceSectionKey.currentState != null) {
+        _maintenanceSectionKey.currentState!.clearData();
+      }
+      if (_adminSectionKey.currentState != null) {
+        _adminSectionKey.currentState!.clearData();
+      }
+    }
+  }
+
+  void _buildTabs() {
+    _tabTitles = [];
+    _tabContents = [];
+    _selectedTabIndex = 0;
+
+    if (widget.maintenanceSelection == 'yes' ||
+        widget.warrantySelection == 'yes') {
+      // Add Maintenance tab
+      _tabTitles.add('MAINTENANCE');
+      _tabContents.add(
+        MaintenanceSection(
+          key: _maintenanceSectionKey,
+          vehicleId: widget.vehicleId,
+          isUploading: _isUploading,
+          maintenanceSelection: widget.maintenanceSelection,
+          warrantySelection: widget.warrantySelection,
+          onMaintenanceFileSelected: (file) {
+            setState(() {
+              _maintenanceDocFile = file;
+            });
+          },
+          onWarrantyFileSelected: (file) {
+            setState(() {
+              _warrantyDocFile = file;
+            });
+          },
+          oemInspectionType: _oemInspectionType,
+          oemInspectionExplanation: _oemInspectionExplanationController.text,
+          maintenanceDocFile: _maintenanceDocFile,
+          warrantyDocFile: _warrantyDocFile,
+          maintenanceDocUrl: _maintenanceDocUrl,
+          warrantyDocUrl: _warrantyDocUrl,
+        ),
+      );
+    }
+
+    // Add Admin tab
+    _tabTitles.add('ADMIN');
+    _tabContents.add(
+      AdminSection(
+        key: _adminSectionKey,
+        vehicleId: widget.vehicleId,
+        natisRc1Url: widget.natisRc1Url,
+        isUploading: _isUploading,
+        requireToSettleType: widget.requireToSettleType,
+        onAdminDoc1Selected: (File? file) {
+          setState(() {
+            _adminDoc1File = file;
+          });
+        },
+        onAdminDoc2Selected: (File? file) {
+          setState(() {
+            _adminDoc2File = file;
+          });
+        },
+        onAdminDoc3Selected: (File? file) {
+          setState(() {
+            _adminDoc3File = file;
+          });
+        },
+      ),
+    );
+
+    // Add Truck Condition tab
+    _tabTitles.add('TRUCK CONDITION');
+    _tabContents.add(
+      TruckConditionSection(
+        vehicleId: widget.vehicleId,
+      ),
+    );
+  }
+
+  void _clearAllData() {
+    setState(() {
+      _maintenanceDocFile = null;
+      _maintenanceDocUrl = null;
+      _warrantyDocFile = null;
+      _warrantyDocUrl = null;
+      _oemInspectionType = 'yes';
+      _oemInspectionExplanationController.clear();
+
+      // Clear admin section data
+      _adminDoc1File = null;
+      _adminDoc2File = null;
+      _adminDoc3File = null;
+    });
   }
 
   Future<void> _fetchVehicleData() async {
@@ -70,24 +192,30 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
       if (doc.exists) {
         Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+
         if (data != null) {
-          // Get maintenance data
           Map<String, dynamic>? maintenanceData =
               data['maintenance'] as Map<String, dynamic>?;
+          Map<String, dynamic>? adminData =
+              data['adminData'] as Map<String, dynamic>?;
 
+          // Only load data if it exists
           if (maintenanceData != null) {
             setState(() {
-              // Set the variables accordingly
               _oemInspectionType =
                   maintenanceData['oemInspectionType'] ?? 'yes';
               if (_oemInspectionType == 'no') {
                 _oemInspectionExplanationController.text =
                     maintenanceData['oemReason'] ?? '';
               }
-              // Set the URLs for the documents if they exist
               _maintenanceDocUrl = maintenanceData['maintenanceDocumentUrl'];
               _warrantyDocUrl = maintenanceData['warrantyDocumentUrl'];
             });
+          }
+
+          // Pass the admin data to AdminSection only if it exists
+          if (_adminSectionKey.currentState != null && adminData != null) {
+            _adminSectionKey.currentState!.loadAdminData(adminData);
           }
         }
       }
@@ -273,13 +401,9 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if (index == 2) {
-            _navigateToTruckConditionsTabsPage(index);
-          } else {
-            setState(() {
-              _selectedTabIndex = index;
-            });
-          }
+          setState(() {
+            _selectedTabIndex = index;
+          });
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 0),
@@ -307,132 +431,37 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     );
   }
 
-  Widget _buildImageSection() {
-    return Container(
-      height: 350.0, // Increased height
-      width: double.infinity,
-      decoration: BoxDecoration(
-        image: widget.mainImageFile != null
-            ? DecorationImage(
-                image: FileImage(widget.mainImageFile!),
-                fit: BoxFit.cover,
-              )
-            : (widget.mainImageUrl != null && widget.mainImageUrl!.isNotEmpty
-                ? DecorationImage(
-                    image: NetworkImage(widget.mainImageUrl!),
-                    fit: BoxFit.cover,
-                  )
-                : null),
-        color: Colors.grey[300],
-      ),
-      child: widget.mainImageFile == null &&
-              (widget.mainImageUrl == null || widget.mainImageUrl!.isEmpty)
-          ? const Center(
-              child: Text(
-                'No Image Available',
-                style: TextStyle(color: Colors.black54),
-              ),
-            )
-          : null,
-    );
-  }
-
   Widget _buildContent() {
     return IndexedStack(
       index: _selectedTabIndex,
-      children: [
-        MaintenanceSection(
-          key: _maintenanceSectionKey, // Assign the GlobalKey
-          vehicleId: widget.vehicleId,
-          isUploading: _isUploading,
-          maintenanceDocFile: _maintenanceDocFile,
-          warrantyDocFile: _warrantyDocFile,
-          onMaintenanceFileSelected: (file) {
-            setState(() {
-              _maintenanceDocFile = file;
-            });
-          },
-          onWarrantyFileSelected: (file) {
-            setState(() {
-              _warrantyDocFile = file; // Correctly setting the file
-            });
-          },
-          oemInspectionType: _oemInspectionType,
-          oemInspectionExplanation: _oemInspectionExplanationController.text,
-          maintenanceDocUrl: _maintenanceDocUrl,
-          warrantyDocUrl: _warrantyDocUrl,
-        ),
-        AdminSection(
-          key: _adminSectionKey, // Assign the GlobalKey
-          vehicleId: widget.vehicleId, // Pass vehicleId
-          isUploading: _isUploading,
-          onAdminDoc1Selected: (file) {
-            setState(() {
-              // Handle Admin Document 1 selection if needed
-            });
-          },
-          onAdminDoc2Selected: (file) {
-            setState(() {
-              // Handle Admin Document 2 selection if needed
-            });
-          },
-          onAdminDoc3Selected: (file) {
-            setState(() {
-              // Handle Admin Document 3 selection if needed
-            });
-          },
-        ),
-        TruckConditionSection(
-          mainImageFile: widget.mainImageFile,
-          mainImageUrl: widget.mainImageUrl,
-          vehicleId: widget.vehicleId,
-        ),
-      ],
-    );
-  }
-
-  Future<void> _navigateToTruckConditionsTabsPage(int index) async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TruckConditionsTabsPage(
-          initialIndex: index,
-          mainImageFile: widget.mainImageFile,
-          mainImageUrl: widget.mainImageUrl,
-          vehicleId: widget.vehicleId,
-        ),
-      ),
+      children: _tabContents,
     );
   }
 
   // Method to handle "Continue" button press
   Future<void> _onContinuePressed() async {
-    if (_selectedTabIndex == 0) {
-      // Maintenance Tab
-      bool maintenanceSaved =
-          await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
-              false;
-      if (maintenanceSaved) {
-        bool parentSaved = await _saveMaintenanceWarrantyData();
-        if (parentSaved) {
-          setState(() {
-            _selectedTabIndex = 1;
-          });
+    if (_selectedTabIndex < _tabContents.length - 1) {
+      String currentTab = _tabTitles[_selectedTabIndex];
+      bool dataSaved = false;
+
+      if (currentTab == 'MAINTENANCE') {
+        bool maintenanceSaved =
+            await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
+                false;
+        if (maintenanceSaved) {
+          dataSaved = await _saveMaintenanceWarrantyData();
         }
+      } else if (currentTab == 'ADMIN') {
+        dataSaved =
+            await _adminSectionKey.currentState?.saveAdminData() ?? false;
       }
-    } else if (_selectedTabIndex == 1) {
-      // Admin Tab
-      bool adminSaved =
-          await _adminSectionKey.currentState?.saveAdminData() ?? false;
-      if (adminSaved) {
+
+      if (dataSaved) {
         setState(() {
-          _selectedTabIndex = 2;
+          _selectedTabIndex += 1;
         });
       }
-    } else if (_selectedTabIndex == 2) {
-      // Truck Condition Tab
-      // Typically, "Continue" is not needed on the last tab
-      // You might disable the "Continue" button or hide it
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You are on the last tab.')),
       );
@@ -443,33 +472,28 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
   Future<void> _onDonePressed() async {
     bool allSaved = true;
 
-    // Save Maintenance Data
-    bool maintenanceSaved =
-        await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
-            false;
-    if (!maintenanceSaved) {
-      allSaved = false;
+    // Save Maintenance Data if the tab exists
+    if (_maintenanceSectionKey.currentState != null) {
+      bool maintenanceSaved =
+          await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
+              false;
+      if (!maintenanceSaved) {
+        allSaved = false;
+      }
     }
 
-    // Save Admin Data
+    // Save Admin Data without validation
     bool adminSaved =
         await _adminSectionKey.currentState?.saveAdminData() ?? false;
-    if (!adminSaved) {
-      allSaved = false;
-    }
-
-    // TODO: Save TruckConditionSection data if necessary
 
     if (allSaved) {
       bool parentSaved = await _saveMaintenanceWarrantyData();
       if (parentSaved) {
-        // Navigate to Home Screen
-        Navigator.of(context)
-            .pushReplacementNamed('/home'); // Adjust route as needed
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fix errors before proceeding.')),
+        const SnackBar(content: Text('Error saving data. Please try again.')),
       );
     }
   }
@@ -480,23 +504,18 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
       body: GradientBackground(
         child: Column(
           children: [
-            // Image Section with Overlayed Buttons
-            Stack(
-              children: [
-                _buildImageSection(),
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 10.0,
-                  left: 16.0,
-                  right: 16.0,
-                  child: Row(
-                    children: [
-                      _buildCustomTabButton('MAINTENANCE', 0),
-                      _buildCustomTabButton('ADMIN', 1),
-                      _buildCustomTabButton('TRUCK CONDITION', 2),
-                    ],
-                  ),
-                ),
-              ],
+            // Replace image stack with just the tab buttons
+            Padding(
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 10.0,
+                left: 16.0,
+                right: 16.0,
+              ),
+              child: Row(
+                children: List.generate(_tabTitles.length, (index) {
+                  return _buildCustomTabButton(_tabTitles[index], index);
+                }),
+              ),
             ),
             // Content Section
             Expanded(
@@ -516,8 +535,9 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                   Expanded(
                     child: CustomButton(
                       text: 'Continue',
-                      onPressed:
-                          _selectedTabIndex < 2 ? _onContinuePressed : null,
+                      onPressed: _selectedTabIndex < _tabContents.length - 1
+                          ? _onContinuePressed
+                          : null,
                       borderColor: AppColors.blue,
                     ),
                   ),

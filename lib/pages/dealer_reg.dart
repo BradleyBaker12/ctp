@@ -55,7 +55,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
   final FocusNode _postalCodeFocusNode = FocusNode();
   final FocusNode _countryFocusNode = FocusNode();
 
-  String? _selectedCountry;
+  String? _selectedCountry = 'South Africa';
   List<String> _countries = [];
 
   String? _bankConfirmationFile;
@@ -76,6 +76,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
     final List<dynamic> data = await json.decode(response);
     setState(() {
       _countries = data.map((item) => item['country'].toString()).toList();
+      if (_countries.contains('South Africa')) {
+        _countries.remove('South Africa');
+        _countries.insert(0, 'South Africa');
+      }
     });
   }
 
@@ -128,74 +132,113 @@ class _DealerRegPageState extends State<DealerRegPage> {
       return;
     }
 
-    // Check if all required files are uploaded
-    if (_bankConfirmationFile == null ||
-        _cipcCertificateFile == null ||
-        _proxyFile == null ||
-        _brncFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload all required documents.')),
-      );
-      return;
-    }
-
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final userId = Provider.of<UserProvider>(context, listen: false).userId!;
+      final userId = Provider.of<UserProvider>(context, listen: false).userId;
+      if (userId == null) {
+        throw Exception('User ID is not available');
+      }
+
       final FirebaseStorage storage = FirebaseStorage.instance;
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-      Future<String> uploadFile(String filePath, String fileName) async {
-        final ref = storage.ref().child('documents/$userId/$fileName');
-        final task = ref.putFile(File(filePath));
-        final snapshot = await task;
-        return await snapshot.ref.getDownloadURL();
+      Future<String?> uploadFile(String? filePath, String fileName) async {
+        try {
+          if (filePath == null) return null;
+          final ref = storage.ref().child('documents/$userId/$fileName');
+          final task = ref.putFile(File(filePath));
+          final snapshot = await task;
+          return await snapshot.ref.getDownloadURL();
+        } catch (e) {
+          print('Error uploading $fileName: $e');
+          return null;
+        }
       }
 
-      final bankConfirmationUrl =
-          await uploadFile(_bankConfirmationFile!, 'bank_confirmation.pdf');
-      final cipcCertificateUrl =
-          await uploadFile(_cipcCertificateFile!, 'cipc_certificate.pdf');
-      final proxyUrl = await uploadFile(_proxyFile!, 'proxy.pdf');
-      final brncUrl = await uploadFile(_brncFile!, 'brnc.pdf');
+      Map<String, dynamic> dealerData = {
+        'companyDetails': {
+          'companyName': _companyNameController.text,
+          'tradingName': _tradingNameController.text,
+          'registrationNumber': _registrationNumberController.text,
+          'vatNumber': _vatNumberController.text,
+        },
+        'personalDetails': {
+          'firstName': _firstNameController.text,
+          'middleName': _middleNameController.text,
+          'lastName': _lastNameController.text,
+        },
+        'address': {
+          'addressLine1': _addressLine1Controller.text,
+          'addressLine2': _addressLine2Controller.text,
+          'city': _cityController.text,
+          'state': _stateController.text,
+          'postalCode': _postalCodeController.text,
+          'country': _selectedCountry,
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
 
-      await firestore.collection('users').doc(userId).update({
-        'companyName': _companyNameController.text,
-        'tradingName': _tradingNameController.text,
-        'registrationNumber': _registrationNumberController.text,
-        'vatNumber': _vatNumberController.text,
-        'firstName': _firstNameController.text,
-        'middleName': _middleNameController.text,
-        'lastName': _lastNameController.text,
-        'addressLine1': _addressLine1Controller.text,
-        'addressLine2': _addressLine2Controller.text,
-        'city': _cityController.text,
-        'state': _stateController.text,
-        'postalCode': _postalCodeController.text,
-        'country': _selectedCountry, // Save the selected country
-        'bankConfirmationUrl': bankConfirmationUrl,
-        'cipcCertificateUrl': cipcCertificateUrl,
-        'proxyUrl': proxyUrl,
-        'brncUrl': brncUrl,
-      });
+      if (_bankConfirmationFile != null) {
+        final url =
+            await uploadFile(_bankConfirmationFile, 'bank_confirmation.pdf');
+        if (url != null) dealerData['documents'] = {'bankConfirmationUrl': url};
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration completed successfully!')),
-      );
-      Navigator.pushReplacementNamed(
-          context, '/houseRules'); // Navigate to the house rules page
+      if (_cipcCertificateFile != null) {
+        final url =
+            await uploadFile(_cipcCertificateFile, 'cipc_certificate.pdf');
+        if (url != null) {
+          dealerData['documents'] = {
+            ...?dealerData['documents'],
+            'cipcCertificateUrl': url
+          };
+        }
+      }
+
+      if (_proxyFile != null) {
+        final url = await uploadFile(_proxyFile, 'proxy.pdf');
+        if (url != null) {
+          dealerData['documents'] = {
+            ...?dealerData['documents'],
+            'proxyUrl': url
+          };
+        }
+      }
+
+      if (_brncFile != null) {
+        final url = await uploadFile(_brncFile, 'brnc.pdf');
+        if (url != null) {
+          dealerData['documents'] = {
+            ...?dealerData['documents'],
+            'brncUrl': url
+          };
+        }
+      }
+
+      await firestore.collection('users').doc(userId).update(dealerData);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration completed successfully!')),
+        );
+        Navigator.pushReplacementNamed(context, '/houseRules');
+      }
     } catch (e) {
       print("Error submitting form: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error submitting form: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error submitting form: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

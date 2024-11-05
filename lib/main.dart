@@ -16,10 +16,18 @@ import 'package:ctp/pages/phone_number_page.dart';
 import 'package:ctp/pages/prefered_brands.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/sign_in_page.dart';
-import 'package:ctp/pages/signup_page.dart';
+import 'package:ctp/pages/signup_form.dart';
 import 'package:ctp/pages/trading_category_page.dart';
 import 'package:ctp/pages/trading_intrests_page.dart';
 import 'package:ctp/pages/transporter_reg.dart';
+import 'package:ctp/pages/truckForms/admin_form.dart';
+import 'package:ctp/pages/truckForms/chassis_form.dart';
+import 'package:ctp/pages/truckForms/drive_train_form.dart';
+import 'package:ctp/pages/truckForms/external_cab_form.dart';
+import 'package:ctp/pages/truckForms/internal_cab_form.dart';
+import 'package:ctp/pages/truckForms/maintenance_form.dart';
+import 'package:ctp/pages/truckForms/truck_condition_form.dart';
+import 'package:ctp/pages/truckForms/tyres_form.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/tutorial_page.dart';
@@ -30,6 +38,7 @@ import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -48,18 +57,21 @@ void main() async {
   );
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // Enable Crashlytics for Flutter framework errors
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => UserProvider()),
-        ChangeNotifierProvider(create: (context) => VehicleProvider()),
-        ChangeNotifierProvider(create: (context) => OfferProvider()),
-        ChangeNotifierProvider(create: (context) => ComplaintsProvider()),
-        ChangeNotifierProvider(create: (context) => FormDataProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => VehicleProvider()),
+        ChangeNotifierProvider(create: (_) => OfferProvider()),
+        ChangeNotifierProvider(create: (_) => ComplaintsProvider()),
+        ChangeNotifierProvider(create: (_) => FormDataProvider()),
+        ChangeNotifierProxyProvider<FormDataProvider, TruckConditionsProvider>(
+          create: (_) => TruckConditionsProvider(''),
+          update: (_, formData, __) =>
+              TruckConditionsProvider(formData.vehicleId ?? ''),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -80,7 +92,7 @@ class MyApp extends StatelessWidget {
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginPage(),
-        '/signup': (context) => const SignUpPage(),
+        '/signup': (context) => const SignUpFormPage(),
         '/signin': (context) => const SignInPage(),
         '/home': (context) => const HomePage(),
         '/phoneNumber': (context) => const PhoneNumberPage(),
@@ -105,7 +117,23 @@ class MyApp extends StatelessWidget {
         '/waiting-for-approval': (context) => const WaitingForApprovalPage(),
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
-        '/vehicleUpload': (context) => VehicleUploadScreen(),
+        '/vehicleUpload': (context) => const VehicleUploadScreen(),
+        // '/external-cab': (context) => ExternalCabForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
+        // '/internal-cab': (context) => InternalCabForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
+        // '/drive-train': (context) => DriveTrainForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
+        // '/chassis': (context) => ChassisForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
+        // '/tyres': (context) => TyresForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
+        // '/truck-condition': (context) => TruckConditionForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
+        // '/admin': (context) => AdminForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
+        // '/maintenance': (context) => MaintenanceForm(
+        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
@@ -119,7 +147,6 @@ class MyApp extends StatelessWidget {
             ),
           );
         }
-        // Handle other routes if necessary
         return null;
       },
     );
@@ -131,9 +158,8 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final complaintsProvider =
-        Provider.of<ComplaintsProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context);
+    final complaintsProvider = Provider.of<ComplaintsProvider>(context);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       userProvider.fetchUserData();

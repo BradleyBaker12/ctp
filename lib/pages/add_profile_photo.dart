@@ -33,7 +33,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
           context,
           MaterialPageRoute(
             builder: (context) =>
-                CropPhotoPage(imageFile: pickedFile), // Pass XFile directly
+                CropPhotoPage(imageFile: pickedFile, userData: const {},), // Pass XFile directly
           ),
         );
       } else {

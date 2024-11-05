@@ -8,7 +8,7 @@ import 'package:ctp/components/custom_radio_button.dart';
 
 class DriveTrainPage extends StatefulWidget {
   final String vehicleId;
-  const DriveTrainPage({Key? key, required this.vehicleId}) : super(key: key);
+  const DriveTrainPage({super.key, required this.vehicleId});
 
   @override
   DriveTrainPageState createState() => DriveTrainPageState();
@@ -29,7 +29,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
   String _retarderCondition = 'no';
 
   // Map to store selected images for different sections
-  Map<String, File?> _selectedImages = {
+  final Map<String, File?> _selectedImages = {
     'Down': null,
     'Left': null,
     'Up': null,
@@ -47,6 +47,9 @@ class DriveTrainPageState extends State<DriveTrainPage>
     'Engine Water Leak': null,
     'Gearbox Oil Leak': null,
   };
+
+  // Add a map to store image URLs
+  final Map<String, String> _imageUrls = {};
 
   @override
   bool get wantKeepAlive => true;
@@ -511,10 +514,11 @@ class DriveTrainPageState extends State<DriveTrainPage>
 
       return downloadUrl;
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error uploading image: $e')),
         );
+      }
       return '';
     }
   }
@@ -522,35 +526,40 @@ class DriveTrainPageState extends State<DriveTrainPage>
   // Method to save data to Firestore
   Future<bool> saveData() async {
     try {
-      final driveTrainRef = _firestore
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('truckConditions')
-          .doc('DriveTrain');
-
-      // Preparing data to save
-      Map<String, dynamic> dataToSave = {
-        'condition': _selectedCondition,
-        'oilLeakConditionEngine': _oilLeakConditionEngine,
-        'waterLeakConditionEngine': _waterLeakConditionEngine,
-        'blowbyCondition': _blowbyCondition,
-        'oilLeakConditionGearbox': _oilLeakConditionGearbox,
-        'retarderCondition': _retarderCondition,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      };
-
-      // Uploading and saving images
+      // Upload images and get URLs
+      Map<String, String> imageUrls = {};
       for (var entry in _selectedImages.entries) {
         if (entry.value != null) {
-          String imageUrl = await _uploadImage(entry.value!, entry.key);
-          if (imageUrl.isNotEmpty) {
-            dataToSave[entry.key] = imageUrl;
+          String imagePath =
+              'vehicles/${widget.vehicleId}/drive_train/views/${entry.key}_${DateTime.now().millisecondsSinceEpoch}';
+          String downloadUrl = await _uploadImage(entry.value!, imagePath);
+          if (downloadUrl.isNotEmpty) {
+            imageUrls[entry.key] = downloadUrl;
+            _imageUrls[entry.key] =
+                downloadUrl; // Store URL for future reference
           }
+        } else if (_imageUrls.containsKey(entry.key)) {
+          // Keep existing URLs
+          imageUrls[entry.key] = _imageUrls[entry.key]!;
         }
       }
 
-      // Saving data to Firestore
-      await driveTrainRef.set(dataToSave, SetOptions(merge: true));
+      // Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .collection('inspections')
+          .doc('drive_train')
+          .set({
+        'condition': _selectedCondition,
+        'images': imageUrls,
+        'engineOilLeak': _oilLeakConditionEngine,
+        'engineWaterLeak': _waterLeakConditionEngine,
+        'blowbyCondition': _blowbyCondition,
+        'gearboxOilLeak': _oilLeakConditionGearbox,
+        'retarderCondition': _retarderCondition,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -560,12 +569,73 @@ class DriveTrainPageState extends State<DriveTrainPage>
 
       return true;
     } catch (e) {
+      print('Error saving drive train data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save Drive Train data: $e')),
+          SnackBar(content: Text('Error saving data: $e')),
         );
       }
       return false;
     }
+  }
+
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    setState(() {
+      // Initialize basic fields
+      _selectedCondition = data['condition'] ?? 'good';
+      _oilLeakConditionEngine = data['engineOilLeak'] ?? 'no';
+      _waterLeakConditionEngine = data['engineWaterLeak'] ?? 'no';
+      _blowbyCondition = data['blowbyCondition'] ?? 'no';
+      _oilLeakConditionGearbox = data['gearboxOilLeak'] ?? 'no';
+      _retarderCondition = data['retarderCondition'] ?? 'no';
+
+      // Initialize images
+      if (data['images'] != null) {
+        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
+        images.forEach((key, value) {
+          if (value is Map && value['path'] != null) {
+            _selectedImages[key] = File(value['path']);
+          } else if (value is Map && value['url'] != null) {
+            // Store URL for later use
+            _imageUrls[key] = value['url'];
+          }
+        });
+      }
+    });
+  }
+
+  Future<Map<String, dynamic>> getData() async {
+    // Create a sanitized copy of the data
+    Map<String, dynamic> sanitizedData = {
+      'condition': _selectedCondition,
+      'engineOilLeak': _oilLeakConditionEngine,
+      'engineWaterLeak': _waterLeakConditionEngine,
+      'blowbyCondition': _blowbyCondition,
+      'gearboxOilLeak': _oilLeakConditionGearbox,
+      'retarderCondition': _retarderCondition,
+    };
+
+    // Handle images
+    Map<String, dynamic> imageData = {};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        imageData[entry.key] = {
+          'path': entry.value!.path,
+          'isNew': true,
+        };
+      } else if (_imageUrls.containsKey(entry.key)) {
+        imageData[entry.key] = {
+          'url': _imageUrls[entry.key],
+          'isNew': false,
+        };
+      }
+    }
+
+    if (imageData.isNotEmpty) {
+      sanitizedData['images'] = imageData;
+    }
+
+    return sanitizedData;
   }
 }

@@ -194,6 +194,8 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                           orElse: () => Vehicle(
                             id: vehicleDoc.id,
                             application: 'N/A',
+                            brand: 'N/A',
+                            referenceNumber: 'N/A',
                             warrantyDetails: 'N/A',
                             damageDescription: '',
                             damagePhotos: [],
@@ -333,18 +335,8 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                                 faultCodes: [],
                               ),
                               tyres: Tyres(
-                                chassisCondition: '',
-                                virginOrRecap: '',
-                                rimType: '',
                                 lastUpdated: DateTime.now(),
-                                photos: {
-                                  'Tyre_Pos_1 Photo': '',
-                                  'Tyre_Pos_2 Photo': '',
-                                  'Tyre_Pos_3 Photo': '',
-                                  'Tyre_Pos_4 Photo': '',
-                                  'Tyre_Pos_5 Photo': '',
-                                  'Tyre_Pos_6 Photo': '',
-                                },
+                                positions: {},
                               ),
                             ),
                             vehicleStatus: 'N/A',

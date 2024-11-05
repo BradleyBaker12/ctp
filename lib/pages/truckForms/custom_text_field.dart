@@ -14,7 +14,7 @@ class CustomTextField extends StatelessWidget {
   final TextCapitalization textCapitalization;
 
   const CustomTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.hintText,
     this.isCurrency = false,
@@ -22,7 +22,7 @@ class CustomTextField extends StatelessWidget {
     this.inputFormatter,
     this.validator,
     this.textCapitalization = TextCapitalization.none,
-  }) : super(key: key);
+  });
 
   String _capitalizeHintText(String hint) {
     if (hint.isEmpty) return hint;
@@ -31,7 +31,7 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final NumberFormat _numberFormat = NumberFormat("#,##0", "en_US");
+    final NumberFormat numberFormat = NumberFormat("#,##0", "en_US");
 
     return Container(
       decoration: BoxDecoration(
@@ -76,7 +76,7 @@ class CustomTextField extends StatelessWidget {
               ? (value) {
                   if (value.isNotEmpty) {
                     try {
-                      final formattedValue = _numberFormat
+                      final formattedValue = numberFormat
                           .format(int.parse(value.replaceAll(" ", "")))
                           .replaceAll(",", " ");
                       controller.value = TextEditingValue(

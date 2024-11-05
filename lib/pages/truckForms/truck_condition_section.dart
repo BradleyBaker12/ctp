@@ -8,11 +8,11 @@ class TruckConditionSection extends StatelessWidget {
   final String vehicleId;
 
   const TruckConditionSection({
-    Key? key,
+    super.key,
     this.mainImageFile,
     this.mainImageUrl,
     required this.vehicleId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

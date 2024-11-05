@@ -13,6 +13,7 @@ import 'truck_conditions.dart';
 
 class Vehicle {
   final String id;
+
   final String application;
   final String damageDescription;
   final List<String?> damagePhotos;
@@ -46,6 +47,8 @@ class Vehicle {
   final String axles;
   final String trailerLength;
   String? natisRc1Url; // Ensure this field exists
+  final String referenceNumber;
+  final String brand;
 
   // Nested Objects
   final AdminData adminData;
@@ -90,6 +93,8 @@ class Vehicle {
     required this.maintenance,
     required this.truckConditions,
     this.natisRc1Url,
+    required this.referenceNumber,
+    required this.brand,
   });
 
   // Factory constructor to create a Vehicle instance from Firestore data
@@ -114,9 +119,9 @@ class Vehicle {
           : [],
       dashboardPhoto: data['dashboardPhoto'] ?? '',
       engineNumber: data['engineNumber'] ?? 'N/A',
-      expectedSellingPrice: data['expectedSellingPrice'] ?? 'N/A',
+      expectedSellingPrice: data['sellingPrice'] ?? 'N/A',
       faultCodesPhoto: data['faultCodesPhoto'] ?? '',
-      hydraluicType: data['hydraluicType'] ?? 'N/A',
+      hydraluicType: data['hydraulics'] ?? 'N/A',
       licenceDiskUrl: data['licenceDiskUrl'] ?? '',
       makeModel: data['makeModel'] ?? 'N/A',
       mileage: data['mileage'] ?? 'N/A',
@@ -127,11 +132,11 @@ class Vehicle {
       registrationNumber: data['registrationNumber'] ?? 'N/A',
       suspensionType: data['suspensionType'] ?? 'N/A',
       transmissionType: data['transmissionType'] ?? 'N/A',
-      config: data['configuration'] ?? '',
+      config: data['config'] ?? '',
       userId: data['userId'] ?? 'N/A',
       vehicleType: data['vehicleType'] ?? 'N/A',
       vinNumber: data['vinNumber'] ?? 'N/A',
-      warrentyType: data['warrentyType'] ?? 'N/A',
+      warrentyType: data['warranty'] ?? 'N/A',
       year: data['year'] ?? 'N/A',
       createdAt: parsedCreatedAt,
       vehicleStatus: data['vehicleStatus'] ?? 'Live',
@@ -256,21 +261,10 @@ class Vehicle {
                 additionalFeatures: [],
                 faultCodes: [],
               ),
-              tyres: Tyres(
-                chassisCondition: '',
-                virginOrRecap: '',
-                rimType: '',
-                lastUpdated: DateTime.now(),
-                photos: {
-                  'Tyre_Pos_1 Photo': '',
-                  'Tyre_Pos_2 Photo': '',
-                  'Tyre_Pos_3 Photo': '',
-                  'Tyre_Pos_4 Photo': '',
-                  'Tyre_Pos_5 Photo': '',
-                  'Tyre_Pos_6 Photo': '',
-                },
-              ),
+              tyres: Tyres.fromMap(data['tyres'] ?? {}),
             ),
+      referenceNumber: data['referenceNumber'] ?? '',
+      brand: data['brand'] ?? '',
     );
   }
 
@@ -282,9 +276,9 @@ class Vehicle {
       'damagePhotos': damagePhotos,
       'dashboardPhoto': dashboardPhoto,
       'engineNumber': engineNumber,
-      'expectedSellingPrice': expectedSellingPrice,
+      'sellingPrice': expectedSellingPrice,
       'faultCodesPhoto': faultCodesPhoto,
-      'hydraluicType': hydraluicType,
+      'hydraulics': hydraluicType,
       'licenceDiskUrl': licenceDiskUrl,
       'makeModel': makeModel,
       'mileage': mileage,
@@ -299,7 +293,7 @@ class Vehicle {
       'userId': userId,
       'vehicleType': vehicleType,
       'vinNumber': vinNumber,
-      'warrentyType': warrentyType,
+      'warranty': warrentyType,
       'warrantyDetails': warrantyDetails,
       'year': year,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -312,6 +306,8 @@ class Vehicle {
       'adminData': adminData.toMap(),
       'maintenance': maintenance.toMap(),
       'truckConditions': truckConditions.toMap(),
+      'referenceNumber': referenceNumber,
+      'brand': brand,
     };
   }
 }

@@ -14,12 +14,14 @@ class MaintenanceSection extends StatefulWidget {
   final bool isUploading;
   final File? maintenanceDocFile;
   final File? warrantyDocFile;
-  final Function(File?) onMaintenanceFileSelected;
-  final Function(File?) onWarrantyFileSelected;
   final String oemInspectionType;
   final String oemInspectionExplanation;
   final String? maintenanceDocUrl;
   final String? warrantyDocUrl;
+  final Function(File?) onMaintenanceFileSelected;
+  final Function(File?) onWarrantyFileSelected;
+  final String maintenanceSelection;
+  final String warrantySelection;
 
   const MaintenanceSection({
     Key? key,
@@ -33,6 +35,8 @@ class MaintenanceSection extends StatefulWidget {
     required this.oemInspectionExplanation,
     this.maintenanceDocUrl,
     this.warrantyDocUrl,
+    required this.maintenanceSelection,
+    required this.warrantySelection,
   }) : super(key: key);
 
   @override
@@ -56,6 +60,25 @@ class MaintenanceSectionState extends State<MaintenanceSection>
   void dispose() {
     _oemReasonController.dispose();
     super.dispose();
+  }
+
+  void clearData() {
+    setState(() {
+      _oemInspectionType = 'yes';
+      _oemReasonController.clear();
+    });
+  }
+
+  // Add method to load existing data
+  void loadMaintenanceData(Map<String, dynamic>? maintenanceData) {
+    if (maintenanceData != null) {
+      setState(() {
+        _oemInspectionType = maintenanceData['oemInspectionType'] ?? 'yes';
+        _oemReasonController.text = maintenanceData['oemReason'] ?? '';
+      });
+    } else {
+      clearData();
+    }
   }
 
   // Method to save maintenance data
@@ -176,350 +199,357 @@ class MaintenanceSectionState extends State<MaintenanceSection>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Text(
-              'Maintenance'.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 25,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Center(
-            child: Text(
-              'PLEASE ATTACH MAINTENANCE DOCUMENTATION'.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 15),
-          InkWell(
-            onTap: _pickMaintenanceDocument,
-            borderRadius: BorderRadius.circular(10.0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10.0),
-                border: Border.all(
-                  color: const Color(0xFF0E4CAF),
-                  width: 2.0,
-                ),
+          if (widget.maintenanceSelection == 'yes') ...[
+            Center(
+              child: Text(
+                'Maintenance'.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 25,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900),
+                textAlign: TextAlign.center,
               ),
-              child: Column(
-                children: [
-                  if (widget.maintenanceDocFile == null &&
-                      widget.maintenanceDocUrl == null)
-                    Icon(
-                      Icons.drive_folder_upload_outlined,
-                      color: Colors.white,
-                      size: 50.0,
-                      semanticLabel: 'Upload Maintenance Document',
-                    ),
-                  const SizedBox(height: 10),
-                  if (widget.maintenanceDocFile != null ||
-                      widget.maintenanceDocUrl != null)
-                    Column(
-                      children: [
-                        if (widget.maintenanceDocFile != null)
-                          if (_isImageFile(widget.maintenanceDocFile!.path))
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.file(
-                                widget.maintenanceDocFile!,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          else
-                            Column(
-                              children: [
-                                Icon(
-                                  _getFileIcon(widget.maintenanceDocFile!.path
-                                      .split('.')
-                                      .last),
-                                  color: Colors.white,
-                                  size: 50.0,
+            ),
+            const SizedBox(height: 15),
+            Center(
+              child: Text(
+                'PLEASE ATTACH MAINTENANCE DOCUMENTATION'.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 15),
+            InkWell(
+              onTap: _pickMaintenanceDocument,
+              borderRadius: BorderRadius.circular(10.0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10.0),
+                  border: Border.all(
+                    color: const Color(0xFF0E4CAF),
+                    width: 2.0,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    if (widget.maintenanceDocFile == null &&
+                        widget.maintenanceDocUrl == null)
+                      Icon(
+                        Icons.drive_folder_upload_outlined,
+                        color: Colors.white,
+                        size: 50.0,
+                        semanticLabel: 'Upload Maintenance Document',
+                      ),
+                    const SizedBox(height: 10),
+                    if (widget.maintenanceDocFile != null ||
+                        widget.maintenanceDocUrl != null)
+                      Column(
+                        children: [
+                          if (widget.maintenanceDocFile != null)
+                            if (_isImageFile(widget.maintenanceDocFile!.path))
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.file(
+                                  widget.maintenanceDocFile!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.maintenanceDocFile!.path
-                                      .split('/')
-                                      .last,
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                              )
+                            else
+                              Column(
+                                children: [
+                                  Icon(
+                                    _getFileIcon(widget.maintenanceDocFile!.path
+                                        .split('.')
+                                        .last),
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w500,
+                                    size: 50.0,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    widget.maintenanceDocFile!.path
+                                        .split('/')
+                                        .last,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              )
+                          else if (widget.maintenanceDocUrl != null)
+                            if (_isImageFile(widget.maintenanceDocUrl!))
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.network(
+                                  widget.maintenanceDocUrl!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
                                 ),
-                              ],
-                            )
-                        else if (widget.maintenanceDocUrl != null)
-                          if (_isImageFile(widget.maintenanceDocUrl!))
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                widget.maintenanceDocUrl!,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          else
-                            Column(
-                              children: [
-                                Icon(
-                                  _getFileIcon(widget.maintenanceDocUrl!
-                                      .split('.')
-                                      .last),
-                                  color: Colors.white,
-                                  size: 50.0,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  getFileNameFromUrl(widget.maintenanceDocUrl!),
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                              )
+                            else
+                              Column(
+                                children: [
+                                  Icon(
+                                    _getFileIcon(widget.maintenanceDocUrl!
+                                        .split('.')
+                                        .last),
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w500,
+                                    size: 50.0,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    getFileNameFromUrl(
+                                        widget.maintenanceDocUrl!),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                          const SizedBox(height: 8),
+                          if (widget.isUploading)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Uploading...',
+                                  style: TextStyle(color: Colors.white),
                                 ),
                               ],
                             ),
-                        const SizedBox(height: 8),
-                        if (widget.isUploading)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              CircularProgressIndicator(),
-                              SizedBox(width: 10),
-                              Text(
-                                'Uploading...',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                      ],
-                    )
-                  else if (!widget.isUploading)
-                    const Text(
-                      'MAINTENANCE DOC UPLOAD',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
+                        ],
+                      )
+                    else if (!widget.isUploading)
+                      const Text(
+                        'MAINTENANCE DOC UPLOAD',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 15),
-          Center(
-            child: Text(
-              'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?'
-                  .toUpperCase(),
-              style: const TextStyle(fontSize: 15, color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Center(
-            child: Text(
-              'Please note that OEM will charge you for inspection'
-                  .toUpperCase(),
-              style: const TextStyle(fontSize: 12, color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CustomRadioButton(
-                label: 'Yes',
-                value: 'yes',
-                groupValue: _oemInspectionType,
-                onChanged: (value) {
-                  setState(() {
-                    _oemInspectionType = value!;
-                    if (_oemInspectionType == 'yes') {
-                      _oemReasonController.clear(); // Clear the explanation
-                    }
-                  });
-                },
-              ),
-              const SizedBox(width: 15),
-              CustomRadioButton(
-                label: 'No',
-                value: 'no',
-                groupValue: _oemInspectionType,
-                onChanged: (value) {
-                  setState(() {
-                    _oemInspectionType = value!;
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          // Conditional Explanation Input Field
-          if (_oemInspectionType == 'no')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: CustomTextField(
-                controller: _oemReasonController,
-                hintText: 'ENTER REASONING HERE'.toUpperCase(),
-              ),
-            ),
-          const SizedBox(height: 15),
-          Center(
-            child: Text(
-              'PLEASE ATTACH WARRANTY DOCUMENTATION'.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 15),
-          InkWell(
-            onTap: _pickWarrantyDocument,
-            borderRadius: BorderRadius.circular(10.0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10.0),
-                border: Border.all(
-                  color: const Color(0xFF0E4CAF),
-                  width: 2.0,
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  if (widget.warrantyDocFile == null &&
-                      widget.warrantyDocUrl == null)
-                    Icon(
-                      Icons.drive_folder_upload_outlined,
-                      color: Colors.white,
-                      size: 50.0,
-                      semanticLabel: 'Upload Warranty Document',
-                    ),
-                  const SizedBox(height: 10),
-                  if (widget.warrantyDocFile != null ||
-                      widget.warrantyDocUrl != null)
-                    Column(
-                      children: [
-                        if (widget.warrantyDocFile != null)
-                          if (_isImageFile(widget.warrantyDocFile!.path))
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.file(
-                                widget.warrantyDocFile!,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          else
-                            Column(
-                              children: [
-                                Icon(
-                                  _getFileIcon(widget.warrantyDocFile!.path
-                                      .split('.')
-                                      .last),
-                                  color: Colors.white,
-                                  size: 50.0,
+            ),
+            const SizedBox(height: 15),
+            Center(
+              child: Text(
+                'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?'
+                    .toUpperCase(),
+                style: const TextStyle(fontSize: 15, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Center(
+              child: Text(
+                'Please note that OEM will charge you for inspection'
+                    .toUpperCase(),
+                style: const TextStyle(fontSize: 12, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CustomRadioButton(
+                  label: 'Yes',
+                  value: 'yes',
+                  groupValue: _oemInspectionType,
+                  onChanged: (value) {
+                    setState(() {
+                      _oemInspectionType = value!;
+                      if (_oemInspectionType == 'yes') {
+                        _oemReasonController.clear(); // Clear the explanation
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(width: 15),
+                CustomRadioButton(
+                  label: 'No',
+                  value: 'no',
+                  groupValue: _oemInspectionType,
+                  onChanged: (value) {
+                    setState(() {
+                      _oemInspectionType = value!;
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            // Conditional Explanation Input Field
+            if (_oemInspectionType == 'no')
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: CustomTextField(
+                  controller: _oemReasonController,
+                  hintText: 'ENTER REASONING HERE'.toUpperCase(),
+                ),
+              ),
+            const SizedBox(height: 15),
+          ],
+          if (widget.warrantySelection == 'yes') ...[
+            Center(
+              child: Text(
+                'PLEASE ATTACH WARRANTY DOCUMENTATION'.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 15),
+            InkWell(
+              onTap: _pickWarrantyDocument,
+              borderRadius: BorderRadius.circular(10.0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10.0),
+                  border: Border.all(
+                    color: const Color(0xFF0E4CAF),
+                    width: 2.0,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    if (widget.warrantyDocFile == null &&
+                        widget.warrantyDocUrl == null)
+                      Icon(
+                        Icons.drive_folder_upload_outlined,
+                        color: Colors.white,
+                        size: 50.0,
+                        semanticLabel: 'Upload Warranty Document',
+                      ),
+                    const SizedBox(height: 10),
+                    if (widget.warrantyDocFile != null ||
+                        widget.warrantyDocUrl != null)
+                      Column(
+                        children: [
+                          if (widget.warrantyDocFile != null)
+                            if (_isImageFile(widget.warrantyDocFile!.path))
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.file(
+                                  widget.warrantyDocFile!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.warrantyDocFile!.path.split('/').last,
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                              )
+                            else
+                              Column(
+                                children: [
+                                  Icon(
+                                    _getFileIcon(widget.warrantyDocFile!.path
+                                        .split('.')
+                                        .last),
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w500,
+                                    size: 50.0,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    widget.warrantyDocFile!.path
+                                        .split('/')
+                                        .last,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              )
+                          else if (widget.warrantyDocUrl != null)
+                            if (_isImageFile(widget.warrantyDocUrl!))
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.network(
+                                  widget.warrantyDocUrl!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
                                 ),
-                              ],
-                            )
-                        else if (widget.warrantyDocUrl != null)
-                          if (_isImageFile(widget.warrantyDocUrl!))
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                widget.warrantyDocUrl!,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          else
-                            Column(
-                              children: [
-                                Icon(
-                                  _getFileIcon(
-                                      widget.warrantyDocUrl!.split('.').last),
-                                  color: Colors.white,
-                                  size: 50.0,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  getFileNameFromUrl(widget.warrantyDocUrl!),
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                              )
+                            else
+                              Column(
+                                children: [
+                                  Icon(
+                                    _getFileIcon(
+                                        widget.warrantyDocUrl!.split('.').last),
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w500,
+                                    size: 50.0,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    getFileNameFromUrl(widget.warrantyDocUrl!),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                          const SizedBox(height: 8),
+                          if (widget.isUploading)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Uploading...',
+                                  style: TextStyle(color: Colors.white),
                                 ),
                               ],
                             ),
-                        const SizedBox(height: 8),
-                        if (widget.isUploading)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              CircularProgressIndicator(),
-                              SizedBox(width: 10),
-                              Text(
-                                'Uploading...',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                      ],
-                    )
-                  else if (!widget.isUploading)
-                    const Text(
-                      'WARRANTY DOC UPLOAD',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
+                        ],
+                      )
+                    else if (!widget.isUploading)
+                      const Text(
+                        'WARRANTY DOC UPLOAD',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+          ],
         ],
       ),
     );

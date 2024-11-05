@@ -1,35 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-class CustomTextField extends StatefulWidget {
+class CustomTextField extends StatelessWidget {
+  final TextEditingController controller;
   final String hintText;
   final bool obscureText;
-  final TextEditingController? controller;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CustomTextField({
     super.key,
+    required this.controller,
     required this.hintText,
     this.obscureText = false,
-    this.controller,
+    this.keyboardType,
+    this.inputFormatters,
   });
-
-  @override
-  _CustomTextFieldState createState() => _CustomTextFieldState();
-}
-
-class _CustomTextFieldState extends State<CustomTextField> {
-  bool _obscureText = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _obscureText = widget.obscureText;
-  }
-
-  void _toggleObscureText() {
-    setState(() {
-      _obscureText = !_obscureText;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,10 +28,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: TextField(
-        controller: widget.controller,
+        controller: controller,
         cursorColor: orange,
         decoration: InputDecoration(
-          hintText: widget.hintText,
+          hintText: hintText,
           hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
           filled: true,
           fillColor: Colors.transparent, // Keep the fillColor transparent
@@ -63,10 +49,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
           ),
           contentPadding:
               const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-          suffixIcon: widget.obscureText
+          suffixIcon: obscureText
               ? IconButton(
                   icon: Icon(
-                    _obscureText ? Icons.visibility : Icons.visibility_off,
+                    obscureText ? Icons.visibility : Icons.visibility_off,
                     color: Colors.white.withOpacity(0.7),
                   ),
                   onPressed: _toggleObscureText,
@@ -74,8 +60,14 @@ class _CustomTextFieldState extends State<CustomTextField> {
               : null,
         ),
         style: const TextStyle(color: Colors.white),
-        obscureText: _obscureText,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
       ),
     );
+  }
+
+  void _toggleObscureText() {
+    // Implement your logic here to toggle the obscureText state
   }
 }

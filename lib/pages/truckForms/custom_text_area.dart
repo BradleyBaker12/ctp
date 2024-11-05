@@ -9,11 +9,11 @@ class CustomTextArea extends StatelessWidget {
   final int maxLines;
 
   const CustomTextArea({
-    Key? key,
+    super.key,
     required this.controller,
     required this.hintText,
     this.maxLines = 5,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

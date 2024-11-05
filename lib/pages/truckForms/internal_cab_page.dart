@@ -8,7 +8,7 @@ import 'package:ctp/components/custom_radio_button.dart';
 
 class InternalCabPage extends StatefulWidget {
   final String vehicleId;
-  const InternalCabPage({Key? key, required this.vehicleId}) : super(key: key);
+  const InternalCabPage({super.key, required this.vehicleId});
 
   @override
   InternalCabPageState createState() => InternalCabPageState();
@@ -27,7 +27,7 @@ class InternalCabPageState extends State<InternalCabPage>
   String _faultCodesCondition = 'no';
 
   // Map to store selected images for different sections
-  Map<String, File?> _selectedImages = {
+  final Map<String, File?> _selectedImages = {
     'Center Dash': null,
     'Left Dash': null,
     'Right Dash (Vehicle On)': null,
@@ -147,7 +147,7 @@ class InternalCabPageState extends State<InternalCabPage>
                         key.contains('Visors') ||
                         key.contains('Console'))
                     .map((key) => _buildPhotoBlock(key))
-                    .toList(),
+                    ,
                 _buildPhotoBlock('Steering'),
               ],
             ),
@@ -200,7 +200,7 @@ class InternalCabPageState extends State<InternalCabPage>
                 ..._selectedImages.keys
                     .where((key) => key == 'Roof' || key == 'Bunk Beds')
                     .map((key) => _buildPhotoBlock(key))
-                    .toList(),
+                    ,
                 _buildPhotoBlock('Rear Panel'),
               ],
             ),
@@ -475,7 +475,7 @@ class InternalCabPageState extends State<InternalCabPage>
             .entries
             .map((entry) =>
                 _buildItemWidget(entry.key, entry.value, showImageSourceDialog))
-            .toList(),
+            ,
         const SizedBox(height: 16.0),
         GestureDetector(
           onTap: addItem,
@@ -683,94 +683,163 @@ class InternalCabPageState extends State<InternalCabPage>
 
   Future<bool> saveData() async {
     try {
-      final vehicleRef =
-          _firestore.collection('vehicles').doc(widget.vehicleId);
-      final internalCabRef =
-          vehicleRef.collection('truckConditions').doc('InternalCab');
-
-      // Saving condition of the inside cab
-      await internalCabRef
-          .set({'condition': _selectedCondition}, SetOptions(merge: true));
-
-      // Saving images
+      // Upload all view images first
+      Map<String, String> imageUrls = {};
       for (var entry in _selectedImages.entries) {
         if (entry.value != null) {
-          // Define a unique path for each image
           String imagePath =
-              'internal_cab/${widget.vehicleId}_${entry.key}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          String? imageUrl = await _uploadImage(entry.value!, imagePath);
-          if (imageUrl != null) {
-            await internalCabRef.collection('images').doc(entry.key).set({
-              'imageUrl': imageUrl,
-              'title': entry.key,
-            }, SetOptions(merge: true));
+              'vehicles/${widget.vehicleId}/internal_cab/views/${entry.key}_${DateTime.now().millisecondsSinceEpoch}';
+          String? downloadUrl = await _uploadImage(entry.value!, imagePath);
+          if (downloadUrl != null && downloadUrl.isNotEmpty) {
+            imageUrls[entry.key] = downloadUrl;
           }
         }
       }
 
-      // Saving damages
-      if (_damagesCondition == 'yes') {
-        for (var damage in _damageList) {
-          String? imageUrl;
-          if (damage['image'] != null) {
-            String imagePath =
-                'internal_cab/damages/${widget.vehicleId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            imageUrl = await _uploadImage(damage['image'], imagePath);
-          }
-          await internalCabRef.collection('damages').add({
-            'description': damage['description'] ?? '',
-            'imageUrl': imageUrl ?? '',
-          });
+      // Upload damage images and create damage data
+      List<Map<String, dynamic>> damageData = [];
+      for (var damage in _damageList) {
+        String imageUrl = '';
+        if (damage['image'] != null) {
+          String imagePath =
+              'vehicles/${widget.vehicleId}/internal_cab/damages/damage_${DateTime.now().millisecondsSinceEpoch}';
+          String? uploadedUrl = await _uploadImage(damage['image'], imagePath);
+          imageUrl = uploadedUrl ?? ''; // Provide empty string as fallback
         }
+        damageData.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': imageUrl,
+        });
       }
 
-      // Saving additional features
-      if (_additionalFeaturesCondition == 'yes') {
-        for (var feature in _additionalFeaturesList) {
-          String? imageUrl;
-          if (feature['image'] != null) {
-            String imagePath =
-                'internal_cab/additionalFeatures/${widget.vehicleId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            imageUrl = await _uploadImage(feature['image'], imagePath);
-          }
-          await internalCabRef.collection('additionalFeatures').add({
-            'description': feature['description'] ?? '',
-            'imageUrl': imageUrl ?? '',
-          });
-        }
-      }
+      // Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .collection('inspections')
+          .doc('internal_cab')
+          .set({
+        'condition': _selectedCondition,
+        'images': imageUrls,
+        'damages': damageData,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
 
-      // Saving fault codes
-      if (_faultCodesCondition == 'yes') {
-        for (var faultCode in _faultCodesList) {
-          String? imageUrl;
-          if (faultCode['image'] != null) {
-            String imagePath =
-                'internal_cab/faultCodes/${widget.vehicleId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-            imageUrl = await _uploadImage(faultCode['image'], imagePath);
-          }
-          await internalCabRef.collection('faultCodes').add({
-            'description': faultCode['description'] ?? '',
-            'imageUrl': imageUrl ?? '',
-          });
-        }
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Internal Cab data saved successfully!')),
-        );
-      }
       return true;
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save data: $e')),
-        );
-      }
+      print('Error saving internal cab data: $e');
       return false;
     }
+  }
+
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    setState(() {
+      // Initialize basic fields
+      _selectedCondition = data['condition'] ?? 'good';
+      _damagesCondition = data['damagesCondition'] ?? 'no';
+      _additionalFeaturesCondition =
+          data['additionalFeaturesCondition'] ?? 'no';
+      _faultCodesCondition = data['faultCodesCondition'] ?? 'no';
+
+      // Initialize view images
+      if (data['viewImages'] != null) {
+        Map<String, String?> viewImages =
+            Map<String, String?>.from(data['viewImages']);
+        viewImages.forEach((key, value) {
+          if (value != null) {
+            _selectedImages[key] = File(value);
+          }
+        });
+      }
+
+      // Initialize damages list
+      if (data['damages'] != null) {
+        _damageList = (data['damages'] as List).map((damage) {
+          return {
+            'description': damage['description'] ?? '',
+            'image':
+                damage['imagePath'] != null ? File(damage['imagePath']) : null,
+            'imageUrl': damage['imageUrl'],
+          };
+        }).toList();
+      }
+
+      // Initialize additional features list
+      if (data['additionalFeatures'] != null) {
+        _additionalFeaturesList =
+            (data['additionalFeatures'] as List).map((feature) {
+          return {
+            'description': feature['description'] ?? '',
+            'image': feature['imagePath'] != null
+                ? File(feature['imagePath'])
+                : null,
+            'imageUrl': feature['imageUrl'],
+          };
+        }).toList();
+      }
+
+      // Initialize fault codes list
+      if (data['faultCodes'] != null) {
+        _faultCodesList = (data['faultCodes'] as List).map((faultCode) {
+          return {
+            'description': faultCode['description'] ?? '',
+            'image': faultCode['imagePath'] != null
+                ? File(faultCode['imagePath'])
+                : null,
+            'imageUrl': faultCode['imageUrl'],
+          };
+        }).toList();
+      }
+    });
+  }
+
+  Future<Map<String, dynamic>> getData() async {
+    // Convert File objects to paths for serialization
+    Map<String, String?> serializedImages = {};
+    _selectedImages.forEach((key, value) {
+      serializedImages[key] = value?.path;
+    });
+
+    // Convert damage list to serializable format
+    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
+      return {
+        'description': damage['description'] ?? '',
+        'imagePath': damage['image']?.path,
+        'imageUrl': damage['imageUrl'] ?? '',
+      };
+    }).toList();
+
+    // Convert additional features list to serializable format
+    List<Map<String, dynamic>> serializedFeatures =
+        _additionalFeaturesList.map((feature) {
+      return {
+        'description': feature['description'] ?? '',
+        'imagePath': feature['image']?.path,
+        'imageUrl': feature['imageUrl'] ?? '',
+      };
+    }).toList();
+
+    // Convert fault codes list to serializable format
+    List<Map<String, dynamic>> serializedFaultCodes =
+        _faultCodesList.map((faultCode) {
+      return {
+        'description': faultCode['description'] ?? '',
+        'imagePath': faultCode['image']?.path,
+        'imageUrl': faultCode['imageUrl'] ?? '',
+      };
+    }).toList();
+
+    return {
+      'condition': _selectedCondition,
+      'damagesCondition': _damagesCondition,
+      'additionalFeaturesCondition': _additionalFeaturesCondition,
+      'faultCodesCondition': _faultCodesCondition,
+      'viewImages': serializedImages,
+      'damages': serializedDamages,
+      'additionalFeatures': serializedFeatures,
+      'faultCodes': serializedFaultCodes,
+    };
   }
 
   @override

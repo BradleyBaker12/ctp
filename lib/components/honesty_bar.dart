@@ -53,10 +53,8 @@ class HonestyBarWidget extends StatelessWidget {
       ];
 
       for (var field in nullableFieldsToCheck) {
-        if (field != null) {
-          filledFields++;
-        }
-      }
+        filledFields++;
+            }
 
       for (var photo in vehicle.photos) {
         if (photo != null && photo.isNotEmpty) {

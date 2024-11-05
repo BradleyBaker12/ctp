@@ -1,4 +1,5 @@
 // vehicle_upload_tabs.dart
+
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +15,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'custom_text_field.dart';
@@ -25,8 +27,7 @@ class VehicleUploadScreen extends StatefulWidget {
   final Vehicle? vehicle;
 
   const VehicleUploadScreen(
-      {Key? key, this.vehicle, this.isDuplicating = false})
-      : super(key: key);
+      {super.key, this.vehicle, this.isDuplicating = false});
 
   @override
   _VehicleUploadScreenState createState() => _VehicleUploadScreenState();
@@ -46,6 +47,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       TextEditingController();
   final TextEditingController _registrationNumberController =
       TextEditingController();
+  final TextEditingController _referenceNumberController =
+      TextEditingController();
+  final TextEditingController _brandsController = TextEditingController();
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
   bool _isLoading = false;
@@ -79,14 +83,53 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     // Add any other configurations if needed
   ];
 
+  // Define brand options
+  final List<String> _brandOptions = [
+    'Volvo',
+    'Mercedes-Benz',
+    'MAN',
+    'Scania',
+    'DAF',
+    'Iveco',
+    'Isuzu',
+    'Hino',
+    'Freightliner',
+    'Kenworth',
+    'Peterbilt',
+    'Mack',
+    // Add any other brands as needed
+  ];
+
   // Variable to hold selected RC1/NATIS file
   File? _natisRc1File;
+
+  // Add this flag at the top with other variables
+  bool isNewUpload = false;
 
   @override
   void initState() {
     super.initState();
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
+
+    // Determine if this is a new upload
+    isNewUpload = widget.vehicle == null && !widget.isDuplicating;
+
+    // Clear all data if this is a new upload
+    if (isNewUpload) {
+      formData.clearAllData();
+      formData.setSelectedMainImage(null);
+      formData.setMainImageUrl(null);
+      _clearFormControllers();
+    } else {
+      // Load saved form data when initializing
+      if (_vehicleId != null) {
+        _loadSavedFormData(formData);
+      } else {
+        // Load from SharedPreferences only for existing/duplicating vehicles
+        formData.loadFormState();
+      }
+    }
 
     if (widget.vehicle != null) {
       _populateVehicleData();
@@ -100,13 +143,15 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           !_configurationOptions.contains(formData.config)) {
         _configurationOptions.add(formData.config!);
       }
-    } else {
-      // Initialize provider variables if null (for new vehicles)
+    } else if (!isNewUpload) {
+      // Initialize provider variables if null (for duplicating vehicles)
       _initializeDefaultValues(formData);
     }
 
     // Initialize TextEditingControllers with provider's variables
-    _initializeTextControllers(formData);
+    if (!isNewUpload) {
+      _initializeTextControllers(formData);
+    }
 
     // Add listeners to update provider variables
     _addControllerListeners(formData);
@@ -128,26 +173,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   void _initializeDefaultValues(FormDataProvider formData) {
-    if (formData.vehicleType == null) {
-      formData.setVehicleType('truck', notify: false);
-    }
     if (formData.suspension == null) {
       formData.setSuspension('spring', notify: false);
-    }
-    if (formData.transmissionType == null) {
-      formData.setTransmissionType('automatic', notify: false);
-    }
-    if (formData.hydraulics == null) {
-      formData.setHydraulics('yes', notify: false);
-    }
-    if (formData.maintenance == null) {
-      formData.setMaintenance('yes', notify: false);
-    }
-    if (formData.warranty == null) {
-      formData.setWarranty('yes', notify: false);
-    }
-    if (formData.requireToSettleType == null) {
-      formData.setRequireToSettleType('yes', notify: false);
     }
   }
 
@@ -160,14 +187,18 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _registrationNumberController.text = formData.registrationNumber ?? '';
     _sellingPriceController.text = formData.sellingPrice ?? '';
     _warrantyDetailsController.text = formData.warrantyDetails ?? '';
+    _referenceNumberController.text = formData.referenceNumber ?? '';
+    _brandsController.text = formData.brands ?? '';
   }
 
   void _addControllerListeners(FormDataProvider formData) {
     _yearController.addListener(() {
       formData.setYear(_yearController.text);
+      formData.saveFormState();
     });
     _makeModelController.addListener(() {
       formData.setMakeModel(_makeModelController.text);
+      formData.saveFormState();
     });
     _vinNumberController.addListener(() {
       formData.setVinNumber(_vinNumberController.text);
@@ -187,12 +218,18 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _warrantyDetailsController.addListener(() {
       formData.setWarrantyDetails(_warrantyDetailsController.text);
     });
+    _referenceNumberController.addListener(() {
+      formData.setReferenceNumber(_referenceNumberController.text);
+    });
+    _brandsController.addListener(() {
+      formData.setBrands(_brandsController.text);
+    });
   }
 
   void _populateVehicleData() {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
 
-    formData.setNatisRc1UrlUrl(widget.vehicle!.rc1NatisFile, notify: false);
+    formData.setNatisRc1Url(widget.vehicle!.rc1NatisFile, notify: false);
     formData.setVehicleType(widget.vehicle!.vehicleType, notify: false);
     formData.setYear(widget.vehicle!.year, notify: false);
     formData.setMakeModel(widget.vehicle!.makeModel, notify: false);
@@ -213,6 +250,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setHydraulics(widget.vehicle!.hydraluicType, notify: false);
     formData.setWarranty(widget.vehicle!.warrentyType, notify: false);
     formData.setWarrantyDetails(widget.vehicle!.warrantyDetails, notify: false);
+
+    formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
+    formData.setBrands(widget.vehicle!.brand, notify: false);
 
     if (widget.isDuplicating) {
       _vehicleId = null;
@@ -400,38 +440,154 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Widget _buildImageSection() {
     final formData = Provider.of<FormDataProvider>(context);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 0),
-      height: _imageHeight,
-      width: double.infinity,
-      child: formData.selectedMainImage != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(10.0),
-              child: Image.file(
-                formData.selectedMainImage!,
-                width: double.infinity,
-                height: _imageHeight,
-                fit: BoxFit.cover,
-              ),
-            )
-          : (formData.mainImageUrl != null && formData.mainImageUrl!.isNotEmpty
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(10.0),
-                  child: Image.network(
-                    formData.mainImageUrl!,
-                    width: double.infinity,
-                    height: _imageHeight,
-                    fit: BoxFit.cover,
-                  ),
-                )
-              : ImagePickerWidget(
-                  onImagePicked: (File? image) {
-                    if (image != null) {
-                      Provider.of<FormDataProvider>(context, listen: false)
-                          .setSelectedMainImage(image);
-                    }
+    // Function to show image picker dialog
+    void showImagePickerDialog() {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Select Image Source'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Take Photo'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
                   },
-                )),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Choose from Gallery'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // Function to handle image tap
+    void handleImageTap() {
+      if (formData.selectedMainImage != null ||
+          (formData.mainImageUrl != null &&
+              formData.mainImageUrl!.isNotEmpty)) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Image Options'),
+              content: const Text('What would you like to do with the image?'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    showImagePickerDialog();
+                  },
+                  child: const Text('Change Image'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      formData.setSelectedMainImage(null);
+                      formData.setMainImageUrl(null);
+                    });
+                  },
+                  child: const Text(
+                    'Remove Image',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        showImagePickerDialog();
+      }
+    }
+
+    return GestureDetector(
+      onTap: handleImageTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 0),
+        height: _imageHeight,
+        width: double.infinity,
+        child: Stack(
+          children: [
+            if (formData.selectedMainImage != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10.0),
+                child: Image.file(
+                  formData.selectedMainImage!,
+                  width: double.infinity,
+                  height: _imageHeight,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else if (formData.mainImageUrl != null &&
+                formData.mainImageUrl!.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10.0),
+                child: Image.network(
+                  formData.mainImageUrl!,
+                  width: double.infinity,
+                  height: _imageHeight,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              )
+            else
+              ImagePickerWidget(
+                onImagePicked: (File? image) {
+                  if (image != null) {
+                    formData.setSelectedMainImage(image);
+                  }
+                },
+              ),
+            // Add an overlay hint
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Tap to modify image',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -474,10 +630,22 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           ),
           const SizedBox(height: 20),
           const SizedBox(height: 15),
+          // Reference Number field
+          CustomTextField(
+            controller: _referenceNumberController,
+            hintText: 'Reference Number',
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter the reference number';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 15),
           // RC1/NATIS File Upload Section
           Center(
             child: Text(
-              'Please attach NATIS/RC1 Documentation'.toUpperCase(),
+              'NATIS/RC1 Documentation'.toUpperCase(),
               style: const TextStyle(
                   fontSize: 15,
                   color: Colors.white,
@@ -549,6 +717,24 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             ],
           ),
           const SizedBox(height: 20),
+          // Brand field
+          CustomDropdown(
+            hintText: 'Brand',
+            value: _brandOptions.contains(formData.brands)
+                ? formData.brands
+                : null,
+            items: _brandOptions,
+            onChanged: (value) {
+              formData.setBrands(value);
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please select the brand';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 15),
           Form(
             key: _formKeys[0],
             child: Column(
@@ -891,18 +1077,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           const SizedBox(height: 20),
           Center(
             child: CustomButton(
-              text: 'Save',
+              text: 'Next',
               borderColor: AppColors.blue,
               onPressed: () async {
                 if (_formKeys[0].currentState!.validate()) {
-                  if (_natisRc1File == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please upload the RC1/NATIS file.'),
-                      ),
-                    );
-                    return;
-                  }
                   setState(() {
                     _isLoading = true;
                   });
@@ -921,13 +1099,20 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                         MaterialPageRoute(
                           builder: (context) => MaintenanceWarrantyScreen(
                             vehicleId: vehicleId,
-                            mainImageFile: formData.selectedMainImage,
-                            mainImageUrl: formData.mainImageUrl,
+                            maintenanceSelection: formData.maintenance,
+                            warrantySelection: formData.warranty,
+                            requireToSettleType: formData.requireToSettleType,
                           ),
                         ),
-                      );
+                      ).then((value) {
+                        if (mounted) {
+                          final formData = Provider.of<FormDataProvider>(
+                              context,
+                              listen: false);
+                          _loadSavedFormData(formData);
+                        }
+                      });
                     } else {
-                      // Vehicle ID is null, handle accordingly
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Failed to retrieve vehicle ID.'),
@@ -992,7 +1177,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'year': formData.year,
         'makeModel': formData.makeModel,
         'vinNumber': formData.vinNumber,
-        'configuration': formData.config,
+        'config': formData.config,
         'mileage': formData.mileage,
         'application': formData.application,
         'engineNumber': formData.engineNumber,
@@ -1011,6 +1196,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'userId': userId,
         'vehicleStatus': 'Draft',
         'createdAt': FieldValue.serverTimestamp(),
+        'referenceNumber': formData.referenceNumber,
+        'brands': formData.brands,
       };
 
       // Prepare admin data
@@ -1028,6 +1215,14 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             .collection('vehicles')
             .add(vehicleData);
         _vehicleId = docRef.id;
+
+        // Clear form only if this was a new upload
+        if (isNewUpload) {
+          final formData =
+              Provider.of<FormDataProvider>(context, listen: false);
+          formData.clearAllData();
+          _clearFormControllers();
+        }
       } else {
         // Updating an existing vehicle
         await FirebaseFirestore.instance
@@ -1051,6 +1246,90 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         ),
       );
       return null;
+    }
+  }
+
+  // Add this method to clear form controllers
+  void _clearFormControllers() {
+    _yearController.clear();
+    _makeModelController.clear();
+    _sellingPriceController.clear();
+    _vinNumberController.clear();
+    _mileageController.clear();
+    _engineNumberController.clear();
+    _warrantyDetailsController.clear();
+    _registrationNumberController.clear();
+    _referenceNumberController.clear();
+    _brandsController.clear();
+
+    // Clear image-related data
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    formData.setSelectedMainImage(null);
+    formData.setMainImageUrl(null);
+
+    setState(() {
+      _natisRc1File = null;
+    });
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: source);
+
+    if (image != null) {
+      formData.setSelectedMainImage(File(image.path));
+    }
+  }
+
+  // Add this new method to load saved form data
+  Future<void> _loadSavedFormData(FormDataProvider formData) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(_vehicleId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        setState(() {
+          _yearController.text = data['year'] ?? '';
+          _makeModelController.text = data['makeModel'] ?? '';
+          _mileageController.text = data['mileage'] ?? '';
+          _vinNumberController.text = data['vinNumber'] ?? '';
+          _engineNumberController.text = data['engineNumber'] ?? '';
+          _registrationNumberController.text = data['registrationNumber'] ?? '';
+          _sellingPriceController.text = data['sellingPrice'] ?? '';
+          _warrantyDetailsController.text = data['warrantyDetails'] ?? '';
+          _referenceNumberController.text = data['referenceNumber'] ?? '';
+          _brandsController.text = data['brands'] ?? '';
+
+          // Update FormDataProvider
+          formData.setYear(data['year']);
+          formData.setMakeModel(data['makeModel']);
+          formData.setVinNumber(data['vinNumber']);
+          formData.setConfig(data['config']);
+          formData.setMileage(data['mileage']);
+          formData.setApplication(data['application']);
+          formData.setEngineNumber(data['engineNumber']);
+          formData.setRegistrationNumber(data['registrationNumber']);
+          formData.setSellingPrice(data['sellingPrice']);
+          formData.setVehicleType(data['vehicleType'] ?? 'truck');
+          formData.setSuspension(data['suspensionType'] ?? 'spring');
+          formData.setTransmissionType(data['transmissionType'] ?? 'automatic');
+          formData.setHydraulics(data['hydraulics'] ?? 'yes');
+          formData.setMaintenance(data['maintenance'] ?? 'yes');
+          formData.setWarranty(data['warranty'] ?? 'yes');
+          formData.setWarrantyDetails(data['warrantyDetails']);
+          formData.setRequireToSettleType(data['requireToSettleType'] ?? 'yes');
+          formData.setMainImageUrl(data['mainImageUrl']);
+          formData.setReferenceNumber(data['referenceNumber']);
+          formData.setBrands(data['brands']);
+        });
+      }
+    } catch (e) {
+      print('Error loading saved form data: $e');
     }
   }
 }

@@ -10,11 +10,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/constants.dart';
 
 class AdminSection extends StatefulWidget {
-  final String vehicleId; // Added vehicleId
+  final String vehicleId; // Required vehicleId
   final bool isUploading;
   final Function(File?) onAdminDoc1Selected;
   final Function(File?) onAdminDoc2Selected;
   final Function(File?) onAdminDoc3Selected;
+
+  // New parameter to accept the user's selection
+  final String requireToSettleType;
 
   // New parameters to accept existing data
   final String? settlementAmount;
@@ -24,11 +27,12 @@ class AdminSection extends StatefulWidget {
 
   const AdminSection({
     Key? key,
-    required this.vehicleId, // Required vehicleId
+    required this.vehicleId,
     required this.isUploading,
     required this.onAdminDoc1Selected,
     required this.onAdminDoc2Selected,
     required this.onAdminDoc3Selected,
+    required this.requireToSettleType, // Added requireToSettleType
     this.settlementAmount,
     this.natisRc1Url,
     this.licenseDiskUrl,
@@ -148,22 +152,39 @@ class AdminSectionState extends State<AdminSection>
     return url.split('/').last.split('?').first;
   }
 
-  Future<bool> saveAdminData() async {
+  Future<bool> saveAdminData({bool skipValidation = false}) async {
     String settlementAmount = _settlementAmountController.text.trim();
 
     // Validation checks
-    if (settlementAmount.isEmpty) {
+    if (!skipValidation &&
+        widget.requireToSettleType == 'yes' &&
+        settlementAmount.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter the settlement amount.')),
       );
       return false;
     }
 
-    if ((_natis_rc1 == null && _natisRc1Url == null) ||
-        (_licenseDisk == null && _licenseDiskUrl == null) ||
-        (_settlementLetter == null && _settlementLetterUrl == null)) {
+    if (!skipValidation && _natis_rc1 == null && _natisRc1Url == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload all required documents.')),
+        const SnackBar(content: Text('Please upload the NATIS/RC1 document.')),
+      );
+      return false;
+    }
+
+    if (!skipValidation && _licenseDisk == null && _licenseDiskUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload the License Disk.')),
+      );
+      return false;
+    }
+
+    if (!skipValidation &&
+        widget.requireToSettleType == 'yes' &&
+        _settlementLetter == null &&
+        _settlementLetterUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload the Settlement Letter.')),
       );
       return false;
     }
@@ -199,26 +220,32 @@ class AdminSectionState extends State<AdminSection>
         return false;
       }
 
-      String settlementLetterUrl;
-      if (_settlementLetter != null) {
-        settlementLetterUrl =
-            await _uploadDocument(_settlementLetter!, 'SettlementLetter');
-      } else if (_settlementLetterUrl != null) {
-        settlementLetterUrl = _settlementLetterUrl!;
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please upload the Settlement Letter.')),
-        );
-        return false;
+      String? settlementLetterUrl;
+      if (widget.requireToSettleType == 'yes') {
+        if (_settlementLetter != null) {
+          settlementLetterUrl =
+              await _uploadDocument(_settlementLetter!, 'SettlementLetter');
+        } else if (_settlementLetterUrl != null) {
+          settlementLetterUrl = _settlementLetterUrl!;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Please upload the Settlement Letter.')),
+          );
+          return false;
+        }
       }
 
       // Prepare data to save
       Map<String, dynamic> adminData = {
-        'settlementAmount': settlementAmount,
         'natisRc1Url': natisRc1Url,
         'licenseDiskUrl': licenseDiskUrl,
-        'settlementLetterUrl': settlementLetterUrl,
       };
+
+      if (widget.requireToSettleType == 'yes') {
+        adminData['settlementAmount'] = settlementAmount;
+        adminData['settlementLetterUrl'] = settlementLetterUrl;
+      }
 
       // Save to Firestore
       await FirebaseFirestore.instance
@@ -361,6 +388,27 @@ class AdminSectionState extends State<AdminSection>
     }
   }
 
+  void loadAdminData(Map<String, dynamic> adminData) {
+    setState(() {
+      _settlementAmountController.text = adminData['settlementAmount'] ?? '';
+      _natisRc1Url = adminData['natisRc1Url'];
+      _licenseDiskUrl = adminData['licenseDiskUrl'];
+      _settlementLetterUrl = adminData['settlementLetterUrl'];
+    });
+  }
+
+  void clearData() {
+    setState(() {
+      _settlementAmountController.clear();
+      _natis_rc1 = null;
+      _licenseDisk = null;
+      _settlementLetter = null;
+      _natisRc1Url = null;
+      _licenseDiskUrl = null;
+      _settlementLetterUrl = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -380,7 +428,7 @@ class AdminSectionState extends State<AdminSection>
             ),
           ),
           const SizedBox(height: 20),
-          // Upload Document 1
+          // Upload NATIS/RC1 Document
           Center(
             child: Text(
               'Please attach NATIS/RC1 Documentation'.toUpperCase(),
@@ -432,7 +480,7 @@ class AdminSectionState extends State<AdminSection>
             ),
           ),
           const SizedBox(height: 15),
-          // Upload Document 2
+          // Upload License Disk
           Center(
             child: Text(
               'Please attach License Disk Photo'.toUpperCase(),
@@ -485,78 +533,83 @@ class AdminSectionState extends State<AdminSection>
             ),
           ),
           const SizedBox(height: 15),
-          // Upload Document 3
-          Center(
-            child: Text(
-              'Please attach Settlement Letter'.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900),
-              textAlign: TextAlign.center,
+          // Conditionally display Settlement Letter upload and Settlement Amount field
+          if (widget.requireToSettleType == 'yes') ...[
+            // Upload Settlement Letter
+            Center(
+              child: Text(
+                'Please attach Settlement Letter'.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-          const SizedBox(height: 15),
-          InkWell(
-            onTap: () => _pickFile(3),
-            borderRadius: BorderRadius.circular(10.0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10.0),
-                border: Border.all(
-                  color: const Color(0xFF0E4CAF),
-                  width: 2.0,
+            const SizedBox(height: 15),
+            InkWell(
+              onTap: () => _pickFile(3),
+              borderRadius: BorderRadius.circular(10.0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10.0),
+                  border: Border.all(
+                    color: const Color(0xFF0E4CAF),
+                    width: 2.0,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    if (_settlementLetter == null &&
+                        _settlementLetterUrl == null)
+                      Icon(
+                        Icons.drive_folder_upload_outlined,
+                        color: Colors.white,
+                        size: 50.0,
+                        semanticLabel: 'Settlement Letter Upload',
+                      ),
+                    const SizedBox(height: 10),
+                    if (_settlementLetter != null ||
+                        _settlementLetterUrl != null)
+                      _buildUploadedFile(
+                          _settlementLetter, _settlementLetterUrl, _isUploading)
+                    else
+                      const Text(
+                        'Settlement Letter Upload',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  if (_settlementLetter == null && _settlementLetterUrl == null)
-                    Icon(
-                      Icons.drive_folder_upload_outlined,
-                      color: Colors.white,
-                      size: 50.0,
-                      semanticLabel: 'Settlement Letter Upload',
-                    ),
-                  const SizedBox(height: 10),
-                  if (_settlementLetter != null || _settlementLetterUrl != null)
-                    _buildUploadedFile(
-                        _settlementLetter, _settlementLetterUrl, _isUploading)
-                  else
-                    const Text(
-                      'Settlement Letter Upload',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                ],
+            ),
+            const SizedBox(height: 20),
+            // Input Field for Settlement Amount
+            Center(
+              child: Text(
+                'Please fill in your settlement amount'.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w400),
+                textAlign: TextAlign.center,
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          // Input Field
-          Center(
-            child: Text(
-              'Please fill in your settlement amount'.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w400),
-              textAlign: TextAlign.center,
+            const SizedBox(height: 15),
+            CustomTextField(
+              controller: _settlementAmountController,
+              hintText: 'Amount'.toUpperCase(),
+              isCurrency: true,
+              keyboardType: TextInputType.number,
             ),
-          ),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _settlementAmountController,
-            hintText: 'Amount'.toUpperCase(),
-            isCurrency: true,
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+          ],
           // Optionally, you can add a save button here
           // However, saving is managed by the parent via GlobalKey
         ],

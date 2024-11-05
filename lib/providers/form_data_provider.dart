@@ -1,32 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FormDataProvider with ChangeNotifier {
-  // Form index management (if still needed)
+  // Form index management
   int _currentFormIndex = 0;
-
-  int get currentFormIndex => _currentFormIndex;
-
-  void setCurrentFormIndex(int index) {
-    _currentFormIndex = index;
-    notifyListeners();
-  }
-
-  void incrementFormIndex() {
-    _currentFormIndex++;
-    notifyListeners();
-  }
-
-  // Vehicle ID property
   String? _vehicleId;
-
-  String? get vehicleId => _vehicleId;
-
-  void setVehicleId(String id) {
-    _vehicleId = id;
-    notifyListeners();
-  }
 
   // SECTION 1: Basic Vehicle Information
   String? _vehicleType;
@@ -35,133 +16,70 @@ class FormDataProvider with ChangeNotifier {
   String? _sellingPrice;
   String? _vinNumber;
   String? _mileage;
-  File? _selectedMainImage;
-  String? _mainImageUrl;
-  String? _natisRc1Url;
+  String? _config;
+  String? _application;
+  String? _engineNumber;
+  String? _registrationNumber;
+  String? _suspension;
+  String? _transmissionType;
+  String? _hydraulics;
+  String? _maintenance;
+  String? _warranty;
+  String? _warrantyDetails;
+  String? _requireToSettleType;
 
+  // SECTION 2: Maintenance Information
+  File? _maintenanceDocFile;
+  String? _maintenanceDocUrl;
+  File? _warrantyDocFile;
+  String? _warrantyDocUrl;
+  String _oemInspectionType = 'yes';
+  String? _oemInspectionExplanation;
+
+  // Add these properties at the top of the class
+  File? _selectedMainImage;
+  File? get selectedMainImage => _selectedMainImage;
+
+  // Add these properties
+  String? _mainImageUrl;
+  String? get mainImageUrl => _mainImageUrl;
+
+  // Getters for basic vehicle information
+  String? get vehicleId => _vehicleId;
+  String get vehicleType => _vehicleType ?? 'truck';
   String? get year => _year;
   String? get makeModel => _makeModel;
   String? get sellingPrice => _sellingPrice;
   String? get vinNumber => _vinNumber;
   String? get mileage => _mileage;
-  File? get selectedMainImage => _selectedMainImage;
-  String? get mainImageUrl => _mainImageUrl;
-  String? get natisRc1Url => _natisRc1Url;
-
-  void setDataFromMap(Map<String, dynamic> data) {
-    _year = data['year'];
-    _makeModel = data['makeModel'];
-    _vinNumber = data['vinNumber'];
-    _config = data['config'];
-    _mileage = data['mileage'];
-    _application = data['application'];
-    _engineNumber = data['engineNumber'];
-    _registrationNumber = data['registrationNumber'];
-    _sellingPrice = data['sellingPrice'];
-    _vehicleType = data['vehicleType'];
-    _suspension = data['suspensionType'];
-    _transmissionType = data['transmissionType'];
-    _hydraulics = data['hydraulics'];
-    _maintenance = data['maintenance'];
-    _warranty = data['warranty'];
-    _warrantyDetails = data['warrantyDetails'];
-    _requireToSettleType = data['requireToSettleType'];
-    _mainImageUrl = data['mainImageUrl'];
-    _natisRc1Url = data['natisRc1Url'];
-
-    notifyListeners();
-  }
-
-  void setMainImageUrl(String? url, {bool notify = true}) {
-    _mainImageUrl = url;
-    if (notify) notifyListeners();
-  }
-
-  void setNatisRc1UrlUrl(String? url, {bool notify = true}) {
-    _natisRc1Url = url;
-    if (notify) notifyListeners();
-  }
-
-  void setVehicleType(String? type, {bool notify = true}) {
-    _vehicleType = type ?? 'truck';
-    if (notify) notifyListeners();
-  }
-
-  void setYear(String? yearValue, {bool notify = true}) {
-    _year = yearValue;
-    if (notify) notifyListeners();
-  }
-
-  void setMakeModel(String? makeModelValue, {bool notify = true}) {
-    _makeModel = makeModelValue;
-    if (notify) notifyListeners();
-  }
-
-  void setSellingPrice(String? sellingPriceValue, {bool notify = true}) {
-    _sellingPrice = sellingPriceValue;
-    if (notify) notifyListeners();
-  }
-
-  void setVinNumber(String? vinValue, {bool notify = true}) {
-    _vinNumber = vinValue;
-    if (notify) notifyListeners();
-  }
-
-  void setMileage(String? mileageValue, {bool notify = true}) {
-    _mileage = mileageValue;
-    if (notify) notifyListeners();
-  }
-
-  void setSelectedMainImage(File? image) {
-    _selectedMainImage = image;
-    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
-  }
-
-  // SECTION 2: Additional Vehicle Details
-  String? _application;
-  String? _config;
-  String? _transmissionType;
-  String? _engineNumber;
-  String? _suspension;
-  String? _registrationNumber;
-  String? _expectedSellingPrice;
-  String? _hydraulics;
-  String? _maintenance;
-  String? _maintanenceType;
-  String? _warranty;
-  String? _warrantyType;
-  String? _requireToSettleType;
-  // Maintenance and Warranty Data
-  File? _maintenanceDocFile;
-  File? _warrantyDocFile;
-  String _oemInspectionType = 'yes';
-  String? _oemInspectionExplanation;
-
-  String get vehicleType => _vehicleType ?? 'truck';
+  String? get config => _config;
+  String? get application => _application;
+  String? get engineNumber => _engineNumber;
+  String? get registrationNumber => _registrationNumber;
   String get suspension => _suspension ?? 'spring';
   String get transmissionType => _transmissionType ?? 'automatic';
   String get hydraulics => _hydraulics ?? 'yes';
   String get maintenance => _maintenance ?? 'yes';
   String get warranty => _warranty ?? 'yes';
+  String? get warrantyDetails => _warrantyDetails;
   String get requireToSettleType => _requireToSettleType ?? 'yes';
-  String get maintanenceType => _maintanenceType ?? 'yes';
 
-  String? get application => _application;
-  String? get config => _config;
-
-  String? get engineNumber => _engineNumber;
-
-  String? get registrationNumber => _registrationNumber;
-  String? get expectedSellingPrice => _expectedSellingPrice;
-
-  String? get warrantyType => _warrantyType;
+  // Getters for maintenance information
   File? get maintenanceDocFile => _maintenanceDocFile;
+  String? get maintenanceDocUrl => _maintenanceDocUrl;
   File? get warrantyDocFile => _warrantyDocFile;
+  String? get warrantyDocUrl => _warrantyDocUrl;
   String get oemInspectionType => _oemInspectionType;
   String? get oemInspectionExplanation => _oemInspectionExplanation;
 
+  // Setters for maintenance information
   void setMaintenanceDocFile(File? file, {bool notify = true}) {
     _maintenanceDocFile = file;
+    if (notify) notifyListeners();
+  }
+
+  void setMaintenanceDocUrl(String? url, {bool notify = true}) {
+    _maintenanceDocUrl = url;
     if (notify) notifyListeners();
   }
 
@@ -170,18 +88,57 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
+  void setWarrantyDocUrl(String? url, {bool notify = true}) {
+    _warrantyDocUrl = url;
+    if (notify) notifyListeners();
+  }
+
   void setOemInspectionType(String value, {bool notify = true}) {
     _oemInspectionType = value;
+    if (value == 'yes') {
+      _oemInspectionExplanation = null;
+    }
     if (notify) notifyListeners();
   }
 
-  void setOemInspectionExplanation(String? explanation, {bool notify = true}) {
-    _oemInspectionExplanation = explanation;
+  void setOemInspectionExplanation(String? value, {bool notify = true}) {
+    _oemInspectionExplanation = value;
     if (notify) notifyListeners();
   }
 
-  void setApplication(String? value, {bool notify = true}) {
-    _application = value;
+  // Setters for all fields
+  void setVehicleId(String id, {bool notify = true}) {
+    _vehicleId = id;
+    if (notify) notifyListeners();
+  }
+
+  void setVehicleType(String? type, {bool notify = true}) {
+    _vehicleType = type ?? 'truck';
+    if (notify) notifyListeners();
+  }
+
+  void setYear(String? value, {bool notify = true}) {
+    _year = value;
+    if (notify) notifyListeners();
+  }
+
+  void setMakeModel(String? value, {bool notify = true}) {
+    _makeModel = value;
+    if (notify) notifyListeners();
+  }
+
+  void setSellingPrice(String? value, {bool notify = true}) {
+    _sellingPrice = value;
+    if (notify) notifyListeners();
+  }
+
+  void setVinNumber(String? value, {bool notify = true}) {
+    _vinNumber = value;
+    if (notify) notifyListeners();
+  }
+
+  void setMileage(String? value, {bool notify = true}) {
+    _mileage = value;
     if (notify) notifyListeners();
   }
 
@@ -190,8 +147,8 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  void setTransmissionType(String? value, {bool notify = true}) {
-    _transmissionType = value;
+  void setApplication(String? value, {bool notify = true}) {
+    _application = value;
     if (notify) notifyListeners();
   }
 
@@ -200,18 +157,18 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  void setSuspension(String? value, {bool notify = true}) {
-    _suspension = value;
-    if (notify) notifyListeners();
-  }
-
   void setRegistrationNumber(String? value, {bool notify = true}) {
     _registrationNumber = value;
     if (notify) notifyListeners();
   }
 
-  void setExpectedSellingPrice(String? value, {bool notify = true}) {
-    _expectedSellingPrice = value;
+  void setSuspension(String? value, {bool notify = true}) {
+    _suspension = value;
+    if (notify) notifyListeners();
+  }
+
+  void setTransmissionType(String? value, {bool notify = true}) {
+    _transmissionType = value;
     if (notify) notifyListeners();
   }
 
@@ -225,18 +182,8 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  void setMaintanenceType(String? value, {bool notify = true}) {
-    _maintanenceType = value;
-    if (notify) notifyListeners();
-  }
-
   void setWarranty(String? value, {bool notify = true}) {
     _warranty = value;
-    if (notify) notifyListeners();
-  }
-
-  void setWarrantyType(String? value, {bool notify = true}) {
-    _warrantyType = value;
     if (notify) notifyListeners();
   }
 
@@ -250,442 +197,149 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  // SECTION 3: Warranty Details (Conditional)
-  String? _warrantyDetails;
+  // Save form state to SharedPreferences
+  Future<void> saveFormState() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  String? get warrantyDetails => _warrantyDetails;
+    // Save basic vehicle information
+    await prefs.setString('vehicleType', _vehicleType ?? '');
+    await prefs.setString('year', _year ?? '');
+    await prefs.setString('makeModel', _makeModel ?? '');
+    await prefs.setString('sellingPrice', _sellingPrice ?? '');
+    await prefs.setString('vinNumber', _vinNumber ?? '');
+    await prefs.setString('mileage', _mileage ?? '');
+    await prefs.setString('config', _config ?? '');
+    await prefs.setString('application', _application ?? '');
+    await prefs.setString('engineNumber', _engineNumber ?? '');
+    await prefs.setString('registrationNumber', _registrationNumber ?? '');
+    await prefs.setString('suspension', _suspension ?? '');
+    await prefs.setString('transmissionType', _transmissionType ?? '');
+    await prefs.setString('hydraulics', _hydraulics ?? '');
+    await prefs.setString('maintenance', _maintenance ?? '');
+    await prefs.setString('warranty', _warranty ?? '');
+    await prefs.setString('warrantyDetails', _warrantyDetails ?? '');
+    await prefs.setString('requireToSettleType', _requireToSettleType ?? '');
 
-  // SECTION 4: External Cab Data
-  String _externalCabCondition = 'good';
-  String _externalCabAnyDamages = 'no';
-  String _externalCabAnyAdditionalFeatures = 'no';
-  Map<String, File?> _externalCabSelectedImages = {
-    'FRONT VIEW': null,
-    'RIGHT SIDE VIEW': null,
-    'REAR VIEW': null,
-    'LEFT SIDE VIEW': null,
-  };
-  List<Map<String, dynamic>> _externalCabDamageList = [];
-  List<Map<String, dynamic>> _externalCabAdditionalFeaturesList = [];
-
-  String get externalCabCondition => _externalCabCondition;
-  String get externalCabAnyDamages => _externalCabAnyDamages;
-  String get externalCabAnyAdditionalFeatures =>
-      _externalCabAnyAdditionalFeatures;
-  Map<String, File?> get externalCabSelectedImages =>
-      _externalCabSelectedImages;
-  List<Map<String, dynamic>> get externalCabDamageList =>
-      _externalCabDamageList;
-  List<Map<String, dynamic>> get externalCabAdditionalFeaturesList =>
-      _externalCabAdditionalFeaturesList;
-
-  void setExternalCabCondition(String value, {bool notify = true}) {
-    _externalCabCondition = value;
-    if (notify) notifyListeners();
+    // Save maintenance information
+    await prefs.setString('maintenanceDocUrl', _maintenanceDocUrl ?? '');
+    await prefs.setString('warrantyDocUrl', _warrantyDocUrl ?? '');
+    await prefs.setString('oemInspectionType', _oemInspectionType);
+    await prefs.setString(
+        'oemInspectionExplanation', _oemInspectionExplanation ?? '');
   }
 
-  void setExternalCabAnyDamages(String value, {bool notify = true}) {
-    _externalCabAnyDamages = value;
-    if (notify) notifyListeners();
+  // Load form state from SharedPreferences
+  Future<void> loadFormState() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load basic vehicle information
+    _vehicleType = prefs.getString('vehicleType');
+    _year = prefs.getString('year');
+    _makeModel = prefs.getString('makeModel');
+    _sellingPrice = prefs.getString('sellingPrice');
+    _vinNumber = prefs.getString('vinNumber');
+    _mileage = prefs.getString('mileage');
+    _config = prefs.getString('config');
+    _application = prefs.getString('application');
+    _engineNumber = prefs.getString('engineNumber');
+    _registrationNumber = prefs.getString('registrationNumber');
+    _suspension = prefs.getString('suspension');
+    _transmissionType = prefs.getString('transmissionType');
+    _hydraulics = prefs.getString('hydraulics');
+    _maintenance = prefs.getString('maintenance');
+    _warranty = prefs.getString('warranty');
+    _warrantyDetails = prefs.getString('warrantyDetails');
+    _requireToSettleType = prefs.getString('requireToSettleType');
+
+    // Load maintenance information
+    _maintenanceDocUrl = prefs.getString('maintenanceDocUrl');
+    _warrantyDocUrl = prefs.getString('warrantyDocUrl');
+    _oemInspectionType = prefs.getString('oemInspectionType') ?? 'yes';
+    _oemInspectionExplanation = prefs.getString('oemInspectionExplanation');
+
+    notifyListeners();
   }
 
-  void setExternalCabAnyAdditionalFeatures(String value, {bool notify = true}) {
-    _externalCabAnyAdditionalFeatures = value;
-    if (notify) notifyListeners();
-  }
+  // Clear all form data
+  Future<void> clearAllData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
 
-  void setExternalCabSelectedImage(String key, File? file,
-      {bool notify = true}) {
-    _externalCabSelectedImages[key] = file;
-    if (notify) notifyListeners();
-  }
+    _referenceNumber = null;
+    _brands = null;
 
-  void addExternalCabDamage(Map<String, dynamic> damage, {bool notify = true}) {
-    _externalCabDamageList.add(damage);
-    if (notify) notifyListeners();
-  }
-
-  void removeExternalCabDamage(int index, {bool notify = true}) {
-    _externalCabDamageList.removeAt(index);
-    if (notify) notifyListeners();
-  }
-
-  void addExternalCabAdditionalFeature(Map<String, dynamic> feature,
-      {bool notify = true}) {
-    _externalCabAdditionalFeaturesList.add(feature);
-    if (notify) notifyListeners();
-  }
-
-  void removeExternalCabAdditionalFeature(int index, {bool notify = true}) {
-    _externalCabAdditionalFeaturesList.removeAt(index);
-    if (notify) notifyListeners();
-  }
-
-  // SECTION 5: Internal Cab Data
-  String _internalCabCondition = 'good';
-  String _internalCabDamagesCondition = 'no';
-  String _internalCabAdditionalFeaturesCondition = 'no';
-  String _internalCabFaultCodesCondition = 'no';
-  Map<String, File?> _internalCabSelectedImages = {
-    'Center Dash': null,
-    'Left Dash': null,
-    'Right Dash (Vehicle On)': null,
-    'Mileage': null,
-    'Sun Visors': null,
-    'Center Console': null,
-    'Steering': null,
-    'Left Door Panel': null,
-    'Left Seat': null,
-    'Roof': null,
-    'Bunk Beds': null,
-    'Rear Panel': null,
-    'Right Door Panel': null,
-    'Right Seat': null,
-  };
-  List<Map<String, dynamic>> _internalCabDamageList = [];
-  List<Map<String, dynamic>> _internalCabAdditionalFeaturesList = [];
-  List<Map<String, dynamic>> _internalCabFaultCodesList = [];
-
-  String get internalCabCondition => _internalCabCondition;
-  String get internalCabDamagesCondition => _internalCabDamagesCondition;
-  String get internalCabAdditionalFeaturesCondition =>
-      _internalCabAdditionalFeaturesCondition;
-  String get internalCabFaultCodesCondition => _internalCabFaultCodesCondition;
-  Map<String, File?> get internalCabSelectedImages =>
-      _internalCabSelectedImages;
-  List<Map<String, dynamic>> get internalCabDamageList =>
-      _internalCabDamageList;
-  List<Map<String, dynamic>> get internalCabAdditionalFeaturesList =>
-      _internalCabAdditionalFeaturesList;
-  List<Map<String, dynamic>> get internalCabFaultCodesList =>
-      _internalCabFaultCodesList;
-
-  void setInternalCabCondition(String value, {bool notify = true}) {
-    _internalCabCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setInternalCabDamagesCondition(String value, {bool notify = true}) {
-    _internalCabDamagesCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setInternalCabAdditionalFeaturesCondition(String value,
-      {bool notify = true}) {
-    _internalCabAdditionalFeaturesCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setInternalCabFaultCodesCondition(String value, {bool notify = true}) {
-    _internalCabFaultCodesCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setInternalCabSelectedImage(String key, File? file,
-      {bool notify = true}) {
-    _internalCabSelectedImages[key] = file;
-    if (notify) notifyListeners();
-  }
-
-  void addInternalCabDamage(Map<String, dynamic> damage, {bool notify = true}) {
-    _internalCabDamageList.add(damage);
-    if (notify) notifyListeners();
-  }
-
-  void removeInternalCabDamage(int index, {bool notify = true}) {
-    _internalCabDamageList.removeAt(index);
-    if (notify) notifyListeners();
-  }
-
-  void addInternalCabAdditionalFeature(Map<String, dynamic> feature,
-      {bool notify = true}) {
-    _internalCabAdditionalFeaturesList.add(feature);
-    if (notify) notifyListeners();
-  }
-
-  void removeInternalCabAdditionalFeature(int index, {bool notify = true}) {
-    _internalCabAdditionalFeaturesList.removeAt(index);
-    if (notify) notifyListeners();
-  }
-
-  void addInternalCabFaultCode(Map<String, dynamic> faultCode,
-      {bool notify = true}) {
-    _internalCabFaultCodesList.add(faultCode);
-    if (notify) notifyListeners();
-  }
-
-  void removeInternalCabFaultCode(int index, {bool notify = true}) {
-    _internalCabFaultCodesList.removeAt(index);
-    if (notify) notifyListeners();
-  }
-
-  // SECTION 6: Drive Train Data
-  String _driveTrainCondition = 'good';
-  String _oilLeakConditionEngine = 'no';
-  String _waterLeakConditionEngine = 'no';
-  String _blowbyCondition = 'no';
-  String _oilLeakConditionGearbox = 'no';
-  String _retarderCondition = 'no';
-  Map<String, File?> _driveTrainSelectedImages = {
-    'Down': null,
-    'Left': null,
-    'Up': null,
-    'Right': null,
-    'Engine Left': null,
-    'Engine Right': null,
-    'Gearbox Top View': null,
-    'Gearbox Bottom View': null,
-    'Gearbox Rear Panel': null,
-    'Diffs top view of front diff': null,
-    'Diffs bottom view of diff front': null,
-    'Diffs top view of rear diff': null,
-    'Diffs bottom view of rear diff': null,
-    'Engine Oil Leak': null,
-    'Engine Water Leak': null,
-    'Gearbox Oil Leak': null,
-  };
-
-  String get driveTrainCondition => _driveTrainCondition;
-  String get oilLeakConditionEngine => _oilLeakConditionEngine;
-  String get waterLeakConditionEngine => _waterLeakConditionEngine;
-  String get blowbyCondition => _blowbyCondition;
-  String get oilLeakConditionGearbox => _oilLeakConditionGearbox;
-  String get retarderCondition => _retarderCondition;
-  Map<String, File?> get driveTrainSelectedImages => _driveTrainSelectedImages;
-
-  void setDriveTrainCondition(String value, {bool notify = true}) {
-    _driveTrainCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setOilLeakConditionEngine(String value, {bool notify = true}) {
-    _oilLeakConditionEngine = value;
-    if (notify) notifyListeners();
-  }
-
-  void setWaterLeakConditionEngine(String value, {bool notify = true}) {
-    _waterLeakConditionEngine = value;
-    if (notify) notifyListeners();
-  }
-
-  void setBlowbyCondition(String value, {bool notify = true}) {
-    _blowbyCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setOilLeakConditionGearbox(String value, {bool notify = true}) {
-    _oilLeakConditionGearbox = value;
-    if (notify) notifyListeners();
-  }
-
-  void setRetarderCondition(String value, {bool notify = true}) {
-    _retarderCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setDriveTrainSelectedImage(String key, File? file,
-      {bool notify = true}) {
-    _driveTrainSelectedImages[key] = file;
-    if (notify) notifyListeners();
-  }
-
-  // SECTION 7: Chassis Data
-  String _chassisCondition = 'good';
-  String _chassisDamagesCondition = 'no';
-  String _chassisAdditionalFeaturesCondition = 'no';
-  Map<String, String?> _chassisImageUrls = {
-    'Right Brake': null,
-    'Left Brake': null,
-    'Front Axel': null,
-    'Suspension': null,
-    'Fuel Tank': null,
-    'Battery': null,
-    'Cat Walk': null,
-    'Electrical Cable Black': null,
-    'Air Cable Yellow': null,
-    'Air Cable Red': null,
-    'Tail Board': null,
-    '5th Wheel': null,
-    'Left Brake Rear Axel': null,
-    'Right Brake Rear Axel': null,
-  };
-  Map<String, File?> _chassisSelectedImages = {
-    'Right Brake': null,
-    'Left Brake': null,
-    'Front Axel': null,
-    'Suspension': null,
-    'Fuel Tank': null,
-    'Battery': null,
-    'Cat Walk': null,
-    'Electrical Cable Black': null,
-    'Air Cable Yellow': null,
-    'Air Cable Red': null,
-    'Tail Board': null,
-    '5th Wheel': null,
-    'Left Brake Rear Axel': null,
-    'Right Brake Rear Axel': null,
-  };
-  List<Map<String, dynamic>> _chassisDamageList = [];
-  List<Map<String, dynamic>> _chassisAdditionalFeaturesList = [];
-
-  String get chassisCondition => _chassisCondition;
-  String get chassisDamagesCondition => _chassisDamagesCondition;
-  String get chassisAdditionalFeaturesCondition =>
-      _chassisAdditionalFeaturesCondition;
-  Map<String, String?> get chassisImageUrls => _chassisImageUrls;
-  Map<String, File?> get chassisSelectedImages => _chassisSelectedImages;
-  List<Map<String, dynamic>> get chassisDamageList => _chassisDamageList;
-  List<Map<String, dynamic>> get chassisAdditionalFeaturesList =>
-      _chassisAdditionalFeaturesList;
-
-  void setChassisCondition(String value, {bool notify = true}) {
-    _chassisCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setChassisDamagesCondition(String value, {bool notify = true}) {
-    _chassisDamagesCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setChassisAdditionalFeaturesCondition(String value,
-      {bool notify = true}) {
-    _chassisAdditionalFeaturesCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setChassisSelectedImage(String key, File? file, {bool notify = true}) {
-    _chassisSelectedImages[key] = file;
-    if (notify) notifyListeners();
-  }
-
-  void addChassisDamage(Map<String, dynamic> damage, {bool notify = true}) {
-    _chassisDamageList.add(damage);
-    if (notify) notifyListeners();
-  }
-
-  void removeChassisDamage(int index, {bool notify = true}) {
-    _chassisDamageList.removeAt(index);
-    if (notify) notifyListeners();
-  }
-
-  void addChassisAdditionalFeature(Map<String, dynamic> feature,
-      {bool notify = true}) {
-    _chassisAdditionalFeaturesList.add(feature);
-    if (notify) notifyListeners();
-  }
-
-  void removeChassisAdditionalFeature(int index, {bool notify = true}) {
-    _chassisAdditionalFeaturesList.removeAt(index);
-    if (notify) notifyListeners();
-  }
-
-  // SECTION 8: Tyres Data
-  String _tyresChassisCondition = 'good';
-  String _tyresVirginOrRecap = 'virgin';
-  String _tyresRimType = 'aluminium';
-  Map<String, File?> _tyresSelectedImages = {};
-  // Add any additional fields as needed
-
-  String get tyresChassisCondition => _tyresChassisCondition;
-  String get tyresVirginOrRecap => _tyresVirginOrRecap;
-  String get tyresRimType => _tyresRimType;
-  Map<String, File?> get tyresSelectedImages => _tyresSelectedImages;
-
-  void setTyresChassisCondition(String value, {bool notify = true}) {
-    _tyresChassisCondition = value;
-    if (notify) notifyListeners();
-  }
-
-  void setTyresVirginOrRecap(String value, {bool notify = true}) {
-    _tyresVirginOrRecap = value;
-    if (notify) notifyListeners();
-  }
-
-  void setTyresRimType(String value, {bool notify = true}) {
-    _tyresRimType = value;
-    if (notify) notifyListeners();
-  }
-
-  void setTyresSelectedImage(String key, File? file, {bool notify = true}) {
-    _tyresSelectedImages[key] = file;
-    if (notify) notifyListeners();
-  }
-
-  // Method to reset all data
-  void resetFormData() {
-    // Reset form index and vehicle ID
-    _currentFormIndex = 0;
+    // Clear basic vehicle information
     _vehicleId = null;
-
-    // Reset SECTION 1: Basic Vehicle Information
     _vehicleType = null;
     _year = null;
     _makeModel = null;
     _sellingPrice = null;
     _vinNumber = null;
     _mileage = null;
-    _selectedMainImage = null;
-
-    // Reset SECTION 2: Additional Vehicle Details
-    _application = null;
     _config = null;
-    _transmissionType = null;
+    _application = null;
     _engineNumber = null;
-    _suspension = null;
     _registrationNumber = null;
-    _expectedSellingPrice = null;
+    _suspension = null;
+    _transmissionType = null;
     _hydraulics = null;
     _maintenance = null;
     _warranty = null;
-    _warrantyType = null;
+    _warrantyDetails = null;
     _requireToSettleType = null;
 
-    // Reset SECTION 3: Warranty Details
-    _warrantyDetails = null;
-
-    // Reset SECTION 4: External Cab Data
-    _externalCabCondition = 'good';
-    _externalCabAnyDamages = 'no';
-    _externalCabAnyAdditionalFeatures = 'no';
-    _externalCabSelectedImages.updateAll((key, value) => null);
-    _externalCabDamageList.clear();
-    _externalCabAdditionalFeaturesList.clear();
-
-    // Reset SECTION 5: Internal Cab Data
-    _internalCabCondition = 'good';
-    _internalCabDamagesCondition = 'no';
-    _internalCabAdditionalFeaturesCondition = 'no';
-    _internalCabFaultCodesCondition = 'no';
-    _internalCabSelectedImages.updateAll((key, value) => null);
-    _internalCabDamageList.clear();
-    _internalCabAdditionalFeaturesList.clear();
-    _internalCabFaultCodesList.clear();
-
-    // Reset SECTION 6: Drive Train Data
-    _driveTrainCondition = 'good';
-    _oilLeakConditionEngine = 'no';
-    _waterLeakConditionEngine = 'no';
-    _blowbyCondition = 'no';
-    _oilLeakConditionGearbox = 'no';
-    _retarderCondition = 'no';
-    _driveTrainSelectedImages.updateAll((key, value) => null);
-
-    // Reset SECTION 7: Chassis Data
-    _chassisCondition = 'good';
-    _chassisDamagesCondition = 'no';
-    _chassisAdditionalFeaturesCondition = 'no';
-    _chassisImageUrls.updateAll((key, value) => null);
-    _chassisSelectedImages.updateAll((key, value) => null);
-    _chassisDamageList.clear();
-    _chassisAdditionalFeaturesList.clear();
-
-    // Reset SECTION 8: Tyres Data
-    _tyresChassisCondition = 'good';
-    _tyresVirginOrRecap = 'virgin';
-    _tyresRimType = 'aluminium';
-    _tyresSelectedImages.clear();
+    // Clear maintenance information
+    _maintenanceDocFile = null;
+    _maintenanceDocUrl = null;
+    _warrantyDocFile = null;
+    _warrantyDocUrl = null;
+    _oemInspectionType = 'yes';
+    _oemInspectionExplanation = null;
 
     notifyListeners();
   }
+
+  void setSelectedMainImage(File? image) {
+    _selectedMainImage = image;
+    notifyListeners();
+  }
+
+  // Add this method
+  void setMainImageUrl(String? url, {bool notify = true}) {
+    _mainImageUrl = url;
+    if (notify) notifyListeners();
+  }
+
+  String? _natisRc1Url;
+  
+  String? get natisRc1Url => _natisRc1Url;
+
+  void setNatisRc1Url(String? url, {bool notify = true}) {
+    _natisRc1Url = url;
+    if (notify) notifyListeners();
+  }
+
+  int get currentFormIndex => _currentFormIndex;
+
+  void setCurrentFormIndex(int index) {
+    _currentFormIndex = index;
+    notifyListeners();
+  }
+
+  String? _referenceNumber;
+  String? _brands;
+
+  String? get referenceNumber => _referenceNumber;
+  String? get brands => _brands;
+
+  void setReferenceNumber(String? value, {bool notify = true}) {
+    _referenceNumber = value;
+    if (notify) notifyListeners();
+  }
+
+  void setBrands(String? value, {bool notify = true}) {
+    _brands = value;
+    if (notify) notifyListeners();
+  }
+
 }

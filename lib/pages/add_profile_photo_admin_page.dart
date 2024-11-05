@@ -30,8 +30,10 @@ class _AddProfilePhotoAdminPageState extends State<AddProfilePhotoAdminPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                CropPhotoPage(imageFile: pickedFile), // Pass XFile directly
+            builder: (context) => CropPhotoPage(
+              imageFile: pickedFile,
+              userData: const {},
+            ), // Pass XFile directly
           ),
         );
       } else {

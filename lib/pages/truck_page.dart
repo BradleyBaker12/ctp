@@ -283,7 +283,7 @@ class _TruckPageState extends State<TruckPage> {
       ];
 
       for (var field in nullableFieldsToCheck) {
-        if (field != null && field.isNotEmpty) {
+        if (field.isNotEmpty) {
           filledFields++;
         }
       }
@@ -468,8 +468,6 @@ class _TruckPageState extends State<TruckPage> {
                           (field) => field['field'] == criterion.fieldName,
                           orElse: () => {});
 
-                      if (fieldDetails == null) return SizedBox.shrink();
-
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -514,7 +512,7 @@ class _TruckPageState extends State<TruckPage> {
                           Divider(), // Optional: add a divider between filters
                         ],
                       );
-                    }).toList(),
+                    }),
                     SizedBox(height: 10),
                     // Button to add a new filter criterion
                     ElevatedButton.icon(

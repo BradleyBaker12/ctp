@@ -727,6 +727,9 @@ class UserProvider extends ChangeNotifier {
       return 'Unknown User';
     }
   }
+
+  // Add this getter
+  User? get user => _user;
 }
 
 class Dealer {

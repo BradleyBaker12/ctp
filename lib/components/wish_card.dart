@@ -179,22 +179,13 @@ class WishCard extends StatelessWidget {
       }
     }
 
-    if (vehicle != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vehicle details not found.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+      ),
+    );
     }
-  }
 
   // Build the offer status widget based on the offer details
   Widget _buildOfferStatus() {

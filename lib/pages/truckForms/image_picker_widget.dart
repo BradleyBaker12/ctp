@@ -7,8 +7,7 @@ import 'dart:io';
 class ImagePickerWidget extends StatelessWidget {
   final Function(File?) onImagePicked;
 
-  const ImagePickerWidget({Key? key, required this.onImagePicked})
-      : super(key: key);
+  const ImagePickerWidget({super.key, required this.onImagePicked});
 
   Future<void> _pickImage(ImageSource source, BuildContext context) async {
     try {
@@ -68,37 +67,40 @@ class ImagePickerWidget extends StatelessWidget {
     return GestureDetector(
       onTap: () => _showImageSourceDialog(context),
       child: Container(
+        width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.3),
           borderRadius: BorderRadius.circular(10.0),
         ),
-        height: 200.0, // You can adjust the height as needed
+        height: 300.0,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Circle with solid blue border and slightly transparent background
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.blue
-                    .withOpacity(0.5), // Slightly transparent blue
+                color: AppColors.blue.withOpacity(0.5),
                 border: Border.all(
-                  color: AppColors.blue, // Solid blue border
+                  color: AppColors.blue,
                   width: 2.0,
                 ),
               ),
               padding: const EdgeInsets.all(16.0),
               child: const Icon(
                 Icons.add,
-                color: Colors.white, // White plus icon
+                color: Colors.white,
                 size: 50.0,
               ),
             ),
             const SizedBox(height: 25),
             const Text(
               'NEW PHOTO OR UPLOAD FROM GALLERY',
-              style: TextStyle(fontSize: 16, color: Colors.white),
-              textAlign: TextAlign.center, // Center the text
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

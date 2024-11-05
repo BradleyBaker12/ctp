@@ -10,7 +10,7 @@ import 'package:ctp/components/custom_radio_button.dart';
 
 class TyresPage extends StatefulWidget {
   final String vehicleId;
-  const TyresPage({Key? key, required this.vehicleId}) : super(key: key);
+  const TyresPage({super.key, required this.vehicleId});
 
   @override
   TyresPageState createState() => TyresPageState();
@@ -23,19 +23,88 @@ class TyresPageState extends State<TyresPage>
   final FirebaseStorage _storage =
       FirebaseStorage.instance; // Firebase Storage instance
 
-  String _chassisCondition =
-      'good'; // Default selected value for chassis condition
-  String _virginOrRecap =
-      'virgin'; // Default selected value for virgin or recap
-  String _rimType = 'aluminium'; // Default selected value for rim type
-
-  // Lists to store damages, additional features, and fault codes
-  List<Map<String, dynamic>> _damageList = [];
-  List<Map<String, dynamic>> _additionalFeaturesList = [];
-  List<Map<String, dynamic>> _faultCodesList = [];
+  // Replace single state variables with maps to store values for each position
+  final Map<int, String> _chassisConditions = {};
+  final Map<int, String> _virginOrRecaps = {};
+  final Map<int, String> _rimTypes = {};
 
   // Map to store selected images for different tyre positions
-  Map<String, File?> _selectedImages = {};
+  final Map<String, File?> _selectedImages = {};
+
+  // Add this field to store image URLs
+  final Map<String, String> _imageUrls = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize default values
+    for (int i = 1; i <= 6; i++) {
+      _chassisConditions[i] = 'good';
+      _virginOrRecaps[i] = 'virgin';
+      _rimTypes[i] = 'aluminium';
+    }
+    // Load saved data
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
+    try {
+      // First try to load from the main vehicle document's truckConditions
+      final vehicleDoc =
+          await _firestore.collection('vehicles').doc(widget.vehicleId).get();
+
+      if (vehicleDoc.exists && vehicleDoc.data() != null) {
+        final truckConditions = vehicleDoc.data()!['truckConditions'];
+        if (truckConditions != null && truckConditions['tyres'] != null) {
+          final tyresData = truckConditions['tyres'] as Map<String, dynamic>;
+          _initializeFromData(tyresData);
+          return;
+        }
+      }
+
+      // Fallback: try to load from the legacy inspections subcollection
+      final doc = await _firestore
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .collection('inspections')
+          .doc('tyres')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final positions = doc.data()!['positions'] as Map<String, dynamic>;
+        _initializeFromData(positions);
+      }
+    } catch (e) {
+      print('Error loading tyres data: $e');
+    }
+  }
+
+  void _initializeFromData(Map<String, dynamic> data) {
+    setState(() {
+      data.forEach((key, value) {
+        if (key.startsWith('Tyre_Pos_')) {
+          final pos = int.parse(key.split('_').last);
+          _chassisConditions[pos] = value['chassisCondition'] ?? 'good';
+          _virginOrRecaps[pos] = value['virginOrRecap'] ?? 'virgin';
+          _rimTypes[pos] = value['rimType'] ?? 'aluminium';
+
+          // Handle image URL
+          if (value['imageUrl'] != null) {
+            if (value['imageUrl'] is Map) {
+              var imageUrl = value['imageUrl'];
+              if (imageUrl['isNew'] == true) {
+                _selectedImages['$key Photo'] = File(imageUrl['path']);
+              } else {
+                _imageUrls['$key Photo'] = imageUrl['url'];
+              }
+            } else if (value['imageUrl'] is String) {
+              _imageUrls['$key Photo'] = value['imageUrl'];
+            }
+          }
+        }
+      });
+    });
+  }
 
   @override
   bool get wantKeepAlive => true; // Implementing the required getter
@@ -92,11 +161,11 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Poor',
               value: 'poor',
-              groupValue: _chassisCondition,
-              onChanged: (value) {
+              groupValue: _chassisConditions[pos] ?? 'good',
+              onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
-                    _chassisCondition = value;
+                    _chassisConditions[pos] = value;
                   });
                 }
               },
@@ -104,11 +173,11 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Good',
               value: 'good',
-              groupValue: _chassisCondition,
-              onChanged: (value) {
+              groupValue: _chassisConditions[pos] ?? 'good',
+              onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
-                    _chassisCondition = value;
+                    _chassisConditions[pos] = value;
                   });
                 }
               },
@@ -116,11 +185,11 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Excellent',
               value: 'excellent',
-              groupValue: _chassisCondition,
-              onChanged: (value) {
+              groupValue: _chassisConditions[pos] ?? 'good',
+              onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
-                    _chassisCondition = value;
+                    _chassisConditions[pos] = value;
                   });
                 }
               },
@@ -142,11 +211,11 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Virgin',
               value: 'virgin',
-              groupValue: _virginOrRecap,
-              onChanged: (value) {
+              groupValue: _virginOrRecaps[pos] ?? 'virgin',
+              onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
-                    _virginOrRecap = value;
+                    _virginOrRecaps[pos] = value;
                   });
                 }
               },
@@ -154,11 +223,11 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Recap',
               value: 'recap',
-              groupValue: _virginOrRecap,
-              onChanged: (value) {
+              groupValue: _virginOrRecaps[pos] ?? 'virgin',
+              onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
-                    _virginOrRecap = value;
+                    _virginOrRecaps[pos] = value;
                   });
                 }
               },
@@ -180,11 +249,11 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Aluminium',
               value: 'aluminium',
-              groupValue: _rimType,
-              onChanged: (value) {
+              groupValue: _rimTypes[pos] ?? 'aluminium',
+              onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
-                    _rimType = value;
+                    _rimTypes[pos] = value;
                   });
                 }
               },
@@ -192,11 +261,11 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Steel',
               value: 'steel',
-              groupValue: _rimType,
-              onChanged: (value) {
+              groupValue: _rimTypes[pos] ?? 'aluminium',
+              onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
-                    _rimType = value;
+                    _rimTypes[pos] = value;
                   });
                 }
               },
@@ -219,25 +288,8 @@ class TyresPageState extends State<TyresPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] == null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.add_circle_outline,
-                      color: Colors.white, size: 40.0),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              )
-            : ClipRRect(
+        child: _selectedImages[title] != null
+            ? ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
                 child: Image.file(
                   _selectedImages[title]!,
@@ -245,7 +297,34 @@ class TyresPageState extends State<TyresPage>
                   width: double.infinity,
                   height: double.infinity,
                 ),
-              ),
+              )
+            : _imageUrls[title] != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      _imageUrls[title]!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_circle_outline,
+                          color: Colors.white, size: 40.0),
+                      const SizedBox(height: 8.0),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
       ),
     );
   }
@@ -294,66 +373,152 @@ class TyresPageState extends State<TyresPage>
     );
   }
 
-  // Implement the saveData method
+  // Update the saveData method to save directly to the vehicle document
   Future<bool> saveData() async {
     try {
-      final tyresRef = _firestore
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('truckConditions')
-          .doc('Tyres');
+      Map<String, dynamic> tyreData = {};
 
-      // Prepare data to save
-      Map<String, dynamic> dataToSave = {
-        'chassisCondition': _chassisCondition,
-        'virginOrRecap': _virginOrRecap,
-        'rimType': _rimType,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      };
+      // Process each tyre position
+      for (int pos = 1; pos <= 6; pos++) {
+        String posKey = 'Tyre_Pos_$pos';
+        String photoKey = '$posKey Photo';
 
-      // Save tyre position photos
-      for (var entry in _selectedImages.entries) {
-        if (entry.value != null) {
-          String imageUrl = await _uploadImage(entry.value!, entry.key);
+        // Create base data object for this position
+        tyreData[posKey] = {
+          'chassisCondition': _chassisConditions[pos],
+          'virginOrRecap': _virginOrRecaps[pos],
+          'rimType': _rimTypes[pos],
+        };
+
+        // Handle image upload and URLs
+        if (_selectedImages[photoKey] != null) {
+          String imagePath =
+              'vehicles/${widget.vehicleId}/tyres/positions/${posKey}_${DateTime.now().millisecondsSinceEpoch}';
+          String imageUrl =
+              await _uploadImage(_selectedImages[photoKey]!, imagePath);
           if (imageUrl.isNotEmpty) {
-            dataToSave[entry.key] = imageUrl;
+            tyreData[posKey]['imageUrl'] = imageUrl;
           }
+        } else if (_imageUrls[photoKey] != null) {
+          tyreData[posKey]['imageUrl'] = _imageUrls[photoKey];
         }
       }
 
-      // Save data to Firestore
-      await tyresRef.set(dataToSave, SetOptions(merge: true));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tyres data saved successfully!')),
-        );
-      }
+      // Save to the main vehicle document
+      await _firestore.collection('vehicles').doc(widget.vehicleId).set({
+        'truckConditions': {
+          'tyres': tyreData,
+        },
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       return true;
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save tyres data: $e')),
-        );
-      }
+      print('Error saving tyres data: $e');
       return false;
     }
   }
 
   // Method to upload image to Firebase Storage
-  Future<String> _uploadImage(File file, String key) async {
+  // Future<String> _uploadImage(File file, String key) async {
+  //   try {
+  //     String fileName =
+  //         'tyres/${widget.vehicleId}_$key${DateTime.now().millisecondsSinceEpoch}.jpg';
+  //     Reference storageRef = _storage.ref().child(fileName);
+  //     UploadTask uploadTask = storageRef.putFile(file);
+
+  //     TaskSnapshot snapshot = await uploadTask;
+  //     String downloadUrl = await snapshot.ref.getDownloadURL();
+
+  //     return downloadUrl;
+  //   } catch (e) {
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text('Error uploading image: $e')),
+  //       );
+  //     }
+  //     return '';
+  //   }
+  // }
+
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    setState(() {
+      data.forEach((key, value) {
+        if (key.startsWith('Tyre_Pos_')) {
+          final pos = int.parse(key.split('_').last);
+          _chassisConditions[pos] = value['chassisCondition'] ?? 'good';
+          _virginOrRecaps[pos] = value['virginOrRecap'] ?? 'virgin';
+          _rimTypes[pos] = value['rimType'] ?? 'aluminium';
+
+          // Handle image URL
+          if (value['imageUrl'] != null) {
+            _imageUrls['$key Photo'] = value['imageUrl'];
+          }
+        }
+      });
+    });
+  }
+
+  // Update getData method to properly handle image data
+  Future<Map<String, dynamic>> getData() async {
     try {
-      String fileName =
-          'tyres/${widget.vehicleId}_$key${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = _storage.ref().child(fileName);
+      Map<String, dynamic> data = {};
+
+      // Get data for each tyre position
+      for (int pos = 1; pos <= 6; pos++) {
+        String posKey = 'Tyre_Pos_$pos';
+        String photoKey = '$posKey Photo';
+
+        data[posKey] = {
+          'chassisCondition': _chassisConditions[pos],
+          'virginOrRecap': _virginOrRecaps[pos],
+          'rimType': _rimTypes[pos],
+        };
+
+        // Handle image data
+        if (_selectedImages[photoKey] != null) {
+          // Upload new image and get URL
+          String imagePath =
+              'vehicles/${widget.vehicleId}/tyres/positions/${posKey}_${DateTime.now().millisecondsSinceEpoch}';
+          String imageUrl =
+              await _uploadImage(_selectedImages[photoKey]!, imagePath);
+          if (imageUrl.isNotEmpty) {
+            data[posKey]['imageUrl'] = imageUrl;
+          }
+        } else if (_imageUrls[photoKey] != null) {
+          // Use existing image URL
+          data[posKey]['imageUrl'] = _imageUrls[photoKey];
+        }
+      }
+
+      return data;
+    } catch (e) {
+      print('Error in getData: $e');
+      return {};
+    }
+  }
+
+  // Update _uploadImage method to handle errors better
+  Future<String> _uploadImage(File file, String path) async {
+    try {
+      Reference storageRef = _storage.ref().child(path);
       UploadTask uploadTask = storageRef.putFile(file);
 
+      // Show upload progress
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        double progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        print('Upload progress: $progress%');
+      });
+
+      // Wait for upload to complete
       TaskSnapshot snapshot = await uploadTask;
       String downloadUrl = await snapshot.ref.getDownloadURL();
-
+      print('Image uploaded successfully: $downloadUrl');
       return downloadUrl;
     } catch (e) {
+      print('Error uploading image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error uploading image: $e')),

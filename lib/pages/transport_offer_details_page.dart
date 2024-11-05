@@ -3,7 +3,6 @@
 import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/setup_inspection.dart';
