@@ -45,7 +45,7 @@ class TruckPage extends StatefulWidget {
 class _TruckPageState extends State<TruckPage> {
   late ScrollController _scrollController;
   bool _isLoadingMore = false;
-  int _itemsPerPage = 10; // Number of items to load per page
+  final int _itemsPerPage = 10; // Number of items to load per page
   int _currentPage = 0; // Current page index
   int _selectedIndex = 1; // Set initial selected index to the trucks tab
   List<Vehicle> swipedVehicles = []; // Track swiped vehicles
@@ -743,7 +743,7 @@ class _TruckPageState extends State<TruckPage> {
               color: Colors.deepOrange, width: 2), // Deep orange border
           borderRadius: BorderRadius.circular(8), // Optional: add border radius
         ),
-        child: Container(
+        child: SizedBox(
           height: size.height * 0.22, // Increased height to 0.25
           child: Row(
             children: [

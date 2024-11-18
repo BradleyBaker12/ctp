@@ -789,7 +789,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           CustomDropdown(
             hintText: 'Vehicle Status',
             value: _vehicleStatus ?? 'Draft', // Default to Draft
-            items: ['Draft', 'Live'],
+            items: const ['Draft', 'Live'],
             onChanged: (value) {
               setState(() {
                 _vehicleStatus = value;

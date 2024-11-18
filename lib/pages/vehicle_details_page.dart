@@ -592,16 +592,16 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     // Debug statements
     print('Maintenance Data: ${widget.vehicle.maintenance.maintenanceData}');
     print(
-        'Maintenance Doc URL: ${widget.vehicle.maintenance.maintenanceData?.maintenanceDocUrl}');
+        'Maintenance Doc URL: ${widget.vehicle.maintenance.maintenanceData.maintenanceDocUrl}');
     print(
-        'Warranty Doc URL: ${widget.vehicle.maintenance.maintenanceData?.warrantyDocUrl}');
+        'Warranty Doc URL: ${widget.vehicle.maintenance.maintenanceData.warrantyDocUrl}');
 
     // Add maintenance info
     addMaintenanceInfo('Maintenance Document',
-        widget.vehicle.maintenance.maintenanceData?.maintenanceDocUrl,
+        widget.vehicle.maintenance.maintenanceData.maintenanceDocUrl,
         isDocument: true);
     addMaintenanceInfo('Warranty Document',
-        widget.vehicle.maintenance.maintenanceData?.warrantyDocUrl,
+        widget.vehicle.maintenance.maintenanceData.warrantyDocUrl,
         isDocument: true);
 
     // Add additional maintenance info if needed

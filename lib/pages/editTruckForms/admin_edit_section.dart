@@ -540,7 +540,7 @@ class AdminEditSectionState extends State<AdminEditSection>
           ),
         ],
       ),
-      body: Container(
+      body: SizedBox(
         height: MediaQuery.of(context).size.height, // Set height to full screen
         child: GradientBackground(
           child: Padding(
