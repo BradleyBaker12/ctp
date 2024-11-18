@@ -16,18 +16,10 @@ import 'package:ctp/pages/phone_number_page.dart';
 import 'package:ctp/pages/prefered_brands.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/sign_in_page.dart';
-import 'package:ctp/pages/signup_form.dart';
+import 'package:ctp/pages/signup_page.dart';
 import 'package:ctp/pages/trading_category_page.dart';
 import 'package:ctp/pages/trading_intrests_page.dart';
 import 'package:ctp/pages/transporter_reg.dart';
-import 'package:ctp/pages/truckForms/admin_form.dart';
-import 'package:ctp/pages/truckForms/chassis_form.dart';
-import 'package:ctp/pages/truckForms/drive_train_form.dart';
-import 'package:ctp/pages/truckForms/external_cab_form.dart';
-import 'package:ctp/pages/truckForms/internal_cab_form.dart';
-import 'package:ctp/pages/truckForms/maintenance_form.dart';
-import 'package:ctp/pages/truckForms/truck_condition_form.dart';
-import 'package:ctp/pages/truckForms/tyres_form.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/tutorial_page.dart';
@@ -92,7 +84,7 @@ class MyApp extends StatelessWidget {
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginPage(),
-        '/signup': (context) => const SignUpFormPage(),
+        '/signup': (context) => const SignUpPage(),
         '/signin': (context) => const SignInPage(),
         '/home': (context) => const HomePage(),
         '/phoneNumber': (context) => const PhoneNumberPage(),

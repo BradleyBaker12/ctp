@@ -1,8 +1,6 @@
 // lib/models/tyres.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../utils/timestamp_helper.dart';
 
 class Tyres {
   final Map<String, TyrePosition> positions;

@@ -244,6 +244,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                                 oemInspectionType: '',
                                 oemReason: '',
                               ),
+                              warrantySelection: '',
                             ),
                             truckConditions: TruckConditions(
                               externalCab: ExternalCab(
@@ -334,10 +335,12 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                                 additionalFeatures: [],
                                 faultCodes: [],
                               ),
-                              tyres: Tyres(
-                                lastUpdated: DateTime.now(),
-                                positions: {},
-                              ),
+                              tyres: {
+                                'default': Tyres(
+                                  lastUpdated: DateTime.now(),
+                                  positions: {},
+                                )
+                              },
                             ),
                             vehicleStatus: 'N/A',
                             dashboardPhoto: '',
@@ -345,7 +348,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             licenceDiskUrl: '',
                             mileageImage: '',
                             rc1NatisFile: '',
-                            config: '',
+                            config: '', country: '',
                           ),
                         );
 

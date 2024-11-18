@@ -16,7 +16,7 @@ class ChassisForm extends StatefulWidget {
 class _ChassisFormState extends State<ChassisForm> {
   final VehicleFormService _formService = VehicleFormService();
   late Map<String, dynamic> _formData;
-  bool _isSaving = false;
+  final bool _isSaving = false;
   String? chassisCondition;
   String? cabCondition;
   bool? hasDamages;

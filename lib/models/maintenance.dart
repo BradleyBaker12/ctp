@@ -9,6 +9,7 @@ class Maintenance {
   final String warrantyDocumentUrl;
   final String oemInspectionType;
   final String oemInspectionReason;
+  final String warrantySelection;
   final DateTime updatedAt;
   final MaintenanceData maintenanceData;
 
@@ -17,28 +18,31 @@ class Maintenance {
     required this.warrantyDocumentUrl,
     required this.oemInspectionType,
     required this.oemInspectionReason,
+    required this.warrantySelection,
     required this.updatedAt,
     required this.maintenanceData,
   });
 
   factory Maintenance.fromMap(Map<String, dynamic> data) {
     return Maintenance(
-      maintenanceDocumentUrl: data['maintenanceDocumentUrl'] ?? '',
-      warrantyDocumentUrl: data['warrantyDocumentUrl'] ?? '',
+      maintenanceDocumentUrl: data['maintenanceDocUrl'] ?? '',
+      warrantyDocumentUrl: data['warrantyDocUrl'] ?? '',
       oemInspectionType: data['oemInspectionType'] ?? '',
-      oemInspectionReason: data['oemInspectionReason'] ?? '',
-      updatedAt: parseTimestamp(data['updatedAt'], ''),
+      oemInspectionReason: data['oemReason'] ?? '',
+      warrantySelection: data['warrantySelection'] ?? '',
+      updatedAt: parseTimestamp(data['lastUpdated'], ''),
       maintenanceData: MaintenanceData.fromMap(data['maintenanceData'] ?? {}),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'maintenanceDocumentUrl': maintenanceDocumentUrl,
-      'warrantyDocumentUrl': warrantyDocumentUrl,
+      'maintenanceDocUrl': maintenanceDocumentUrl,
+      'warrantyDocUrl': warrantyDocumentUrl,
       'oemInspectionType': oemInspectionType,
-      'oemInspectionReason': oemInspectionReason,
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'oemReason': oemInspectionReason,
+      'warrantySelection': warrantySelection,
+      'lastUpdated': Timestamp.fromDate(updatedAt),
       'maintenanceData': maintenanceData.toMap(),
     };
   }

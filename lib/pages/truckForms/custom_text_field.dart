@@ -12,6 +12,7 @@ class CustomTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatter;
   final String? Function(String?)? validator;
   final TextCapitalization textCapitalization;
+  final Function(String)? onChanged;
 
   const CustomTextField({
     super.key,
@@ -22,6 +23,7 @@ class CustomTextField extends StatelessWidget {
     this.inputFormatter,
     this.validator,
     this.textCapitalization = TextCapitalization.none,
+    this.onChanged,
   });
 
   String _capitalizeHintText(String hint) {

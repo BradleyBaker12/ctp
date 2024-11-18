@@ -1,5 +1,6 @@
+// lib/pages/truckForms/external_cab_page.dart
+
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Image picker for uploading images
@@ -9,11 +10,15 @@ import 'package:ctp/components/custom_radio_button.dart'; // Ensure this import 
 class ExternalCabPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback? onContinue;
+  final VoidCallback onProgressUpdate;
+  final bool isEditing;
 
   const ExternalCabPage({
     super.key,
     required this.vehicleId,
     this.onContinue,
+    required this.onProgressUpdate,
+    this.isEditing = false,
   });
 
   @override
@@ -45,6 +50,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
   // List to store additional feature images and descriptions
   List<Map<String, dynamic>> _additionalFeaturesList = [];
 
+  bool _isInitialized = false; // Flag to prevent re-initialization
+
   @override
   void dispose() {
     // Dispose the scroll controller to release resources
@@ -60,18 +67,6 @@ class ExternalCabPageState extends State<ExternalCabPage>
     super.build(context);
     return SingleChildScrollView(
       controller: _scrollController, // Attach the scroll controller
-      // child: Container(
-      //   decoration: BoxDecoration(
-      //     color: Colors.transparent, // Transparent background
-      //     borderRadius: BorderRadius.circular(12.0),
-      //     boxShadow: const [
-      //       BoxShadow(
-      //         color: Colors.black26,
-      //         blurRadius: 6.0,
-      //         offset: Offset(0, 2),
-      //       ),
-      //     ],
-      //   ),
       padding: const EdgeInsets.all(16.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -104,37 +99,19 @@ class ExternalCabPageState extends State<ExternalCabPage>
                 label: 'Poor',
                 value: 'poor',
                 groupValue: _selectedCondition,
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedCondition = value;
-                    });
-                  }
-                },
+                onChanged: _updateCondition,
               ),
               CustomRadioButton(
                 label: 'Good',
                 value: 'good',
                 groupValue: _selectedCondition,
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedCondition = value;
-                    });
-                  }
-                },
+                onChanged: _updateCondition,
               ),
               CustomRadioButton(
                 label: 'Excellent',
                 value: 'excellent',
                 groupValue: _selectedCondition,
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedCondition = value;
-                    });
-                  }
-                },
+                onChanged: _updateCondition,
               ),
             ],
           ),
@@ -169,19 +146,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
           _buildAdditionalSection(
             title: 'Are there any damages on the cab',
             anyItemsType: _anyDamagesType,
-            onChange: (value) {
-              setState(() {
-                _anyDamagesType = value!;
-                if (_anyDamagesType == 'yes' && _damageList.isEmpty) {
-                  _damageList
-                      .add({'description': '', 'image': null, 'imageUrl': ''});
-                  // Scroll down to damage section
-                  _scrollToBottom();
-                } else if (_anyDamagesType == 'no') {
-                  _damageList.clear();
-                }
-              });
-            },
+            onChange: _updateDamagesType,
             buildItemSection: _buildDamageSection,
           ),
           const SizedBox(height: 16.0),
@@ -191,32 +156,20 @@ class ExternalCabPageState extends State<ExternalCabPage>
           _buildAdditionalSection(
             title: 'Are there any additional features on the cab',
             anyItemsType: _anyAdditionalFeaturesType,
-            onChange: (value) {
-              setState(() {
-                _anyAdditionalFeaturesType = value!;
-                if (_anyAdditionalFeaturesType == 'yes' &&
-                    _additionalFeaturesList.isEmpty) {
-                  _additionalFeaturesList
-                      .add({'description': '', 'image': null, 'imageUrl': ''});
-                  // Scroll down to additional features section
-                  _scrollToBottom();
-                } else if (_anyAdditionalFeaturesType == 'no') {
-                  _additionalFeaturesList.clear();
-                }
-              });
-            },
+            onChange: _updateAdditionalFeaturesType,
             buildItemSection: _buildAdditionalFeaturesSection,
           ),
         ],
       ),
     );
-    // );
   }
 
   @override
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
     setState(() {
+      // _isInitialized = true;
+
       // Initialize basic fields
       _selectedCondition = data['condition'] ?? 'good';
       _anyDamagesType = data['damagesCondition'] ?? 'no';
@@ -274,73 +227,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
 
   @override
   Future<bool> saveData() async {
-    try {
-      // Upload all view images first
-      Map<String, String> imageUrls = {};
-      for (var entry in _selectedImages.entries) {
-        if (entry.value != null) {
-          String downloadUrl = await _uploadImage(entry.value!, entry.key);
-          imageUrls[entry.key] = downloadUrl;
-        }
-      }
-
-      // Upload damage images and create damage data
-      List<Map<String, dynamic>> damageData = [];
-      for (var damage in _damageList) {
-        String imageUrl = '';
-        if (damage['image'] != null && damage['image'] is File) {
-          imageUrl = await _uploadImage(damage['image'],
-              'damage_${DateTime.now().millisecondsSinceEpoch}');
-        }
-        damageData.add({
-          'description': damage['description'] ?? '',
-          'imageUrl': imageUrl,
-        });
-      }
-
-      // Upload additional features images and create features data
-      List<Map<String, dynamic>> featuresData = [];
-      for (var feature in _additionalFeaturesList) {
-        String imageUrl = '';
-        if (feature['image'] != null && feature['image'] is File) {
-          imageUrl = await _uploadImage(feature['image'],
-              'feature_${DateTime.now().millisecondsSinceEpoch}');
-        }
-        featuresData.add({
-          'description': feature['description'] ?? '',
-          'imageUrl': imageUrl,
-        });
-      }
-
-      // Save all data to Firestore
-      await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('inspections')
-          .doc('external_cab')
-          .set({
-        'condition': _selectedCondition,
-        'viewImages': imageUrls,
-        'hasDamages': _anyDamagesType == 'yes',
-        'damages': damageData,
-        'hasAdditionalFeatures': _anyAdditionalFeaturesType == 'yes',
-        'additionalFeatures': featuresData,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      });
-
-      if (widget.onContinue != null) {
-        widget.onContinue!();
-      }
-      return true;
-    } catch (e) {
-      print('Error saving external cab data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving data: $e')),
-        );
-      }
-      return false;
-    }
+    // This method can be left empty or used for additional save logic if needed
+    return true;
   }
 
   @override
@@ -382,6 +270,21 @@ class ExternalCabPageState extends State<ExternalCabPage>
       'additionalFeaturesCondition': _anyAdditionalFeaturesType,
       'additionalFeatures': serializedFeatures,
     };
+  }
+
+  // Method to reset the form fields
+  void reset() {
+    setState(() {
+      _selectedCondition = 'good';
+      _anyDamagesType = 'no';
+      _anyAdditionalFeaturesType = 'no';
+      _selectedImages.forEach((key, _) {
+        _selectedImages[key] = null;
+      });
+      _damageList.clear();
+      _additionalFeaturesList.clear();
+      _isInitialized = false; // Allow re-initialization if needed
+    });
   }
 
   // Helper method to upload a single image to Firebase Storage
@@ -615,11 +518,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
           children: [
             Expanded(
               child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    item['description'] = value;
-                  });
-                },
+                onChanged: (value) => _updateDamageDescription(index, value),
                 decoration: InputDecoration(
                   labelText: 'Describe Item',
                   labelStyle: const TextStyle(color: Colors.white),
@@ -649,7 +548,15 @@ class ExternalCabPageState extends State<ExternalCabPage>
         ),
         const SizedBox(height: 16.0),
         GestureDetector(
-          onTap: () => showImageSourceDialog(item),
+          onTap: () async {
+            final pickedFile =
+                await _picker.pickImage(source: ImageSource.gallery);
+            if (pickedFile != null) {
+              setState(() {
+                item['image'] = File(pickedFile.path);
+              });
+            }
+          },
           child: Container(
             height: 150.0,
             width: double.infinity,
@@ -743,4 +650,104 @@ class ExternalCabPageState extends State<ExternalCabPage>
       },
     );
   }
+
+  double getCompletionPercentage() {
+    int filledFields = 0;
+    int totalFields = 7; // Total number of sections
+
+    // Check condition selection
+    if (_selectedCondition.isNotEmpty) filledFields++;
+
+    // Check images
+    _selectedImages.forEach((key, value) {
+      if (value != null) filledFields++;
+    });
+
+    // Check damages section
+    if (_anyDamagesType == 'no') {
+      filledFields++; // Count as completed if no damages
+    } else if (_anyDamagesType == 'yes' && _damageList.isNotEmpty) {
+      bool isDamagesComplete = _damageList.every((damage) =>
+          damage['description']?.isNotEmpty == true && damage['image'] != null);
+      if (isDamagesComplete) filledFields++;
+    }
+
+    // Check additional features section
+    if (_anyAdditionalFeaturesType == 'no') {
+      filledFields++; // Count as completed if no additional features
+    } else if (_anyAdditionalFeaturesType == 'yes' &&
+        _additionalFeaturesList.isNotEmpty) {
+      bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
+          feature['description']?.isNotEmpty == true &&
+          feature['image'] != null);
+      if (isFeaturesComplete) filledFields++;
+    }
+
+    // Calculate and return percentage
+    return filledFields / totalFields;
+  }
+
+  void _updateAndNotify(VoidCallback updateFunction) {
+    setState(() {
+      updateFunction();
+    });
+    widget.onProgressUpdate();
+  }
+
+  void _updateCondition(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _selectedCondition = value;
+      });
+    }
+  }
+
+  void _updateDamagesType(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _anyDamagesType = value;
+        if (_anyDamagesType == 'yes' && _damageList.isEmpty) {
+          _damageList.add({'description': '', 'image': null, 'imageUrl': ''});
+        } else if (_anyDamagesType == 'no') {
+          _damageList.clear();
+        }
+      });
+    }
+  }
+
+  void _updateAdditionalFeaturesType(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _anyAdditionalFeaturesType = value;
+        if (_anyAdditionalFeaturesType == 'yes' &&
+            _additionalFeaturesList.isEmpty) {
+          _additionalFeaturesList
+              .add({'description': '', 'image': null, 'imageUrl': ''});
+        } else if (_anyAdditionalFeaturesType == 'no') {
+          _additionalFeaturesList.clear();
+        }
+      });
+    }
+  }
+
+  Future<void> _updateImage(String title, File imageFile) async {
+    _updateAndNotify(() {
+      _selectedImages[title] = imageFile;
+    });
+  }
+
+  void _updateDamageDescription(int index, String value) {
+    _updateAndNotify(() {
+      _damageList[index]['description'] = value;
+    });
+  }
+
+  Future<void> _updateDamageImage(int index, File imageFile) async {
+    _updateAndNotify(() {
+      _damageList[index]['image'] = imageFile;
+    });
+  }
+
+  // Similar updates for additional features
+  // ... other methods ...
 }

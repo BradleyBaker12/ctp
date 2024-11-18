@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FormDataProvider with ChangeNotifier {
@@ -43,6 +42,10 @@ class FormDataProvider with ChangeNotifier {
   // Add these properties
   String? _mainImageUrl;
   String? get mainImageUrl => _mainImageUrl;
+
+  // Add these properties for country management
+  String? _country;
+  String? get country => _country; // Getter for country
 
   // Getters for basic vehicle information
   String? get vehicleId => _vehicleId;
@@ -282,11 +285,7 @@ class FormDataProvider with ChangeNotifier {
     _registrationNumber = null;
     _suspension = null;
     _transmissionType = null;
-    _hydraulics = null;
     _maintenance = null;
-    _warranty = null;
-    _warrantyDetails = null;
-    _requireToSettleType = null;
 
     // Clear maintenance information
     _maintenanceDocFile = null;
@@ -295,6 +294,17 @@ class FormDataProvider with ChangeNotifier {
     _warrantyDocUrl = null;
     _oemInspectionType = 'yes';
     _oemInspectionExplanation = null;
+
+    _hydraulics = 'no';
+    _maintenance = 'no';
+    _warranty = 'no';
+    _warrantyDetails = null;
+    _requireToSettleType = 'no';
+    _referenceNumber = null;
+    _brands = [];
+    _selectedMainImage = null;
+    _mainImageUrl = null;
+    _natisRc1Url = null;
 
     notifyListeners();
   }
@@ -311,7 +321,7 @@ class FormDataProvider with ChangeNotifier {
   }
 
   String? _natisRc1Url;
-  
+
   String? get natisRc1Url => _natisRc1Url;
 
   void setNatisRc1Url(String? url, {bool notify = true}) {
@@ -327,19 +337,31 @@ class FormDataProvider with ChangeNotifier {
   }
 
   String? _referenceNumber;
-  String? _brands;
+  List<String>? _brands;
 
   String? get referenceNumber => _referenceNumber;
-  String? get brands => _brands;
+  List<String>? get brands => _brands;
 
   void setReferenceNumber(String? value, {bool notify = true}) {
     _referenceNumber = value;
     if (notify) notifyListeners();
   }
 
-  void setBrands(String? value, {bool notify = true}) {
+  void setBrands(List<String>? value, {bool notify = true}) {
     _brands = value;
     if (notify) notifyListeners();
   }
 
+  String? _vehicleStatus;
+
+  void setVehicleStatus(String? status) {
+    _vehicleStatus = status;
+    notifyListeners();
+  }
+
+  // Setter for country
+  void setCountry(String? value, {bool notify = true}) {
+    _country = value;
+    if (notify) notifyListeners();
+  }
 }

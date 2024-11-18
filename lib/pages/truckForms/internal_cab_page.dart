@@ -1,3 +1,5 @@
+// lib/pages/truckForms/internal_cab_page.dart
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Added for Firebase Storage
@@ -8,7 +10,15 @@ import 'package:ctp/components/custom_radio_button.dart';
 
 class InternalCabPage extends StatefulWidget {
   final String vehicleId;
-  const InternalCabPage({super.key, required this.vehicleId});
+  final VoidCallback onProgressUpdate;
+  final bool isEditing;
+
+  const InternalCabPage({
+    super.key,
+    required this.vehicleId,
+    required this.onProgressUpdate,
+    this.isEditing = false,
+  });
 
   @override
   InternalCabPageState createState() => InternalCabPageState();
@@ -49,6 +59,8 @@ class InternalCabPageState extends State<InternalCabPage>
   List<Map<String, dynamic>> _additionalFeaturesList = [];
   List<Map<String, dynamic>> _faultCodesList = [];
 
+  bool _isInitialized = false; // Flag to prevent re-initialization
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -87,7 +99,7 @@ class InternalCabPageState extends State<InternalCabPage>
                   groupValue: _selectedCondition,
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() {
+                      _updateAndNotify(() {
                         _selectedCondition = value;
                       });
                     }
@@ -99,7 +111,7 @@ class InternalCabPageState extends State<InternalCabPage>
                   groupValue: _selectedCondition,
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() {
+                      _updateAndNotify(() {
                         _selectedCondition = value;
                       });
                     }
@@ -111,7 +123,7 @@ class InternalCabPageState extends State<InternalCabPage>
                   groupValue: _selectedCondition,
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() {
+                      _updateAndNotify(() {
                         _selectedCondition = value;
                       });
                     }
@@ -146,8 +158,7 @@ class InternalCabPageState extends State<InternalCabPage>
                         key.contains('Mileage') ||
                         key.contains('Visors') ||
                         key.contains('Console'))
-                    .map((key) => _buildPhotoBlock(key))
-                    ,
+                    .map((key) => _buildPhotoBlock(key)),
                 _buildPhotoBlock('Steering'),
               ],
             ),
@@ -199,8 +210,7 @@ class InternalCabPageState extends State<InternalCabPage>
               children: [
                 ..._selectedImages.keys
                     .where((key) => key == 'Roof' || key == 'Bunk Beds')
-                    .map((key) => _buildPhotoBlock(key))
-                    ,
+                    .map((key) => _buildPhotoBlock(key)),
                 _buildPhotoBlock('Rear Panel'),
               ],
             ),
@@ -237,7 +247,7 @@ class InternalCabPageState extends State<InternalCabPage>
               title: 'Are there any damages?',
               anyItemsType: _damagesCondition,
               onChange: (value) {
-                setState(() {
+                _updateAndNotify(() {
                   _damagesCondition = value!;
                   if (_damagesCondition == 'yes' && _damageList.isEmpty) {
                     _damageList.add({'description': '', 'image': null});
@@ -256,7 +266,7 @@ class InternalCabPageState extends State<InternalCabPage>
               title: 'Are there any additional features?',
               anyItemsType: _additionalFeaturesCondition,
               onChange: (value) {
-                setState(() {
+                _updateAndNotify(() {
                   _additionalFeaturesCondition = value!;
                   if (_additionalFeaturesCondition == 'yes' &&
                       _additionalFeaturesList.isEmpty) {
@@ -277,7 +287,7 @@ class InternalCabPageState extends State<InternalCabPage>
               title: 'Are there any fault codes?',
               anyItemsType: _faultCodesCondition,
               onChange: (value) {
-                setState(() {
+                _updateAndNotify(() {
                   _faultCodesCondition = value!;
                   if (_faultCodesCondition == 'yes' &&
                       _faultCodesList.isEmpty) {
@@ -429,7 +439,7 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _damageList,
       addItem: () {
         setState(() {
-          _damageList.add({'description': '', 'image': null});
+          _damageList.add({'description': '', 'image': null, 'imageUrl': ''});
         });
       },
       showImageSourceDialog: _showDamageImageSourceDialog,
@@ -442,7 +452,8 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _additionalFeaturesList,
       addItem: () {
         setState(() {
-          _additionalFeaturesList.add({'description': '', 'image': null});
+          _additionalFeaturesList
+              .add({'description': '', 'image': null, 'imageUrl': ''});
         });
       },
       showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
@@ -455,7 +466,8 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _faultCodesList,
       addItem: () {
         setState(() {
-          _faultCodesList.add({'description': '', 'image': null});
+          _faultCodesList
+              .add({'description': '', 'image': null, 'imageUrl': ''});
         });
       },
       showImageSourceDialog: _showFaultCodesImageSourceDialog,
@@ -470,12 +482,8 @@ class InternalCabPageState extends State<InternalCabPage>
   }) {
     return Column(
       children: [
-        ...items
-            .asMap()
-            .entries
-            .map((entry) =>
-                _buildItemWidget(entry.key, entry.value, showImageSourceDialog))
-            ,
+        ...items.asMap().entries.map((entry) =>
+            _buildItemWidget(entry.key, entry.value, showImageSourceDialog)),
         const SizedBox(height: 16.0),
         GestureDetector(
           onTap: addItem,
@@ -509,7 +517,7 @@ class InternalCabPageState extends State<InternalCabPage>
             Expanded(
               child: TextField(
                 onChanged: (value) {
-                  setState(() {
+                  _updateAndNotify(() {
                     item['description'] = value;
                   });
                 },
@@ -546,30 +554,17 @@ class InternalCabPageState extends State<InternalCabPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: item['imageUrl'] != null
-                ? ClipRRect(
+            child: item['image'] == null
+                ? _buildImagePlaceholder()
+                : ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      item['imageUrl'],
+                    child: Image.file(
+                      item['image'],
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildImagePlaceholder();
-                      },
                     ),
-                  )
-                : item['image'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.file(
-                          item['image'],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-                      )
-                    : _buildImagePlaceholder(),
+                  ),
           ),
         ),
       ],
@@ -665,76 +660,17 @@ class InternalCabPageState extends State<InternalCabPage>
     );
   }
 
-  // Helper method to upload a single image to Firebase Storage and get its URL
-  Future<String?> _uploadImage(File file, String path) async {
-    try {
-      Reference storageRef = _storage.ref().child(path);
-      UploadTask uploadTask = storageRef.putFile(file);
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
-      );
-      return null;
-    }
-  }
+  // Method to upload images (if required)
 
   Future<bool> saveData() async {
-    try {
-      // Upload all view images first
-      Map<String, String> imageUrls = {};
-      for (var entry in _selectedImages.entries) {
-        if (entry.value != null) {
-          String imagePath =
-              'vehicles/${widget.vehicleId}/internal_cab/views/${entry.key}_${DateTime.now().millisecondsSinceEpoch}';
-          String? downloadUrl = await _uploadImage(entry.value!, imagePath);
-          if (downloadUrl != null && downloadUrl.isNotEmpty) {
-            imageUrls[entry.key] = downloadUrl;
-          }
-        }
-      }
-
-      // Upload damage images and create damage data
-      List<Map<String, dynamic>> damageData = [];
-      for (var damage in _damageList) {
-        String imageUrl = '';
-        if (damage['image'] != null) {
-          String imagePath =
-              'vehicles/${widget.vehicleId}/internal_cab/damages/damage_${DateTime.now().millisecondsSinceEpoch}';
-          String? uploadedUrl = await _uploadImage(damage['image'], imagePath);
-          imageUrl = uploadedUrl ?? ''; // Provide empty string as fallback
-        }
-        damageData.add({
-          'description': damage['description'] ?? '',
-          'imageUrl': imageUrl,
-        });
-      }
-
-      // Save to Firestore
-      await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('inspections')
-          .doc('internal_cab')
-          .set({
-        'condition': _selectedCondition,
-        'images': imageUrls,
-        'damages': damageData,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      });
-
-      return true;
-    } catch (e) {
-      print('Error saving internal cab data: $e');
-      return false;
-    }
+    // You can implement save logic here if needed
+    return true;
   }
 
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
     setState(() {
+      // _isInitialized = true;
       // Initialize basic fields
       _selectedCondition = data['condition'] ?? 'good';
       _damagesCondition = data['damagesCondition'] ?? 'no';
@@ -744,11 +680,11 @@ class InternalCabPageState extends State<InternalCabPage>
 
       // Initialize view images
       if (data['viewImages'] != null) {
-        Map<String, String?> viewImages =
-            Map<String, String?>.from(data['viewImages']);
+        Map<String, dynamic> viewImages =
+            Map<String, dynamic>.from(data['viewImages']);
         viewImages.forEach((key, value) {
-          if (value != null) {
-            _selectedImages[key] = File(value);
+          if (value is Map && value['path'] != null) {
+            _selectedImages[key] = File(value['path']);
           }
         });
       }
@@ -760,7 +696,7 @@ class InternalCabPageState extends State<InternalCabPage>
             'description': damage['description'] ?? '',
             'image':
                 damage['imagePath'] != null ? File(damage['imagePath']) : null,
-            'imageUrl': damage['imageUrl'],
+            'imageUrl': damage['imageUrl'] ?? '',
           };
         }).toList();
       }
@@ -774,7 +710,7 @@ class InternalCabPageState extends State<InternalCabPage>
             'image': feature['imagePath'] != null
                 ? File(feature['imagePath'])
                 : null,
-            'imageUrl': feature['imageUrl'],
+            'imageUrl': feature['imageUrl'] ?? '',
           };
         }).toList();
       }
@@ -787,7 +723,7 @@ class InternalCabPageState extends State<InternalCabPage>
             'image': faultCode['imagePath'] != null
                 ? File(faultCode['imagePath'])
                 : null,
-            'imageUrl': faultCode['imageUrl'],
+            'imageUrl': faultCode['imageUrl'] ?? '',
           };
         }).toList();
       }
@@ -796,9 +732,11 @@ class InternalCabPageState extends State<InternalCabPage>
 
   Future<Map<String, dynamic>> getData() async {
     // Convert File objects to paths for serialization
-    Map<String, String?> serializedImages = {};
+    Map<String, dynamic> serializedImages = {};
     _selectedImages.forEach((key, value) {
-      serializedImages[key] = value?.path;
+      if (value != null) {
+        serializedImages[key] = {'path': value.path, 'isNew': true};
+      }
     });
 
     // Convert damage list to serializable format
@@ -807,6 +745,7 @@ class InternalCabPageState extends State<InternalCabPage>
         'description': damage['description'] ?? '',
         'imagePath': damage['image']?.path,
         'imageUrl': damage['imageUrl'] ?? '',
+        'isNew': damage['image'] != null
       };
     }).toList();
 
@@ -817,6 +756,7 @@ class InternalCabPageState extends State<InternalCabPage>
         'description': feature['description'] ?? '',
         'imagePath': feature['image']?.path,
         'imageUrl': feature['imageUrl'] ?? '',
+        'isNew': feature['image'] != null
       };
     }).toList();
 
@@ -827,6 +767,7 @@ class InternalCabPageState extends State<InternalCabPage>
         'description': faultCode['description'] ?? '',
         'imagePath': faultCode['image']?.path,
         'imageUrl': faultCode['imageUrl'] ?? '',
+        'isNew': faultCode['image'] != null
       };
     }).toList();
 
@@ -840,6 +781,78 @@ class InternalCabPageState extends State<InternalCabPage>
       'additionalFeatures': serializedFeatures,
       'faultCodes': serializedFaultCodes,
     };
+  }
+
+  void reset() {
+    setState(() {
+      _selectedCondition = 'good';
+      _damagesCondition = 'no';
+      _additionalFeaturesCondition = 'no';
+      _faultCodesCondition = 'no';
+
+      _selectedImages.forEach((key, _) {
+        _selectedImages[key] = null;
+      });
+
+      _damageList.clear();
+      _additionalFeaturesList.clear();
+      _faultCodesList.clear();
+
+      _isInitialized = false; // Allow re-initialization if needed
+    });
+  }
+
+  double getCompletionPercentage() {
+    int totalFields = 18; // Total number of fields to fill
+    int filledFields = 0;
+
+    // Check condition selection (1 field)
+    if (_selectedCondition.isNotEmpty) filledFields++;
+
+    // Check all images (14 fields)
+    _selectedImages.forEach((key, value) {
+      if (value != null) filledFields++;
+    });
+
+    // Check damages section (1 field)
+    if (_damagesCondition == 'no') {
+      filledFields++;
+    } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
+      bool isDamagesComplete = _damageList.every((damage) =>
+          damage['description']?.isNotEmpty == true && damage['image'] != null);
+      if (isDamagesComplete) filledFields++;
+    }
+
+    // Check additional features section (1 field)
+    if (_additionalFeaturesCondition == 'no') {
+      filledFields++;
+    } else if (_additionalFeaturesCondition == 'yes' &&
+        _additionalFeaturesList.isNotEmpty) {
+      bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
+          feature['description']?.isNotEmpty == true &&
+          feature['image'] != null);
+      if (isFeaturesComplete) filledFields++;
+    }
+
+    // Check fault codes section (1 field)
+    if (_faultCodesCondition == 'no') {
+      filledFields++;
+    } else if (_faultCodesCondition == 'yes' && _faultCodesList.isNotEmpty) {
+      bool isFaultCodesComplete = _faultCodesList.every((faultCode) =>
+          faultCode['description']?.isNotEmpty == true &&
+          faultCode['image'] != null);
+      if (isFaultCodesComplete) filledFields++;
+    }
+
+    // Ensure we don't exceed 1.0 and handle potential division errors
+    return (filledFields / totalFields).clamp(0.0, 1.0);
+  }
+
+  void _updateAndNotify(VoidCallback updateFunction) {
+    setState(() {
+      updateFunction();
+    });
+    widget.onProgressUpdate();
   }
 
   @override

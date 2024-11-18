@@ -1,7 +1,7 @@
 // lib/widgets/listing_card.dart
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+// Import Firestore
 
 class ListingCard extends StatelessWidget {
   final String vehicleId;
@@ -52,14 +52,11 @@ class ListingCard extends StatelessWidget {
                     height: cardHeight,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: (vehicleImageUrl != null &&
-                                vehicleImageUrl!.isNotEmpty &&
-                                Uri.tryParse(vehicleImageUrl!)
-                                        ?.hasAbsolutePath ==
-                                    true)
+                        image: vehicleImageUrl != null &&
+                                vehicleImageUrl!.isNotEmpty
                             ? NetworkImage(vehicleImageUrl!)
                             : const AssetImage(
-                                    'assets/default_vehicle_image.png')
+                                    "lib/assets/default_vehicle_image.png")
                                 as ImageProvider,
                         fit: BoxFit.cover,
                       ),

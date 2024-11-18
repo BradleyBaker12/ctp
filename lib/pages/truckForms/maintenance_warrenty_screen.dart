@@ -5,14 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/pages/truckForms/admin_section.dart';
 import 'package:ctp/pages/truckForms/maintenance_section.dart';
 import 'package:ctp/pages/truckForms/truck_condition_section.dart';
-import 'package:ctp/pages/truckForms/truck_conditions_tabs_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:file_picker/file_picker.dart';
 
 class MaintenanceWarrantyScreen extends StatefulWidget {
   final String vehicleId;
@@ -20,15 +17,21 @@ class MaintenanceWarrantyScreen extends StatefulWidget {
   final String maintenanceSelection;
   final String warrantySelection;
   final String requireToSettleType;
+  final String vehicleRef;
+  final String makeModel;
+  final String mainImageUrl;
 
   const MaintenanceWarrantyScreen({
-    Key? key,
+    super.key,
     required this.vehicleId,
     this.natisRc1Url,
     required this.maintenanceSelection,
     required this.warrantySelection,
     required this.requireToSettleType,
-  }) : super(key: key);
+    required this.vehicleRef,
+    required this.makeModel,
+    required this.mainImageUrl,
+  });
 
   @override
   _MaintenanceWarrantyScreenState createState() =>
@@ -65,18 +68,31 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
   bool isNewUpload = false;
 
-  List<String> _tabTitles = [];
-  List<Widget> _tabContents = [];
+  // Make these late final to ensure they're only initialized once
+  late final List<String> _tabTitles;
+  late final List<Widget> _tabContents;
+
+  // Store child widgets as state variables
+  late MaintenanceSection _maintenanceSection;
+  late AdminSection _adminSection;
+  late TruckConditionSection _truckConditionSection;
 
   @override
   void initState() {
     super.initState();
 
+    // Initialize lists
+    _tabTitles = [];
+    _tabContents = [];
+
+    // Initialize sections first
+    _initializeSections();
+
+    // Build tabs once
+    _buildTabs();
+
     // Determine if this is a new upload based on vehicleId
     isNewUpload = widget.vehicleId.isEmpty;
-
-    // Build tabs dynamically based on user selections
-    _buildTabs();
 
     // Only fetch data if we have a vehicleId and it's not a new vehicle
     if (!isNewUpload) {
@@ -95,76 +111,69 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     }
   }
 
-  void _buildTabs() {
-    _tabTitles = [];
-    _tabContents = [];
-    _selectedTabIndex = 0;
-
+  void _initializeSections() {
     if (widget.maintenanceSelection == 'yes' ||
         widget.warrantySelection == 'yes') {
-      // Add Maintenance tab
-      _tabTitles.add('MAINTENANCE');
-      _tabContents.add(
-        MaintenanceSection(
-          key: _maintenanceSectionKey,
-          vehicleId: widget.vehicleId,
-          isUploading: _isUploading,
-          maintenanceSelection: widget.maintenanceSelection,
-          warrantySelection: widget.warrantySelection,
-          onMaintenanceFileSelected: (file) {
-            setState(() {
-              _maintenanceDocFile = file;
-            });
-          },
-          onWarrantyFileSelected: (file) {
-            setState(() {
-              _warrantyDocFile = file;
-            });
-          },
-          oemInspectionType: _oemInspectionType,
-          oemInspectionExplanation: _oemInspectionExplanationController.text,
-          maintenanceDocFile: _maintenanceDocFile,
-          warrantyDocFile: _warrantyDocFile,
-          maintenanceDocUrl: _maintenanceDocUrl,
-          warrantyDocUrl: _warrantyDocUrl,
-        ),
+      _maintenanceSection = MaintenanceSection(
+        key: _maintenanceSectionKey,
+        vehicleId: widget.vehicleId,
+        isUploading: _isUploading,
+        maintenanceSelection: widget.maintenanceSelection,
+        warrantySelection: widget.warrantySelection,
+        onMaintenanceFileSelected: (file) {
+          _maintenanceSectionKey.currentState?.updateMaintenanceFile(file);
+        },
+        onWarrantyFileSelected: (file) {
+          _maintenanceSectionKey.currentState?.updateWarrantyFile(file);
+        },
+        onProgressUpdate: () {
+          // Handle progress updates here if needed
+        },
+        oemInspectionType: _oemInspectionType,
+        oemInspectionExplanation: _oemInspectionExplanationController.text,
+        maintenanceDocFile: _maintenanceDocFile,
+        warrantyDocFile: _warrantyDocFile,
+        maintenanceDocUrl: _maintenanceDocUrl,
+        warrantyDocUrl: _warrantyDocUrl,
       );
     }
 
-    // Add Admin tab
-    _tabTitles.add('ADMIN');
-    _tabContents.add(
-      AdminSection(
-        key: _adminSectionKey,
-        vehicleId: widget.vehicleId,
-        natisRc1Url: widget.natisRc1Url,
-        isUploading: _isUploading,
-        requireToSettleType: widget.requireToSettleType,
-        onAdminDoc1Selected: (File? file) {
-          setState(() {
-            _adminDoc1File = file;
-          });
-        },
-        onAdminDoc2Selected: (File? file) {
-          setState(() {
-            _adminDoc2File = file;
-          });
-        },
-        onAdminDoc3Selected: (File? file) {
-          setState(() {
-            _adminDoc3File = file;
-          });
-        },
-      ),
+    _adminSection = AdminSection(
+      key: _adminSectionKey,
+      vehicleId: widget.vehicleId,
+      natisRc1Url: widget.natisRc1Url,
+      isUploading: _isUploading,
+      requireToSettleType: widget.requireToSettleType,
+      onAdminDoc1Selected: (File? file) {
+        _adminSectionKey.currentState?.updateAdminDoc1(file);
+      },
+      onAdminDoc2Selected: (File? file) {
+        _adminSectionKey.currentState?.updateAdminDoc2(file);
+      },
+      onAdminDoc3Selected: (File? file) {
+        _adminSectionKey.currentState?.updateAdminDoc3(file);
+      },
     );
 
-    // Add Truck Condition tab
-    _tabTitles.add('TRUCK CONDITION');
-    _tabContents.add(
-      TruckConditionSection(
-        vehicleId: widget.vehicleId,
-      ),
+    _truckConditionSection = TruckConditionSection(
+      vehicleId: widget.vehicleId,
     );
+  }
+
+  void _buildTabs() {
+    if (_tabTitles.isNotEmpty) return; // Don't rebuild if already built
+
+    if (widget.maintenanceSelection == 'yes' ||
+        widget.warrantySelection == 'yes') {
+      _tabTitles.add('MAINTENANCE');
+      _tabContents.add(_maintenanceSection);
+    }
+
+    _tabTitles.add('ADMIN');
+    _tabContents.add(_adminSection);
+
+    _tabTitles.add('TRUCK CONDITION');
+    _tabContents.add(_truckConditionSection);
   }
 
   void _clearAllData() {
@@ -310,11 +319,11 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
         'maintenance': maintenanceData,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maintenance & Warranty data saved successfully'),
-        ),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //     content: Text('Maintenance & Warranty data saved successfully'),
+      //   ),
+      // );
 
       return true; // Indicate success
     } catch (e) {
@@ -398,6 +407,17 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
   // Helper method to build custom tab buttons
   Widget _buildCustomTabButton(String title, int index) {
     bool isSelected = _selectedTabIndex == index;
+    double completionPercentage = 0.0;
+
+    // Get completion percentage based on tab index
+    if (index == 0 && _maintenanceSectionKey.currentState != null) {
+      completionPercentage =
+          _maintenanceSectionKey.currentState!.getCompletionPercentage();
+    } else if (index == 1 && _adminSectionKey.currentState != null) {
+      completionPercentage =
+          _adminSectionKey.currentState!.getCompletionPercentage();
+    }
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -406,25 +426,41 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
           });
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 0),
-          margin: const EdgeInsets.symmetric(horizontal: 4.0),
+          height: 45,
+          padding: EdgeInsets.zero,
+          margin: EdgeInsets.zero,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.green : Colors.blue,
-            borderRadius: BorderRadius.zero,
+            color: Colors.black,
             border: Border.all(
-              color: Colors.transparent,
-              width: 0.0,
+              color: Colors.blue,
+              width: 1.0,
             ),
+            borderRadius: BorderRadius.zero,
           ),
-          child: Center(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13.0,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          child: Stack(
+            children: [
+              // Progress bar
+              FractionallySizedBox(
+                widthFactor: completionPercentage,
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(1),
+                  ),
+                ),
               ),
-            ),
+              // Text
+              Center(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13.0,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -470,91 +506,178 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
   // Method to handle "Done" button press
   Future<void> _onDonePressed() async {
-    bool allSaved = true;
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      bool allSaved = true;
 
-    // Save Maintenance Data if the tab exists
-    if (_maintenanceSectionKey.currentState != null) {
-      bool maintenanceSaved =
-          await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
-              false;
-      if (!maintenanceSaved) {
-        allSaved = false;
+      // Save Maintenance Data if the tab exists
+      if (_maintenanceSectionKey.currentState != null) {
+        bool maintenanceSaved =
+            await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
+                false;
+        if (!maintenanceSaved) {
+          allSaved = false;
+        }
       }
-    }
 
-    // Save Admin Data without validation
-    bool adminSaved =
-        await _adminSectionKey.currentState?.saveAdminData() ?? false;
+      // Save Admin Data without validation
+      bool adminSaved =
+          await _adminSectionKey.currentState?.saveAdminData() ?? false;
 
-    if (allSaved) {
-      bool parentSaved = await _saveMaintenanceWarrantyData();
-      if (parentSaved) {
-        Navigator.of(context).pushReplacementNamed('/home');
+      if (allSaved) {
+        bool parentSaved = await _saveMaintenanceWarrantyData();
+        if (parentSaved) {
+          setState(() {
+            _isLoading = false;
+          });
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+          // Handle failure to save parent data
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error saving data. Please try again.')),
+        );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error saving data. Please try again.')),
-      );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle any errors
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: GradientBackground(
-        child: Column(
-          children: [
-            // Replace image stack with just the tab buttons
-            Padding(
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 10.0,
-                left: 16.0,
-                right: 16.0,
-              ),
-              child: Row(
-                children: List.generate(_tabTitles.length, (index) {
-                  return _buildCustomTabButton(_tabTitles[index], index);
-                }),
-              ),
-            ),
-            // Content Section
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildContent(),
-              ),
-            ),
-            // "Continue" and "Done" Buttons
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Continue',
-                      onPressed: _selectedTabIndex < _tabContents.length - 1
-                          ? _onContinuePressed
-                          : null,
-                      borderColor: AppColors.blue,
-                    ),
+    bool isLastTab = _selectedTabIndex == _tabContents.length - 1;
+    bool isTruckConditionTab =
+        _tabTitles[_selectedTabIndex] == 'TRUCK CONDITION';
+
+    return Stack(
+      children: [
+        Scaffold(
+          body: GradientBackground(
+            child: Column(
+              children: [
+                // Custom AppBar
+                Container(
+                  color: AppColors.blue,
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top,
                   ),
-                  const SizedBox(width: 16.0),
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Done',
-                      onPressed: _onDonePressed,
-                      borderColor: AppColors.green,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        "Ref#: ${widget.vehicleRef}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        "Make/Model: ${widget.makeModel}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Container(
+                        width: 50,
+                        height: 50,
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          image: DecorationImage(
+                            image: NetworkImage(widget.mainImageUrl),
+                            fit: BoxFit.cover,
+                            onError: (error, stackTrace) {
+                              print('Error loading image: $error');
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                    ],
                   ),
-                ],
-              ),
+                ),
+
+                // Modified tab buttons section
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Row(
+                    children: List.generate(_tabTitles.length, (index) {
+                      return _buildCustomTabButton(_tabTitles[index], index);
+                    }),
+                  ),
+                ),
+
+                // Rest of the existing content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: _buildContent(),
+                  ),
+                ),
+
+                // Modified buttons section
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 10.0),
+                  child: Row(
+                    children: [
+                      if (!isTruckConditionTab) ...[
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Continue',
+                            onPressed:
+                                _selectedTabIndex < _tabContents.length - 1
+                                    ? _onContinuePressed
+                                    : null,
+                            borderColor: AppColors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 16.0),
+                      ],
+                      Expanded(
+                        child: CustomButton(
+                          text: 'Done',
+                          onPressed: _onDonePressed,
+                          borderColor: AppColors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        if (_isLoading)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+              child: Center(
+                child: Image.asset(
+                  'lib/assets/Loading_Logo_CTP.gif',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

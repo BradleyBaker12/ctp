@@ -69,4 +69,17 @@ class Chassis {
       'faultCodes': faultCodes,
     };
   }
+
+  factory Chassis.empty() {
+    return Chassis(
+      condition: '',
+      damagesCondition: '',
+      additionalFeaturesCondition: '',
+      photos: {},
+      lastUpdated: DateTime.now(),
+      damages: [],
+      additionalFeatures: [],
+      faultCodes: [],
+    );
+  }
 }

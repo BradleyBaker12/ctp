@@ -26,7 +26,7 @@ class VehicleFormService {
   Future<String> uploadFile(File file, String folder) async {
     try {
       final fileName =
-          '${folder}/${DateTime.now().millisecondsSinceEpoch}_${_auth.currentUser?.uid}';
+          '$folder/${DateTime.now().millisecondsSinceEpoch}_${_auth.currentUser?.uid}';
       final ref = _storage.ref().child(fileName);
 
       final uploadTask = await ref.putFile(file);

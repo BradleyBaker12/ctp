@@ -7,12 +7,18 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/providers/form_data_provider.dart';
 
 class ChassisPage extends StatefulWidget {
   final String vehicleId;
-  const ChassisPage({super.key, required this.vehicleId});
+  final VoidCallback onProgressUpdate;
+  final bool isEditing;
+
+  const ChassisPage({
+    super.key,
+    required this.vehicleId,
+    required this.onProgressUpdate,
+    this.isEditing = false,
+  });
 
   @override
   ChassisPageState createState() => ChassisPageState();
@@ -68,146 +74,10 @@ class ChassisPageState extends State<ChassisPage>
   List<Map<String, dynamic>> _damageList = [];
   List<Map<String, dynamic>> _additionalFeaturesList = [];
 
-  // Add a loading state tracker
-  final Map<String, bool> _imageUploading = {};
-
-  bool _isInitialized = false;
+  bool _isInitialized = false; // Flag to prevent re-initialization
 
   @override
   bool get wantKeepAlive => true; // Properly implementing the getter
-
-  @override
-  void initState() {
-    super.initState();
-    _loadExistingData();
-  }
-
-  // Method to load existing data from Firestore (if any)
-  Future<void> _loadExistingData() async {
-    if (_isInitialized) return;
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('inspections')
-          .doc('chassis')
-          .get();
-
-      if (doc.exists && mounted) {
-        final data = doc.data() ?? {};
-        setState(() {
-          _isInitialized = true;
-
-          // Load basic conditions
-          _selectedCondition = data['condition'] ?? 'good';
-          _damagesCondition = data['damagesCondition'] ?? 'no';
-          _additionalFeaturesCondition =
-              data['additionalFeaturesCondition'] ?? 'no';
-
-          // Load images and URLs
-          if (data['images'] != null) {
-            final images = Map<String, dynamic>.from(data['images']);
-            images.forEach((key, value) {
-              if (value != null) {
-                _imageUrls[key] = value.toString();
-              }
-            });
-          }
-
-          // Load damages
-          if (data['damages'] != null) {
-            _damageList = (data['damages'] as List).map((damage) {
-              return {
-                'description': damage['description'] ?? '',
-                'imageUrl': damage['imageUrl'],
-                'key': damage['key'] ??
-                    DateTime.now().millisecondsSinceEpoch.toString(),
-              };
-            }).toList();
-          }
-
-          // Load additional features
-          if (data['additionalFeatures'] != null) {
-            _additionalFeaturesList =
-                (data['additionalFeatures'] as List).map((feature) {
-              return {
-                'description': feature['description'] ?? '',
-                'imageUrl': feature['imageUrl'],
-                'key': feature['key'] ??
-                    DateTime.now().millisecondsSinceEpoch.toString(),
-              };
-            }).toList();
-          }
-        });
-      }
-    } catch (e) {
-      print('Error loading chassis data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
-      }
-    }
-  }
-
-  void initializeWithData(Map<String, dynamic> data) {
-    if (data.isEmpty || _isInitialized) return;
-
-    setState(() {
-      _isInitialized = true;
-
-      // Initialize basic fields
-      _selectedCondition = data['condition'] ?? 'good';
-      _damagesCondition = data['damagesCondition'] ?? 'no';
-      _additionalFeaturesCondition =
-          data['additionalFeaturesCondition'] ?? 'no';
-
-      // Initialize images
-      if (data['images'] != null) {
-        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
-        images.forEach((key, value) {
-          if (value is Map) {
-            if (value['path'] != null) {
-              _selectedImages[key] = File(value['path']);
-            } else if (value['url'] != null) {
-              _imageUrls[key] = value['url'];
-            }
-          }
-        });
-      }
-
-      // Initialize damage list
-      if (data['damages'] != null) {
-        _damageList = (data['damages'] as List).map((damage) {
-          return {
-            'description': damage['description'] ?? '',
-            'image':
-                damage['imagePath'] != null ? File(damage['imagePath']) : null,
-            'imageUrl': damage['imageUrl'],
-            'key': damage['key'] ??
-                DateTime.now().millisecondsSinceEpoch.toString(),
-          };
-        }).toList();
-      }
-
-      // Initialize additional features list
-      if (data['additionalFeatures'] != null) {
-        _additionalFeaturesList =
-            (data['additionalFeatures'] as List).map((feature) {
-          return {
-            'description': feature['description'] ?? '',
-            'image': feature['imagePath'] != null
-                ? File(feature['imagePath'])
-                : null,
-            'imageUrl': feature['imageUrl'],
-            'key': feature['key'] ??
-                DateTime.now().millisecondsSinceEpoch.toString(),
-          };
-        }).toList();
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +118,7 @@ class ChassisPageState extends State<ChassisPage>
                 groupValue: _selectedCondition,
                 onChanged: (value) {
                   if (value != null) {
-                    setState(() {
+                    _updateAndNotify(() {
                       _selectedCondition = value;
                     });
                   }
@@ -260,7 +130,7 @@ class ChassisPageState extends State<ChassisPage>
                 groupValue: _selectedCondition,
                 onChanged: (value) {
                   if (value != null) {
-                    setState(() {
+                    _updateAndNotify(() {
                       _selectedCondition = value;
                     });
                   }
@@ -272,7 +142,7 @@ class ChassisPageState extends State<ChassisPage>
                 groupValue: _selectedCondition,
                 onChanged: (value) {
                   if (value != null) {
-                    setState(() {
+                    _updateAndNotify(() {
                       _selectedCondition = value;
                     });
                   }
@@ -346,10 +216,15 @@ class ChassisPageState extends State<ChassisPage>
             title: 'Are there any damages?',
             anyItemsType: _damagesCondition,
             onChange: (value) {
-              setState(() {
+              _updateAndNotify(() {
                 _damagesCondition = value!;
                 if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                  _damageList.add({'description': '', 'imageUrl': null});
+                  _damageList.add({
+                    'description': '',
+                    'image': null,
+                    'imageUrl': null,
+                    'key': UniqueKey().toString(),
+                  });
                 } else if (_damagesCondition == 'no') {
                   _damageList.clear();
                 }
@@ -365,12 +240,16 @@ class ChassisPageState extends State<ChassisPage>
             title: 'Are there any additional features?',
             anyItemsType: _additionalFeaturesCondition,
             onChange: (value) {
-              setState(() {
+              _updateAndNotify(() {
                 _additionalFeaturesCondition = value!;
                 if (_additionalFeaturesCondition == 'yes' &&
                     _additionalFeaturesList.isEmpty) {
-                  _additionalFeaturesList
-                      .add({'description': '', 'imageUrl': null});
+                  _additionalFeaturesList.add({
+                    'description': '',
+                    'image': null,
+                    'imageUrl': null,
+                    'key': UniqueKey().toString(),
+                  });
                 } else if (_additionalFeaturesCondition == 'no') {
                   _additionalFeaturesList.clear();
                 }
@@ -406,71 +285,54 @@ class ChassisPageState extends State<ChassisPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _imageUrls[title] == null && _selectedImages[title] == null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.add_circle_outline,
-                      color: Colors.white, size: 40.0),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+        child: _selectedImages[title] != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.file(
+                  _selectedImages[title]!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
               )
-            : _getImageWidget(title),
+            : _imageUrls[title] != null && widget.isEditing
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      _imageUrls[title]!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_circle_outline,
+                          color: Colors.white, size: 40.0),
+                      const SizedBox(height: 8.0),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
       ),
-    );
-  }
-
-  // Get the appropriate image widget
-  Widget _getImageWidget(String title) {
-    if (_imageUrls[title] != null && _imageUrls[title]!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: Image.network(
-          _imageUrls[title]!,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildImagePlaceholder();
-          },
-        ),
-      );
-    } else if (_selectedImages[title] != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: Image.file(
-          _selectedImages[title]!,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-        ),
-      );
-    } else {
-      return _buildImagePlaceholder();
-    }
-  }
-
-  // Placeholder widget for images
-  Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.broken_image, color: Colors.white, size: 40.0),
-        SizedBox(height: 8.0),
-        Text(
-          'Image Not Available',
-          style: TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ],
     );
   }
 
@@ -492,9 +354,8 @@ class ChassisPageState extends State<ChassisPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    setState(() {
+                    _updateAndNotify(() {
                       _selectedImages[title] = File(pickedFile.path);
-                      _imageUrls[title] = null; // Reset imageUrl
                     });
                   }
                 },
@@ -507,9 +368,8 @@ class ChassisPageState extends State<ChassisPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    setState(() {
+                    _updateAndNotify(() {
                       _selectedImages[title] = File(pickedFile.path);
-                      _imageUrls[title] = null; // Reset imageUrl
                     });
                   }
                 },
@@ -569,8 +429,13 @@ class ChassisPageState extends State<ChassisPage>
     return _buildItemSection(
       items: _damageList,
       addItem: () {
-        setState(() {
-          _damageList.add({'description': '', 'imageUrl': null});
+        _updateAndNotify(() {
+          _damageList.add({
+            'description': '',
+            'image': null,
+            'imageUrl': null,
+            'key': UniqueKey().toString(),
+          });
         });
       },
       showImageSourceDialog: _showDamageImageSourceDialog,
@@ -582,8 +447,13 @@ class ChassisPageState extends State<ChassisPage>
     return _buildItemSection(
       items: _additionalFeaturesList,
       addItem: () {
-        setState(() {
-          _additionalFeaturesList.add({'description': '', 'imageUrl': null});
+        _updateAndNotify(() {
+          _additionalFeaturesList.add({
+            'description': '',
+            'image': null,
+            'imageUrl': null,
+            'key': UniqueKey().toString(),
+          });
         });
       },
       showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
@@ -639,7 +509,7 @@ class ChassisPageState extends State<ChassisPage>
                   ..selection = TextSelection.fromPosition(
                       TextPosition(offset: item['description']?.length ?? 0)),
                 onChanged: (value) {
-                  setState(() {
+                  _updateAndNotify(() {
                     item['description'] = value;
                   });
                 },
@@ -658,7 +528,7 @@ class ChassisPageState extends State<ChassisPage>
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () {
-                setState(() {
+                _updateAndNotify(() {
                   list.removeAt(index);
                 });
               },
@@ -676,8 +546,56 @@ class ChassisPageState extends State<ChassisPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: _buildImageWidget(item),
+            child: item['image'] != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.file(
+                      item['image'],
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  )
+                : item['imageUrl'] != null && widget.isEditing
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          item['imageUrl'],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes !=
+                                        null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : _buildImagePlaceholder(),
           ),
+        ),
+      ],
+    );
+  }
+
+  // Placeholder widget for images
+  Widget _buildImagePlaceholder() {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+        SizedBox(height: 8.0),
+        Text(
+          'Add Image',
+          style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -699,19 +617,37 @@ class ChassisPageState extends State<ChassisPage>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Choose Image Source for ${item['title']}'),
+          title: const Text('Choose Image Source'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
-                onTap: () => _handleImageSelection(ImageSource.camera, item),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final pickedFile =
+                      await _picker.pickImage(source: ImageSource.camera);
+                  if (pickedFile != null) {
+                    _updateAndNotify(() {
+                      item['image'] = File(pickedFile.path);
+                    });
+                  }
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
-                onTap: () => _handleImageSelection(ImageSource.gallery, item),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final pickedFile =
+                      await _picker.pickImage(source: ImageSource.gallery);
+                  if (pickedFile != null) {
+                    _updateAndNotify(() {
+                      item['image'] = File(pickedFile.path);
+                    });
+                  }
+                },
               ),
             ],
           ),
@@ -720,198 +656,68 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  // Optimize image selection handling
-  Future<void> _handleImageSelection(
-      ImageSource source, Map<String, dynamic> item) async {
-    try {
-      Navigator.pop(context);
+  // Method to upload images (if required)
+  Future<bool> saveData() async {
+    // You can implement save logic here if needed
+    return true;
+  }
 
-      setState(() => _imageUploading[item['key']] = true);
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
 
-      final pickedFile = await _picker.pickImage(
-        source: source,
-        imageQuality: 70, // Optimize image quality
-        maxWidth: 1200, // Limit image dimensions
-      );
+    setState(() {
+      // _isInitialized = true;
 
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImages[item['key']] = File(pickedFile.path);
+      // Initialize basic fields
+      _selectedCondition = data['condition'] ?? 'good';
+      _damagesCondition = data['damagesCondition'] ?? 'no';
+      _additionalFeaturesCondition =
+          data['additionalFeaturesCondition'] ?? 'no';
+
+      // Initialize images
+      if (data['images'] != null) {
+        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
+        images.forEach((key, value) {
+          if (value is Map) {
+            if (value['path'] != null) {
+              _selectedImages[key] = File(value['path']);
+            } else if (value['url'] != null) {
+              _imageUrls[key] = value['url'];
+            }
+          }
         });
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error selecting image: $e')),
-      );
-    } finally {
-      setState(() => _imageUploading[item['key']] = false);
-    }
-  }
 
-  // Helper method to build yes/no section with optional image upload
-  Widget _buildYesNoSection({
-    required String title,
-    required String groupValue,
-    required ValueChanged<String?> onChanged,
-    required String imageKey,
-  }) {
-    return Column(
-      children: [
-        Text(
-          title.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 15,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w900,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CustomRadioButton(
-              label: 'Yes',
-              value: 'yes',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-            const SizedBox(width: 15),
-            CustomRadioButton(
-              label: 'No',
-              value: 'no',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16.0),
-        if (groupValue == 'yes') _buildPhotoBlock(imageKey),
-      ],
-    );
-  }
-
-  // Helper method to build yes/no section without image upload
-  Widget _buildYesNoRadioOnlySection({
-    required String title,
-    required String groupValue,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Column(
-      children: [
-        Text(
-          title.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 15,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w900,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CustomRadioButton(
-              label: 'Yes',
-              value: 'yes',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-            const SizedBox(width: 15),
-            CustomRadioButton(
-              label: 'No',
-              value: 'no',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // Optimize save method
-  Future<bool> saveData() async {
-    try {
-      // Upload view images and get URLs
-      Map<String, String> imageUrls = {};
-      for (var entry in _selectedImages.entries) {
-        if (entry.value != null) {
-          String imagePath =
-              'vehicles/${widget.vehicleId}/chassis/views/${entry.key}_${DateTime.now().millisecondsSinceEpoch}';
-          String downloadUrl = await _uploadImage(entry.value!, imagePath);
-          if (downloadUrl.isNotEmpty) {
-            imageUrls[entry.key] = downloadUrl;
-            _imageUrls[entry.key] = downloadUrl;
-          }
-        } else if (_imageUrls.containsKey(entry.key)) {
-          imageUrls[entry.key] = _imageUrls[entry.key]!;
-        }
-      }
-
-      // Upload and prepare damages data
-      List<Map<String, dynamic>> damagesData = [];
-      if (_damagesCondition == 'yes') {
-        for (var damage in _damageList) {
-          String imageUrl = damage['imageUrl'] ?? '';
-          if (damage['image'] != null) {
-            String imagePath =
-                'vehicles/${widget.vehicleId}/chassis/damages/damage_${damage['key']}';
-            imageUrl = await _uploadImage(damage['image'], imagePath);
-          }
-          damagesData.add({
+      // Initialize damage list
+      if (data['damages'] != null) {
+        _damageList = (data['damages'] as List).map((damage) {
+          return {
             'description': damage['description'] ?? '',
-            'imageUrl': imageUrl,
-            'key': damage['key'],
-          });
-        }
+            'image':
+                damage['imagePath'] != null ? File(damage['imagePath']) : null,
+            'imageUrl': damage['imageUrl'],
+            'key': damage['key'] ??
+                DateTime.now().millisecondsSinceEpoch.toString(),
+          };
+        }).toList();
       }
 
-      // Upload and prepare additional features data
-      List<Map<String, dynamic>> featuresData = [];
-      if (_additionalFeaturesCondition == 'yes') {
-        for (var feature in _additionalFeaturesList) {
-          String imageUrl = feature['imageUrl'] ?? '';
-          if (feature['image'] != null) {
-            String imagePath =
-                'vehicles/${widget.vehicleId}/chassis/features/feature_${feature['key']}';
-            imageUrl = await _uploadImage(feature['image'], imagePath);
-          }
-          featuresData.add({
+      // Initialize additional features list
+      if (data['additionalFeatures'] != null) {
+        _additionalFeaturesList =
+            (data['additionalFeatures'] as List).map((feature) {
+          return {
             'description': feature['description'] ?? '',
-            'imageUrl': imageUrl,
-            'key': feature['key'],
-          });
-        }
+            'image': feature['imagePath'] != null
+                ? File(feature['imagePath'])
+                : null,
+            'imageUrl': feature['imageUrl'],
+            'key': feature['key'] ??
+                DateTime.now().millisecondsSinceEpoch.toString(),
+          };
+        }).toList();
       }
-
-      // Save to Firestore
-      await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('inspections')
-          .doc('chassis')
-          .set({
-        'condition': _selectedCondition,
-        'images': imageUrls,
-        'damagesCondition': _damagesCondition,
-        'damages': damagesData,
-        'additionalFeaturesCondition': _additionalFeaturesCondition,
-        'additionalFeatures': featuresData,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      return true;
-    } catch (e) {
-      print('Error saving chassis data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save chassis data: $e')),
-        );
-      }
-      return false;
-    }
+    });
   }
 
   Future<Map<String, dynamic>> getData() async {
@@ -924,19 +730,11 @@ class ChassisPageState extends State<ChassisPage>
 
     // Handle images
     Map<String, dynamic> imageData = {};
-    for (var entry in _selectedImages.entries) {
-      if (entry.value != null) {
-        imageData[entry.key] = {
-          'path': entry.value!.path,
-          'isNew': true,
-        };
-      } else if (_imageUrls.containsKey(entry.key)) {
-        imageData[entry.key] = {
-          'url': _imageUrls[entry.key],
-          'isNew': false,
-        };
+    _selectedImages.forEach((key, value) {
+      if (value != null) {
+        imageData[key] = {'path': value.path, 'isNew': true};
       }
-    }
+    });
 
     // Handle damages
     List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
@@ -968,74 +766,68 @@ class ChassisPageState extends State<ChassisPage>
     return sanitizedData;
   }
 
-  Future<String> _uploadImage(File imageFile, String imageName) async {
-    try {
-      final ref =
-          _storage.ref().child('chassis/${widget.vehicleId}/$imageName');
-      final uploadTask = ref.putFile(imageFile);
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-      print('Error uploading image: $e');
-      return '';
-    }
+  void reset() {
+    setState(() {
+      _selectedCondition = 'good';
+      _damagesCondition = 'no';
+      _additionalFeaturesCondition = 'no';
+
+      // Clear selected images
+      _selectedImages.forEach((key, _) {
+        _selectedImages[key] = null;
+      });
+
+      // Clear lists
+      _damageList.clear();
+      _additionalFeaturesList.clear();
+
+      // Clear image URLs
+      _imageUrls.clear();
+
+      _isInitialized = false; // Allow re-initialization if needed
+    });
   }
 
-  // Add helper method to build image widget
-  Widget _buildImageWidget(Map<String, dynamic> item) {
-    if (item['image'] != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: Image.file(
-          item['image'],
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-        ),
-      );
-    } else if (item['imageUrl'] != null && item['imageUrl'].isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: Image.network(
-          item['imageUrl'],
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Center(
-                child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
-                  : null,
-            ));
-          },
-          errorBuilder: (context, error, stackTrace) =>
-              _buildImagePlaceholder(),
-        ),
-      );
-    } else {
-      return _buildImagePlaceholder();
+  double getCompletionPercentage() {
+    int totalFields =
+        17; // 1 condition + 14 images + 2 sections (damages and additional features)
+    int filledFields = 0;
+
+    // Check condition selection (1 field)
+    if (_selectedCondition.isNotEmpty) filledFields++;
+
+    // Check all images (14 fields)
+    _selectedImages.forEach((key, value) {
+      if (value != null) filledFields++;
+    });
+
+    // Check damages section (1 field)
+    if (_damagesCondition == 'no') {
+      filledFields++;
+    } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
+      bool isDamagesComplete = _damageList.every((damage) =>
+          damage['description']?.isNotEmpty == true && damage['image'] != null);
+      if (isDamagesComplete) filledFields++;
     }
+
+    // Check additional features section (1 field)
+    if (_additionalFeaturesCondition == 'no') {
+      filledFields++;
+    } else if (_additionalFeaturesCondition == 'yes' &&
+        _additionalFeaturesList.isNotEmpty) {
+      bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
+          feature['description']?.isNotEmpty == true &&
+          feature['image'] != null);
+      if (isFeaturesComplete) filledFields++;
+    }
+
+    return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
-  // // Add helper method for image placeholder
-  // Widget _buildImagePlaceholder() {
-  //   return const Column(
-  //     mainAxisAlignment: MainAxisAlignment.center,
-  //     children: [
-  //       Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-  //       SizedBox(height: 8.0),
-  //       Text(
-  //         'Add Image',
-  //         style: TextStyle(
-  //           color: Colors.white,
-  //           fontSize: 16,
-  //           fontWeight: FontWeight.w600
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
+  void _updateAndNotify(VoidCallback updateFunction) {
+    setState(() {
+      updateFunction();
+    });
+    widget.onProgressUpdate();
+  }
 }

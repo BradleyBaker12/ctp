@@ -17,6 +17,8 @@ class TruckConditionsTabsPage extends StatefulWidget {
   final File? mainImageFile;
   final String? mainImageUrl;
   final String vehicleId;
+  final bool isEditing;
+  final dynamic formData;
 
   const TruckConditionsTabsPage({
     super.key,
@@ -24,6 +26,8 @@ class TruckConditionsTabsPage extends StatefulWidget {
     this.mainImageFile,
     this.mainImageUrl,
     required this.vehicleId,
+    this.isEditing = false,
+    this.formData,
   });
 
   @override
@@ -34,7 +38,7 @@ class TruckConditionsTabsPage extends StatefulWidget {
 class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
   int _selectedTabIndex = 0;
   bool _isSaving = false;
-  bool _isDataModified = false;
+  final bool _isDataModified = false;
   bool _isLoading = true;
   Map<String, dynamic> _cachedData = {};
 
@@ -49,7 +53,7 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
   final GlobalKey<TyresPageState> _tyresKey = GlobalKey<TyresPageState>();
 
   // Add a flag to track if any data has been modified
-  Map<String, bool> _modifiedSections = {
+  final Map<String, bool> _modifiedSections = {
     'externalCab': false,
     'internalCab': false,
     'driveTrain': false,
@@ -60,11 +64,43 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
   // Add a flag to track if we're navigating home
   bool _isNavigatingHome = false;
 
+  // Add these new properties
+  String _vehicleRef = '';
+  String _makeModel = '';
+  String _vehicleImageUrl = '';
+  String _vehicleConfig = '';
+
   @override
   void initState() {
     super.initState();
     _selectedTabIndex = widget.initialIndex;
+    print('Initial tab index: $_selectedTabIndex');
     _loadSavedData();
+    _loadVehicleDetails();
+  }
+
+  // Add this new method to load vehicle details
+  Future<void> _loadVehicleDetails() async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+
+      if (doc.exists && mounted) {
+        Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          setState(() {
+            _vehicleRef = data['vehicleRef'] ?? '';
+            _makeModel = data['makeModel'] ?? '';
+            _vehicleImageUrl = data['mainImageUrl'] ?? '';
+            _vehicleConfig = data['config'] ?? '';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading vehicle details: $e');
+    }
   }
 
   // Modified load method to handle cached data
@@ -202,6 +238,13 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      // Reset form fields in all tabs
+      _externalCabKey.currentState?.reset();
+      _internalCabKey.currentState?.reset();
+      _driveTrainKey.currentState?.reset();
+      _chassisKey.currentState?.reset();
+      _tyresKey.currentState?.reset();
+
       _isNavigatingHome = true;
 
       if (mounted) {
@@ -233,7 +276,7 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
     }
   }
 
-  // Modified tab change handler to save data before changing tabs
+  // Modified tab change handler to avoid re-initializing tabs
   Future<bool> _handleTabChange(int newIndex) async {
     if (_selectedTabIndex == newIndex) return true;
 
@@ -246,10 +289,10 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
         _selectedTabIndex = newIndex;
       });
 
-      // Initialize the new tab with cached data if available
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _initializeTabWithCachedData(newIndex);
-      });
+      // Remove re-initialization of tabs
+      // WidgetsBinding.instance.addPostFrameCallback((_) {
+      //   _initializeTabWithCachedData(newIndex);
+      // });
 
       return true;
     } catch (e) {
@@ -317,49 +360,6 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
     }
   }
 
-  // Add method to initialize specific tab with cached data
-  void _initializeTabWithCachedData(int tabIndex) {
-    try {
-      switch (tabIndex) {
-        case 0:
-          if (_cachedData['externalCab'] != null &&
-              _externalCabKey.currentState != null) {
-            _externalCabKey.currentState!
-                .initializeWithData(_cachedData['externalCab']);
-          }
-          break;
-        case 1:
-          if (_cachedData['internalCab'] != null &&
-              _internalCabKey.currentState != null) {
-            _internalCabKey.currentState!
-                .initializeWithData(_cachedData['internalCab']);
-          }
-          break;
-        case 2:
-          if (_cachedData['driveTrain'] != null &&
-              _driveTrainKey.currentState != null) {
-            _driveTrainKey.currentState!
-                .initializeWithData(_cachedData['driveTrain']);
-          }
-          break;
-        case 3:
-          if (_cachedData['chassis'] != null &&
-              _chassisKey.currentState != null) {
-            _chassisKey.currentState!
-                .initializeWithData(_cachedData['chassis']);
-          }
-          break;
-        case 4:
-          if (_cachedData['tyres'] != null && _tyresKey.currentState != null) {
-            _tyresKey.currentState!.initializeWithData(_cachedData['tyres']);
-          }
-          break;
-      }
-    } catch (e) {
-      print('Error initializing tab with cached data: $e');
-    }
-  }
-
   // Update the _cacheCurrentTabData method
   Future<void> _cacheCurrentTabData() async {
     // This can be empty or removed since we're getting fresh data in _handleDone
@@ -409,111 +409,153 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
         return true;
       },
       child: Scaffold(
-        body: Stack(
-          children: [
-            GradientBackground(
-              child: Stack(
-                children: [
-                  Column(
+        body: GradientBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Header with vehicle info
+                Container(
+                  color: AppColors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: MediaQuery.of(context).padding.top + 10.0,
-                          bottom: 16.0,
-                        ),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Row(
-                            children: [
-                              _buildCustomTabButton('BACK', -1,
-                                  isBackButton: true),
-                              _buildCustomTabButton('External Cab', 0),
-                              _buildCustomTabButton('Internal Cab', 1),
-                              _buildCustomTabButton('Drive Train', 2),
-                              _buildCustomTabButton('Chassis', 3),
-                              _buildCustomTabButton('Tyres', 4),
-                            ],
-                          ),
+                      Text(
+                        "Ref#: $_vehicleRef",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
+                      const SizedBox(width: 16),
+                      Text(
+                        "Make/Model: $_makeModel",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      if (widget.mainImageUrl != null)
+                        Container(
+                          width: 50,
+                          height: 50,
+                          margin: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            image: DecorationImage(
+                              image: NetworkImage(widget.mainImageUrl!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 16),
+                    ],
+                  ),
+                ),
+
+                // Tab buttons
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Row(
+                    children: [
+                      _buildCustomTabButton('BACK', -1, isBackButton: true),
+                      _buildCustomTabButton('External Cab', 0),
+                      _buildCustomTabButton('Internal Cab', 1),
+                      _buildCustomTabButton('Drive Train', 2),
+                      _buildCustomTabButton('Chassis', 3),
+                      _buildCustomTabButton('Tyres', 4),
+                    ],
+                  ),
+                ),
+
+                // Content area
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: IndexedStack(
+                            index: _selectedTabIndex,
                             children: [
-                              Expanded(child: _buildTabContent()),
-                              const SizedBox(height: 24.0),
-                              Row(
-                                children: [
-                                  if (_selectedTabIndex < 4)
-                                    Expanded(
-                                      child: CustomButton(
-                                        text: 'Continue',
-                                        onPressed:
-                                            _isSaving ? null : _handleContinue,
-                                        borderColor: AppColors.blue,
-                                      ),
-                                    ),
-                                  if (_selectedTabIndex < 4)
-                                    const SizedBox(width: 16.0),
-                                  Expanded(
-                                    child: CustomButton(
-                                      text: 'Done',
-                                      onPressed: _isSaving ? null : _handleDone,
-                                      borderColor: AppColors.green,
-                                    ),
-                                  ),
-                                ],
+                              ExternalCabPage(
+                                key: _externalCabKey,
+                                vehicleId: widget.vehicleId,
+                                onProgressUpdate: updateTabProgress,
+                                isEditing: widget.isEditing,
+                              ),
+                              InternalCabPage(
+                                key: _internalCabKey,
+                                vehicleId: widget.vehicleId,
+                                onProgressUpdate: updateTabProgress,
+                                isEditing: widget.isEditing,
+                              ),
+                              DriveTrainPage(
+                                key: _driveTrainKey,
+                                vehicleId: widget.vehicleId,
+                                onProgressUpdate: updateTabProgress,
+                                isEditing: widget.isEditing,
+                              ),
+                              ChassisPage(
+                                key: _chassisKey,
+                                vehicleId: widget.vehicleId,
+                                onProgressUpdate: updateTabProgress,
+                                isEditing: widget.isEditing,
+                              ),
+                              TyresPage(
+                                key: _tyresKey,
+                                vehicleId: widget.vehicleId,
+                                numberOfTyrePositions:
+                                    _getNumberOfTyrePositions(_vehicleConfig),
+                                onProgressUpdate: updateTabProgress,
+                                isEditing: widget.isEditing,
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  if (_isLoading)
-                    Container(
-                      color: Colors.black54,
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                  if (_isSaving)
-                    Container(
-                      color: Colors.black54,
-                      child: const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                        const SizedBox(height: 24.0),
+                        Row(
                           children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              'Saving...',
-                              style: TextStyle(color: Colors.white),
+                            if (_selectedTabIndex < 4)
+                              Expanded(
+                                child: CustomButton(
+                                  text: 'Continue',
+                                  onPressed: _isSaving ? null : _handleContinue,
+                                  borderColor: AppColors.blue,
+                                ),
+                              ),
+                            if (_selectedTabIndex < 4)
+                              const SizedBox(width: 16.0),
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Done',
+                                onPressed: _isSaving ? null : _handleDone,
+                                borderColor: AppColors.green,
+                              ),
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
-                ],
-              ),
-            ),
-            // Add a save button that appears when there are modifications
-            if (_modifiedSections.values.contains(true))
-              Positioned(
-                bottom: 16,
-                right: 16,
-                child: FloatingActionButton(
-                  onPressed: _isSaving ? null : _saveAllModifiedData,
-                  backgroundColor: Colors.green,
-                  child: _isSaving
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Icon(Icons.save),
+                  ),
                 ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
+
+        // FAB for saving
+        floatingActionButton: _modifiedSections.values.contains(true)
+            ? FloatingActionButton(
+                onPressed: _isSaving ? null : _saveAllModifiedData,
+                backgroundColor: Colors.green,
+                child: _isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Icon(Icons.save),
+              )
+            : null,
       ),
     );
   }
@@ -521,83 +563,91 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
   // Helper method to create a custom tab button
   Widget _buildCustomTabButton(String title, int index,
       {bool isBackButton = false}) {
-    bool isSelected = _selectedTabIndex == index && !isBackButton;
-    return GestureDetector(
-      onTap: () async {
-        if (isBackButton) {
-          bool shouldSave = await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Save Changes?'),
-                  content: const Text(
-                      'Would you like to save your changes before leaving?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Discard'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-              ) ??
-              false;
+    double completionPercentage =
+        !isBackButton ? _getCompletionPercentage(index) : 0.0;
 
-          if (shouldSave) {
-            await _saveAllModifiedData();
+    bool isSelected = !isBackButton && _selectedTabIndex == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          if (isBackButton) {
+            bool shouldSave = await _showSaveDialog();
+            if (shouldSave) {
+              await _saveAllModifiedData();
+            }
+            Navigator.of(context).pop();
+          } else {
+            await _handleTabChange(index);
           }
-        } else {
-          await _handleTabChange(index);
-          if (mounted) {
-            setState(() {
-              _selectedTabIndex = index;
-            });
-          }
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-        margin: const EdgeInsets.symmetric(horizontal: 4.0),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.green : Colors.blue,
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: Colors.transparent, width: 0.0),
-        ),
-        child: Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13.0,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+        },
+        child: Container(
+          height: 45,
+          padding: EdgeInsets.zero,
+          margin: EdgeInsets.zero,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            border: Border.all(
+              color: isSelected ? Colors.green : Colors.blue,
+              width: 1.0,
             ),
+            borderRadius: BorderRadius.zero,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Progress bar (shown for both selected and unselected tabs)
+              if (!isBackButton && completionPercentage > 0)
+                Positioned.fill(
+                  child: FractionallySizedBox(
+                    widthFactor: completionPercentage.clamp(0.0, 1.0),
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      color: Colors.green.withOpacity(isSelected ? 1 : 0.7),
+                    ),
+                  ),
+                ),
+              // Tab title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13.0,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTabContent() {
-    switch (_selectedTabIndex) {
-      case 0:
-        return ExternalCabPage(
-            key: _externalCabKey, vehicleId: widget.vehicleId);
-      case 1:
-        return InternalCabPage(
-            key: _internalCabKey, vehicleId: widget.vehicleId);
-      case 2:
-        return DriveTrainPage(key: _driveTrainKey, vehicleId: widget.vehicleId);
-      case 3:
-        return ChassisPage(key: _chassisKey, vehicleId: widget.vehicleId);
-      case 4:
-        return TyresPage(key: _tyresKey, vehicleId: widget.vehicleId);
-      default:
-        return const SizedBox.shrink();
+  // Add this helper method
+  double _getCompletionPercentage(int index) {
+    try {
+      switch (index) {
+        case 0:
+          return _externalCabKey.currentState?.getCompletionPercentage() ?? 0.0;
+        case 1:
+          return _internalCabKey.currentState?.getCompletionPercentage() ?? 0.0;
+        case 2:
+          return _driveTrainKey.currentState?.getCompletionPercentage() ?? 0.0;
+        case 3:
+          return _chassisKey.currentState?.getCompletionPercentage() ?? 0.0;
+        case 4:
+          return _tyresKey.currentState?.getCompletionPercentage() ?? 0.0;
+        default:
+          return 0.0;
+      }
+    } catch (e) {
+      return 0.0;
     }
   }
 
@@ -609,5 +659,48 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
       _modifiedSections.clear();
     }
     super.dispose();
+  }
+
+  Future<bool> _showSaveDialog() async {
+    return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Save Changes?'),
+            content: const Text(
+                'Would you like to save your changes before leaving?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Discard'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  void updateTabProgress() {
+    if (mounted) {
+      setState(() {
+        // This will trigger a rebuild of the tab buttons
+      });
+    }
+  }
+
+  int _getNumberOfTyrePositions(String? config) {
+    switch (config) {
+      case '6X2':
+        return 6;
+      case '8X4':
+        return 8;
+      case '4X2':
+        return 4; // Adjust as necessary for other configurations
+      default:
+        return 4; // Default value if no valid config is selected
+    }
   }
 }

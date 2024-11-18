@@ -1,5 +1,4 @@
 // custom_dropdown.dart
-import 'package:ctp/components/constants.dart';
 import 'package:flutter/material.dart';
 
 class CustomDropdown extends StatelessWidget {
@@ -20,45 +19,45 @@ class CustomDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure value is null if it's empty or not in items list
+    final validValue =
+        (value?.isNotEmpty == true && items.contains(value)) ? value : null;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.3), // Gray background
+        color: Colors.grey.withOpacity(0.3),
         border: Border(
           left: BorderSide(
-            color: Colors.white.withOpacity(0.5), // Left border color
-            width: 1.0, // Left border width
+            color: Colors.white.withOpacity(0.5),
+            width: 1.0,
           ),
           right: BorderSide(
-            color: Colors.white.withOpacity(0.5), // Right border color
-            width: 1.0, // Right border width
+            color: Colors.white.withOpacity(0.5),
+            width: 1.0,
           ),
         ),
-        borderRadius: BorderRadius.circular(0.0), // Sharp corners
+        borderRadius: BorderRadius.circular(0.0),
       ),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8.0), // Horizontal padding
-      height: 60.0, // Fixed height for square-like appearance
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      height: 60.0,
       child: DropdownButtonFormField<String>(
-        value: value,
+        value: validValue,
         onChanged: onChanged,
         validator: validator,
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: const TextStyle(color: Colors.white70),
-          filled: false, // No fill color
-          border: InputBorder.none, // No borders
-          contentPadding: EdgeInsets.zero, // No padding
+          filled: false,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
         ),
         style: const TextStyle(color: Colors.white),
-        dropdownColor:
-            Colors.grey.withOpacity(0.8), // Dropdown background color
+        dropdownColor: Colors.grey.withOpacity(0.8),
         items: items
-            .map(
-              (item) => DropdownMenuItem<String>(
-                value: item,
-                child: Text(item),
-              ),
-            )
+            .map((item) => DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(item),
+                ))
             .toList(),
         icon: const Icon(
           Icons.arrow_drop_down,

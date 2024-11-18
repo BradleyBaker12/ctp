@@ -1,4 +1,5 @@
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -10,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -43,6 +45,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // New state variables for admin functionality
   Dealer? _selectedDealer;
   bool _isDealersLoading = false;
+  bool _isMaintenanceInfoExpanded =
+      false; // State to track the maintenance info expansion
+
+  List<Widget> maintenanceWidgets = []; // Define maintenanceWidgets here
 
   @override
   void initState() {
@@ -187,7 +193,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           );
         } else if (snapshot.data == null || snapshot.data!.isEmpty) {
           return const Center(
-            child: Text('No offers available for this vehicle'),
+            child: Text(
+              'No offers available for this vehicle',
+              style: TextStyle(color: Colors.white),
+            ),
           );
         }
 
@@ -230,9 +239,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => VehicleUploadScreen(
+        builder: (context) => EditFormNavigation(
           vehicle: widget.vehicle,
-          isDuplicating: false,
         ),
       ),
     );
@@ -428,11 +436,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       if (value != null &&
           value.isNotEmpty &&
           value.toLowerCase() != 'unknown') {
-        if (title == 'Damage Description') {
-          infoWidgets.add(_buildInfoRowWithIcon(title, value));
-        } else {
-          infoWidgets.add(_buildInfoRow(title, value));
-        }
+        infoWidgets.add(_buildInfoRow(title, value));
       }
     }
 
@@ -447,6 +451,15 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       addInfo('Suspension', widget.vehicle.suspensionType);
       addInfo('VIN Number', widget.vehicle.vinNumber);
       addInfo('Warranty', widget.vehicle.warrentyType);
+      // Add additional fields here
+      addInfo('Mileage', widget.vehicle.mileage);
+      addInfo('Make Model', widget.vehicle.makeModel);
+      // addInfo('Country', widget.vehicle.country);
+      // addInfo('Fault Codes Photo', widget.vehicle.faultCodesPhoto);
+      addInfo('Photos',
+          widget.vehicle.photos.join(', ')); // Assuming photos is a list
+      addInfo('RC1 Natis File', widget.vehicle.rc1NatisFile);
+      addInfo('Expected Selling Price', widget.vehicle.expectedSellingPrice);
     } catch (e) {
       print('Error building additional info: $e'); // Debug statement
       ScaffoldMessenger.of(context).showSnackBar(
@@ -528,6 +541,116 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildMaintenanceSection() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter = userRole == 'transporter';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isDealer)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isMaintenanceInfoExpanded = !_isMaintenanceInfoExpanded;
+              });
+            },
+            child: Row(
+              children: [
+                AnimatedRotation(
+                  turns: _isMaintenanceInfoExpanded ? 0.25 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(
+                    Icons.arrow_right,
+                    color: const Color(0xFFFF4E00),
+                    size: MediaQuery.of(context).size.height * 0.04,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'MAINTENANCE INFO',
+                  style: _customFont(20, FontWeight.bold, Colors.blue),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 10),
+        if (_isMaintenanceInfoExpanded)
+          _buildMaintenanceInfo(), // Show maintenance info if expanded
+      ],
+    );
+  }
+
+  Widget _buildMaintenanceInfo() {
+    maintenanceWidgets.clear(); // Clear previous entries if needed
+
+    // Debug statements
+    print('Maintenance Data: ${widget.vehicle.maintenance.maintenanceData}');
+    print(
+        'Maintenance Doc URL: ${widget.vehicle.maintenance.maintenanceData?.maintenanceDocUrl}');
+    print(
+        'Warranty Doc URL: ${widget.vehicle.maintenance.maintenanceData?.warrantyDocUrl}');
+
+    // Add maintenance info
+    addMaintenanceInfo('Maintenance Document',
+        widget.vehicle.maintenance.maintenanceData?.maintenanceDocUrl,
+        isDocument: true);
+    addMaintenanceInfo('Warranty Document',
+        widget.vehicle.maintenance.maintenanceData?.warrantyDocUrl,
+        isDocument: true);
+
+    // Add additional maintenance info if needed
+    addMaintenanceInfo(
+        'Full Inspection', widget.vehicle.maintenance.oemInspectionType);
+    addMaintenanceInfo(
+        'Reason', widget.vehicle.maintenance.oemInspectionReason);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: maintenanceWidgets, // Use the populated list here
+    );
+  }
+
+  void _viewDocument(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not launch the document.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildInfoRowWithButton(String title, String url) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: _customFont(14, FontWeight.normal, Colors.white),
+          ),
+          TextButton(
+            onPressed: () {
+              _viewDocument(url); // Call the method to view the document
+            },
+            child: const Text(
+              'View',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -943,35 +1066,38 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           ),
                         ),
                       const SizedBox(height: 40),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isAdditionalInfoExpanded =
-                                !_isAdditionalInfoExpanded;
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            AnimatedRotation(
-                              turns: _isAdditionalInfoExpanded ? 0.25 : 0.0,
-                              duration: const Duration(milliseconds: 300),
-                              child: Icon(
-                                Icons.arrow_right,
-                                color: const Color(0xFFFF4E00),
-                                size: screenSize.height * 0.04,
-                              ),
-                            ),
-                            const SizedBox(width: 0),
-                            Text('ADDITIONAL INFO',
-                                style: _customFont(
-                                    20, FontWeight.bold, Colors.blue)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
-                      const SizedBox(height: 30),
                       if (isDealer)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isAdditionalInfoExpanded =
+                                  !_isAdditionalInfoExpanded;
+                            });
+                          },
+                          child: Row(
+                            children: [
+                              AnimatedRotation(
+                                turns: _isAdditionalInfoExpanded ? 0.25 : 0.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: Icon(
+                                  Icons.arrow_right,
+                                  color: const Color(0xFFFF4E00),
+                                  size: screenSize.height * 0.04,
+                                ),
+                              ),
+                              const SizedBox(width: 0),
+                              Text('ADDITIONAL INFO',
+                                  style: _customFont(
+                                      20, FontWeight.bold, Colors.blue)),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 32),
+                      if (isDealer)
+                        if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
+                      _buildMaintenanceSection(),
+                      const SizedBox(height: 30),
+                      if (isTransporter)
                         Column(children: [
                           Text(
                             "Offers Made on This Vehicle:",
@@ -979,7 +1105,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 20, FontWeight.bold, const Color(0xFFFF4E00)),
                           ),
                           const SizedBox(height: 10),
-                          _buildOffersList(), // Display all offers
+                          _buildOffersList(), // Display all offers for transporters
                         ])
                     ],
                   ),
@@ -1188,5 +1314,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         );
       },
     );
+  }
+
+  // Helper function to add maintenance info, with an option to include a 'View' button
+  void addMaintenanceInfo(String title, String? value,
+      {bool isDocument = false}) {
+    if (value != null && value.isNotEmpty && value.toLowerCase() != 'unknown') {
+      if (isDocument) {
+        maintenanceWidgets.add(_buildInfoRowWithButton(title, value));
+      } else {
+        maintenanceWidgets.add(_buildInfoRow(title, value));
+      }
+    } else {
+      maintenanceWidgets.add(_buildInfoRow(title, 'N/A'));
+    }
   }
 }

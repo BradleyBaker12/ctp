@@ -2,18 +2,16 @@
 
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class MaintenanceSection extends StatefulWidget {
   final String vehicleId;
   final bool isUploading;
-  final File? maintenanceDocFile;
-  final File? warrantyDocFile;
+  final bool isEditing;
   final String oemInspectionType;
   final String oemInspectionExplanation;
   final String? maintenanceDocUrl;
@@ -22,22 +20,27 @@ class MaintenanceSection extends StatefulWidget {
   final Function(File?) onWarrantyFileSelected;
   final String maintenanceSelection;
   final String warrantySelection;
+  final File? maintenanceDocFile;
+  final File? warrantyDocFile;
+  final VoidCallback onProgressUpdate;
 
   const MaintenanceSection({
-    Key? key,
+    super.key,
     required this.vehicleId,
     required this.isUploading,
-    this.maintenanceDocFile,
-    this.warrantyDocFile,
+    this.isEditing = false,
     required this.onMaintenanceFileSelected,
     required this.onWarrantyFileSelected,
     required this.oemInspectionType,
     required this.oemInspectionExplanation,
+    required this.onProgressUpdate,
     this.maintenanceDocUrl,
     this.warrantyDocUrl,
     required this.maintenanceSelection,
     required this.warrantySelection,
-  }) : super(key: key);
+    this.maintenanceDocFile,
+    this.warrantyDocFile,
+  });
 
   @override
   MaintenanceSectionState createState() => MaintenanceSectionState();
@@ -47,6 +50,12 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     with AutomaticKeepAliveClientMixin {
   late TextEditingController _oemReasonController;
   late String _oemInspectionType;
+  File? _maintenanceDocFile;
+  File? _warrantyDocFile;
+
+  // New variables to store download URLs
+  String? _maintenanceDocUrl;
+  String? _warrantyDocUrl;
 
   @override
   void initState() {
@@ -54,6 +63,14 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     _oemInspectionType = widget.oemInspectionType;
     _oemReasonController =
         TextEditingController(text: widget.oemInspectionExplanation);
+
+    // Initialize files to null or with existing data if needed
+    _maintenanceDocFile = null;
+    _warrantyDocFile = null;
+
+    _oemReasonController.addListener(() {
+      notifyProgress();
+    });
   }
 
   @override
@@ -66,6 +83,8 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     setState(() {
       _oemInspectionType = 'yes';
       _oemReasonController.clear();
+      _maintenanceDocFile = null;
+      _warrantyDocFile = null;
     });
   }
 
@@ -81,7 +100,23 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     }
   }
 
-  // Method to save maintenance data
+  // Method to upload a file to Firebase Storage
+  Future<String?> _uploadFile(File file, String storagePath) async {
+    try {
+      UploadTask uploadTask =
+          FirebaseStorage.instance.ref(storagePath).putFile(file);
+
+      TaskSnapshot taskSnapshot = await uploadTask;
+
+      String downloadURL = await taskSnapshot.ref.getDownloadURL();
+      return downloadURL;
+    } catch (e) {
+      print('File upload error: $e');
+      return null;
+    }
+  }
+
+  // Modified saveMaintenanceData method
   Future<bool> saveMaintenanceData() async {
     String? oemReason =
         _oemInspectionType == 'no' ? _oemReasonController.text.trim() : null;
@@ -96,11 +131,30 @@ class MaintenanceSectionState extends State<MaintenanceSection>
       return false;
     }
 
+    // Upload files if they exist
+    if (_maintenanceDocFile != null) {
+      String? downloadURL = await _uploadFile(
+          _maintenanceDocFile!, 'maintenance_docs/${widget.vehicleId}');
+      if (downloadURL != null) {
+        _maintenanceDocUrl = downloadURL;
+      }
+    }
+
+    if (_warrantyDocFile != null) {
+      String? downloadURL = await _uploadFile(
+          _warrantyDocFile!, 'warranty_docs/${widget.vehicleId}');
+      if (downloadURL != null) {
+        _warrantyDocUrl = downloadURL;
+      }
+    }
+
     // Prepare data to send
     Map<String, dynamic> maintenanceData = {
       'vehicleId': widget.vehicleId,
       'oemInspectionType': _oemInspectionType,
       'oemReason': oemReason,
+      'maintenanceDocUrl': _maintenanceDocUrl ?? widget.maintenanceDocUrl,
+      'warrantyDocUrl': _warrantyDocUrl ?? widget.warrantyDocUrl,
     };
 
     try {
@@ -130,7 +184,11 @@ class MaintenanceSectionState extends State<MaintenanceSection>
 
       if (result != null && result.files.single.path != null) {
         File selectedFile = File(result.files.single.path!);
-        widget.onMaintenanceFileSelected(selectedFile);
+        setState(() {
+          _maintenanceDocFile = selectedFile;
+          print('Selected maintenance file: ${_maintenanceDocFile!.path}');
+          widget.onMaintenanceFileSelected(selectedFile);
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,7 +205,11 @@ class MaintenanceSectionState extends State<MaintenanceSection>
 
       if (result != null && result.files.single.path != null) {
         File selectedFile = File(result.files.single.path!);
-        widget.onWarrantyFileSelected(selectedFile);
+        setState(() {
+          _warrantyDocFile = selectedFile;
+          print('Selected warranty file: ${_warrantyDocFile!.path}');
+          widget.onWarrantyFileSelected(selectedFile);
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -191,9 +253,70 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     return url.split('/').last.split('?').first;
   }
 
+  void updateMaintenanceFile(File? file) {
+    setState(() {
+      _maintenanceDocFile = file;
+    });
+    notifyProgress();
+  }
+
+  void updateWarrantyFile(File? file) {
+    setState(() {
+      _warrantyDocFile = file;
+    });
+    notifyProgress();
+  }
+
+  double getCompletionPercentage() {
+    int totalFields = 0;
+    int filledFields = 0;
+
+    // Check for maintenance document
+    if (widget.maintenanceSelection == 'yes') {
+      totalFields += 1;
+      if (_maintenanceDocFile != null || widget.maintenanceDocUrl != null) {
+        filledFields += 1;
+      }
+
+      // OEM Inspection fields
+      totalFields += 1;
+      filledFields += 1; // Always filled since it has a default value
+
+      if (_oemInspectionType == 'no') {
+        totalFields += 1;
+        if (_oemReasonController.text.trim().isNotEmpty) {
+          filledFields += 1;
+        }
+      }
+    }
+
+    // Check for warranty document
+    if (widget.warrantySelection == 'yes') {
+      totalFields += 1;
+      if (_warrantyDocFile != null || widget.warrantyDocUrl != null) {
+        filledFields += 1;
+      }
+    }
+
+    if (totalFields == 0) return 1.0; // If no fields are required
+    return filledFields / totalFields;
+  }
+
+  void notifyProgress() {
+    widget.onProgressUpdate();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    // Debugging: Print the current state of the files
+    print('Building MaintenanceSection');
+    print('_maintenanceDocFile: ${_maintenanceDocFile?.path}');
+    print('widget.maintenanceDocUrl: ${widget.maintenanceDocUrl}');
+    print('_warrantyDocFile: ${_warrantyDocFile?.path}');
+    print('widget.warrantyDocUrl: ${widget.warrantyDocUrl}');
+
     return SingleChildScrollView(
       // Added to handle overflow
       child: Column(
@@ -238,7 +361,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                 ),
                 child: Column(
                   children: [
-                    if (widget.maintenanceDocFile == null &&
+                    if (_maintenanceDocFile == null &&
                         widget.maintenanceDocUrl == null)
                       Icon(
                         Icons.drive_folder_upload_outlined,
@@ -247,16 +370,16 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                         semanticLabel: 'Upload Maintenance Document',
                       ),
                     const SizedBox(height: 10),
-                    if (widget.maintenanceDocFile != null ||
+                    if (_maintenanceDocFile != null ||
                         widget.maintenanceDocUrl != null)
                       Column(
                         children: [
-                          if (widget.maintenanceDocFile != null)
-                            if (_isImageFile(widget.maintenanceDocFile!.path))
+                          if (_maintenanceDocFile != null)
+                            if (_isImageFile(_maintenanceDocFile!.path))
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
                                 child: Image.file(
-                                  widget.maintenanceDocFile!,
+                                  _maintenanceDocFile!,
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,
@@ -266,24 +389,28 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                               Column(
                                 children: [
                                   Icon(
-                                    _getFileIcon(widget.maintenanceDocFile!.path
+                                    _getFileIcon(_maintenanceDocFile!.path
                                         .split('.')
                                         .last),
                                     color: Colors.white,
                                     size: 50.0,
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    widget.maintenanceDocFile!.path
-                                        .split('/')
-                                        .last,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: Text(
+                                      _maintenanceDocFile!.path.split('/').last,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
                                   ),
                                 ],
                               )
@@ -309,16 +436,22 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                     size: 50.0,
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    getFileNameFromUrl(
-                                        widget.maintenanceDocUrl!),
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: Text(
+                                      getFileNameFromUrl(
+                                          widget.maintenanceDocUrl!),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
                                   ),
                                 ],
                               ),
@@ -383,6 +516,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                         _oemReasonController.clear(); // Clear the explanation
                       }
                     });
+                    notifyProgress();
                   },
                 ),
                 const SizedBox(width: 15),
@@ -394,6 +528,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                     setState(() {
                       _oemInspectionType = value!;
                     });
+                    notifyProgress();
                   },
                 ),
               ],
@@ -438,7 +573,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                 ),
                 child: Column(
                   children: [
-                    if (widget.warrantyDocFile == null &&
+                    if (_warrantyDocFile == null &&
                         widget.warrantyDocUrl == null)
                       Icon(
                         Icons.drive_folder_upload_outlined,
@@ -447,16 +582,16 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                         semanticLabel: 'Upload Warranty Document',
                       ),
                     const SizedBox(height: 10),
-                    if (widget.warrantyDocFile != null ||
+                    if (_warrantyDocFile != null ||
                         widget.warrantyDocUrl != null)
                       Column(
                         children: [
-                          if (widget.warrantyDocFile != null)
-                            if (_isImageFile(widget.warrantyDocFile!.path))
+                          if (_warrantyDocFile != null)
+                            if (_isImageFile(_warrantyDocFile!.path))
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
                                 child: Image.file(
-                                  widget.warrantyDocFile!,
+                                  _warrantyDocFile!,
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,
@@ -466,24 +601,27 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                               Column(
                                 children: [
                                   Icon(
-                                    _getFileIcon(widget.warrantyDocFile!.path
-                                        .split('.')
-                                        .last),
+                                    _getFileIcon(
+                                        _warrantyDocFile!.path.split('.').last),
                                     color: Colors.white,
                                     size: 50.0,
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    widget.warrantyDocFile!.path
-                                        .split('/')
-                                        .last,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: Text(
+                                      _warrantyDocFile!.path.split('/').last,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
                                   ),
                                 ],
                               )

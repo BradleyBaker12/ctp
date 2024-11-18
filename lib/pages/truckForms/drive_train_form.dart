@@ -3,7 +3,6 @@ import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../providers/vehicle_form_provider.dart';
 
 class DriveTrainForm extends StatefulWidget {
   final Map<String, dynamic> formData;
@@ -449,7 +448,7 @@ class _DriveTrainFormState extends State<DriveTrainForm> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            Container(
+                            SizedBox(
                               width: double.infinity,
                               height: 150, // Adjust height as needed
                               child: _buildImageUploadBox('BACK VIEW'),

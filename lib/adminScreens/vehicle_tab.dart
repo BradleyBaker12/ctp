@@ -154,6 +154,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
         oemInspectionType: '',
         oemReason: '',
       ),
+      warrantySelection: '',
     );
   }
 
@@ -248,10 +249,12 @@ class _VehiclesTabState extends State<VehiclesTab> {
         additionalFeatures: [],
         faultCodes: [],
       ),
-      tyres: Tyres(
-        lastUpdated: DateTime.now(),
-        positions: {},
-      ),
+      tyres: {
+        'default': Tyres(
+          lastUpdated: DateTime.now(),
+          positions: {},
+        ),
+      },
     );
   }
 

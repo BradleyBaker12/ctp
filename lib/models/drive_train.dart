@@ -77,4 +77,20 @@ class DriveTrain {
       'faultCodes': faultCodes,
     };
   }
+
+  factory DriveTrain.empty() {
+    return DriveTrain(
+      condition: '',
+      oilLeakConditionEngine: '',
+      waterLeakConditionEngine: '',
+      blowbyCondition: '',
+      oilLeakConditionGearbox: '',
+      retarderCondition: '',
+      lastUpdated: DateTime.now(),
+      photos: {},
+      damages: [],
+      additionalFeatures: [],
+      faultCodes: [],
+    );
+  }
 }

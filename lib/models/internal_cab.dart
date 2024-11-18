@@ -73,4 +73,17 @@ class InternalCab {
       'faultCodes': faultCodes,
     };
   }
+
+  factory InternalCab.empty() {
+    return InternalCab(
+      condition: '',
+      oemInspectionType: '',
+      oemInspectionReason: '',
+      lastUpdated: DateTime.now(),
+      photos: {},
+      damages: [],
+      additionalFeatures: [],
+      faultCodes: [],
+    );
+  }
 }

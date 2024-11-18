@@ -97,7 +97,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         vehicleId: vehicleId,
         oemInspectionType: '',
         oemReason: '',
-      ),
+      ), warrantySelection: '',
     );
   }
 
@@ -191,10 +191,12 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         additionalFeatures: [],
         faultCodes: [],
       ),
-      tyres: Tyres(
-        lastUpdated: DateTime.now(),
-        positions: {},
-      ),
+      tyres: {
+        'default': Tyres(
+          lastUpdated: DateTime.now(),
+          positions: {},
+        ),
+      },
     );
   }
 

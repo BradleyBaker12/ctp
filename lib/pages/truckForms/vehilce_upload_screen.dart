@@ -1,6 +1,8 @@
 // vehicle_upload_tabs.dart
 
 import 'dart:io';
+import 'dart:convert'; // Added for JSON decoding
+import 'package:flutter/services.dart'; // Added for loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
@@ -9,7 +11,6 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:ctp/pages/truckForms/maintenance_warrenty_screen.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -21,13 +22,18 @@ import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'image_picker_widget.dart';
+import 'package:intl/intl.dart';
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
   final Vehicle? vehicle;
+  final bool isNewUpload;
 
   const VehicleUploadScreen(
-      {super.key, this.vehicle, this.isDuplicating = false});
+      {super.key,
+      this.vehicle,
+      this.isDuplicating = false,
+      this.isNewUpload = false});
 
   @override
   _VehicleUploadScreenState createState() => _VehicleUploadScreenState();
@@ -106,57 +112,40 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // Add this flag at the top with other variables
   bool isNewUpload = false;
 
+  // Add these variables
+  String? _existingNatisRc1Url;
+  String? _existingNatisRc1Name;
+
+  // Add this line with other class variables
+  int _currentStep = 0;
+
+  // Add these controllers
+  final TextEditingController _configController = TextEditingController();
+  final TextEditingController _applicationController = TextEditingController();
+  final TextEditingController _countryController =
+      TextEditingController(); // Added for country selection
+
+  List<String> _countryOptions = []; // Define the country options list
+
   @override
   void initState() {
     super.initState();
+    _loadCountryOptions(); // Load country options on init
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
 
-    // Determine if this is a new upload
-    isNewUpload = widget.vehicle == null && !widget.isDuplicating;
-
-    // Clear all data if this is a new upload
-    if (isNewUpload) {
-      formData.clearAllData();
-      formData.setSelectedMainImage(null);
-      formData.setMainImageUrl(null);
-      _clearFormControllers();
-    } else {
-      // Load saved form data when initializing
-      if (_vehicleId != null) {
-        _loadSavedFormData(formData);
-      } else {
-        // Load from SharedPreferences only for existing/duplicating vehicles
-        formData.loadFormState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.isNewUpload) {
+        _clearAllData(formData);
+      } else if (widget.vehicle != null && !widget.isDuplicating) {
+        _vehicleId = widget.vehicle!.id;
+        _populateVehicleData();
       }
-    }
 
-    if (widget.vehicle != null) {
-      _populateVehicleData();
-
-      // Ensure that the options lists include the existing values
-      if (formData.application != null &&
-          !_applicationOptions.contains(formData.application)) {
-        _applicationOptions.add(formData.application!);
-      }
-      if (formData.config != null &&
-          !_configurationOptions.contains(formData.config)) {
-        _configurationOptions.add(formData.config!);
-      }
-    } else if (!isNewUpload) {
-      // Initialize provider variables if null (for duplicating vehicles)
-      _initializeDefaultValues(formData);
-    }
-
-    // Initialize TextEditingControllers with provider's variables
-    if (!isNewUpload) {
       _initializeTextControllers(formData);
-    }
+      _addControllerListeners(formData);
+    });
 
-    // Add listeners to update provider variables
-    _addControllerListeners(formData);
-
-    // Listen to scroll events to adjust image height
     _scrollController.addListener(() {
       setState(() {
         double offset = _scrollController.offset;
@@ -165,17 +154,94 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         _imageHeight = 300.0 - offset;
       });
     });
+  }
 
-    // Notify listeners after the first frame is rendered
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      formData.notifyListeners();
+  Future<void> _loadCountryOptions() async {
+    // Load the JSON file
+    final String response =
+        await rootBundle.loadString('lib/assets/country-by-name.json');
+    final List<dynamic> data = json.decode(response);
+    setState(() {
+      _countryOptions = data
+          .map((country) => country['country'] as String)
+          .toList(); // Parse country names
     });
   }
 
+  void _clearAllData(FormDataProvider formData) {
+    formData.clearAllData();
+    formData.setSelectedMainImage(null);
+    formData.setMainImageUrl(null);
+    formData.setNatisRc1Url(null);
+
+    formData.setYear(null);
+    formData.setMakeModel(null);
+    formData.setVinNumber(null);
+    formData.setConfig(null);
+    formData.setMileage(null);
+    formData.setApplication(null);
+    formData.setEngineNumber(null);
+    formData.setRegistrationNumber(null);
+    formData.setSellingPrice(null);
+    formData.setVehicleType(null);
+    formData.setSuspension(null);
+    formData.setTransmissionType(null);
+    formData.setHydraulics('no');
+    formData.setMaintenance('no');
+    formData.setWarranty('no');
+    formData.setWarrantyDetails(null);
+    formData.setRequireToSettleType('no');
+    formData.setReferenceNumber(null);
+    formData.setBrands([]);
+
+    _clearFormControllers();
+
+    setState(() {
+      _natisRc1File = null;
+      _existingNatisRc1Url = null;
+      _existingNatisRc1Name = null;
+
+      // Update the form data provider instead
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      formData.setSelectedMainImage(null);
+      formData.setMainImageUrl(null);
+    });
+
+    _vehicleId = null;
+    _isLoading = false;
+    _currentStep = 0;
+  }
+
+  // void _clearFormControllers() {
+  //   _yearController.clear();
+  //   _makeModelController.clear();
+  //   _sellingPriceController.clear();
+  //   _vinNumberController.clear();
+  //   _mileageController.clear();
+  //   _engineNumberController.clear();
+  //   _warrantyDetailsController.clear();
+  //   _registrationNumberController.clear();
+  //   _referenceNumberController.clear();
+  //   _brandsController.clear();
+  //   _configController.clear();
+  //   _applicationController.clear();
+
+  //   setState(() {
+  //     _natisRc1File = null;
+  //     _existingNatisRc1Url = null;
+  //     _existingNatisRc1Name = null;
+  //   });
+  // }
+
   void _initializeDefaultValues(FormDataProvider formData) {
-    if (formData.suspension == null) {
-      formData.setSuspension('spring', notify: false);
-    }
+    // Set any default values needed for new trucks
+    formData.setVehicleType('truck'); // Default to truck
+    formData.setSuspension('spring'); // Default suspension
+    formData.setTransmissionType('automatic'); // Default transmission
+    formData.setHydraulics('no'); // Default hydraulics
+    formData.setMaintenance('no'); // Default maintenance
+    formData.setWarranty('no'); // Default warranty
+    formData.setRequireToSettleType('no'); // Default settle type
   }
 
   void _initializeTextControllers(FormDataProvider formData) {
@@ -188,7 +254,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _sellingPriceController.text = formData.sellingPrice ?? '';
     _warrantyDetailsController.text = formData.warrantyDetails ?? '';
     _referenceNumberController.text = formData.referenceNumber ?? '';
-    _brandsController.text = formData.brands ?? '';
+    _brandsController.text = (formData.brands)?.firstOrNull ?? '';
+    _countryController.text =
+        formData.country ?? ''; // Initialize country controller
   }
 
   void _addControllerListeners(FormDataProvider formData) {
@@ -222,12 +290,16 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       formData.setReferenceNumber(_referenceNumberController.text);
     });
     _brandsController.addListener(() {
-      formData.setBrands(_brandsController.text);
+      formData.setBrands([_brandsController.text]);
     });
   }
 
   void _populateVehicleData() {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
+
+    // Store existing document URL and name
+    _existingNatisRc1Url = widget.vehicle!.rc1NatisFile;
+    _existingNatisRc1Name = _getFileNameFromUrl(_existingNatisRc1Url);
 
     formData.setNatisRc1Url(widget.vehicle!.rc1NatisFile, notify: false);
     formData.setVehicleType(widget.vehicle!.vehicleType, notify: false);
@@ -252,13 +324,21 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setWarrantyDetails(widget.vehicle!.warrantyDetails, notify: false);
 
     formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
-    formData.setBrands(widget.vehicle!.brand, notify: false);
+    formData.setBrands(
+        widget.vehicle!.brand != null ? [widget.vehicle!.brand] : [],
+        notify: false);
 
     if (widget.isDuplicating) {
       _vehicleId = null;
     } else {
       _vehicleId = widget.vehicle!.id;
     }
+  }
+
+  // Helper to extract filename from URL
+  String? _getFileNameFromUrl(String? url) {
+    if (url == null) return null;
+    return url.split('/').last.split('?').first;
   }
 
   // Function to pick RC1/NATIS file
@@ -378,62 +458,72 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Widget build(BuildContext context) {
     final formData = Provider.of<FormDataProvider>(context);
 
-    return Stack(
-      children: [
-        Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: Icon(Icons.arrow_left),
-              color: Colors.white,
-              iconSize: 40,
+    return WillPopScope(
+      onWillPop: () async {
+        if (widget.isNewUpload) {
+          final formData =
+              Provider.of<FormDataProvider>(context, listen: false);
+          _clearAllData(formData);
+        }
+        return true;
+      },
+      child: Stack(
+        children: [
+          Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(Icons.arrow_left),
+                color: Colors.white,
+                iconSize: 40,
+              ),
+              backgroundColor: Color(0xFF0E4CAF),
+              elevation: 0.0,
+              systemOverlayStyle: SystemUiOverlayStyle.light,
+              centerTitle: true,
             ),
-            backgroundColor: Color(0xFF0E4CAF),
-            elevation: 0.0,
-            systemOverlayStyle: SystemUiOverlayStyle.light,
-            centerTitle: true,
-          ),
-          body: GradientBackground(
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (scrollNotification) {
-                if (scrollNotification.metrics.axis == Axis.vertical) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    setState(() {
-                      double offset = scrollNotification.metrics.pixels;
-                      if (offset < 0) offset = 0;
-                      if (offset > 150.0) offset = 150.0;
-                      _imageHeight = 300.0 - offset;
+            body: GradientBackground(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (scrollNotification) {
+                  if (scrollNotification.metrics.axis == Axis.vertical) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      setState(() {
+                        double offset = scrollNotification.metrics.pixels;
+                        if (offset < 0) offset = 0;
+                        if (offset > 150.0) offset = 150.0;
+                        _imageHeight = 300.0 - offset;
+                      });
                     });
-                  });
-                }
-                return true;
-              },
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                child: Column(
-                  children: [
-                    _buildImageSection(),
-                    _buildMandatorySection(),
-                  ],
+                  }
+                  return true;
+                },
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  child: Column(
+                    children: [
+                      _buildImageSection(),
+                      _buildMandatorySection(),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        if (_isLoading)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.5),
-              child: Center(
-                child: Image.asset(
-                  'lib/assets/Loading_Logo_CTP.gif',
-                  width: 100,
-                  height: 100,
+          if (_isLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: Center(
+                  child: Image.asset(
+                    'lib/assets/Loading_Logo_CTP.gif',
+                    width: 100,
+                    height: 100,
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -643,56 +733,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           ),
           const SizedBox(height: 15),
           // RC1/NATIS File Upload Section
-          Center(
-            child: Text(
-              'NATIS/RC1 Documentation'.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 15),
-          InkWell(
-            onTap: _pickNatisRc1File,
-            borderRadius: BorderRadius.circular(10.0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10.0),
-                border: Border.all(
-                  color: const Color(0xFF0E4CAF),
-                  width: 2.0,
-                ),
-              ),
-              child: Column(
-                children: [
-                  if (_natisRc1File == null)
-                    Icon(
-                      Icons.drive_folder_upload_outlined,
-                      color: Colors.white,
-                      size: 50.0,
-                      semanticLabel: 'NATIS/RC1 Upload',
-                    ),
-                  const SizedBox(height: 10),
-                  if (_natisRc1File != null)
-                    _buildUploadedFile(_natisRc1File, _isLoading)
-                  else
-                    const Text(
-                      'NATIS/RC1 Upload',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                ],
-              ),
-            ),
-          ),
+          _buildNatisRc1Section(),
           const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -720,12 +761,14 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           // Brand field
           CustomDropdown(
             hintText: 'Brand',
-            value: _brandOptions.contains(formData.brands)
-                ? formData.brands
+            value: formData.brands?.isNotEmpty == true
+                ? formData.brands![0]
                 : null,
             items: _brandOptions,
             onChanged: (value) {
-              formData.setBrands(value);
+              if (value != null) {
+                formData.setBrands([value]);
+              }
             },
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -772,6 +815,24 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   ],
                 ),
                 const SizedBox(height: 15),
+                // Country Dropdown
+                CustomDropdown(
+                  hintText: 'Select Country',
+                  value: formData.country?.isNotEmpty == true
+                      ? formData.country
+                      : null,
+                  items: _countryOptions, // Assuming _countryOptions is defined
+                  onChanged: (value) {
+                    formData.setCountry(value); // Update form data provider
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select a country';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 15),
                 // Mileage
                 CustomTextField(
                   controller: _mileageController,
@@ -788,7 +849,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Configuration',
-                  value: _configurationOptions.contains(formData.config)
+                  value: formData.config?.isNotEmpty == true
                       ? formData.config
                       : null,
                   items: _configurationOptions,
@@ -806,7 +867,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 // Application of Use
                 CustomDropdown(
                   hintText: 'Application of Use',
-                  value: _applicationOptions.contains(formData.application)
+                  value: formData.application?.isNotEmpty == true
                       ? formData.application
                       : null,
                   items: _applicationOptions,
@@ -854,6 +915,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   hintText: 'Selling Price',
                   isCurrency: true,
                   keyboardType: TextInputType.number,
+                  inputFormatter: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    ThousandsSeparatorInputFormatter(),
+                  ],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter the selling price';
@@ -883,8 +948,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     ),
                     const SizedBox(width: 15),
                     CustomRadioButton(
-                      label: 'Coil',
-                      value: 'coil',
+                      label: 'Air',
+                      value: 'air',
                       groupValue: formData.suspension,
                       onChanged: (value) {
                         formData.setSuspension(value);
@@ -1075,71 +1140,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          Center(
-            child: CustomButton(
-              text: 'Next',
-              borderColor: AppColors.blue,
-              onPressed: () async {
-                if (_formKeys[0].currentState!.validate()) {
-                  setState(() {
-                    _isLoading = true;
-                  });
-
-                  try {
-                    String? vehicleId = await _saveSection1Data();
-                    if (vehicleId != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Vehicle saved successfully.'),
-                        ),
-                      );
-                      // Navigate to Maintenance & Warranty Screen
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MaintenanceWarrantyScreen(
-                            vehicleId: vehicleId,
-                            maintenanceSelection: formData.maintenance,
-                            warrantySelection: formData.warranty,
-                            requireToSettleType: formData.requireToSettleType,
-                          ),
-                        ),
-                      ).then((value) {
-                        if (mounted) {
-                          final formData = Provider.of<FormDataProvider>(
-                              context,
-                              listen: false);
-                          _loadSavedFormData(formData);
-                        }
-                      });
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Failed to retrieve vehicle ID.'),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error saving vehicle: $e'),
-                      ),
-                    );
-                  } finally {
-                    setState(() {
-                      _isLoading = false;
-                    });
-                  }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please fill in all required fields.'),
-                    ),
-                  );
-                }
-              },
-            ),
-          ),
+          _buildNextButton(),
           const SizedBox(height: 30),
         ],
       ),
@@ -1148,12 +1149,17 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   Future<String?> _saveSection1Data() async {
     try {
-      String? imageUrl;
       final formData = Provider.of<FormDataProvider>(context, listen: false);
 
-      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (widget.isNewUpload) {
+        if (!_validateRequiredFields(formData)) {
+          return null;
+        }
+      }
 
-      // Upload main image if selected
+      String? imageUrl;
+      String? natisRc1Url;
+
       if (formData.selectedMainImage != null) {
         final ref = FirebaseStorage.instance
             .ref()
@@ -1163,8 +1169,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         imageUrl = await ref.getDownloadURL();
       }
 
-      // Upload RC1/NATIS file if selected
-      String? natisRc1Url;
       if (_natisRc1File != null) {
         final ref = FirebaseStorage.instance.ref().child('vehicle_documents').child(
             '${DateTime.now().millisecondsSinceEpoch}_${_natisRc1File!.path.split('/').last}');
@@ -1172,7 +1176,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         natisRc1Url = await ref.getDownloadURL();
       }
 
-      // Prepare vehicle data
       final vehicleData = {
         'year': formData.year,
         'makeModel': formData.makeModel,
@@ -1191,65 +1194,99 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'warranty': formData.warranty,
         'warrantyDetails': formData.warrantyDetails,
         'requireToSettleType': formData.requireToSettleType,
-        'mainImageUrl': imageUrl ?? formData.mainImageUrl,
-        'natisRc1Url': natisRc1Url, // Saving RC1/NATIS URL directly
-        'userId': userId,
-        'vehicleStatus': 'Draft',
-        'createdAt': FieldValue.serverTimestamp(),
         'referenceNumber': formData.referenceNumber,
         'brands': formData.brands,
+        'mainImageUrl': imageUrl,
+        'rc1NatisFile': natisRc1Url,
+        'country': formData.country,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'vehicleStatus': 'Draft', // Initial status for new vehicles
       };
 
-      // Prepare admin data
-      Map<String, dynamic> adminData = {};
-      if (natisRc1Url != null) {
-        adminData['natisRc1Url'] = natisRc1Url;
-      }
+      final docRef = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .add(vehicleData);
 
-      DocumentReference docRef;
+      _vehicleId = docRef.id;
 
-      if (_vehicleId == null) {
-        // Adding a new vehicle
-        vehicleData['adminData'] = adminData;
-        docRef = await FirebaseFirestore.instance
-            .collection('vehicles')
-            .add(vehicleData);
-        _vehicleId = docRef.id;
-
-        // Clear form only if this was a new upload
-        if (isNewUpload) {
-          final formData =
-              Provider.of<FormDataProvider>(context, listen: false);
-          formData.clearAllData();
-          _clearFormControllers();
-        }
-      } else {
-        // Updating an existing vehicle
-        await FirebaseFirestore.instance
-            .collection('vehicles')
-            .doc(_vehicleId)
-            .update(vehicleData);
-        // Update adminData separately
-        if (adminData.isNotEmpty) {
-          await FirebaseFirestore.instance
-              .collection('vehicles')
-              .doc(_vehicleId)
-              .set({'adminData': adminData}, SetOptions(merge: true));
-        }
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vehicle created successfully')),
+      );
 
       return _vehicleId;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving vehicle: $e'),
-        ),
+        SnackBar(content: Text('Error saving vehicle: $e')),
       );
       return null;
     }
   }
 
-  // Add this method to clear form controllers
+  bool _validateRequiredFields(FormDataProvider formData) {
+    if (formData.selectedMainImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a main image')),
+      );
+      return false;
+    }
+
+    if (formData.year == null || formData.year!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the year')),
+      );
+      return false;
+    }
+
+    // Add more validations as needed
+
+    return true;
+  }
+
+// Update the Next button handler
+  Widget _buildNextButton() {
+    return Center(
+      child: CustomButton(
+        text: 'Next',
+        borderColor: AppColors.blue,
+        onPressed: () async {
+          final formData =
+              Provider.of<FormDataProvider>(context, listen: false);
+
+          if (widget.isNewUpload && !_validateRequiredFields(formData)) {
+            return;
+          }
+
+          setState(() => _isLoading = true);
+
+          try {
+            String? vehicleId = await _saveSection1Data();
+            if (vehicleId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MaintenanceWarrantyScreen(
+                    vehicleId: vehicleId,
+                    vehicleRef: formData.referenceNumber ?? '',
+                    maintenanceSelection: formData.maintenance,
+                    warrantySelection: formData.warranty,
+                    requireToSettleType: formData.requireToSettleType,
+                    makeModel: formData.makeModel ?? '',
+                    mainImageUrl: formData.mainImageUrl ?? '',
+                  ),
+                ),
+              );
+            }
+          } finally {
+            setState(() => _isLoading = false);
+          }
+        },
+      ),
+    );
+  }
+
+// Add this method to clear form controllers
   void _clearFormControllers() {
     _yearController.clear();
     _makeModelController.clear();
@@ -1269,6 +1306,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
     setState(() {
       _natisRc1File = null;
+      _existingNatisRc1Url = null;
+      _existingNatisRc1Name = null;
     });
   }
 
@@ -1282,7 +1321,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
-  // Add this new method to load saved form data
+// Add this new method to load saved form data
   Future<void> _loadSavedFormData(FormDataProvider formData) async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -1303,7 +1342,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           _sellingPriceController.text = data['sellingPrice'] ?? '';
           _warrantyDetailsController.text = data['warrantyDetails'] ?? '';
           _referenceNumberController.text = data['referenceNumber'] ?? '';
-          _brandsController.text = data['brands'] ?? '';
+          _brandsController.text =
+              (data['brands'] as List<String>?)?.firstOrNull ?? '';
 
           // Update FormDataProvider
           formData.setYear(data['year']);
@@ -1332,6 +1372,154 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       print('Error loading saved form data: $e');
     }
   }
+
+  Widget _buildNatisRc1Section() {
+    return Column(
+      children: [
+        Center(
+          child: Text(
+            'NATIS/RC1 Documentation'.toUpperCase(),
+            style: const TextStyle(
+                fontSize: 15, color: Colors.white, fontWeight: FontWeight.w900),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 15),
+        InkWell(
+          onTap: () {
+            if (_existingNatisRc1Url != null || _natisRc1File != null) {
+              _showDocumentOptions();
+            } else {
+              _pickNatisRc1File();
+            }
+          },
+          borderRadius: BorderRadius.circular(10.0),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E4CAF).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(
+                color: const Color(0xFF0E4CAF),
+                width: 2.0,
+              ),
+            ),
+            child: Column(
+              children: [
+                if (_natisRc1File != null)
+                  _buildUploadedFile(_natisRc1File, _isLoading)
+                else if (_existingNatisRc1Url != null)
+                  Column(
+                    children: [
+                      Icon(
+                        _getFileIcon(
+                            _existingNatisRc1Name?.split('.').last ?? ''),
+                        color: Colors.white,
+                        size: 50.0,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _existingNatisRc1Name ?? 'Existing Document',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: const [
+                      Icon(
+                        Icons.drive_folder_upload_outlined,
+                        color: Colors.white,
+                        size: 50.0,
+                        semanticLabel: 'NATIS/RC1 Upload',
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'NATIS/RC1 Upload',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showDocumentOptions() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Document Options'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.remove_red_eye),
+                title: const Text('View Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _viewDocument();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Replace Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickNatisRc1File();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Document',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _removeDocument();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _viewDocument() async {
+    final url = _natisRc1File != null ? null : _existingNatisRc1Url;
+    if (url != null) {
+      // Implement document viewing logic here
+      // You might want to use url_launcher or a custom document viewer
+      // For example:
+      // launchUrl(Uri.parse(url));
+    }
+  }
+
+  void _removeDocument() {
+    setState(() {
+      _natisRc1File = null;
+      _existingNatisRc1Url = null;
+      _existingNatisRc1Name = null;
+    });
+  }
 }
 
 // UpperCaseTextFormatter remains the same
@@ -1344,6 +1532,29 @@ class UpperCaseTextFormatter extends TextInputFormatter {
     return TextEditingValue(
       text: newValue.text.toUpperCase(),
       selection: newValue.selection,
+    );
+  }
+}
+
+class ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    // Only keep digits
+    final String cleanText = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Format with thousand separators
+    final String formatted = NumberFormat('####').format(int.parse(cleanText));
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

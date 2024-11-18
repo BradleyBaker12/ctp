@@ -9,8 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 // Define the FilterOperation enum to handle various filter operations
 enum FilterOperation {
@@ -42,7 +43,10 @@ class TruckPage extends StatefulWidget {
 }
 
 class _TruckPageState extends State<TruckPage> {
-  late AppinioSwiperController controller;
+  late ScrollController _scrollController;
+  bool _isLoadingMore = false;
+  int _itemsPerPage = 10; // Number of items to load per page
+  int _currentPage = 0; // Current page index
   int _selectedIndex = 1; // Set initial selected index to the trucks tab
   List<Vehicle> swipedVehicles = []; // Track swiped vehicles
   List<Vehicle> displayedVehicles = []; // Vehicles currently displayed
@@ -61,10 +65,26 @@ class _TruckPageState extends State<TruckPage> {
   @override
   void initState() {
     super.initState();
-    controller = AppinioSwiperController();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_scrollListener);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialVehicles();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && !_hasReachedEnd) {
+        _loadMoreVehicles();
+      }
+    }
   }
 
   void _loadInitialVehicles() async {
@@ -77,43 +97,37 @@ class _TruckPageState extends State<TruckPage> {
       await vehicleProvider.fetchVehicles(userProvider,
           vehicleType: widget.vehicleType);
 
+      // Debugging output to check fetched vehicles
       print('Total vehicles fetched: ${vehicleProvider.vehicles.length}');
+      // Check if the fetched vehicles are empty
+      if (vehicleProvider.vehicles.isEmpty) {
+        print('No vehicles found in Firestore.');
+      }
+
       print('User Preferred Brands: ${userProvider.getPreferredBrands}');
       print('User Liked Vehicles: ${userProvider.getLikedVehicles}');
       print('User Disliked Vehicles: ${userProvider.getDislikedVehicles}');
 
       setState(() {
-        // Separate vehicles based on whether they match preferred brands
-        List<Vehicle> preferredVehicles = [];
-        List<Vehicle> nonPreferredVehicles = [];
+        // Remove filtering based on preferred brands
+        displayedVehicles = vehicleProvider.vehicles; // Show all vehicles
 
-        for (var vehicle in vehicleProvider.vehicles) {
-          bool matchesPreferredBrand = userProvider.getPreferredBrands.any(
-              (brand) => vehicle.makeModel
-                  .toLowerCase()
-                  .contains(brand.toLowerCase()));
-
-          bool isNotDraft = vehicle.vehicleStatus != 'Draft';
-
-          if (matchesPreferredBrand && isNotDraft) {
-            preferredVehicles.add(vehicle);
-          } else if (isNotDraft) {
-            nonPreferredVehicles.add(vehicle);
-          }
+        // Debugging output to check displayed vehicles
+        print('Displayed Vehicles: ${displayedVehicles.length}');
+        if (displayedVehicles.isEmpty) {
+          print('No vehicles to display after filtering.');
         }
-
-        print('Preferred Vehicles: ${preferredVehicles.length}');
-        print('Non-Preferred Vehicles: ${nonPreferredVehicles.length}');
-
-        // Combine preferred vehicles first, followed by non-preferred vehicles
-        displayedVehicles = [...preferredVehicles, ...nonPreferredVehicles];
 
         loadedVehicleIndex = displayedVehicles.length;
         _isLoading = false; // Loading complete
 
-        print('Displayed Vehicles: ${displayedVehicles.length}');
         print(
             'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
+
+        // Initialize displayedVehicles with the first page
+        displayedVehicles = displayedVehicles.take(_itemsPerPage).toList();
+        _currentPage = 1;
+        _isLoading = false;
 
         // Initialize filter options
         _initializeFilterOptions(vehicleProvider.vehicles);
@@ -125,6 +139,50 @@ class _TruckPageState extends State<TruckPage> {
           content: Text('Failed to load vehicles. Please try again later.'),
         ),
       );
+    }
+  }
+
+  void _loadMoreVehicles() async {
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+
+      // Calculate the start and end indices for the next page
+      int startIndex = _currentPage * _itemsPerPage;
+      int endIndex = startIndex + _itemsPerPage;
+
+      // Fetch the next set of vehicles
+      List<Vehicle> moreVehicles = vehicleProvider.vehicles
+          .skip(startIndex)
+          .take(_itemsPerPage)
+          .toList();
+
+      if (moreVehicles.isNotEmpty) {
+        setState(() {
+          displayedVehicles.addAll(moreVehicles);
+          _currentPage++;
+          _isLoadingMore = false;
+        });
+      } else {
+        setState(() {
+          _hasReachedEnd = true;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      print('Error in _loadMoreVehicles: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to load more vehicles. Please try again.'),
+        ),
+      );
+      setState(() {
+        _isLoadingMore = false;
+      });
     }
   }
 
@@ -198,37 +256,6 @@ class _TruckPageState extends State<TruckPage> {
   List<String> _getSettlementAmountRanges(List<Vehicle> vehicles) {
     // Define settlement amount ranges
     return ['< 50,000', '50,000 - 100,000', '100,000 - 200,000', '> 200,000'];
-  }
-
-  void _loadNextVehicle() {
-    try {
-      final vehicleProvider =
-          Provider.of<VehicleProvider>(context, listen: false);
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      while (loadedVehicleIndex < vehicleProvider.vehicles.length) {
-        final nextVehicle = vehicleProvider.vehicles[loadedVehicleIndex];
-        if (nextVehicle.vehicleStatus != 'Draft' &&
-            !userProvider.getLikedVehicles.contains(nextVehicle.id) &&
-            !userProvider.getDislikedVehicles.contains(nextVehicle.id)) {
-          setState(() {
-            displayedVehicles.add(nextVehicle);
-            loadedVehicleIndex++;
-          });
-          return;
-        }
-        loadedVehicleIndex++;
-      }
-      setState(() {
-        _hasReachedEnd = true;
-      });
-    } catch (e) {
-      print('Error in _loadNextVehicle: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load the next vehicle. Please try again.'),
-        ),
-      );
-    }
   }
 
   void _onItemTapped(int index) {
@@ -323,20 +350,23 @@ class _TruckPageState extends State<TruckPage> {
           }
 
           // Existing conditions
-          bool isLikedOrDisliked =
-              userProvider.getLikedVehicles.contains(vehicle.id) ||
-                  userProvider.getDislikedVehicles.contains(vehicle.id);
           bool isNotDraft = vehicle.vehicleStatus != 'Draft';
           bool matchesVehicleType = widget.vehicleType == null ||
               vehicle.vehicleType == widget.vehicleType;
 
-          return !isLikedOrDisliked && isNotDraft && matchesVehicleType;
+          return isNotDraft &&
+              matchesVehicleType; // Removed liked/disliked check
         }).toList();
+
+        // Debugging output to check vehicles after applying filters
+        print('Vehicles after applying filters: ${displayedVehicles.length}');
+        if (displayedVehicles.isEmpty) {
+          print('No vehicles match the current filters.');
+        }
 
         loadedVehicleIndex = displayedVehicles.length;
         _isFiltering = false;
 
-        print('Vehicles after applying filters: ${displayedVehicles.length}');
         print(
             'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
       });
@@ -639,128 +669,40 @@ class _TruckPageState extends State<TruckPage> {
             ),
           ),
           Expanded(
-            child: Stack(
-              children: [
-                _isLoading ||
-                        _isFiltering // Show loading icon during initial load or filtering
-                    ? Center(
-                        child: Image.asset(
-                          'lib/assets/Loading_Logo_CTP.gif',
-                          width: 100, // Adjust width and height as needed
-                          height: 100,
+            child: _isLoading || _isFiltering
+                ? Center(
+                    child: Image.asset(
+                      'lib/assets/Loading_Logo_CTP.gif',
+                      width: 100,
+                      height: 100,
+                    ),
+                  )
+                : displayedVehicles.isNotEmpty
+                    ? NotificationListener<ScrollNotification>(
+                        onNotification: (ScrollNotification notification) {
+                          if (notification is ScrollEndNotification) {
+                            _scrollListener();
+                          }
+                          return false;
+                        },
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          itemCount:
+                              displayedVehicles.length + 1, // +1 for the loader
+                          itemBuilder: (context, index) {
+                            if (index < displayedVehicles.length) {
+                              return _buildTruckCard(
+                                  context, displayedVehicles[index]);
+                            } else {
+                              // Loader at the bottom
+                              return _isLoadingMore
+                                  ? Center(child: CircularProgressIndicator())
+                                  : SizedBox.shrink();
+                            }
+                          },
                         ),
                       )
-                    : displayedVehicles.isNotEmpty
-                        ? !_hasReachedEnd
-                            ? AppinioSwiper(
-                                key: ValueKey(displayedVehicles.length),
-                                controller: controller,
-                                swipeOptions: const SwipeOptions.symmetric(
-                                    vertical: false, horizontal: false),
-                                cardCount: displayedVehicles.length,
-                                cardBuilder: (BuildContext context, int index) {
-                                  if (index < displayedVehicles.length) {
-                                    return _buildTruckCard(context, controller,
-                                        displayedVehicles[index], size);
-                                  } else {
-                                    return const SizedBox.shrink();
-                                  }
-                                },
-                                onSwipeEnd: (int previousIndex,
-                                    int? targetIndex, direction) async {
-                                  try {
-                                    if (direction == AxisDirection.left ||
-                                        direction == AxisDirection.right) {
-                                      final vehicle =
-                                          displayedVehicles[previousIndex];
-                                      setState(() {
-                                        swipedVehicles.add(vehicle);
-                                        swipedDirections.add(
-                                            direction == AxisDirection.right
-                                                ? 'right'
-                                                : 'left');
-                                        displayedVehicles
-                                            .removeAt(previousIndex);
-                                      });
-                                      _loadNextVehicle();
-
-                                      final userProvider =
-                                          Provider.of<UserProvider>(context,
-                                              listen: false);
-                                      if (direction == AxisDirection.right) {
-                                        await userProvider
-                                            .likeVehicle(vehicle.id);
-                                      } else if (direction ==
-                                          AxisDirection.left) {
-                                        await userProvider
-                                            .dislikeVehicle(vehicle.id);
-                                      }
-                                    }
-                                    if (targetIndex == null) {
-                                      setState(() {
-                                        _hasReachedEnd = true;
-                                      });
-                                    }
-                                  } catch (e) {
-                                    print('Error in onSwipeEnd: $e');
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'An error occurred while processing your swipe.'),
-                                      ),
-                                    );
-                                  }
-                                },
-                                onEnd: () {
-                                  setState(() {
-                                    _hasReachedEnd = true;
-                                  });
-                                },
-                              )
-                            : Center(
-                                child: Text(
-                                  "You've seen all the vehicles!",
-                                  style: _customFont(
-                                      16, FontWeight.normal, Colors.white),
-                                ),
-                              )
-                        : Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "No vehicles available",
-                                  style: _customFont(
-                                      16, FontWeight.normal, Colors.white),
-                                ),
-                                const SizedBox(height: 16),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20.0),
-                                  child: Text(
-                                    "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the database",
-                                    style: _customFont(
-                                        16, FontWeight.normal, Colors.white),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _clearLikedAndDislikedVehicles,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                  ),
-                                  child: Text(
-                                    'Clear Liked & Disliked Vehicles',
-                                    style: _customFont(
-                                        14, FontWeight.bold, Colors.white),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-              ],
-            ),
+                    : _buildNoVehiclesAvailable(),
           ),
         ],
       ),
@@ -771,341 +713,126 @@ class _TruckPageState extends State<TruckPage> {
     );
   }
 
-  Widget _buildTruckCard(BuildContext context,
-      AppinioSwiperController controller, Vehicle vehicle, Size size) {
-    return GestureDetector(
-        onDoubleTap: () {
-          try {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-              ),
-            );
-          } catch (e) {
-            print('Error in onDoubleTap: $e');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content:
-                    Text('Failed to load vehicle details. Please try again.'),
-              ),
-            );
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Container(
-            width: size.width,
-            height: size.height -
-                AppBar().preferredSize.height -
-                80, // Adjust for app bar and bottom navigation
-            margin: const EdgeInsets.symmetric(
-                horizontal: 2,
-                vertical: 10), // Margin for spacing between cards
-            decoration: BoxDecoration(
-              color: Colors.white, // White background for the card
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: Colors.white, width: 1), // Thin white border
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                  10), // Ensure the child content respects the border radius
-              child: Stack(
-                children: [
-                  // Image Section
-                  Positioned.fill(
-                    top: 0,
-                    bottom:
-                        size.height * 0.23, // Adjusted to prevent overlapping
-                    child: Stack(
-                      children: [
-                        // The vehicle image or placeholder
-                        Center(
-                          child: vehicle.mainImageUrl != null &&
-                                  vehicle.mainImageUrl!.isNotEmpty
-                              ? Image.network(
-                                  vehicle.mainImageUrl!,
-                                  fit: BoxFit.fitHeight,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      'lib/assets/default_vehicle_image.png',
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    );
-                                  },
-                                )
-                              : Image.asset(
-                                  'lib/assets/default_vehicle_image.png',
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                ),
-                        ),
+  Widget _buildTruckCard(BuildContext context, Vehicle vehicle) {
+    final size = MediaQuery.of(context).size;
 
-                        // Gradient overlay on top of the image
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.black.withOpacity(0.2), // Start color
-                                Colors.black.withOpacity(0.2), // End color
-                              ],
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              stops: const [1.0, 1.0],
+    return GestureDetector(
+      onTap: () {
+        try {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VehicleDetailsPage(vehicle: vehicle),
+            ),
+          );
+        } catch (e) {
+          print('Error in onTap: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Failed to load vehicle details. Please try again.'),
+            ),
+          );
+        }
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Colors.black, // Set card background to black
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+              color: Colors.deepOrange, width: 2), // Deep orange border
+          borderRadius: BorderRadius.circular(8), // Optional: add border radius
+        ),
+        child: Container(
+          height: size.height * 0.22, // Increased height to 0.25
+          child: Row(
+            children: [
+              // Image on the left with rounded corners
+              Expanded(
+                flex: 1,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    bottomLeft: Radius.circular(8),
+                  ),
+                  child: vehicle.mainImageUrl != null &&
+                          vehicle.mainImageUrl!.isNotEmpty
+                      ? Image.network(
+                          vehicle.mainImageUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              'lib/assets/default_vehicle_image.png',
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          'lib/assets/default_vehicle_image.png',
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                ),
+              ),
+              // Information on the right
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      // Title and IconButton in the same Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              vehicle.makeModel.toUpperCase(),
+                              style: _customFont(
+                                size.height * 0.025,
+                                FontWeight.bold,
+                                Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Container for buttons and info cards
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      color: Colors
-                          .black, // Black background for buttons and info cards
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding:
-                                    EdgeInsets.only(left: size.width * 0.005),
-                                child: Text(
-                                  "GAUTENG, PRETORIA", // Add location text above the name
-                                  style: _customFont(
-                                    size.height * 0.015,
-                                    FontWeight.w600,
-                                    Colors.white,
-                                  ),
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Padding(
-                                      padding: EdgeInsets.only(
-                                          left: size.width * 0.005,
-                                          bottom: size.height * 0.009),
-                                      child: Text(
-                                        vehicle.makeModel.length > 16
-                                            ? '${vehicle.makeModel.substring(0, 15).toUpperCase()}...'
-                                            : vehicle.makeModel.toUpperCase(),
-                                        style: _customFont(
-                                          size.height * 0.03,
-                                          FontWeight.w900,
-                                          Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Image.asset(
-                                      'lib/assets/verified_Icon.png',
-                                      width: size.width * 0.05,
-                                      height: size.height * 0.05,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          IconButton(
+                            icon: Icon(
+                              Provider.of<UserProvider>(context, listen: false)
+                                      .getLikedVehicles
+                                      .contains(vehicle.id)
+                                  ? Icons.favorite // Solid red heart
+                                  : Icons.favorite_border, // Outlined heart
+                              color: Provider.of<UserProvider>(context,
+                                          listen: false)
+                                      .getLikedVehicles
+                                      .contains(vehicle.id)
+                                  ? Colors.red // Red color for liked
+                                  : Colors.white, // White color for not liked
+                            ),
+                            onPressed: () => _markAsInterested(vehicle),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const SizedBox(height: 10),
-                              _buildInfoContainer(
-                                  'YEAR',
-                                  vehicle.year.isNotEmpty
-                                      ? vehicle.year
-                                      : "N/A"),
-                              const SizedBox(width: 8),
-                              _buildInfoContainer(
-                                  'MILEAGE',
-                                  vehicle.mileage.isNotEmpty
-                                      ? vehicle.mileage
-                                      : "N/A"),
-                              const SizedBox(width: 8),
-                              _buildInfoContainer(
-                                  'GEARBOX',
-                                  vehicle.transmissionType.isNotEmpty
-                                      ? vehicle.transmissionType
-                                      : "N/A"),
-                              const SizedBox(width: 8),
-                              _buildInfoContainer(
-                                  'CONFIG',
-                                  vehicle.config.isNotEmpty
-                                      ? vehicle.config
-                                      : "N/A"),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Update the calls to _buildIconButton to include the label
-                              _buildIconButton(
-                                Icons.close,
-                                const Color(0xFF2F7FFF),
-                                controller,
-                                'left',
-                                vehicle,
-                                'Not Interested', // Added label
-                              ),
-                              _buildCenterButton(controller),
-                              _buildIconButton(
-                                Icons.favorite,
-                                const Color(0xFFFF4E00),
-                                controller,
-                                'right',
-                                vehicle,
-                                'Interested', // Added label
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: size.height * 0.015),
                         ],
                       ),
-                    ),
+                      SizedBox(height: 8),
+                      // Info rows in a simple Column
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoRow('Year', vehicle.year),
+                          _buildInfoRow('Mileage', vehicle.mileage),
+                          _buildInfoRow('Gearbox', vehicle.transmissionType),
+                          _buildInfoRow('Config', vehicle.config),
+                        ],
+                      ),
+                    ],
                   ),
-
-                  // Honesty Bar Widget
-                  Positioned(
-                    top: size.height *
-                        0.01, // Dynamically adjusted based on screen size
-                    right: size.width * 0.03, // Dynamically adjusted
-                    child: HonestyBarWidget(vehicle: vehicle),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ));
-  }
-
-  Widget _buildInfoContainer(String title, String? value) {
-    var screenSize = MediaQuery.of(context).size;
-
-    String normalizedValue = value?.trim().toLowerCase() ?? '';
-
-    String displayValue = (title == 'GEARBOX' && value != null)
-        ? (normalizedValue.contains('auto')
-            ? 'AUTO'
-            : normalizedValue.contains('manual')
-                ? 'MANUAL'
-                : value.toUpperCase())
-        : value?.toUpperCase() ?? 'N/A';
-
-    return Flexible(
-      child: Container(
-        height: screenSize.height * 0.06,
-        width: screenSize.width * 0.22,
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey, width: 1),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: _customFont(
-                  screenSize.height * 0.012, FontWeight.w500, Colors.grey),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              displayValue,
-              style: _customFont(
-                  screenSize.height * 0.017, FontWeight.bold, Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Update the _buildIconButton function to accept a label parameter
-  Widget _buildIconButton(
-    IconData icon,
-    Color color,
-    AppinioSwiperController controller,
-    String direction,
-    Vehicle vehicle,
-    String label, // Added label
-  ) {
-    final size = MediaQuery.of(context).size;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () async {
-          try {
-            final userProvider =
-                Provider.of<UserProvider>(context, listen: false);
-
-            if (direction == 'left') {
-              if (!userProvider.getDislikedVehicles.contains(vehicle.id)) {
-                await userProvider.dislikeVehicle(vehicle.id);
-                controller.swipeLeft();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vehicle already disliked.')),
-                );
-              }
-            } else if (direction == 'right') {
-              if (!userProvider.getLikedVehicles.contains(vehicle.id)) {
-                await userProvider.likeVehicle(vehicle.id);
-                controller.swipeRight();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vehicle already liked.')),
-                );
-              }
-            }
-          } catch (e) {
-            print('Error in _buildIconButton: $e');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to swipe vehicle. Please try again.'),
-              ),
-            );
-          }
-        },
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color, width: 2),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.black, size: size.height * 0.025),
-              SizedBox(height: 4), // Space between the icon and text
-              Text(
-                label.toUpperCase(),
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -1115,69 +842,81 @@ class _TruckPageState extends State<TruckPage> {
     );
   }
 
-  Widget _buildCenterButton(AppinioSwiperController controller) {
-    final size = MediaQuery.of(context).size;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () async {
-          try {
-            if (swipedVehicles.isNotEmpty) {
-              final lastVehicle = swipedVehicles.removeLast();
-              final lastDirection = swipedDirections.removeLast();
-              final userProvider =
-                  Provider.of<UserProvider>(context, listen: false);
-
-              if (lastDirection == 'right') {
-                await userProvider.removeLikedVehicle(lastVehicle.id);
-              } else if (lastDirection == 'left') {
-                await userProvider.removeDislikedVehicle(lastVehicle.id);
-              }
-
-              controller.unswipe();
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('No card to unswipe.'),
-                ),
-              );
-            }
-          } catch (e) {
-            print('Error in _buildCenterButton: $e');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to undo swipe. Please try again.'),
-              ),
-            );
-          }
-        },
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+  Widget _buildInfoRow(String title, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          Text(
+            '$title: ',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.undo,
-                color: Colors.white,
-                size: size.height * 0.025,
-              ),
-              SizedBox(height: 4), // Space between icon and text
-              Text(
-                'Undo',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+          Expanded(
+            child: Text(value ?? 'N/A', style: TextStyle(color: Colors.white)),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _markAsInterested(Vehicle vehicle) async {
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      if (!userProvider.getLikedVehicles.contains(vehicle.id)) {
+        await userProvider.likeVehicle(vehicle.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Marked as Interested'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Vehicle already marked as interested.')),
+        );
+      }
+    } catch (e) {
+      print('Error in _markAsInterested: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Failed to mark vehicle as interested. Please try again.'),
         ),
+      );
+    }
+  }
+
+  Widget _buildNoVehiclesAvailable() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            "No vehicles available",
+            style: _customFont(16, FontWeight.normal, Colors.white),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Text(
+              "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the database",
+              style: _customFont(16, FontWeight.normal, Colors.white),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _clearLikedAndDislikedVehicles,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text(
+              'Clear Liked & Disliked Vehicles',
+              style: _customFont(14, FontWeight.bold, Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

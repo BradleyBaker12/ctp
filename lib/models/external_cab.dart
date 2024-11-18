@@ -59,4 +59,16 @@ class ExternalCab {
       'additionalFeatures': additionalFeatures.map((a) => a.toMap()).toList(),
     };
   }
+
+  factory ExternalCab.empty() {
+    return ExternalCab(
+      selectedCondition: '',
+      anyDamages: '',
+      anyAdditionalFeatures: '',
+      photos: {},
+      lastUpdated: DateTime.now(),
+      damages: [],
+      additionalFeatures: [],
+    );
+  }
 }

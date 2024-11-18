@@ -4,7 +4,6 @@ import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/admin_home_page.dart';
-import 'package:ctp/pages/truckForms/basic_information.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -16,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -580,7 +580,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const VehicleUploadScreen()),
+                          builder: (context) => VehicleUploadScreen(
+                            isNewUpload: true,
+                          ),
+                        ),
                       );
                     } else {
                       Navigator.push(
@@ -1079,132 +1082,145 @@ class SwiperWidget extends StatelessWidget {
     Animation<double> scaleAnimation =
         Tween<double>(begin: 1.0, end: 1.05).animate(animationController);
 
-    return AnimatedBuilder(
-      animation: scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: scaleAnimation.value,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Colors.grey.withOpacity(0.5), // Light grey border color
-                width: 2.0, // Border width
-              ),
-            ),
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    // Image section
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            topRight: Radius.circular(10)),
-                        child: vehicle.mainImageUrl != null
-                            ? Image.network(
-                                vehicle.mainImageUrl!,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              )
-                            : Image.asset(
-                                'lib/assets/default_vehicle_image.png',
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
-                      ),
-                    ),
-                    // Text section
-                    Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(left: 8.0),
-                                child: Text(
-                                  vehicle.makeModel,
-                                  style: const TextStyle(
-                                    fontSize: 25,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              Image.asset(
-                                'lib/assets/verified_Icon.png',
-                                width: screenSize.height * 0.021,
-                                height: screenSize.height * 0.021,
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: screenSize.height * 0.01),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildBlurryContainer('YEAR', vehicle.year,
-                                  context), // Pass context here
-                              _buildBlurryContainer('MILEAGE', vehicle.mileage,
-                                  context), // Pass context here
-                              _buildBlurryContainer(
-                                  'GEARBOX',
-                                  vehicle.transmissionType,
-                                  context), // Pass context here
-                              _buildBlurryContainer('CONFIG', 'N/A',
-                                  context), // Pass context here
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Buttons section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15.0, vertical: 10.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildIconButton(
-                            Icons.close,
-                            Color(0xFF2F7FFF),
-                            controller,
-                            'left',
-                            vehicle,
-                            'Not Interested', // Label for the 'X' button
-                          ),
-                          SizedBox(width: screenSize.height * 0.015),
-                          _buildIconButton(
-                            Icons.favorite,
-                            const Color(0xFFFF4E00),
-                            controller,
-                            'right',
-                            vehicle,
-                            'Interested', // Label for the heart button
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // Honesty Bar Widget
-                Positioned(
-                  top: screenSize.height * 0.055,
-                  right: screenSize.height * 0.01,
-                  child: HonestyBarWidget(
-                    vehicle: vehicle,
-                    heightFactor: 0.325,
-                  ),
-                ),
-              ],
-            ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VehicleDetailsPage(vehicle: vehicle),
           ),
         );
       },
+      child: AnimatedBuilder(
+        animation: scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: scaleAnimation.value,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color:
+                      Colors.grey.withOpacity(0.5), // Light grey border color
+                  width: 2.0, // Border width
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      // Image section
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10)),
+                          child: vehicle.mainImageUrl != null
+                              ? Image.network(
+                                  vehicle.mainImageUrl!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                )
+                              : Image.asset(
+                                  'lib/assets/default_vehicle_image.png',
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                ),
+                        ),
+                      ),
+                      // Text section
+                      Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8.0),
+                                  child: Text(
+                                    vehicle.makeModel,
+                                    style: const TextStyle(
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Image.asset(
+                                  'lib/assets/verified_Icon.png',
+                                  width: screenSize.height * 0.021,
+                                  height: screenSize.height * 0.021,
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: screenSize.height * 0.01),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildBlurryContainer('YEAR', vehicle.year,
+                                    context), // Pass context here
+                                _buildBlurryContainer(
+                                    'MILEAGE',
+                                    vehicle.mileage,
+                                    context), // Pass context here
+                                _buildBlurryContainer(
+                                    'GEARBOX',
+                                    vehicle.transmissionType,
+                                    context), // Pass context here
+                                _buildBlurryContainer('CONFIG', 'N/A',
+                                    context), // Pass context here
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Buttons section
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 15.0, vertical: 10.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildIconButton(
+                              Icons.close,
+                              Color(0xFF2F7FFF),
+                              controller,
+                              'left',
+                              vehicle,
+                              'Not Interested', // Label for the 'X' button
+                            ),
+                            SizedBox(width: screenSize.height * 0.015),
+                            _buildIconButton(
+                              Icons.favorite,
+                              const Color(0xFFFF4E00),
+                              controller,
+                              'right',
+                              vehicle,
+                              'Interested', // Label for the heart button
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Honesty Bar Widget
+                  Positioned(
+                    top: screenSize.height * 0.055,
+                    right: screenSize.height * 0.01,
+                    child: HonestyBarWidget(
+                      vehicle: vehicle,
+                      heightFactor: 0.325,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 

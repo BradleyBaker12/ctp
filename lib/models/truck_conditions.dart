@@ -11,7 +11,7 @@ class TruckConditions {
   final InternalCab internalCab;
   final Chassis chassis;
   final DriveTrain driveTrain;
-  final Tyres tyres;
+  final Map<String, Tyres> tyres;
 
   TruckConditions({
     required this.externalCab,
@@ -21,13 +21,53 @@ class TruckConditions {
     required this.tyres,
   });
 
-  factory TruckConditions.fromMap(Map<String, dynamic> data) {
+  factory TruckConditions.fromMap(Map<String, dynamic> map) {
     return TruckConditions(
-      externalCab: ExternalCab.fromMap(data['ExternalCab'] ?? {}),
-      internalCab: InternalCab.fromMap(data['InternalCab'] ?? {}),
-      chassis: Chassis.fromMap(data['Chassis'] ?? {}),
-      driveTrain: DriveTrain.fromMap(data['DriveTrain'] ?? {}),
-      tyres: Tyres.fromMap(data['Tyres'] ?? {}),
+      externalCab: map['externalCab'] != null
+          ? ExternalCab.fromMap(map['externalCab'] as Map<String, dynamic>)
+          : ExternalCab(
+              selectedCondition: '',
+              anyDamages: '',
+              anyAdditionalFeatures: '',
+              photos: {},
+              lastUpdated: DateTime.now(),
+              damages: [],
+              additionalFeatures: [],
+            ),
+      internalCab:
+          InternalCab.fromMap(map['internalCab'] as Map<String, dynamic>),
+      chassis: Chassis.fromMap(map['chassis'] as Map<String, dynamic>),
+      driveTrain: DriveTrain.fromMap(map['driveTrain'] as Map<String, dynamic>),
+      tyres: (map['tyres'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(
+              key,
+              Tyres.fromMap(value as Map<String, dynamic>),
+            ),
+          ) ??
+          {'default': Tyres(lastUpdated: DateTime.now(), positions: {})},
+    );
+  }
+
+  static Map<String, Tyres> _parseTyresData(Map<String, dynamic>? data) {
+    final tyres = <String, Tyres>{};
+    if (data != null) {
+      data.forEach((key, value) {
+        if (value is Map<String, dynamic>) {
+          tyres[key] = Tyres.fromMap(value);
+        }
+      });
+    }
+    return tyres;
+  }
+
+  // Add an empty constructor for default values
+  factory TruckConditions.empty() {
+    return TruckConditions(
+      tyres: {},
+      chassis: Chassis.empty(),
+      driveTrain: DriveTrain.empty(),
+      externalCab: ExternalCab.empty(),
+      internalCab: InternalCab.empty(),
     );
   }
 
@@ -37,7 +77,7 @@ class TruckConditions {
       'InternalCab': internalCab.toMap(),
       'Chassis': chassis.toMap(),
       'DriveTrain': driveTrain.toMap(),
-      'Tyres': tyres.toMap(),
+      'Tyres': tyres.map((key, value) => MapEntry(key, value.toMap())),
     };
   }
 }

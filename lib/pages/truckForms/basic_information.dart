@@ -1,5 +1,4 @@
 import 'package:ctp/components/constants.dart';
-import 'package:ctp/pages/truckForms/progress_overview.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';

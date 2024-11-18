@@ -118,9 +118,9 @@ class _AdminHomePageState extends State<AdminHomePage>
     }
 
     return GradientBackground(
-      begin: const FractionalOffset(0.5, 0),
-      end: const FractionalOffset(0.5, 1),
-      stops: const [0.0, 1.0],
+      // begin: const FractionalOffset(0.5, 0),
+      // end: const FractionalOffset(0.5, 1),
+      // stops: const [0.0, 1.0],
       child: Scaffold(
         backgroundColor:
             Colors.transparent, // Make Scaffold background transparent

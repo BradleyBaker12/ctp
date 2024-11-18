@@ -600,16 +600,16 @@ class _TyresFormState extends State<TyresForm> {
                   ),
                 ),
                 child: Column(
-                  children: [
-                    const Icon(
+                  children: const [
+                    Icon(
                       Icons.drive_folder_upload_outlined,
                       color: Colors.white,
                       size: 50.0,
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Text(
                       'CLEAR PICTURE OF DAMAGE',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         color: Colors.white70,
                       ),

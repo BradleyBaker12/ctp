@@ -298,8 +298,8 @@ class _OfferCardState extends State<OfferCard> {
             .get();
 
         if (vehicleSnapshot.exists) {
-          // vehicle = Vehicle.fromDocument(vehicleSnapshot);
-          // vehicleProvider.addVehicle(vehicle); // Add to provider
+          vehicle = Vehicle.fromDocument(vehicleSnapshot);
+          vehicleProvider.addVehicle(vehicle);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -611,7 +611,14 @@ class _OfferCardState extends State<OfferCard> {
         (v) => v.id == widget.offer.vehicleId,
         orElse: () => throw Exception('Vehicle not found in provider'),
       );
-    } catch (e) {
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+        ),
+      );
+        } catch (e) {
       try {
         DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
             .collection('vehicles')
@@ -619,8 +626,12 @@ class _OfferCardState extends State<OfferCard> {
             .get();
 
         if (vehicleSnapshot.exists) {
-          // vehicle = Vehicle.fromDocument(vehicleSnapshot);
-          // vehicleProvider.addVehicle(vehicle); // Add to provider
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+            ),
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -628,7 +639,6 @@ class _OfferCardState extends State<OfferCard> {
               backgroundColor: Colors.red,
             ),
           );
-          return;
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -637,16 +647,8 @@ class _OfferCardState extends State<OfferCard> {
             backgroundColor: Colors.red,
           ),
         );
-        return;
       }
     }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-      ),
-    );
   }
 
   String getDisplayStatus(String? offerStatus) {

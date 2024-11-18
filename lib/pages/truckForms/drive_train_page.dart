@@ -1,3 +1,5 @@
+// lib/pages/truckForms/drive_train_page.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,7 +10,15 @@ import 'package:ctp/components/custom_radio_button.dart';
 
 class DriveTrainPage extends StatefulWidget {
   final String vehicleId;
-  const DriveTrainPage({super.key, required this.vehicleId});
+  final VoidCallback onProgressUpdate;
+  final bool isEditing;
+
+  const DriveTrainPage({
+    super.key,
+    required this.vehicleId,
+    required this.onProgressUpdate,
+    this.isEditing = false,
+  });
 
   @override
   DriveTrainPageState createState() => DriveTrainPageState();
@@ -51,6 +61,8 @@ class DriveTrainPageState extends State<DriveTrainPage>
   // Add a map to store image URLs
   final Map<String, String> _imageUrls = {};
 
+  bool _isInitialized = false; // Flag to prevent re-initialization
+
   @override
   bool get wantKeepAlive => true;
 
@@ -91,37 +103,19 @@ class DriveTrainPageState extends State<DriveTrainPage>
                       label: 'Poor',
                       value: 'poor',
                       groupValue: _selectedCondition,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedCondition = value;
-                          });
-                        }
-                      },
+                      onChanged: _updateCondition,
                     ),
                     CustomRadioButton(
                       label: 'Good',
                       value: 'good',
                       groupValue: _selectedCondition,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedCondition = value;
-                          });
-                        }
-                      },
+                      onChanged: _updateCondition,
                     ),
                     CustomRadioButton(
                       label: 'Excellent',
                       value: 'excellent',
                       groupValue: _selectedCondition,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedCondition = value;
-                          });
-                        }
-                      },
+                      onChanged: _updateCondition,
                     ),
                   ],
                 ),
@@ -177,7 +171,8 @@ class DriveTrainPageState extends State<DriveTrainPage>
                   crossAxisSpacing: 16.0,
                   mainAxisSpacing: 16.0,
                   children: _selectedImages.keys
-                      .where((key) => key.contains('Engine'))
+                      .where((key) =>
+                          key.contains('Engine') && !key.contains('Leak'))
                       .map((key) => _buildPhotoBlock(key))
                       .toList(),
                 ),
@@ -186,11 +181,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
                 _buildYesNoSection(
                   title: 'Are there any oil leaks in the engine?',
                   groupValue: _oilLeakConditionEngine,
-                  onChanged: (value) {
-                    setState(() {
-                      _oilLeakConditionEngine = value!;
-                    });
-                  },
+                  onChanged: _updateOilLeakCondition,
                   imageKey: 'Engine Oil Leak',
                 ),
                 const SizedBox(height: 16.0),
@@ -198,11 +189,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
                 _buildYesNoSection(
                   title: 'Are there any water leaks in the engine?',
                   groupValue: _waterLeakConditionEngine,
-                  onChanged: (value) {
-                    setState(() {
-                      _waterLeakConditionEngine = value!;
-                    });
-                  },
+                  onChanged: _updateWaterLeakCondition,
                   imageKey: 'Engine Water Leak',
                 ),
                 const SizedBox(height: 16.0),
@@ -210,11 +197,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
                 _buildYesNoRadioOnlySection(
                   title: 'Is there blowby/engine breathing?',
                   groupValue: _blowbyCondition,
-                  onChanged: (value) {
-                    setState(() {
-                      _blowbyCondition = value!;
-                    });
-                  },
+                  onChanged: _updateBlowbyCondition,
                 ),
                 const SizedBox(height: 16.0),
                 const Divider(thickness: 1.0),
@@ -238,7 +221,8 @@ class DriveTrainPageState extends State<DriveTrainPage>
                   crossAxisSpacing: 16.0,
                   mainAxisSpacing: 16.0,
                   children: _selectedImages.keys
-                      .where((key) => key.contains('Gearbox'))
+                      .where((key) =>
+                          key.contains('Gearbox') && !key.contains('Leak'))
                       .map((key) => _buildPhotoBlock(key))
                       .toList(),
                 ),
@@ -247,11 +231,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
                 _buildYesNoSection(
                   title: 'Are there any oil leaks in the gearbox?',
                   groupValue: _oilLeakConditionGearbox,
-                  onChanged: (value) {
-                    setState(() {
-                      _oilLeakConditionGearbox = value!;
-                    });
-                  },
+                  onChanged: _updateGearboxOilLeakCondition,
                   imageKey: 'Gearbox Oil Leak',
                 ),
                 const SizedBox(height: 16.0),
@@ -259,11 +239,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
                 _buildYesNoRadioOnlySection(
                   title: 'Does the gearbox come with a retarder?',
                   groupValue: _retarderCondition,
-                  onChanged: (value) {
-                    setState(() {
-                      _retarderCondition = value!;
-                    });
-                  },
+                  onChanged: _updateRetarderCondition,
                 ),
                 const SizedBox(height: 16.0),
                 const Divider(thickness: 1.0),
@@ -308,7 +284,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] == null && !_hasImageUrl(title)
+        child: _selectedImages[title] == null
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -325,51 +301,16 @@ class DriveTrainPageState extends State<DriveTrainPage>
                   ),
                 ],
               )
-            : _getImageWidget(title),
+            : ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.file(
+                  _selectedImages[title]!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              ),
       ),
-    );
-  }
-
-  // Check if there's an image URL for the given title
-  bool _hasImageUrl(String title) {
-    // Implement logic to check if imageUrl exists in Firestore or state
-    // For simplicity, assuming no imageUrl is stored locally
-    return false;
-  }
-
-  // Get the appropriate image widget
-  Widget _getImageWidget(String title) {
-    // Implement logic to retrieve imageUrl from Firestore if exists
-    // For simplicity, displaying the local file image
-    if (_selectedImages[title] != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: Image.file(
-          _selectedImages[title]!,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-        ),
-      );
-    } else {
-      // Placeholder if no image is selected but imageUrl exists
-      return _buildImagePlaceholder();
-    }
-  }
-
-  // Placeholder widget for images
-  Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.broken_image, color: Colors.white, size: 40.0),
-        SizedBox(height: 8.0),
-        Text(
-          'Image Not Available',
-          style: TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ],
     );
   }
 
@@ -501,87 +442,16 @@ class DriveTrainPageState extends State<DriveTrainPage>
     );
   }
 
-  // Helper method to upload a single image to Firebase Storage and get its URL
-  Future<String> _uploadImage(File file, String key) async {
-    try {
-      String fileName =
-          'drive_train/${widget.vehicleId}_$key${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = _storage.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(file);
-
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading image: $e')),
-        );
-      }
-      return '';
-    }
-  }
-
-  // Method to save data to Firestore
+  // Method to upload images (if required)
   Future<bool> saveData() async {
-    try {
-      // Upload images and get URLs
-      Map<String, String> imageUrls = {};
-      for (var entry in _selectedImages.entries) {
-        if (entry.value != null) {
-          String imagePath =
-              'vehicles/${widget.vehicleId}/drive_train/views/${entry.key}_${DateTime.now().millisecondsSinceEpoch}';
-          String downloadUrl = await _uploadImage(entry.value!, imagePath);
-          if (downloadUrl.isNotEmpty) {
-            imageUrls[entry.key] = downloadUrl;
-            _imageUrls[entry.key] =
-                downloadUrl; // Store URL for future reference
-          }
-        } else if (_imageUrls.containsKey(entry.key)) {
-          // Keep existing URLs
-          imageUrls[entry.key] = _imageUrls[entry.key]!;
-        }
-      }
-
-      // Save to Firestore
-      await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('inspections')
-          .doc('drive_train')
-          .set({
-        'condition': _selectedCondition,
-        'images': imageUrls,
-        'engineOilLeak': _oilLeakConditionEngine,
-        'engineWaterLeak': _waterLeakConditionEngine,
-        'blowbyCondition': _blowbyCondition,
-        'gearboxOilLeak': _oilLeakConditionGearbox,
-        'retarderCondition': _retarderCondition,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Drive Train data saved successfully!')),
-        );
-      }
-
-      return true;
-    } catch (e) {
-      print('Error saving drive train data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving data: $e')),
-        );
-      }
-      return false;
-    }
+    // You can implement save logic here if needed
+    return true;
   }
 
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
     setState(() {
+      // _isInitialized = true
       // Initialize basic fields
       _selectedCondition = data['condition'] ?? 'good';
       _oilLeakConditionEngine = data['engineOilLeak'] ?? 'no';
@@ -637,5 +507,161 @@ class DriveTrainPageState extends State<DriveTrainPage>
     }
 
     return sanitizedData;
+  }
+
+  void reset() {
+    setState(() {
+      _selectedCondition = 'good';
+      _oilLeakConditionEngine = 'no';
+      _waterLeakConditionEngine = 'no';
+      _blowbyCondition = 'no';
+      _oilLeakConditionGearbox = 'no';
+      _retarderCondition = 'no';
+
+      // Clear selected images
+      _selectedImages.forEach((key, _) {
+        _selectedImages[key] = null;
+      });
+
+      // Clear image URLs
+      _imageUrls.clear();
+
+      _isInitialized = false; // Allow re-initialization if needed
+    });
+  }
+
+  double getCompletionPercentage() {
+    int totalFields = 19; // Total number of fields to fill
+    int filledFields = 0;
+
+    // Check condition selection (1 field)
+    if (_selectedCondition.isNotEmpty) filledFields++;
+
+    // Check all images (16 fields)
+    _selectedImages.forEach((key, value) {
+      // Only count non-leak images or leak images when their condition is 'yes'
+      if (key.contains('Leak')) {
+        if ((_oilLeakConditionEngine == 'yes' && key == 'Engine Oil Leak') ||
+            (_waterLeakConditionEngine == 'yes' &&
+                key == 'Engine Water Leak') ||
+            (_oilLeakConditionGearbox == 'yes' && key == 'Gearbox Oil Leak')) {
+          if (value != null) filledFields++;
+        }
+      } else {
+        if (value != null) filledFields++;
+      }
+    });
+
+    // Check conditions (5 fields)
+    // Oil leak engine
+    if (_oilLeakConditionEngine == 'no' ||
+        (_oilLeakConditionEngine == 'yes' &&
+            _selectedImages['Engine Oil Leak'] != null)) {
+      filledFields++;
+    }
+
+    // Water leak engine
+    if (_waterLeakConditionEngine == 'no' ||
+        (_waterLeakConditionEngine == 'yes' &&
+            _selectedImages['Engine Water Leak'] != null)) {
+      filledFields++;
+    }
+
+    // Blowby condition
+    if (_blowbyCondition.isNotEmpty) filledFields++;
+
+    // Gearbox oil leak
+    if (_oilLeakConditionGearbox == 'no' ||
+        (_oilLeakConditionGearbox == 'yes' &&
+            _selectedImages['Gearbox Oil Leak'] != null)) {
+      filledFields++;
+    }
+
+    // Retarder condition
+    if (_retarderCondition.isNotEmpty) filledFields++;
+
+    // Ensure we don't exceed 1.0 and handle potential division errors
+    return (filledFields / totalFields).clamp(0.0, 1.0);
+  }
+
+  // Add helper method for updates
+  void _updateAndNotify(VoidCallback updateFunction) {
+    setState(() {
+      updateFunction();
+    });
+    widget.onProgressUpdate();
+  }
+
+  // Update all setState calls to use _updateAndNotify
+  // For example:
+
+  // For condition selection
+  void _updateCondition(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _selectedCondition = value;
+      });
+    }
+  }
+
+  // For oil leak condition
+  void _updateOilLeakCondition(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _oilLeakConditionEngine = value;
+        if (value == 'no') {
+          _selectedImages['Engine Oil Leak'] = null;
+        }
+      });
+    }
+  }
+
+  // For water leak condition
+  void _updateWaterLeakCondition(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _waterLeakConditionEngine = value;
+        if (value == 'no') {
+          _selectedImages['Engine Water Leak'] = null;
+        }
+      });
+    }
+  }
+
+  // For blowby condition
+  void _updateBlowbyCondition(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _blowbyCondition = value;
+      });
+    }
+  }
+
+  // For gearbox oil leak condition
+  void _updateGearboxOilLeakCondition(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _oilLeakConditionGearbox = value;
+        if (value == 'no') {
+          _selectedImages['Gearbox Oil Leak'] = null;
+        }
+      });
+    }
+  }
+
+  // For retarder condition
+  void _updateRetarderCondition(String? value) {
+    if (value != null) {
+      _updateAndNotify(() {
+        _retarderCondition = value;
+      });
+    }
+  }
+
+  // For image selection
+  Future<void> _updateImage(String title, File imageFile) async {
+    _updateAndNotify(() {
+      _selectedImages[title] = imageFile;
+    });
   }
 }

@@ -10,7 +10,17 @@ import 'package:ctp/components/custom_radio_button.dart';
 
 class TyresPage extends StatefulWidget {
   final String vehicleId;
-  const TyresPage({super.key, required this.vehicleId});
+  final VoidCallback onProgressUpdate;
+  final bool isEditing;
+  final int numberOfTyrePositions;
+
+  const TyresPage({
+    super.key,
+    required this.vehicleId,
+    required this.onProgressUpdate,
+    this.isEditing = false,
+    required this.numberOfTyrePositions,
+  });
 
   @override
   TyresPageState createState() => TyresPageState();
@@ -31,79 +41,20 @@ class TyresPageState extends State<TyresPage>
   // Map to store selected images for different tyre positions
   final Map<String, File?> _selectedImages = {};
 
-  // Add this field to store image URLs
+  // Map to store image URLs
   final Map<String, String> _imageUrls = {};
+
+  bool _isInitialized = false; // Flag to prevent re-initialization
 
   @override
   void initState() {
     super.initState();
-    // Initialize default values
-    for (int i = 1; i <= 6; i++) {
-      _chassisConditions[i] = 'good';
-      _virginOrRecaps[i] = 'virgin';
-      _rimTypes[i] = 'aluminium';
+    // Initialize maps without default values
+    for (int i = 1; i <= widget.numberOfTyrePositions; i++) {
+      _chassisConditions[i] = '';
+      _virginOrRecaps[i] = '';
+      _rimTypes[i] = '';
     }
-    // Load saved data
-    _loadSavedData();
-  }
-
-  Future<void> _loadSavedData() async {
-    try {
-      // First try to load from the main vehicle document's truckConditions
-      final vehicleDoc =
-          await _firestore.collection('vehicles').doc(widget.vehicleId).get();
-
-      if (vehicleDoc.exists && vehicleDoc.data() != null) {
-        final truckConditions = vehicleDoc.data()!['truckConditions'];
-        if (truckConditions != null && truckConditions['tyres'] != null) {
-          final tyresData = truckConditions['tyres'] as Map<String, dynamic>;
-          _initializeFromData(tyresData);
-          return;
-        }
-      }
-
-      // Fallback: try to load from the legacy inspections subcollection
-      final doc = await _firestore
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('inspections')
-          .doc('tyres')
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final positions = doc.data()!['positions'] as Map<String, dynamic>;
-        _initializeFromData(positions);
-      }
-    } catch (e) {
-      print('Error loading tyres data: $e');
-    }
-  }
-
-  void _initializeFromData(Map<String, dynamic> data) {
-    setState(() {
-      data.forEach((key, value) {
-        if (key.startsWith('Tyre_Pos_')) {
-          final pos = int.parse(key.split('_').last);
-          _chassisConditions[pos] = value['chassisCondition'] ?? 'good';
-          _virginOrRecaps[pos] = value['virginOrRecap'] ?? 'virgin';
-          _rimTypes[pos] = value['rimType'] ?? 'aluminium';
-
-          // Handle image URL
-          if (value['imageUrl'] != null) {
-            if (value['imageUrl'] is Map) {
-              var imageUrl = value['imageUrl'];
-              if (imageUrl['isNew'] == true) {
-                _selectedImages['$key Photo'] = File(imageUrl['path']);
-              } else {
-                _imageUrls['$key Photo'] = imageUrl['url'];
-              }
-            } else if (value['imageUrl'] is String) {
-              _imageUrls['$key Photo'] = value['imageUrl'];
-            }
-          }
-        }
-      });
-    });
   }
 
   @override
@@ -118,10 +69,10 @@ class TyresPageState extends State<TyresPage>
         child: Column(
           children: [
             const SizedBox(height: 16.0),
-            // Generate Tyre Position Sections (Assuming 6 positions)
-            ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
+            // Generate Tyre Position Sections based on the number of tyre positions
+            ...List.generate(widget.numberOfTyrePositions,
+                (index) => _buildTyrePosSection(index + 1)),
             const SizedBox(height: 16.0),
-            // Optionally, add sections for damages, additional features, and fault codes here
           ],
         ),
       ),
@@ -135,36 +86,41 @@ class TyresPageState extends State<TyresPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16.0),
-        Text(
-          'Tyre Position $pos'.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 20,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w900,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16.0),
-        _buildImageUploadBlock('$tyrePosKey Photo'),
-        const SizedBox(height: 16.0),
-        const Text(
-          'Condition of the Chassis',
-          style: TextStyle(
-            fontSize: 16,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w500,
+        Center(
+          child: Text(
+            'Tyre Position $pos'.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 20,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w900,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
+        const SizedBox(height: 16.0),
+        _buildImageUploadBlock('Tyre Position $pos Photo'),
+        const SizedBox(height: 16.0),
+        Center(
+          child: const Text(
+            'Condition of the Tyre',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16.0),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             CustomRadioButton(
               label: 'Poor',
               value: 'poor',
-              groupValue: _chassisConditions[pos] ?? 'good',
+              groupValue: _chassisConditions[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  setState(() {
+                  _updateAndNotify(() {
                     _chassisConditions[pos] = value;
                   });
                 }
@@ -173,10 +129,10 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Good',
               value: 'good',
-              groupValue: _chassisConditions[pos] ?? 'good',
+              groupValue: _chassisConditions[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  setState(() {
+                  _updateAndNotify(() {
                     _chassisConditions[pos] = value;
                   });
                 }
@@ -185,10 +141,10 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Excellent',
               value: 'excellent',
-              groupValue: _chassisConditions[pos] ?? 'good',
+              groupValue: _chassisConditions[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  setState(() {
+                  _updateAndNotify(() {
                     _chassisConditions[pos] = value;
                   });
                 }
@@ -197,24 +153,27 @@ class TyresPageState extends State<TyresPage>
           ],
         ),
         const SizedBox(height: 16.0),
-        const Text(
-          'Virgin or Recap',
-          style: TextStyle(
-            fontSize: 16,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w500,
+        Center(
+          child: const Text(
+            'Virgin or Recap',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+        const SizedBox(height: 16.0),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             CustomRadioButton(
               label: 'Virgin',
               value: 'virgin',
-              groupValue: _virginOrRecaps[pos] ?? 'virgin',
+              groupValue: _virginOrRecaps[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  setState(() {
+                  _updateAndNotify(() {
                     _virginOrRecaps[pos] = value;
                   });
                 }
@@ -223,10 +182,10 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Recap',
               value: 'recap',
-              groupValue: _virginOrRecaps[pos] ?? 'virgin',
+              groupValue: _virginOrRecaps[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  setState(() {
+                  _updateAndNotify(() {
                     _virginOrRecaps[pos] = value;
                   });
                 }
@@ -235,24 +194,27 @@ class TyresPageState extends State<TyresPage>
           ],
         ),
         const SizedBox(height: 16.0),
-        const Text(
-          'Aluminium or Steel Rim',
-          style: TextStyle(
-            fontSize: 16,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w500,
+        Center(
+          child: const Text(
+            'Aluminium or Steel Rim',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+        const SizedBox(height: 16.0),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             CustomRadioButton(
               label: 'Aluminium',
               value: 'aluminium',
-              groupValue: _rimTypes[pos] ?? 'aluminium',
+              groupValue: _rimTypes[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  setState(() {
+                  _updateAndNotify(() {
                     _rimTypes[pos] = value;
                   });
                 }
@@ -261,10 +223,10 @@ class TyresPageState extends State<TyresPage>
             CustomRadioButton(
               label: 'Steel',
               value: 'steel',
-              groupValue: _rimTypes[pos] ?? 'aluminium',
+              groupValue: _rimTypes[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  setState(() {
+                  _updateAndNotify(() {
                     _rimTypes[pos] = value;
                   });
                 }
@@ -272,6 +234,7 @@ class TyresPageState extends State<TyresPage>
             ),
           ],
         ),
+        const SizedBox(height: 16.0),
         const Divider(thickness: 1.0),
       ],
     );
@@ -288,43 +251,82 @@ class TyresPageState extends State<TyresPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  _selectedImages[title]!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              )
-            : _imageUrls[title] != null
+        child: Stack(
+          children: [
+            // Main image display
+            _selectedImages[title] != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      _imageUrls[title]!,
+                    child: Image.file(
+                      _selectedImages[title]!,
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
                     ),
                   )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add_circle_outline,
-                          color: Colors.white, size: 40.0),
-                      const SizedBox(height: 8.0),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                : _imageUrls[title] != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          _imageUrls[title]!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes !=
+                                        null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
-                        textAlign: TextAlign.center,
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.add_circle_outline,
+                                color: Colors.white, size: 40.0),
+                            const SizedBox(height: 8.0),
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+            // Overlay hint for editing
+            if (_selectedImages[title] != null || _imageUrls[title] != null)
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(4),
                   ),
+                  child: const Text(
+                    'Tap to modify image',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -346,7 +348,7 @@ class TyresPageState extends State<TyresPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    setState(() {
+                    _updateAndNotify(() {
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
@@ -360,7 +362,7 @@ class TyresPageState extends State<TyresPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    setState(() {
+                    _updateAndNotify(() {
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
@@ -373,77 +375,15 @@ class TyresPageState extends State<TyresPage>
     );
   }
 
-  // Update the saveData method to save directly to the vehicle document
   Future<bool> saveData() async {
-    try {
-      Map<String, dynamic> tyreData = {};
-
-      // Process each tyre position
-      for (int pos = 1; pos <= 6; pos++) {
-        String posKey = 'Tyre_Pos_$pos';
-        String photoKey = '$posKey Photo';
-
-        // Create base data object for this position
-        tyreData[posKey] = {
-          'chassisCondition': _chassisConditions[pos],
-          'virginOrRecap': _virginOrRecaps[pos],
-          'rimType': _rimTypes[pos],
-        };
-
-        // Handle image upload and URLs
-        if (_selectedImages[photoKey] != null) {
-          String imagePath =
-              'vehicles/${widget.vehicleId}/tyres/positions/${posKey}_${DateTime.now().millisecondsSinceEpoch}';
-          String imageUrl =
-              await _uploadImage(_selectedImages[photoKey]!, imagePath);
-          if (imageUrl.isNotEmpty) {
-            tyreData[posKey]['imageUrl'] = imageUrl;
-          }
-        } else if (_imageUrls[photoKey] != null) {
-          tyreData[posKey]['imageUrl'] = _imageUrls[photoKey];
-        }
-      }
-
-      // Save to the main vehicle document
-      await _firestore.collection('vehicles').doc(widget.vehicleId).set({
-        'truckConditions': {
-          'tyres': tyreData,
-        },
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      return true;
-    } catch (e) {
-      print('Error saving tyres data: $e');
-      return false;
-    }
+    // You can implement save logic here if needed
+    return true;
   }
-
-  // Method to upload image to Firebase Storage
-  // Future<String> _uploadImage(File file, String key) async {
-  //   try {
-  //     String fileName =
-  //         'tyres/${widget.vehicleId}_$key${DateTime.now().millisecondsSinceEpoch}.jpg';
-  //     Reference storageRef = _storage.ref().child(fileName);
-  //     UploadTask uploadTask = storageRef.putFile(file);
-
-  //     TaskSnapshot snapshot = await uploadTask;
-  //     String downloadUrl = await snapshot.ref.getDownloadURL();
-
-  //     return downloadUrl;
-  //   } catch (e) {
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text('Error uploading image: $e')),
-  //       );
-  //     }
-  //     return '';
-  //   }
-  // }
 
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
     setState(() {
+      // _isInitialized = true;
       data.forEach((key, value) {
         if (key.startsWith('Tyre_Pos_')) {
           final pos = int.parse(key.split('_').last);
@@ -451,80 +391,101 @@ class TyresPageState extends State<TyresPage>
           _virginOrRecaps[pos] = value['virginOrRecap'] ?? 'virgin';
           _rimTypes[pos] = value['rimType'] ?? 'aluminium';
 
-          // Handle image URL
+          String photoKey = '$key Photo';
+
+          // Handle image data
           if (value['imageUrl'] != null) {
-            _imageUrls['$key Photo'] = value['imageUrl'];
+            _imageUrls[photoKey] = value['imageUrl'];
+          }
+          if (value['imagePath'] != null) {
+            _selectedImages[photoKey] = File(value['imagePath']);
           }
         }
       });
     });
   }
 
-  // Update getData method to properly handle image data
   Future<Map<String, dynamic>> getData() async {
-    try {
-      Map<String, dynamic> data = {};
+    Map<String, dynamic> data = {};
 
-      // Get data for each tyre position
-      for (int pos = 1; pos <= 6; pos++) {
-        String posKey = 'Tyre_Pos_$pos';
-        String photoKey = '$posKey Photo';
+    // Get data for each tyre position
+    for (int pos = 1; pos <= widget.numberOfTyrePositions; pos++) {
+      String posKey = 'Tyre_Pos_$pos';
+      String photoKey = '$posKey Photo';
 
-        data[posKey] = {
-          'chassisCondition': _chassisConditions[pos],
-          'virginOrRecap': _virginOrRecaps[pos],
-          'rimType': _rimTypes[pos],
-        };
+      data[posKey] = {
+        'chassisCondition': _chassisConditions[pos] ?? '',
+        'virginOrRecap': _virginOrRecaps[pos] ?? '',
+        'rimType': _rimTypes[pos] ?? '',
+      };
 
-        // Handle image data
-        if (_selectedImages[photoKey] != null) {
-          // Upload new image and get URL
-          String imagePath =
-              'vehicles/${widget.vehicleId}/tyres/positions/${posKey}_${DateTime.now().millisecondsSinceEpoch}';
-          String imageUrl =
-              await _uploadImage(_selectedImages[photoKey]!, imagePath);
-          if (imageUrl.isNotEmpty) {
-            data[posKey]['imageUrl'] = imageUrl;
-          }
-        } else if (_imageUrls[photoKey] != null) {
-          // Use existing image URL
-          data[posKey]['imageUrl'] = _imageUrls[photoKey];
-        }
+      // Handle image data
+      if (_selectedImages[photoKey] != null) {
+        data[posKey]['imagePath'] = _selectedImages[photoKey]!.path;
+        data[posKey]['isNew'] = 'true';
+      } else if (_imageUrls[photoKey] != null) {
+        data[posKey]['imageUrl'] = _imageUrls[photoKey];
+        data[posKey]['isNew'] = 'false';
       }
-
-      return data;
-    } catch (e) {
-      print('Error in getData: $e');
-      return {};
     }
+
+    return data;
   }
 
-  // Update _uploadImage method to handle errors better
-  Future<String> _uploadImage(File file, String path) async {
-    try {
-      Reference storageRef = _storage.ref().child(path);
-      UploadTask uploadTask = storageRef.putFile(file);
-
-      // Show upload progress
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        double progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        print('Upload progress: $progress%');
-      });
-
-      // Wait for upload to complete
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-      print('Image uploaded successfully: $downloadUrl');
-      return downloadUrl;
-    } catch (e) {
-      print('Error uploading image: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading image: $e')),
-        );
+  void reset() {
+    setState(() {
+      // Reset conditions to empty strings
+      for (int i = 1; i <= widget.numberOfTyrePositions; i++) {
+        _chassisConditions[i] = '';
+        _virginOrRecaps[i] = '';
+        _rimTypes[i] = '';
       }
-      return '';
+
+      // Clear images
+      _selectedImages.clear();
+      _imageUrls.clear();
+
+      _isInitialized = false;
+    });
+  }
+
+  double getCompletionPercentage() {
+    int totalFields = widget.numberOfTyrePositions *
+        4; // Number of tyre positions × (1 image + 3 selections) = 4 fields per position
+    int filledFields = 0;
+
+    // Check each tyre position (Number of tyre positions)
+    for (int pos = 1; pos <= widget.numberOfTyrePositions; pos++) {
+      String photoKey = 'Tyre_Pos_$pos Photo';
+
+      // Check image (1 field per position)
+      if (_selectedImages[photoKey] != null || _imageUrls[photoKey] != null) {
+        filledFields++;
+      }
+
+      // Check chassis condition (1 field per position)
+      if (_chassisConditions[pos]?.isNotEmpty == true) {
+        filledFields++;
+      }
+
+      // Check virgin/recap selection (1 field per position)
+      if (_virginOrRecaps[pos]?.isNotEmpty == true) {
+        filledFields++;
+      }
+
+      // Check rim type selection (1 field per position)
+      if (_rimTypes[pos]?.isNotEmpty == true) {
+        filledFields++;
+      }
     }
+
+    return (filledFields / totalFields).clamp(0.0, 1.0);
+  }
+
+  void _updateAndNotify(VoidCallback updateFunction) {
+    setState(() {
+      updateFunction();
+    });
+    widget.onProgressUpdate();
   }
 }

@@ -1,5 +1,4 @@
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 
 class HonestyBarWidget extends StatelessWidget {

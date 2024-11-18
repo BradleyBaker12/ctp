@@ -5,10 +5,10 @@ abstract class BaseConditionPage extends StatefulWidget {
   final Function(bool) onModified;
 
   const BaseConditionPage({
-    Key? key,
+    super.key,
     required this.initialData,
     required this.onModified,
-  }) : super(key: key);
+  });
 }
 
 abstract class BaseConditionPageState<T extends BaseConditionPage>

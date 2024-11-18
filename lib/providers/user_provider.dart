@@ -71,13 +71,19 @@ class UserProvider extends ChangeNotifier {
 
   UserProvider() {
     _checkAuthState();
-    FirebaseAuth.instance.authStateChanges().listen((User? newUser) {
+    FirebaseAuth.instance.authStateChanges().listen((User? newUser) async {
       if (newUser != null) {
         _user = newUser;
-        fetchUserData();
+        try {
+          await fetchUserData(); // Wait for data fetch
+        } catch (e) {
+          print('Error fetching user data: $e');
+          _clearUserData(); // Clear data if fetch fails
+        }
       } else {
         _clearUserData();
       }
+      notifyListeners();
     });
   }
 
@@ -690,6 +696,7 @@ class UserProvider extends ChangeNotifier {
   void setUser(User? user) {
     _user = user;
     notifyListeners();
+    // Remove fetchUserData from here since it's handled by auth state listener
   }
 
   // New Method to Get User's Full Name by userId

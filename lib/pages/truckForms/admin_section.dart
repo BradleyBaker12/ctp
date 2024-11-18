@@ -7,28 +7,29 @@ import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-import 'package:ctp/components/constants.dart';
 
 class AdminSection extends StatefulWidget {
   final String vehicleId; // Required vehicleId
   final bool isUploading;
+  final bool isEditing;
   final Function(File?) onAdminDoc1Selected;
   final Function(File?) onAdminDoc2Selected;
   final Function(File?) onAdminDoc3Selected;
 
-  // New parameter to accept the user's selection
+  // Parameter to accept the user's selection
   final String requireToSettleType;
 
-  // New parameters to accept existing data
+  // Parameters to accept existing data
   final String? settlementAmount;
   final String? natisRc1Url;
   final String? licenseDiskUrl;
   final String? settlementLetterUrl;
 
   const AdminSection({
-    Key? key,
+    super.key,
     required this.vehicleId,
     required this.isUploading,
+    this.isEditing = false,
     required this.onAdminDoc1Selected,
     required this.onAdminDoc2Selected,
     required this.onAdminDoc3Selected,
@@ -37,7 +38,7 @@ class AdminSection extends StatefulWidget {
     this.natisRc1Url,
     this.licenseDiskUrl,
     this.settlementLetterUrl,
-  }) : super(key: key);
+  });
 
   @override
   AdminSectionState createState() => AdminSectionState();
@@ -50,9 +51,9 @@ class AdminSectionState extends State<AdminSection>
       TextEditingController();
 
   // Variables to hold selected files
-  File? _natis_rc1;
-  File? _licenseDisk;
-  File? _settlementLetter;
+  File? _natisRc1File;
+  File? _licenseDiskFile;
+  File? _settlementLetterFile;
 
   // Variables to hold existing file URLs
   String? _natisRc1Url;
@@ -88,15 +89,19 @@ class AdminSectionState extends State<AdminSection>
         setState(() {
           switch (docNumber) {
             case 1:
-              _natis_rc1 = selectedFile;
+              _natisRc1File = selectedFile;
+              _natisRc1Url = null; // Clear URL when a new file is selected
               widget.onAdminDoc1Selected(selectedFile);
               break;
             case 2:
-              _licenseDisk = selectedFile;
+              _licenseDiskFile = selectedFile;
+              _licenseDiskUrl = null; // Clear URL when a new file is selected
               widget.onAdminDoc2Selected(selectedFile);
               break;
             case 3:
-              _settlementLetter = selectedFile;
+              _settlementLetterFile = selectedFile;
+              _settlementLetterUrl =
+                  null; // Clear URL when a new file is selected
               widget.onAdminDoc3Selected(selectedFile);
               break;
           }
@@ -152,6 +157,141 @@ class AdminSectionState extends State<AdminSection>
     return url.split('/').last.split('?').first;
   }
 
+  // Helper method to display uploaded files
+  Widget _buildUploadedFile(File? file, String? fileUrl, bool isUploading) {
+    if (file == null && fileUrl == null) {
+      return const Text(
+        'No file selected',
+        style: TextStyle(color: Colors.white70),
+      );
+    } else {
+      String fileName;
+      String extension;
+      if (file != null) {
+        fileName = file.path.split('/').last;
+        extension = fileName.split('.').last;
+      } else if (fileUrl != null) {
+        fileName = getFileNameFromUrl(fileUrl);
+        extension = fileName.split('.').last;
+      } else {
+        fileName = 'Unknown';
+        extension = '';
+      }
+      return Column(
+        children: [
+          if (file != null)
+            if (_isImageFile(file.path))
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.file(
+                  file,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else
+              Column(
+                children: [
+                  Icon(
+                    _getFileIcon(extension),
+                    color: Colors.white,
+                    size: 50.0,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      fileName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              )
+          else if (fileUrl != null)
+            if (_isImageUrl(fileUrl))
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.network(
+                  fileUrl,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else
+              Column(
+                children: [
+                  Icon(
+                    _getFileIcon(extension),
+                    color: Colors.white,
+                    size: 50.0,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      fileName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+          const SizedBox(height: 8),
+          if (isUploading)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(width: 10),
+                Text(
+                  'Uploading...',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+        ],
+      );
+    }
+  }
+
+  void loadAdminData(Map<String, dynamic> adminData) {
+    setState(() {
+      _settlementAmountController.text = adminData['settlementAmount'] ?? '';
+      _natisRc1Url = adminData['natisRc1Url'];
+      _licenseDiskUrl = adminData['licenseDiskUrl'];
+      _settlementLetterUrl = adminData['settlementLetterUrl'];
+    });
+  }
+
+  void clearData() {
+    setState(() {
+      _settlementAmountController.clear();
+      _natisRc1File = null;
+      _licenseDiskFile = null;
+      _settlementLetterFile = null;
+      _natisRc1Url = null;
+      _licenseDiskUrl = null;
+      _settlementLetterUrl = null;
+    });
+  }
+
   Future<bool> saveAdminData({bool skipValidation = false}) async {
     String settlementAmount = _settlementAmountController.text.trim();
 
@@ -165,14 +305,16 @@ class AdminSectionState extends State<AdminSection>
       return false;
     }
 
-    if (!skipValidation && _natis_rc1 == null && _natisRc1Url == null) {
+    if (!skipValidation && _natisRc1File == null && _natisRc1Url == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload the NATIS/RC1 document.')),
       );
       return false;
     }
 
-    if (!skipValidation && _licenseDisk == null && _licenseDiskUrl == null) {
+    if (!skipValidation &&
+        _licenseDiskFile == null &&
+        _licenseDiskUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload the License Disk.')),
       );
@@ -181,7 +323,7 @@ class AdminSectionState extends State<AdminSection>
 
     if (!skipValidation &&
         widget.requireToSettleType == 'yes' &&
-        _settlementLetter == null &&
+        _settlementLetterFile == null &&
         _settlementLetterUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload the Settlement Letter.')),
@@ -196,8 +338,8 @@ class AdminSectionState extends State<AdminSection>
     try {
       // Upload documents if new files are selected, otherwise use existing URLs
       String natisRc1Url;
-      if (_natis_rc1 != null) {
-        natisRc1Url = await _uploadDocument(_natis_rc1!, 'NATIS_RC1');
+      if (_natisRc1File != null) {
+        natisRc1Url = await _uploadDocument(_natisRc1File!, 'NATIS_RC1');
       } else if (_natisRc1Url != null) {
         natisRc1Url = _natisRc1Url!;
       } else {
@@ -209,8 +351,9 @@ class AdminSectionState extends State<AdminSection>
       }
 
       String licenseDiskUrl;
-      if (_licenseDisk != null) {
-        licenseDiskUrl = await _uploadDocument(_licenseDisk!, 'LicenseDisk');
+      if (_licenseDiskFile != null) {
+        licenseDiskUrl =
+            await _uploadDocument(_licenseDiskFile!, 'LicenseDisk');
       } else if (_licenseDiskUrl != null) {
         licenseDiskUrl = _licenseDiskUrl!;
       } else {
@@ -222,9 +365,9 @@ class AdminSectionState extends State<AdminSection>
 
       String? settlementLetterUrl;
       if (widget.requireToSettleType == 'yes') {
-        if (_settlementLetter != null) {
+        if (_settlementLetterFile != null) {
           settlementLetterUrl =
-              await _uploadDocument(_settlementLetter!, 'SettlementLetter');
+              await _uploadDocument(_settlementLetterFile!, 'SettlementLetter');
         } else if (_settlementLetterUrl != null) {
           settlementLetterUrl = _settlementLetterUrl!;
         } else {
@@ -284,129 +427,46 @@ class AdminSectionState extends State<AdminSection>
     return downloadUrl;
   }
 
-  // Updated helper method to display uploaded files
-  Widget _buildUploadedFile(File? file, String? fileUrl, bool isUploading) {
-    if (file == null && fileUrl == null) {
-      return const Text(
-        'No file selected',
-        style: TextStyle(color: Colors.white70),
-      );
-    } else {
-      String fileName;
-      String extension;
-      if (file != null) {
-        fileName = file.path.split('/').last;
-        extension = fileName.split('.').last;
-      } else if (fileUrl != null) {
-        fileName = getFileNameFromUrl(fileUrl);
-        extension = fileName.split('.').last;
-      } else {
-        fileName = 'Unknown';
-        extension = '';
+  void updateAdminDoc1(File? file) {
+    setState(() {
+      _natisRc1File = file;
+    });
+  }
+
+  void updateAdminDoc2(File? file) {
+    setState(() {
+      _licenseDiskFile = file;
+    });
+  }
+
+  void updateAdminDoc3(File? file) {
+    setState(() {
+      _settlementLetterFile = file;
+    });
+  }
+
+  double getCompletionPercentage() {
+    int totalFields = 0;
+    int filledFields = 0;
+
+    // NATIS/RC1 Document
+    totalFields++;
+    if (_natisRc1File != null || _natisRc1Url != null) filledFields++;
+
+    // License Disk
+    totalFields++;
+    if (_licenseDiskFile != null || _licenseDiskUrl != null) filledFields++;
+
+    // Settlement fields if required
+    if (widget.requireToSettleType == 'yes') {
+      totalFields += 2;
+      if (_settlementLetterFile != null || _settlementLetterUrl != null) {
+        filledFields++;
       }
-      return Column(
-        children: [
-          if (file != null)
-            if (_isImageFile(file.path))
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  file,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              )
-            else
-              Column(
-                children: [
-                  Icon(
-                    _getFileIcon(extension),
-                    color: Colors.white,
-                    size: 50.0,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    fileName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              )
-          else if (fileUrl != null)
-            if (_isImageUrl(fileUrl))
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  fileUrl,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              )
-            else
-              Column(
-                children: [
-                  Icon(
-                    _getFileIcon(extension),
-                    color: Colors.white,
-                    size: 50.0,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    fileName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-          const SizedBox(height: 8),
-          if (isUploading)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                CircularProgressIndicator(),
-                SizedBox(width: 10),
-                Text(
-                  'Uploading...',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-        ],
-      );
+      if (_settlementAmountController.text.trim().isNotEmpty) filledFields++;
     }
-  }
 
-  void loadAdminData(Map<String, dynamic> adminData) {
-    setState(() {
-      _settlementAmountController.text = adminData['settlementAmount'] ?? '';
-      _natisRc1Url = adminData['natisRc1Url'];
-      _licenseDiskUrl = adminData['licenseDiskUrl'];
-      _settlementLetterUrl = adminData['settlementLetterUrl'];
-    });
-  }
-
-  void clearData() {
-    setState(() {
-      _settlementAmountController.clear();
-      _natis_rc1 = null;
-      _licenseDisk = null;
-      _settlementLetter = null;
-      _natisRc1Url = null;
-      _licenseDiskUrl = null;
-      _settlementLetterUrl = null;
-    });
+    return totalFields == 0 ? 1.0 : filledFields / totalFields;
   }
 
   @override
@@ -456,7 +516,7 @@ class AdminSectionState extends State<AdminSection>
               ),
               child: Column(
                 children: [
-                  if (_natis_rc1 == null && _natisRc1Url == null)
+                  if (_natisRc1File == null && _natisRc1Url == null)
                     Icon(
                       Icons.drive_folder_upload_outlined,
                       color: Colors.white,
@@ -464,8 +524,9 @@ class AdminSectionState extends State<AdminSection>
                       semanticLabel: 'NATIS/RC1 Upload',
                     ),
                   const SizedBox(height: 10),
-                  if (_natis_rc1 != null || _natisRc1Url != null)
-                    _buildUploadedFile(_natis_rc1, _natisRc1Url, _isUploading)
+                  if (_natisRc1File != null || _natisRc1Url != null)
+                    _buildUploadedFile(
+                        _natisRc1File, _natisRc1Url, _isUploading)
                   else
                     const Text(
                       'NATIS/RC1 Upload',
@@ -508,7 +569,7 @@ class AdminSectionState extends State<AdminSection>
               ),
               child: Column(
                 children: [
-                  if (_licenseDisk == null && _licenseDiskUrl == null)
+                  if (_licenseDiskFile == null && _licenseDiskUrl == null)
                     Icon(
                       Icons.drive_folder_upload_outlined,
                       color: Colors.white,
@@ -516,9 +577,9 @@ class AdminSectionState extends State<AdminSection>
                       semanticLabel: 'License Disk Upload',
                     ),
                   const SizedBox(height: 10),
-                  if (_licenseDisk != null || _licenseDiskUrl != null)
+                  if (_licenseDiskFile != null || _licenseDiskUrl != null)
                     _buildUploadedFile(
-                        _licenseDisk, _licenseDiskUrl, _isUploading)
+                        _licenseDiskFile, _licenseDiskUrl, _isUploading)
                   else
                     const Text(
                       'License Disk Upload',
@@ -563,7 +624,7 @@ class AdminSectionState extends State<AdminSection>
                 ),
                 child: Column(
                   children: [
-                    if (_settlementLetter == null &&
+                    if (_settlementLetterFile == null &&
                         _settlementLetterUrl == null)
                       Icon(
                         Icons.drive_folder_upload_outlined,
@@ -572,10 +633,10 @@ class AdminSectionState extends State<AdminSection>
                         semanticLabel: 'Settlement Letter Upload',
                       ),
                     const SizedBox(height: 10),
-                    if (_settlementLetter != null ||
+                    if (_settlementLetterFile != null ||
                         _settlementLetterUrl != null)
-                      _buildUploadedFile(
-                          _settlementLetter, _settlementLetterUrl, _isUploading)
+                      _buildUploadedFile(_settlementLetterFile,
+                          _settlementLetterUrl, _isUploading)
                     else
                       const Text(
                         'Settlement Letter Upload',
@@ -610,8 +671,6 @@ class AdminSectionState extends State<AdminSection>
             ),
             const SizedBox(height: 20),
           ],
-          // Optionally, you can add a save button here
-          // However, saving is managed by the parent via GlobalKey
         ],
       ),
     );
