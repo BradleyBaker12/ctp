@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/pages/edit_vehicle.dart';
+import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -210,7 +210,9 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => EditVehiclePage(vehicle: widget.vehicle),
+        builder: (context) => EditFormNavigation(
+          vehicle: widget.vehicle,
+        ),
       ),
     );
   }
@@ -378,7 +380,7 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
     }
 
     try {
-      addInfo('Application', widget.vehicle.application);
+      addInfo('Application', widget.vehicle.application.toString());
       addInfo('Damage Description', widget.vehicle.damageDescription);
       addInfo('Engine Number', widget.vehicle.engineNumber);
       addInfo('Hydraulics', widget.vehicle.hydraluicType);
@@ -720,7 +722,7 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        EditVehiclePage(vehicle: widget.vehicle),
+                        EditFormNavigation(vehicle: widget.vehicle),
                   ),
                 );
               },

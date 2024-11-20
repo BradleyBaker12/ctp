@@ -193,8 +193,10 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                           (v) => v.id == vehicleDoc.id,
                           orElse: () => Vehicle(
                             id: vehicleDoc.id,
-                            application: 'N/A',
-                            brand: 'N/A',
+                            application: data != null && data['application'] != null
+                                    ? data['application']
+                                    : 'Unknown',
+                            brands: [],
                             referenceNumber: 'N/A',
                             warrantyDetails: 'N/A',
                             damageDescription: '',
@@ -218,7 +220,9 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                                 : 'unknown',
                             vinNumber: 'N/A',
                             warrentyType: 'N/A',
-                            year: 'N/A',
+                            year: data != null && data['year'] != null
+                                ? data['year']
+                                : 'Unknown',
                             createdAt:
                                 (vehicleDoc['createdAt'] as Timestamp).toDate(),
                             vehicleAvailableImmediately: 'N/A',
@@ -363,7 +367,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             .any((offer) => offer.vehicleId == vehicle.id);
 
                         return WishCard(
-                          vehicleMakeModel: vehicle.makeModel,
+                          vehicleMakeModel: vehicle.makeModel.toString(),
                           vehicleImageUrl: imageUrl,
                           size: screenSize,
                           customFont: (double fontSize, FontWeight fontWeight,

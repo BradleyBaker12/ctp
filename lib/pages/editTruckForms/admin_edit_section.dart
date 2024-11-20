@@ -522,7 +522,7 @@ class AdminEditSectionState extends State<AdminEditSection>
             ),
             const SizedBox(width: 16),
             Text(
-              widget.vehicle.makeModel.toUpperCase(),
+              widget.vehicle.makeModel.toString().toUpperCase(),
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(width: 16),

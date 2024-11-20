@@ -30,4 +30,13 @@ class AdminData {
       'settlementLetterUrl': settlementLetterUrl,
     };
   }
+
+  factory AdminData.empty() {
+    return AdminData(
+      settlementAmount: '0',
+      natisRc1Url: '',
+      licenseDiskUrl: '',
+      settlementLetterUrl: '',
+    );
+  }
 }

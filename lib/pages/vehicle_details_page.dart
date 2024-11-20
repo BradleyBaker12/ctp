@@ -50,6 +50,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   List<Widget> maintenanceWidgets = []; // Define maintenanceWidgets here
 
+  bool _isAdminDataExpanded = false; // State to track the admin data expansion
+
   @override
   void initState() {
     super.initState();
@@ -441,7 +443,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
 
     try {
-      addInfo('Application', widget.vehicle.application);
+      addInfo('Application', widget.vehicle.application as String);
       addInfo('Damage Description', widget.vehicle.damageDescription);
       addInfo('Engine Number', widget.vehicle.engineNumber);
       addInfo('Hydraulics', widget.vehicle.hydraluicType);
@@ -654,6 +656,85 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
+  Widget _buildAdminDataSection() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isDealer)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isAdminDataExpanded = !_isAdminDataExpanded;
+              });
+            },
+            child: Row(
+              children: [
+                AnimatedRotation(
+                  turns: _isAdminDataExpanded ? 0.25 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(
+                    Icons.arrow_right,
+                    color: const Color(0xFFFF4E00),
+                    size: MediaQuery.of(context).size.height * 0.04,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'ADMIN DATA',
+                  style: _customFont(20, FontWeight.bold, Colors.blue),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 10),
+        if (_isAdminDataExpanded)
+          _buildAdminDataInfo(), // Show admin data if expanded
+      ],
+    );
+  }
+
+  Widget _buildAdminDataInfo() {
+    List<Widget> adminDataWidgets = [];
+
+    void addAdminData(String title, String? value, {bool isDocument = false}) {
+      if (value != null && value.isNotEmpty) {
+        adminDataWidgets.add(
+          _buildInfoRowWithButton(title, value), // Use the button row for URLs
+        );
+      }
+    }
+
+    try {
+      addAdminData(
+          'Settlement Amount', widget.vehicle.adminData.settlementAmount);
+      addAdminData('Natis RC1 URL', widget.vehicle.adminData.natisRc1Url,
+          isDocument: true);
+      addAdminData(
+          'Settlement Letter URL', widget.vehicle.adminData.settlementLetterUrl,
+          isDocument: true);
+      addAdminData('License Disk URL', widget.vehicle.adminData.licenseDiskUrl,
+          isDocument: true);
+    } catch (e) {
+      print('Error building admin data info: $e'); // Debug statement
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error loading admin data. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: adminDataWidgets, // Use the populated list here
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -691,7 +772,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             // Wrap the Text widget with Expanded to prevent overflow
             Expanded(
               child: Text(
-                widget.vehicle.makeModel.toUpperCase(),
+                widget.vehicle.makeModel.toString().toUpperCase(),
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -829,7 +910,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildInfoContainer('YEAR', widget.vehicle.year),
+                          _buildInfoContainer('YEAR', widget.vehicle.year.toString()),
                           const SizedBox(width: 5),
                           _buildInfoContainer(
                               'MILEAGE', widget.vehicle.mileage),
@@ -1096,6 +1177,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       if (isDealer)
                         if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
                       _buildMaintenanceSection(),
+                      _buildAdminDataSection(),
                       const SizedBox(height: 30),
                       if (isTransporter)
                         Column(children: [

@@ -11,9 +11,10 @@ import 'maintenance.dart';
 import 'truck_conditions.dart';
 
 class Vehicle {
+  final String makeModel;
+  final String year;
   final String id;
-
-  final String application;
+  final List<String> application;
   final String damageDescription;
   final List<String?> damagePhotos;
   final String dashboardPhoto;
@@ -22,7 +23,6 @@ class Vehicle {
   final String faultCodesPhoto;
   final String hydraluicType;
   final String licenceDiskUrl;
-  final String makeModel;
   final String mileage;
   final String mileageImage;
   final String? mainImageUrl;
@@ -37,7 +37,6 @@ class Vehicle {
   final String vinNumber;
   final String warrentyType;
   final String warrantyDetails;
-  final String year;
   final DateTime createdAt;
   final String vehicleStatus;
   final String vehicleAvailableImmediately;
@@ -47,7 +46,9 @@ class Vehicle {
   final String trailerLength;
   String? natisRc1Url; // Ensure this field exists
   final String referenceNumber;
-  final String brand;
+  // In Vehicle class
+  final List<String> brands;
+
   final String? requireToSettleType;
   final String country;
 
@@ -95,35 +96,45 @@ class Vehicle {
     required this.truckConditions,
     this.natisRc1Url,
     required this.referenceNumber,
-    required this.brand,
+    required this.brands,
     this.requireToSettleType,
     required this.country,
   });
-
   // Factory constructor to create a Vehicle instance from Firestore data
   factory Vehicle.fromFirestore(String docId, Map<String, dynamic> data) {
-    // Helper function to safely get a String from data
-    String getString(dynamic value) {
-      if (value is String) {
-        return value;
-      } else {
-        return 'N/A'; // Default value if not a String
-      }
+    // Handle timestamp
+    DateTime parsedCreatedAt = data['createdAt'] is Timestamp
+        ? (data['createdAt'] as Timestamp).toDate()
+        : DateTime.now();
+
+    // Handle application list
+    List<String> applications = [];
+    if (data['application'] is List) {
+      applications =
+          (data['application'] as List).map((e) => e.toString()).toList();
+    } else if (data['application'] is String) {
+      applications = [data['application'] as String];
     }
 
-    // Parse the 'createdAt' field
-    DateTime parsedCreatedAt;
-    if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
-      parsedCreatedAt = (data['createdAt'] as Timestamp).toDate();
-    } else {
-      print(
-          "Warning: Timestamp is null or invalid for vehicle ID $docId. Using DateTime.now() as default.");
-      parsedCreatedAt = DateTime.now();
+    // Handle brands list
+    List<String> brands = [];
+    if (data['brands'] is List) {
+      brands = (data['brands'] as List).map((e) => e.toString()).toList();
+    } else if (data['brands'] is String) {
+      brands = [data['brands'] as String];
+    }
+
+    // Helper function to safely get a String from data
+    String getString(dynamic value, [String fieldName = '']) {
+      if (value is String) {
+        return value;
+      }
+      return '';
     }
 
     return Vehicle(
-      id: docId, // Use the Firestore document ID
-      application: getString(data['application']),
+      id: docId,
+      application: applications,
       damageDescription: getString(data['damageDescription']),
       damagePhotos: data['damagePhotos'] != null
           ? List<String?>.from(data['damagePhotos'])
@@ -177,7 +188,7 @@ class Vehicle {
               oemInspectionReason: '',
               updatedAt: DateTime.now(),
               maintenanceData: MaintenanceData(
-                vehicleId: docId, // Use the passed docId
+                vehicleId: docId,
                 oemInspectionType: '',
                 oemReason: '',
               ),
@@ -278,12 +289,11 @@ class Vehicle {
               tyres: data['tyres'] ?? {},
             ),
       referenceNumber: data['referenceNumber'] ?? '',
-      brand: data['brand'] ?? '',
+      brands: brands,
       requireToSettleType: data['requireToSettleType'] as String?,
       country: getString(data['country'] ?? ''),
     );
   }
-
   // Method to convert Vehicle instance to a Map (for Firestore updates)
   Map<String, dynamic> toMap() {
     return {
@@ -323,7 +333,7 @@ class Vehicle {
       'maintenance': maintenance.toMap(),
       'truckConditions': truckConditions.toMap(),
       'referenceNumber': referenceNumber,
-      'brand': brand,
+      'brands': brands,
       'requireToSettleType': requireToSettleType,
       'country': country,
     };
@@ -340,10 +350,28 @@ class Vehicle {
       parsedCreatedAt = DateTime.now();
     }
 
+    // Parse application field
+    List<String> applications = [];
+    if (data['application'] is List) {
+      applications =
+          (data['application'] as List).map((e) => e.toString()).toList();
+    } else if (data['application'] is String) {
+      applications = [data['application'] as String];
+    }
+
+    // Parse brands field
+    List<String> brands = [];
+    if (data['brands'] is List) {
+      brands = (data['brands'] as List).map((e) => e.toString()).toList();
+    } else if (data['brands'] is String) {
+      brands = [data['brands'] as String];
+    }
+
     return Vehicle(
       id: doc.id,
       createdAt: parsedCreatedAt,
-      application: data['application'] ?? 'N/A',
+      application: applications,
+      brands: brands,
       warrantyDetails: data['warrantyDetails'] ?? 'N/A',
       damageDescription: data['damageDescription'] ?? '',
       damagePhotos: data['damagePhotos'] != null
@@ -496,7 +524,6 @@ class Vehicle {
               tyres: data['tyres'] ?? {},
             ),
       referenceNumber: data['referenceNumber'] ?? '',
-      brand: data['brand'] ?? '',
       requireToSettleType: data['requireToSettleType'] as String?,
       country: data['country'] ?? 'N/A',
     );
@@ -660,7 +687,7 @@ class Vehicle {
               ),
               tyres: data['tyres'] ?? {},
             ),
-      brand: data['brand'] ?? '',
+      brands: data['brands'] ?? '',
       country: data['country'] ?? 'N/A',
     );
   }

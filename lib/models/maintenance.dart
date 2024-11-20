@@ -46,4 +46,17 @@ class Maintenance {
       'maintenanceData': maintenanceData.toMap(),
     };
   }
+
+  factory Maintenance.empty() {
+    return Maintenance(
+      maintenanceData:
+          MaintenanceData(vehicleId: '', oemInspectionType: '', oemReason: ''),
+      maintenanceDocumentUrl: '',
+      warrantyDocumentUrl: '',
+      oemInspectionType: '',
+      oemInspectionReason: '',
+      warrantySelection: '',
+      updatedAt: DateTime.timestamp(),
+    );
+  }
 }

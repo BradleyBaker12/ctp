@@ -44,31 +44,26 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     });
   }
 
+  bool isLoading = true;
   @override
   void initState() {
     super.initState();
-    _tabController =
-        TabController(length: 3, vsync: this); // Create the TabController
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final currentUserId = userProvider.userId;
 
       if (currentUserId != null) {
-        vehicleProvider.fetchVehicles(userProvider,
+        await vehicleProvider.fetchVehicles(userProvider,
             userId: currentUserId, filterLikedDisliked: false);
+        setState(() {
+          isLoading = false;
+        });
       }
-
-      _scrollController.addListener(() {
-        if (_scrollController.position.pixels ==
-            _scrollController.position.maxScrollExtent) {
-          vehicleProvider.fetchMoreVehicles();
-        }
-      });
     });
   }
-
   @override
   void dispose() {
     _scrollController.dispose();
@@ -97,7 +92,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         vehicleId: vehicleId,
         oemInspectionType: '',
         oemReason: '',
-      ), warrantySelection: '',
+      ),
+      warrantySelection: '',
     );
   }
 
@@ -216,24 +212,41 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     }
 
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
+    print('User Id: ${currentUserId}');
+    print('Fetched vehicles count: ${userVehicles.length}');
 
-    // Filter vehicles by status
+    // Add print statements to verify the filtering logic
+    print('Total vehicles: ${userVehicles.length}');
     final drafts = userVehicles
         .where((vehicle) => vehicle.vehicleStatus == 'Draft')
         .toList();
+    print('Drafts filtered: ${drafts.length}');
+
     final pending = userVehicles
         .where((vehicle) => vehicle.vehicleStatus == 'Pending')
         .toList();
+
     final live = userVehicles
         .where((vehicle) => vehicle.vehicleStatus == 'Live')
         .toList();
 
+    print('Pending: ${pending.length}');
+    print('Live: ${live.length}');
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: CustomAppBar(),
         body: Column(
           children: [
+            if (isLoading) const Center(child: CircularProgressIndicator()),
+
+            if (userVehicles.isEmpty)
+              Center(
+                child: Text(
+                  'No vehicles found',
+                  style: GoogleFonts.montserrat(color: Colors.white),
+                ),
+              ),
             const SizedBox(height: 40),
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -297,9 +310,9 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           itemBuilder: (context, index) {
                             final vehicle = drafts[index];
                             return ListingCard(
-                              vehicleMakeModel: vehicle.makeModel,
+                              vehicleMakeModel: vehicle.makeModel.toString(),
                               vehicleImageUrl: vehicle.mainImageUrl,
-                              vehicleYear: vehicle.year,
+                              vehicleYear: vehicle.year.toString(),
                               vehicleMileage: vehicle.mileage,
                               vehicleTransmission: vehicle.transmissionType,
                               onTap: () {
@@ -313,6 +326,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                                 );
                               },
                               vehicleId: vehicle.id,
+                              referenceNumber: vehicle.referenceNumber,
                             );
                           },
                         ),
@@ -328,11 +342,12 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           itemBuilder: (context, index) {
                             final vehicle = pending[index];
                             return ListingCard(
-                              vehicleMakeModel: vehicle.makeModel,
+                              vehicleMakeModel: vehicle.makeModel.toString(),
                               vehicleImageUrl: vehicle.mainImageUrl,
-                              vehicleYear: vehicle.year,
+                              vehicleYear: vehicle.year.toString(),
                               vehicleMileage: vehicle.mileage,
                               vehicleTransmission: vehicle.transmissionType,
+                              referenceNumber: vehicle.referenceNumber,
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -359,11 +374,12 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           itemBuilder: (context, index) {
                             final vehicle = live[index];
                             return ListingCard(
-                              vehicleMakeModel: vehicle.makeModel,
+                              vehicleMakeModel: vehicle.makeModel.toString(),
                               vehicleImageUrl: vehicle.mainImageUrl,
-                              vehicleYear: vehicle.year,
+                              vehicleYear: vehicle.year.toString(),
                               vehicleMileage: vehicle.mileage,
                               vehicleTransmission: vehicle.transmissionType,
+                              referenceNumber: vehicle.referenceNumber,
                               onTap: () {
                                 Navigator.push(
                                   context,

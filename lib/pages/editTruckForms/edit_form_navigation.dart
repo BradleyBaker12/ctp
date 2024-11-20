@@ -22,15 +22,18 @@ class EditFormNavigation extends StatefulWidget {
 
 class _EditFormNavigationState extends State<EditFormNavigation> {
   Vehicle? vehicle;
-
   @override
   void initState() {
     super.initState();
+    // Initialize with the passed vehicle data
+    vehicle = widget.vehicle;
+    // Then fetch any updates if needed
     _fetchVehicleData();
   }
 
   Future<void> _fetchVehicleData() async {
     try {
+      print('Fetching vehicle data for ID: ${widget.vehicle.id}');
       DocumentSnapshot doc = await FirebaseFirestore.instance
           .collection('vehicles')
           .doc(widget.vehicle.id)
@@ -40,10 +43,43 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         throw Exception('Vehicle document not found');
       }
 
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+      // Debug raw data
+      print('Raw Firestore data: $data');
+      print('Application field type: ${data['application'].runtimeType}');
+      print('Brands field type: ${data['brands']?.runtimeType}');
+      print('Photos field type: ${data['photos']?.runtimeType}');
+
+      // Handle application field
+      if (data['application'] is String) {
+        print(
+            'Converting application from String to List: ${data['application']}');
+        data['application'] = [data['application']];
+      } else if (data['application'] == null) {
+        print('Application field is null, defaulting to empty list');
+        data['application'] = [];
+      }
+
+      // Handle brands field
+      if (data['brands'] is String) {
+        print('Converting brands from String to List: ${data['brands']}');
+        data['brands'] = [data['brands']];
+      } else if (data['brands'] == null) {
+        print('Brands field is null, defaulting to empty list');
+        data['brands'] = [];
+      }
+
+      print('Processed data before Vehicle creation:');
+      print('Application: ${data['application']}');
+      print('Brands: ${data['brands']}');
+
       vehicle = Vehicle.fromDocument(doc);
+      print('Vehicle object created successfully');
       setState(() {});
     } catch (e) {
       print('Error fetching vehicle data: $e');
+      print('Stack trace: ${StackTrace.current}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error fetching vehicle data: $e'),
@@ -94,7 +130,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
             ),
             const SizedBox(width: 16),
             Text(
-              vehicle!.makeModel.toUpperCase(),
+              vehicle!.makeModel.toString().toUpperCase(),
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(width: 16),
@@ -202,7 +238,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                         ),
                         const SizedBox(width: 16),
                         Text(
-                          vehicle!.makeModel.toUpperCase(),
+                          vehicle!.makeModel.toString().toUpperCase(),
                           style: const TextStyle(
                               color: Colors.white, fontSize: 15),
                         ),

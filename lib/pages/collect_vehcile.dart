@@ -54,7 +54,7 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
 
       setState(() {
         _truckMainImageUrl = vehicle.mainImageUrl;
-        _truckName = vehicle.makeModel;
+        _truckName = vehicle.makeModel.toString();
         _registrationNumber = vehicle.registrationNumber;
       });
 

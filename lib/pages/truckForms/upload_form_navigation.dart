@@ -94,7 +94,7 @@ class _UploadFormNavigationState extends State<UploadFormNavigation> {
             ),
             const SizedBox(width: 16),
             Text(
-              vehicle!.makeModel.toUpperCase(),
+              vehicle!.makeModel.toString().toUpperCase(),
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(width: 16),
@@ -202,7 +202,7 @@ class _UploadFormNavigationState extends State<UploadFormNavigation> {
                         ),
                         const SizedBox(width: 16),
                         Text(
-                          vehicle!.makeModel.toUpperCase(),
+                          vehicle!.makeModel.toString().toUpperCase(),
                           style: const TextStyle(
                               color: Colors.white, fontSize: 15),
                         ),

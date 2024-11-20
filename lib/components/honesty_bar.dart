@@ -17,7 +17,7 @@ class HonestyBarWidget extends StatelessWidget {
 
     try {
       final fieldsToCheck = [
-        vehicle.application,
+        vehicle.application.toString(),
         vehicle.damageDescription,
         vehicle.engineNumber,
         vehicle.expectedSellingPrice,
@@ -53,7 +53,7 @@ class HonestyBarWidget extends StatelessWidget {
 
       for (var field in nullableFieldsToCheck) {
         filledFields++;
-            }
+      }
 
       for (var photo in vehicle.photos) {
         if (photo != null && photo.isNotEmpty) {

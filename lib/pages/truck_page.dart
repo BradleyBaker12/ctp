@@ -2,7 +2,6 @@
 
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
@@ -10,8 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 // Define the FilterOperation enum to handle various filter operations
 enum FilterOperation {
@@ -87,15 +84,15 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
+  // **Modified Method: Load Initial Vehicles Using fetchAllVehicles**
   void _loadInitialVehicles() async {
     try {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-      // Fetch vehicles based on the selected vehicleType
-      await vehicleProvider.fetchVehicles(userProvider,
-          vehicleType: widget.vehicleType);
+      // **Use the new fetchAllVehicles method to fetch all vehicles**
+      await vehicleProvider.fetchAllVehicles();
 
       // Debugging output to check fetched vehicles
       print('Total vehicles fetched: ${vehicleProvider.vehicles.length}');
@@ -125,7 +122,8 @@ class _TruckPageState extends State<TruckPage> {
             'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
 
         // Initialize displayedVehicles with the first page
-        displayedVehicles = displayedVehicles.take(_itemsPerPage).toList();
+        displayedVehicles =
+            vehicleProvider.vehicles.take(_itemsPerPage).toList();
         _currentPage = 1;
         _isLoading = false;
 
@@ -225,7 +223,7 @@ class _TruckPageState extends State<TruckPage> {
           .map((v) => v.year)
           .where((value) => value.isNotEmpty)
           .toSet()
-          .map((year) => int.tryParse(year) ?? 0)
+          .map((year) => int.tryParse(year.toString()) ?? 0)
           .toSet()
           .toList()
         ..sort(),
@@ -278,7 +276,7 @@ class _TruckPageState extends State<TruckPage> {
 
     try {
       final fieldsToCheck = [
-        vehicle.application,
+        vehicle.application.toString(),
         vehicle.damageDescription,
         vehicle.engineNumber,
         vehicle.expectedSellingPrice,
@@ -332,7 +330,6 @@ class _TruckPageState extends State<TruckPage> {
   void _applyFilters(List<FilterCriterion> filters) {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     setState(() {
       _isFiltering = true;
@@ -340,35 +337,43 @@ class _TruckPageState extends State<TruckPage> {
 
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
+        // Temporarily show all vehicles for testing
         displayedVehicles = vehicleProvider.vehicles.where((vehicle) {
+          print(
+              'Checking Vehicle ID: ${vehicle.id}, Status: ${vehicle.vehicleStatus}');
+
           // Apply each filter criterion
           for (var filter in filters) {
             var fieldValue = _getFieldValue(vehicle, filter.fieldName);
             if (!_evaluateFilter(fieldValue, filter)) {
+              print(
+                  'Filter failed for Vehicle ID: ${vehicle.id} on field: ${filter.fieldName} with value: ${filter.value}');
               return false; // If any filter fails, exclude the vehicle
             }
           }
 
           // Existing conditions
           bool isNotDraft = vehicle.vehicleStatus != 'Draft';
-          bool matchesVehicleType = widget.vehicleType == null ||
-              vehicle.vehicleType == widget.vehicleType;
+          bool isLive =
+              vehicle.vehicleStatus == 'Live'; // Check for Live status
 
-          return isNotDraft &&
-              matchesVehicleType; // Removed liked/disliked check
+          print(
+              'Vehicle ID: ${vehicle.id}, Is Not Draft: $isNotDraft, Is Live: $isLive');
+
+          return isNotDraft && isLive; // Include only Live vehicles
         }).toList();
 
         // Debugging output to check vehicles after applying filters
         print('Vehicles after applying filters: ${displayedVehicles.length}');
         if (displayedVehicles.isEmpty) {
           print('No vehicles match the current filters.');
+        } else {
+          print(
+              'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
         }
 
         loadedVehicleIndex = displayedVehicles.length;
         _isFiltering = false;
-
-        print(
-            'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
       });
     });
   }
@@ -794,7 +799,7 @@ class _TruckPageState extends State<TruckPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              vehicle.makeModel.toUpperCase(),
+                              vehicle.makeModel.toString().toUpperCase(),
                               style: _customFont(
                                 size.height * 0.025,
                                 FontWeight.bold,
@@ -825,7 +830,7 @@ class _TruckPageState extends State<TruckPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildInfoRow('Year', vehicle.year),
+                          _buildInfoRow('Year', vehicle.year.toString()),
                           _buildInfoRow('Mileage', vehicle.mileage),
                           _buildInfoRow('Gearbox', vehicle.transmissionType),
                           _buildInfoRow('Config', vehicle.config),

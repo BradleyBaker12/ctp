@@ -187,7 +187,9 @@ class _WishlistPageState extends State<WishlistPage> {
                           (v) => v.id == vehicleDoc.id,
                           orElse: () => Vehicle(
                             id: vehicleDoc.id,
-                            application: 'N/A',
+                            application: data != null && data['application'] != null
+                                    ? data['application']
+                                    : 'Unknown',
                             warrantyDetails: 'N/A',
                             damageDescription: '',
                             damagePhotos: [],
@@ -209,7 +211,9 @@ class _WishlistPageState extends State<WishlistPage> {
                                 : 'unknown',
                             vinNumber: 'N/A',
                             warrentyType: 'N/A',
-                            year: 'N/A',
+                            year: data != null && data['year'] != null
+                                ? data['year']
+                                : 'Unknown',
                             createdAt:
                                 (vehicleDoc['createdAt'] as Timestamp).toDate(),
                             vehicleAvailableImmediately: 'N/A',
@@ -233,7 +237,8 @@ class _WishlistPageState extends State<WishlistPage> {
                                 vehicleId: vehicleDoc.id,
                                 oemInspectionType: '',
                                 oemReason: '',
-                              ), warrantySelection: '',
+                              ),
+                              warrantySelection: '',
                             ),
                             truckConditions: TruckConditions(
                               externalCab: ExternalCab(
@@ -339,7 +344,8 @@ class _WishlistPageState extends State<WishlistPage> {
                             rc1NatisFile: '',
                             config: '',
                             referenceNumber: '',
-                            brand: '', country: '',
+                            brands: [],
+                            country: '',
                           ),
                         );
 
@@ -354,7 +360,7 @@ class _WishlistPageState extends State<WishlistPage> {
                             .any((offer) => offer.vehicleId == vehicle.id);
 
                         return WishCard(
-                          vehicleMakeModel: vehicle.makeModel,
+                          vehicleMakeModel: vehicle.makeModel.toString(),
                           vehicleImageUrl: imageUrl,
                           size: screenSize,
                           customFont: (double fontSize, FontWeight fontWeight,

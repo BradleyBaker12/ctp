@@ -42,8 +42,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // Controllers and Variables
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0;
-  final TextEditingController _yearController = TextEditingController();
-  final TextEditingController _makeModelController = TextEditingController();
   final TextEditingController _sellingPriceController = TextEditingController();
   final TextEditingController _vinNumberController = TextEditingController();
   final TextEditingController _mileageController = TextEditingController();
@@ -63,20 +61,29 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   // Define application options
   final List<String> _applicationOptions = [
-    'Tractor Units',
-    'Tipper Trucks',
-    'Box Trucks',
-    'Curtain Side Trucks',
-    'Chassis Cab Truck',
-    'Flatbed Truck',
-    'Refrigerated Truck',
+    'Bowser Trucks',
+    'Cage Body',
+    'Roll Back',
+    'Cattle Body',
+    'Chassis Cab',
+    'Cherry Picker',
+    'Compactor',
+    'Concrete Mixer',
     'Crane Truck',
-    'Hook Loader Truck',
-    'Concrete Truck',
-    'Municipal Truck',
-    'Dismantled Truck',
-    'Beavertail Trucks',
-    // Add any other missing application types
+    'Curtain Side',
+    'Diesel Tanker',
+    'Drop side',
+    'Fire Truck',
+    'Flatbed',
+    'Honey Sucker',
+    'Hook lift',
+    'Insulated Body',
+    'Mass side',
+    'Petrol Tanker',
+    'Refrigerated body',
+    'Side Tipper',
+    'Tipper',
+    'Volume Body',
   ];
 
   // Define configuration options
@@ -88,21 +95,37 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     // Add any other configurations if needed
   ];
 
-  // Define brand options
+  // Define manufacturer options
   final List<String> _brandOptions = [
-    'Volvo',
-    'Mercedes-Benz',
-    'MAN',
-    'Scania',
     'DAF',
-    'Iveco',
-    'Isuzu',
-    'Hino',
-    'Freightliner',
-    'Kenworth',
-    'Peterbilt',
-    'Mack',
-    // Add any other brands as needed
+    'FUSO',
+    'HINO',
+    'ISUZU',
+    'IVECO',
+    'MAN',
+    'MERCEDES-BENZ',
+    'SCANIA',
+    'UD TRUCKS',
+    'VW',
+    'VOLVO',
+    'FORD',
+    'TOYOTA',
+    'MAKE',
+    'CNHTC',
+    'EICHER',
+    'FAW',
+    'JAC',
+    'POWERSTAR',
+    'RENAULT',
+    'TATA',
+    'ASHOK LEYLAND',
+    'DAYUN',
+    'FIAT',
+    'FOTON',
+    'HYUNDAI',
+    'JOYLONG',
+    'PEUGEOT',
+    'US TRUCKS'
   ];
 
   // Variable to hold selected RC1/NATIS file
@@ -125,6 +148,43 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       TextEditingController(); // Added for country selection
 
   List<String> _countryOptions = []; // Define the country options list
+
+  // Define year options
+  final List<String> _yearOptions = List.generate(
+    DateTime.now().year - 1980 + 1,
+    (index) => (1980 + index).toString(),
+  );
+
+  final Map<String, List<String>> _makeModelOptions = {
+    'DAF': ['XF', 'CF', 'LF'],
+    'FUSO': ['Canter', 'Fighter', 'Super Great', 'Rosa'],
+    'HINO': ['300 Series', '500 Series', '700 Series'],
+    'ISUZU': ['N-Series', 'F-Series', 'Giga'],
+    'IVECO': ['Stralis', 'Trakker', 'Eurocargo', 'S-Way'],
+    'MAN': ['TGL', 'TGM', 'TGS', 'TGX'],
+    'MERCEDES-BENZ': ['Actros', 'Arocs', 'Atego', 'Econic'],
+    'SCANIA': ['R-series', 'S-series', 'G-series', 'P-series'],
+    'UD TRUCKS': ['Quon', 'Quester', 'Condor', 'Kazet', 'Croner'],
+    'VW': ['Constellation', 'Delivery', 'Worker'],
+    'VOLVO': ['FH', 'FM', 'FMX', 'VNL', 'VNR', 'VHD', 'VNX'],
+    'FORD': ['F-MAX', 'Cargo', 'Transit'],
+    'TOYOTA': ['Dyna', 'ToyoAce', 'Coaster', 'Hiace'],
+    'CNHTC': ['Howo', 'Sitrak', 'Hohan', 'Gold Prince'],
+    'EICHER': ['Pro 1000', 'Pro 3000', 'Pro 6000', 'Skyline'],
+    'FAW': ['Jiefang', 'J6P', 'JH6'],
+    'JAC': ['Gallop', 'Kangling', 'Sunray', 'N-Series'],
+    'POWERSTAR': ['VX Series', 'FT Series', 'XP Series'],
+    'RENAULT': ['T-series', 'C-series', 'K-series', 'D-series'],
+    'TATA': ['Prima', 'Signa', 'LPT', 'Ultra'],
+    'ASHOK LEYLAND': ['Captain', 'U-Truck', 'Ecomet', 'Boss', 'Dost'],
+    'DAYUN': ['CGC Series', 'N8E', 'N8V', 'N9'],
+    'FIAT': ['Ducato', 'Talento', 'Fiorino'],
+    'FOTON': ['Auman', 'Aumark', 'Ollin', 'Toano'],
+    'HYUNDAI': ['Xcient', 'Mighty', 'Pavise', 'County'],
+    'JOYLONG': ['E6', 'E5', 'HKL6700', 'HKL6800'],
+    'PEUGEOT': ['Boxer', 'Expert', 'Partner'],
+    'US TRUCKS': ['Freightliner', 'Kenworth', 'Peterbilt', 'Mack'],
+  };
 
   @override
   void initState() {
@@ -165,6 +225,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           .map((country) => country['country'] as String)
           .toList(); // Parse country names
     });
+
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+
+    // Set "South Africa" as the default country if not already set
+    if (formData.country == null && _countryOptions.contains('South Africa')) {
+      formData.setCountry('South Africa');
+    }
   }
 
   void _clearAllData(FormDataProvider formData) {
@@ -244,8 +311,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   void _initializeTextControllers(FormDataProvider formData) {
-    _yearController.text = formData.year ?? '';
-    _makeModelController.text = formData.makeModel ?? '';
     _vinNumberController.text = formData.vinNumber ?? '';
     _mileageController.text = formData.mileage ?? '';
     _engineNumberController.text = formData.engineNumber ?? '';
@@ -255,18 +320,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _referenceNumberController.text = formData.referenceNumber ?? '';
     _brandsController.text = (formData.brands)?.firstOrNull ?? '';
     _countryController.text =
-        formData.country ?? ''; // Initialize country controller
+        formData.country ?? 'South Africa'; // Initialize country controller
   }
 
   void _addControllerListeners(FormDataProvider formData) {
-    _yearController.addListener(() {
-      formData.setYear(_yearController.text);
-      formData.saveFormState();
-    });
-    _makeModelController.addListener(() {
-      formData.setMakeModel(_makeModelController.text);
-      formData.saveFormState();
-    });
     _vinNumberController.addListener(() {
       formData.setVinNumber(_vinNumberController.text);
     });
@@ -302,7 +359,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
     formData.setNatisRc1Url(widget.vehicle!.rc1NatisFile, notify: false);
     formData.setVehicleType(widget.vehicle!.vehicleType, notify: false);
-    formData.setYear(widget.vehicle!.year, notify: false);
+    formData.setYear(widget.vehicle!.year , notify: false);
     formData.setMakeModel(widget.vehicle!.makeModel, notify: false);
     formData.setVinNumber(widget.vehicle!.vinNumber, notify: false);
     formData.setMileage(widget.vehicle!.mileage, notify: false);
@@ -313,7 +370,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         notify: false);
     formData.setMainImageUrl(widget.vehicle!.mainImageUrl, notify: false);
 
-    formData.setApplication(widget.vehicle!.application, notify: false);
+    formData.setApplication(widget.vehicle!.application as String, notify: false);
     formData.setConfig(widget.vehicle!.config, notify: false);
     formData.setSuspension(widget.vehicle!.suspensionType, notify: false);
     formData.setTransmissionType(widget.vehicle!.transmissionType,
@@ -324,7 +381,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
     formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
     formData.setBrands(
-        widget.vehicle!.brand != null ? [widget.vehicle!.brand] : [],
+        widget.vehicle!.brands ?? [],
         notify: false);
 
     if (widget.isDuplicating) {
@@ -723,6 +780,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           CustomTextField(
             controller: _referenceNumberController,
             hintText: 'Reference Number',
+            inputFormatter: [UpperCaseTextFormatter()],
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please enter the reference number';
@@ -757,9 +815,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Brand field
+          // Manufacturer field
           CustomDropdown(
-            hintText: 'Brand',
+            hintText: 'Manufacturer',
             value: formData.brands?.isNotEmpty == true
                 ? formData.brands![0]
                 : null,
@@ -767,15 +825,19 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             onChanged: (value) {
               if (value != null) {
                 formData.setBrands([value]);
+
+                // Reset makeModel when brand changes
+                formData.setMakeModel(null);
               }
             },
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please select the brand';
+                return 'Please select the manufacturer';
               }
               return null;
             },
           ),
+
           const SizedBox(height: 15),
           Form(
             key: _formKeys[0],
@@ -786,13 +848,16 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: CustomTextField(
-                        controller: _yearController,
+                      child: CustomDropdown(
                         hintText: 'Year',
-                        keyboardType: TextInputType.number,
+                        value: formData.year,
+                        items: _yearOptions,
+                        onChanged: (value) {
+                          formData.setYear(value);
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter the year';
+                            return 'Please select the year';
                           }
                           return null;
                         },
@@ -800,12 +865,20 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: CustomTextField(
-                        controller: _makeModelController,
+                      child: CustomDropdown(
                         hintText: 'Make/Model',
+                        value: formData.makeModel,
+                        items: _makeModelOptions[
+                                formData.brands?.isNotEmpty == true
+                                    ? formData.brands![0]
+                                    : ''] ??
+                            [],
+                        onChanged: (value) {
+                          formData.setMakeModel(value);
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter the make/model';
+                            return 'Please select the make/model';
                           }
                           return null;
                         },
@@ -813,6 +886,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 15),
                 // Country Dropdown
                 CustomDropdown(
@@ -1287,8 +1361,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
 // Add this method to clear form controllers
   void _clearFormControllers() {
-    _yearController.clear();
-    _makeModelController.clear();
     _sellingPriceController.clear();
     _vinNumberController.clear();
     _mileageController.clear();
@@ -1332,8 +1404,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         final data = doc.data() as Map<String, dynamic>;
 
         setState(() {
-          _yearController.text = data['year'] ?? '';
-          _makeModelController.text = data['makeModel'] ?? '';
           _mileageController.text = data['mileage'] ?? '';
           _vinNumberController.text = data['vinNumber'] ?? '';
           _engineNumberController.text = data['engineNumber'] ?? '';

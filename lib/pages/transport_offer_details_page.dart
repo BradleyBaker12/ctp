@@ -200,7 +200,7 @@ class _TransporterOfferDetailsPageState
             Row(
               children: [
                 Text(
-                  widget.vehicle.makeModel.toUpperCase(),
+                  widget.vehicle.makeModel.toString().toUpperCase(),
                   style: GoogleFonts.montserrat(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -450,8 +450,8 @@ class _TransporterOfferDetailsPageState
                                 customFont(20, FontWeight.bold, Colors.white),
                           ),
                           const SizedBox(height: 10),
-                          _buildInfoRow('Make/Model', widget.vehicle.makeModel),
-                          _buildInfoRow('Year', widget.vehicle.year),
+                          _buildInfoRow('Make/Model', widget.vehicle.makeModel.toString()),
+                          _buildInfoRow('Year', widget.vehicle.year.toString()),
                         ],
                       ),
                     ),

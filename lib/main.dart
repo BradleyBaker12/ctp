@@ -55,7 +55,13 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => VehicleProvider()),
+        ChangeNotifierProxyProvider<UserProvider, VehicleProvider>(
+          create: (_) => VehicleProvider(),
+          update: (_, userProvider, vehicleProvider) {
+            vehicleProvider?.initialize(userProvider);
+            return vehicleProvider!;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => OfferProvider()),
         ChangeNotifierProvider(create: (_) => ComplaintsProvider()),
         ChangeNotifierProvider(create: (_) => FormDataProvider()),

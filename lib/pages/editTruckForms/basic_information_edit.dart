@@ -1,7 +1,8 @@
 // vehicle_upload_tabs.dart
 
 import 'dart:io';
-import 'dart:convert';
+import 'dart:convert'; // Added for JSON decoding
+import 'package:flutter/services.dart'; // Added for loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
@@ -12,18 +13,15 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:ctp/pages/truckForms/image_picker_widget.dart';
-import 'package:ctp/pages/truckForms/maintenance_warrenty_screen.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart' show rootBundle; // Import rootBundle
 
 class BasicInformationEdit extends StatefulWidget {
   final bool isDuplicating;
@@ -44,8 +42,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // Controllers and Variables
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0;
-  final TextEditingController _yearController = TextEditingController();
-  final TextEditingController _makeModelController = TextEditingController();
   final TextEditingController _sellingPriceController = TextEditingController();
   final TextEditingController _vinNumberController = TextEditingController();
   final TextEditingController _mileageController = TextEditingController();
@@ -57,6 +53,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   final TextEditingController _referenceNumberController =
       TextEditingController();
   final TextEditingController _brandsController = TextEditingController();
+  final TextEditingController _countryController =
+      TextEditingController(); // Added for country selection
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
   bool _isLoading = false;
@@ -67,20 +65,29 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   // Define application options
   final List<String> _applicationOptions = [
-    'Tractor Units',
-    'Tipper Trucks',
-    'Box Trucks',
-    'Curtain Side Trucks',
-    'Chassis Cab Truck',
-    'Flatbed Truck',
-    'Refrigerated Truck',
+    'Bowser Trucks',
+    'Cage Body',
+    'Roll Back',
+    'Cattle Body',
+    'Chassis Cab',
+    'Cherry Picker',
+    'Compactor',
+    'Concrete Mixer',
     'Crane Truck',
-    'Hook Loader Truck',
-    'Concrete Truck',
-    'Municipal Truck',
-    'Dismantled Truck',
-    'Beavertail Trucks',
-    // Add any other missing application types
+    'Curtain Side',
+    'Diesel Tanker',
+    'Drop side',
+    'Fire Truck',
+    'Flatbed',
+    'Honey Sucker',
+    'Hook lift',
+    'Insulated Body',
+    'Mass side',
+    'Petrol Tanker',
+    'Refrigerated body',
+    'Side Tipper',
+    'Tipper',
+    'Volume Body',
   ];
 
   // Define configuration options
@@ -92,22 +99,76 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     // Add any other configurations if needed
   ];
 
-  // Define brand options
+  // Define manufacturer options
   final List<String> _brandOptions = [
-    'Volvo',
-    'Mercedes-Benz',
-    'MAN',
-    'Scania',
     'DAF',
-    'Iveco',
-    'Isuzu',
-    'Hino',
-    'Freightliner',
-    'Kenworth',
-    'Peterbilt',
-    'Mack',
-    // Add any other brands as needed
+    'FUSO',
+    'HINO',
+    'ISUZU',
+    'IVECO',
+    'MAN',
+    'MERCEDES-BENZ',
+    'SCANIA',
+    'UD TRUCKS',
+    'VW',
+    'VOLVO',
+    'FORD',
+    'TOYOTA',
+    'MAKE',
+    'CNHTC',
+    'EICHER',
+    'FAW',
+    'JAC',
+    'POWERSTAR',
+    'RENAULT',
+    'TATA',
+    'ASHOK LEYLAND',
+    'DAYUN',
+    'FIAT',
+    'FOTON',
+    'HYUNDAI',
+    'JOYLONG',
+    'PEUGEOT',
+    'US TRUCKS',
   ];
+
+  // Define makeModel options
+  final Map<String, List<String>> _makeModelOptions = {
+    'DAF': ['XF', 'CF', 'LF'],
+    'FUSO': ['Canter', 'Fighter', 'Super Great', 'Rosa'],
+    'HINO': ['300 Series', '500 Series', '700 Series'],
+    'ISUZU': ['N-Series', 'F-Series', 'Giga'],
+    'IVECO': ['Stralis', 'Trakker', 'Eurocargo', 'S-Way'],
+    'MAN': ['TGL', 'TGM', 'TGS', 'TGX'],
+    'MERCEDES-BENZ': ['Actros', 'Arocs', 'Atego', 'Econic'],
+    'SCANIA': ['R-series', 'S-series', 'G-series', 'P-series'],
+    'UD TRUCKS': ['Quon', 'Quester', 'Condor', 'Kazet', 'Croner'],
+    'VW': ['Constellation', 'Delivery', 'Worker'],
+    'VOLVO': ['FH', 'FM', 'FMX', 'VNL', 'VNR', 'VHD', 'VNX'],
+    'FORD': ['F-MAX', 'Cargo', 'Transit'],
+    'TOYOTA': ['Dyna', 'ToyoAce', 'Coaster', 'Hiace'],
+    'CNHTC': ['Howo', 'Sitrak', 'Hohan', 'Gold Prince'],
+    'EICHER': ['Pro 1000', 'Pro 3000', 'Pro 6000', 'Skyline'],
+    'FAW': ['Jiefang', 'J6P', 'JH6'],
+    'JAC': ['Gallop', 'Kangling', 'Sunray', 'N-Series'],
+    'POWERSTAR': ['VX Series', 'FT Series', 'XP Series'],
+    'RENAULT': ['T-series', 'C-series', 'K-series', 'D-series'],
+    'TATA': ['Prima', 'Signa', 'LPT', 'Ultra'],
+    'ASHOK LEYLAND': ['Captain', 'U-Truck', 'Ecomet', 'Boss', 'Dost'],
+    'DAYUN': ['CGC Series', 'N8E', 'N8V', 'N9'],
+    'FIAT': ['Ducato', 'Talento', 'Fiorino'],
+    'FOTON': ['Auman', 'Aumark', 'Ollin', 'Toano'],
+    'HYUNDAI': ['Xcient', 'Mighty', 'Pavise', 'County'],
+    'JOYLONG': ['E6', 'E5', 'HKL6700', 'HKL6800'],
+    'PEUGEOT': ['Boxer', 'Expert', 'Partner'],
+    'US TRUCKS': ['Freightliner', 'Kenworth', 'Peterbilt', 'Mack'],
+  };
+
+  // Define year options
+  final List<String> _yearOptions = List.generate(
+    DateTime.now().year - 1980 + 1,
+    (index) => (1980 + index).toString(),
+  ).reversed.toList(); // Reverse to show the latest year first
 
   // Variable to hold selected RC1/NATIS file
   File? _natisRc1File;
@@ -151,6 +212,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       else if (widget.isNewUpload) {
         _clearAllData(formData);
       }
+
+      _initializeTextControllers(formData);
+      _addControllerListeners(formData);
     });
 
     _scrollController.addListener(() {
@@ -172,6 +236,13 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       _countryOptions =
           data.map((country) => country['country'] as String).toList();
     });
+
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+
+    // Set "South Africa" as the default country if not already set
+    if (formData.country == null && _countryOptions.contains('South Africa')) {
+      formData.setCountry('South Africa');
+    }
   }
 
   void _clearAllData(FormDataProvider formData) {
@@ -218,41 +289,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     _currentStep = 0;
   }
 
-  // void _clearFormControllers() {
-  //   _yearController.clear();
-  //   _makeModelController.clear();
-  //   _sellingPriceController.clear();
-  //   _vinNumberController.clear();
-  //   _mileageController.clear();
-  //   _engineNumberController.clear();
-  //   _warrantyDetailsController.clear();
-  //   _registrationNumberController.clear();
-  //   _referenceNumberController.clear();
-  //   _brandsController.clear();
-  //   _configController.clear();
-  //   _applicationController.clear();
-
-  //   setState(() {
-  //     _natisRc1File = null;
-  //     _existingNatisRc1Url = null;
-  //     _existingNatisRc1Name = null;
-  //   });
-  // }
-
-  void _initializeDefaultValues(FormDataProvider formData) {
-    // Set any default values needed for new trucks
-    formData.setVehicleType('truck'); // Default to truck
-    formData.setSuspension('spring'); // Default suspension
-    formData.setTransmissionType('automatic'); // Default transmission
-    formData.setHydraulics('no'); // Default hydraulics
-    formData.setMaintenance('no'); // Default maintenance
-    formData.setWarranty('no'); // Default warranty
-    formData.setRequireToSettleType('no'); // Default settle type
-  }
-
   void _initializeTextControllers(FormDataProvider formData) {
-    _yearController.text = formData.year ?? '';
-    _makeModelController.text = formData.makeModel ?? '';
     _vinNumberController.text = formData.vinNumber ?? '';
     _mileageController.text = formData.mileage ?? '';
     _engineNumberController.text = formData.engineNumber ?? '';
@@ -260,22 +297,14 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     _sellingPriceController.text = formData.sellingPrice ?? '';
     _warrantyDetailsController.text = formData.warrantyDetails ?? '';
     _referenceNumberController.text = formData.referenceNumber ?? '';
-    _brandsController.text = (formData.brands)?.firstOrNull ?? '';
+    _brandsController.text =
+        (formData.brands != null && formData.brands!.isNotEmpty)
+            ? formData.brands![0]
+            : '';
+    _countryController.text = formData.country ?? 'South Africa';
   }
 
   void _addControllerListeners(FormDataProvider formData) {
-    // Year controller
-    _yearController.addListener(() {
-      formData.setYear(_yearController.text);
-      formData.saveFormState();
-    });
-
-    // Make/Model controller
-    _makeModelController.addListener(() {
-      formData.setMakeModel(_makeModelController.text);
-      formData.saveFormState();
-    });
-
     // VIN Number controller
     _vinNumberController.addListener(() {
       formData.setVinNumber(_vinNumberController.text);
@@ -347,20 +376,25 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   void _populateExistingVehicleData() {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
 
+    print('DEBUG: Starting _populateExistingVehicleData');
+    print(
+        'DEBUG: Vehicle brands data type: ${widget.vehicle?.brands.runtimeType}');
+    print('DEBUG: Vehicle brands content: ${widget.vehicle?.brands}');
+
     // Populate main image
     if (widget.vehicle?.mainImageUrl != null) {
       formData.setMainImageUrl(widget.vehicle!.mainImageUrl);
+      print('DEBUG: Main image URL set: ${widget.vehicle!.mainImageUrl}');
     }
 
     // Populate NATIS/RC1 file
     setState(() {
       _existingNatisRc1Url = widget.vehicle?.rc1NatisFile;
       _existingNatisRc1Name = _getFileNameFromUrl(_existingNatisRc1Url);
+      print('DEBUG: NATIS/RC1 file set: $_existingNatisRc1Url');
     });
 
-    // Populate form fields
-    _yearController.text = widget.vehicle?.year ?? '';
-    _makeModelController.text = widget.vehicle?.makeModel ?? '';
+    // Populate form fields with debug logging
     _vinNumberController.text = widget.vehicle?.vinNumber ?? '';
     _mileageController.text = widget.vehicle?.mileage ?? '';
     _engineNumberController.text = widget.vehicle?.engineNumber ?? '';
@@ -371,19 +405,35 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     _warrantyDetailsController.text = widget.vehicle?.warrantyDetails ?? '';
     _referenceNumberController.text = widget.vehicle?.referenceNumber ?? '';
 
-    // Update brand field and form provider
-    if (widget.vehicle?.brand != null) {
-      _brandsController.text = widget.vehicle!.brand;
-      formData.setBrands([widget.vehicle!.brand]);
+    // Handle brands with type checking and debugging
+    print('DEBUG: Processing brands data');
+    if (widget.vehicle?.brands != null) {
+      print('DEBUG: Brands type: ${widget.vehicle!.brands.runtimeType}');
+      print('DEBUG: Raw brands data: ${widget.vehicle!.brands}');
+
+      if (widget.vehicle!.brands is List) {
+        if (widget.vehicle!.brands.isNotEmpty) {
+          _brandsController.text = widget.vehicle!.brands[0].toString();
+          formData.setBrands(List<String>.from(widget.vehicle!.brands));
+          print('DEBUG: Set brands from List: ${_brandsController.text}');
+        }
+      } else {
+        _brandsController.text = widget.vehicle!.brands.toString();
+        formData.setBrands([widget.vehicle!.brands.toString()]);
+        print('DEBUG: Set brands from String: ${_brandsController.text}');
+      }
     }
 
     // Update form provider
-    formData.setYear(widget.vehicle?.year);
-    formData.setMakeModel(widget.vehicle?.makeModel);
+    print('DEBUG: Updating FormDataProvider');
+    formData.setYear(widget.vehicle?.year as String);
+    formData.setMakeModel(widget.vehicle?.makeModel as String);
     formData.setVinNumber(widget.vehicle?.vinNumber);
     formData.setConfig(widget.vehicle?.config);
     formData.setMileage(widget.vehicle?.mileage);
-    formData.setApplication(widget.vehicle?.application);
+    formData.setApplication(widget.vehicle?.application.isNotEmpty == true
+        ? widget.vehicle?.application[0]
+        : null);
     formData.setEngineNumber(widget.vehicle?.engineNumber);
     formData.setRegistrationNumber(widget.vehicle?.registrationNumber);
     formData.setSellingPrice(widget.vehicle?.adminData.settlementAmount);
@@ -392,12 +442,18 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     formData
         .setTransmissionType(widget.vehicle?.transmissionType ?? 'automatic');
     formData.setHydraulics(widget.vehicle?.hydraluicType ?? 'no');
-    formData.setMaintenance((widget.vehicle?.maintenance as String?) ?? 'no');
+
+    formData.setMaintenance(
+        widget.vehicle?.maintenance.maintenanceData.oemInspectionType ?? 'no');
+
     formData.setWarranty(widget.vehicle?.warrentyType ?? 'no');
     formData.setWarrantyDetails(widget.vehicle?.warrantyDetails);
     formData
         .setRequireToSettleType(widget.vehicle?.requireToSettleType ?? 'no');
     formData.setReferenceNumber(widget.vehicle?.referenceNumber);
+    formData.setCountry(widget.vehicle?.country ?? 'South Africa');
+
+    print('DEBUG: Completed _populateExistingVehicleData');
   }
 
   // Helper to extract filename from URL
@@ -835,20 +891,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ],
           ),
           const SizedBox(height: 20),
-          // Brand field
+          // Manufacturer field
           CustomDropdown(
-            hintText: 'Brand',
-            value: widget.vehicle?.brand ?? formData.brands?.firstOrNull,
+            hintText: 'Manufacturer',
+            value: formData.brands?.isNotEmpty == true
+                ? formData.brands![0]
+                : null,
             items: _brandOptions,
             onChanged: (value) {
               if (value != null) {
                 formData.setBrands([value]);
+                formData
+                    .setMakeModel(null); // Reset makeModel when brand changes
                 formData.saveFormState();
               }
             },
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please select the brand';
+                return 'Please select the manufacturer';
               }
               return null;
             },
@@ -863,13 +923,17 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 Row(
                   children: [
                     Expanded(
-                      child: CustomTextField(
-                        controller: _yearController,
+                      child: CustomDropdown(
                         hintText: 'Year',
-                        keyboardType: TextInputType.number,
+                        value: formData.year,
+                        items: _yearOptions,
+                        onChanged: (value) {
+                          formData.setYear(value);
+                          formData.saveFormState();
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter the year';
+                            return 'Please select the year';
                           }
                           return null;
                         },
@@ -877,12 +941,21 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: CustomTextField(
-                        controller: _makeModelController,
+                      child: CustomDropdown(
                         hintText: 'Make/Model',
+                        value: formData.makeModel,
+                        items: _makeModelOptions[
+                                formData.brands?.isNotEmpty == true
+                                    ? formData.brands![0]
+                                    : ''] ??
+                            [],
+                        onChanged: (value) {
+                          formData.setMakeModel(value);
+                          formData.saveFormState();
+                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter the make/model';
+                            return 'Please select the make/model';
                           }
                           return null;
                         },
@@ -897,9 +970,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   value: formData.country?.isNotEmpty == true
                       ? formData.country
                       : null,
-                  items: _countryOptions, // Assuming _countryOptions is defined
+                  items: _countryOptions,
                   onChanged: (value) {
-                    formData.setCountry(value); // Update form data provider
+                    formData.setCountry(value);
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -1288,7 +1361,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'userId': FirebaseAuth.instance.currentUser?.uid,
-        'vehicleStatus': 'Draft', // Initial status for new vehicles
+        'vehicleStatus': _vehicleStatus ?? 'Draft',
       };
 
       // Update existing document or create new one
@@ -1315,7 +1388,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           ...vehicleData,
           'createdAt': FieldValue.serverTimestamp(),
           'userId': FirebaseAuth.instance.currentUser?.uid,
-          'vehicleStatus': 'Draft',
+          'vehicleStatus': _vehicleStatus ?? 'Draft',
         });
         _vehicleId = docRef.id;
 
@@ -1334,7 +1407,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   }
 
   bool _validateRequiredFields(FormDataProvider formData) {
-    if (formData.selectedMainImage == null) {
+    if (formData.selectedMainImage == null &&
+        (formData.mainImageUrl == null || formData.mainImageUrl!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a main image')),
       );
@@ -1351,7 +1425,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     return true;
   }
 
-// Update the Next button handler
+  // Update the Next button handler
   Widget _buildNextButton() {
     return Center(
       child: CustomButton(
@@ -1361,7 +1435,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);
 
-          if (widget.isNewUpload && !_validateRequiredFields(formData)) {
+          if (!_validateRequiredFields(formData)) {
             return;
           }
 
@@ -1389,10 +1463,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     );
   }
 
-// Add this method to clear form controllers
+  // Add this method to clear form controllers
   void _clearFormControllers() {
-    _yearController.clear();
-    _makeModelController.clear();
     _sellingPriceController.clear();
     _vinNumberController.clear();
     _mileageController.clear();
@@ -1401,6 +1473,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     _registrationNumberController.clear();
     _referenceNumberController.clear();
     _brandsController.clear();
+    _countryController.clear();
 
     // Clear image-related data
     final formData = Provider.of<FormDataProvider>(context, listen: false);
@@ -1424,7 +1497,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
-// Add this new method to load saved form data
+  // Add this new method to load saved form data
   Future<void> _loadSavedFormData(FormDataProvider formData) async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -1436,8 +1509,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         final data = doc.data() as Map<String, dynamic>;
 
         setState(() {
-          _yearController.text = data['year'] ?? '';
-          _makeModelController.text = data['makeModel'] ?? '';
           _mileageController.text = data['mileage'] ?? '';
           _vinNumberController.text = data['vinNumber'] ?? '';
           _engineNumberController.text = data['engineNumber'] ?? '';
@@ -1445,8 +1516,18 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           _sellingPriceController.text = data['sellingPrice'] ?? '';
           _warrantyDetailsController.text = data['warrantyDetails'] ?? '';
           _referenceNumberController.text = data['referenceNumber'] ?? '';
-          _brandsController.text =
-              (data['brands'] as List<String>?)?.firstOrNull ?? '';
+
+          // Updated brands handling
+          if (data['brands'] != null) {
+            if (data['brands'] is List) {
+              _brandsController.text =
+                  (data['brands'] as List).firstOrNull?.toString() ?? '';
+            } else if (data['brands'] is String) {
+              _brandsController.text = data['brands'];
+            }
+          }
+
+          _countryController.text = data['country'] ?? 'South Africa';
 
           // Update FormDataProvider
           formData.setYear(data['year']);
@@ -1468,7 +1549,17 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           formData.setRequireToSettleType(data['requireToSettleType'] ?? 'yes');
           formData.setMainImageUrl(data['mainImageUrl']);
           formData.setReferenceNumber(data['referenceNumber']);
-          formData.setBrands(data['brands']);
+
+          // Updated brands setting in FormDataProvider
+          if (data['brands'] != null) {
+            if (data['brands'] is List) {
+              formData.setBrands(List<String>.from(data['brands']));
+            } else if (data['brands'] is String) {
+              formData.setBrands([data['brands']]);
+            }
+          }
+
+          formData.setCountry(data['country'] ?? 'South Africa');
         });
       }
     } catch (e) {

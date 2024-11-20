@@ -27,7 +27,14 @@ class VehicleProvider with ChangeNotifier {
 
   // Initialize the provider by fetching vehicles
   void initialize(UserProvider userProvider) {
-    fetchVehicles(userProvider); // Fetch vehicles as usual
+    String? userId = userProvider.userId; // Extract userId
+    if (userId != null && userId.isNotEmpty) {
+      fetchVehicles(userProvider, userId: userId); // Pass userId
+    } else {
+      print('User ID is null or empty, cannot fetch vehicles.');
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Add a vehicle to the local list
@@ -57,59 +64,61 @@ class VehicleProvider with ChangeNotifier {
       int limit = 1000}) async {
     try {
       _isLoading = true;
-      notifyListeners(); // Notify listeners about loading state
+      notifyListeners();
 
-      Query query = FirebaseFirestore.instance.collection('vehicles');
-
-      if (vehicleType != null) {
-        query = query.where('vehicleType', isEqualTo: vehicleType);
-      }
-
+      Query query = FirebaseFirestore.instance
+          .collection('vehicles')
+          .orderBy('createdAt', descending: true);
       if (userId != null) {
         query = query.where('userId', isEqualTo: userId);
       }
 
-      // Apply limit if needed
-      if (limit > 0) {
-        query = query.limit(limit);
-      }
-
       QuerySnapshot querySnapshot = await query.get();
 
-      print('Fetched ${querySnapshot.docs.length} vehicles from Firestore.');
-
-      if (querySnapshot.docs.isNotEmpty) {
-        _lastFetchedDocument = querySnapshot.docs.last;
-      }
-
-      // Pass the document ID to Vehicle.fromFirestore
       _vehicles = querySnapshot.docs.map((doc) {
-        return Vehicle.fromFirestore(
-            doc.id, doc.data() as Map<String, dynamic>);
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+        // Handle brands field
+        if (data['brands'] is String) {
+          data['brands'] = [data['brands']];
+        } else if (data['brands'] == null) {
+          data['brands'] = [];
+        }
+
+        // Handle application field
+        if (data['application'] is String) {
+          data['application'] = [data['application']];
+        } else if (data['application'] == null) {
+          data['application'] = [];
+        }
+
+        // Initialize truck conditions
+        if (data['truckConditions'] is Map) {
+          var conditions = data['truckConditions'] as Map<String, dynamic>;
+          ['chassis', 'externalCab', 'driveTrain', 'internalCab']
+              .forEach((section) {
+            if (conditions[section] is Map) {
+              var sectionData = conditions[section] as Map<String, dynamic>;
+              sectionData['damages'] = [];
+              sectionData['additionalFeatures'] = [];
+              if (section == 'internalCab') {
+                sectionData['faultCodes'] = [];
+              }
+            }
+          });
+        }
+
+        // Ensure createdAt is valid
+        if (data['createdAt'] == null) {
+          data['createdAt'] = Timestamp.now();
+        }
+
+        return Vehicle.fromFirestore(doc.id, data);
       }).toList();
 
-      print('Total vehicles after mapping: ${_vehicles.length}');
-      print(
-          'Vehicle IDs after fetching: ${_vehicles.map((v) => v.id).toList()}');
-
-      if (filterLikedDisliked) {
-        print('Filtering out liked/disliked vehicles...');
-        _vehicles = _vehicles.where((vehicle) {
-          bool isLiked = userProvider.getLikedVehicles.contains(vehicle.id);
-          bool isDisliked =
-              userProvider.getDislikedVehicles.contains(vehicle.id);
-          if (isLiked || isDisliked) {
-            print(
-                'Excluding vehicle ID ${vehicle.id} because it is ${isLiked ? 'liked' : 'disliked'}.');
-          }
-          return !isLiked && !isDisliked;
-        }).toList();
-        print('Vehicles after filtering liked/disliked: ${_vehicles.length}');
-      }
-
+      vehicleListenable.value = List<Vehicle>.from(_vehicles);
       _isLoading = false;
       notifyListeners();
-      vehicleListenable.value = List.from(_vehicles);
     } catch (e) {
       print('Error fetching vehicles: $e');
       _isLoading = false;
@@ -117,7 +126,6 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  // Fetch more vehicles for pagination
   Future<void> fetchMoreVehicles() async {
     if (_lastFetchedDocument == null) return;
 
@@ -146,6 +154,65 @@ class VehicleProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error fetching more vehicles: $e');
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // **New Method: Fetch All Vehicles with Enhanced Debugging and Error Handling**
+  Future<void> fetchAllVehicles() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+      // print('Starting to fetch all vehicles from Firestore.');
+
+      Query query = FirebaseFirestore.instance
+          .collection('vehicles')
+          .orderBy('createdAt', descending: true);
+
+      // Fetch all vehicles without any filters
+      QuerySnapshot querySnapshot = await query.get();
+
+      // print(
+      // 'Successfully fetched ${querySnapshot.docs.length} vehicles from Firestore.');
+
+      _vehicles = querySnapshot.docs
+          .map((doc) {
+            if (doc.exists &&
+                doc.data() != null &&
+                doc.data() is Map<String, dynamic>) {
+              // print('Processing Vehicle ID: ${doc.id}');
+              try {
+                return Vehicle.fromFirestore(
+                    doc.id, doc.data() as Map<String, dynamic>);
+              } catch (e) {
+                // print('Error parsing vehicle data for ID ${doc.id}: $e');
+                // Optionally, log the problematic data for further inspection
+                // Uncomment the line below to log problematic data
+                // print('Problematic data for ID ${doc.id}: ${doc.data()}');
+                return null;
+              }
+            } else {
+              // print(
+              //     'Warning: Document ID ${doc.id} does not exist, has null data, or is not a Map<String, dynamic>.');
+              return null;
+            }
+          })
+          .where((vehicle) => vehicle != null)
+          .cast<Vehicle>()
+          .toList();
+
+      if (_vehicles.isEmpty) {
+        print('No valid vehicles found after parsing.');
+      }
+
+      // print('Total vehicles after processing: ${_vehicles.length}');
+
+      vehicleListenable.value = List.from(_vehicles);
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      print('Error in fetchAllVehicles: $e');
       _isLoading = false;
       notifyListeners();
     }
@@ -189,7 +256,7 @@ class VehicleProvider with ChangeNotifier {
 
     for (var vehicle in _vehicles) {
       for (var brand in brands) {
-        if (vehicle.makeModel.toLowerCase().contains(brand.toLowerCase())) {
+        if (vehicle.makeModel.contains(brand.toLowerCase())) {
           matchedBrands.add(brand);
           break;
         }

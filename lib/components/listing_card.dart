@@ -8,6 +8,7 @@ class ListingCard extends StatelessWidget {
   final String vehicleMakeModel;
   final String? vehicleImageUrl;
   final String vehicleYear;
+  final String referenceNumber;
   final String vehicleMileage;
   final String vehicleTransmission;
   final VoidCallback onTap;
@@ -21,6 +22,7 @@ class ListingCard extends StatelessWidget {
     required this.vehicleMileage,
     required this.vehicleTransmission,
     required this.onTap,
+    required this.referenceNumber,
   });
 
   @override
@@ -81,6 +83,12 @@ class ListingCard extends StatelessWidget {
                             maxLines: 1,
                           ),
                           const SizedBox(height: 5),
+                          Text(
+                            'Ref#: $referenceNumber',
+                            style: const TextStyle(color: Colors.white70),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                           Text(
                             'Year: $vehicleYear',
                             style: const TextStyle(color: Colors.white70),

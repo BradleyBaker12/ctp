@@ -62,28 +62,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Provider.of<VehicleProvider>(context, listen: false);
 
     try {
-      // Fetch user data first
       await userProvider.fetchUserData();
-
       final currentUser = FirebaseAuth.instance.currentUser;
 
-      // Check if the user is authenticated and has valid data
       if (currentUser == null || userProvider.userId == null) {
-        // If no user is found, sign out and navigate back to the login page
         await FirebaseAuth.instance.signOut();
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
 
-      // Check if the user role is unsupported (e.g., guest)
       if (userProvider.getUserRole == 'guest') {
-        // Sign out and redirect guest users back to login
         await FirebaseAuth.instance.signOut();
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
 
-      // Check if the user is an admin, if yes, navigate to the admin home screen
       if (userProvider.getUserRole == 'admin') {
         Navigator.pushReplacement(
           context,
@@ -92,16 +85,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      // Fetch vehicles after ensuring user data is ready
+      // Fetch vehicles with proper error handling
       await vehicleProvider.fetchVehicles(userProvider);
 
-      recentVehicles = await vehicleProvider.fetchRecentVehicles();
+      // Safely handle recent vehicles
+      final fetchedRecentVehicles = await vehicleProvider.fetchRecentVehicles();
+      recentVehicles = List<Vehicle>.from(fetchedRecentVehicles);
       displayedVehiclesNotifier.value = recentVehicles.take(5).toList();
 
+      // Fetch offers and user preferences
       await _offerProvider.fetchOffers(
           currentUser.uid, userProvider.getUserRole);
-      likedVehicles = userProvider.getLikedVehicles;
-      dislikedVehicles = userProvider.getDislikedVehicles;
+      likedVehicles = List<String>.from(userProvider.getLikedVehicles);
+      dislikedVehicles = List<String>.from(userProvider.getDislikedVehicles);
     } catch (e, stackTrace) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -714,10 +710,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(vehicle.makeModel,
+                Text(vehicle.makeModel.toString().toUpperCase(),
                     style: _customFont(18, FontWeight.bold, Colors.white)),
                 const SizedBox(height: 4),
-                Text(vehicle.year,
+                Text(vehicle.year.toString(),
                     style: _customFont(14, FontWeight.normal, Colors.grey)),
               ],
             ),
@@ -1140,7 +1136,7 @@ class SwiperWidget extends StatelessWidget {
                                 Padding(
                                   padding: const EdgeInsets.only(left: 8.0),
                                   child: Text(
-                                    vehicle.makeModel,
+                                    vehicle.makeModel.toString().toUpperCase(),
                                     style: const TextStyle(
                                       fontSize: 25,
                                       fontWeight: FontWeight.w900,
@@ -1160,7 +1156,9 @@ class SwiperWidget extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                _buildBlurryContainer('YEAR', vehicle.year,
+                                _buildBlurryContainer(
+                                    'YEAR',
+                                    vehicle.year.toString(),
                                     context), // Pass context here
                                 _buildBlurryContainer(
                                     'MILEAGE',
