@@ -2,61 +2,67 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/timestamp_helper.dart';
-import 'maintenance_data.dart';
 
 class Maintenance {
-  final String maintenanceDocumentUrl;
-  final String warrantyDocumentUrl;
-  final String oemInspectionType;
-  final String oemInspectionReason;
-  final String warrantySelection;
-  final DateTime updatedAt;
-  final MaintenanceData maintenanceData;
+  final String vehicleId;
+  final String? oemInspectionType;
+  final String? oemReason;
+  final String? maintenanceDocUrl;
+  final String? warrantyDocUrl;
+  final String? maintenanceSelection;
+  final String? warrantySelection;
+  final DateTime? lastUpdated;
 
   Maintenance({
-    required this.maintenanceDocumentUrl,
-    required this.warrantyDocumentUrl,
-    required this.oemInspectionType,
-    required this.oemInspectionReason,
-    required this.warrantySelection,
-    required this.updatedAt,
-    required this.maintenanceData,
+    required this.vehicleId,
+    this.oemInspectionType,
+    this.oemReason,
+    this.maintenanceDocUrl,
+    this.warrantyDocUrl,
+    this.maintenanceSelection,
+    this.warrantySelection,
+    this.lastUpdated,
   });
 
   factory Maintenance.fromMap(Map<String, dynamic> data) {
+    print('=== MAINTENANCE MODEL DEBUG ===');
+    print('Raw maintenance data received: $data');
+
     return Maintenance(
-      maintenanceDocumentUrl: data['maintenanceDocUrl'] ?? '',
-      warrantyDocumentUrl: data['warrantyDocUrl'] ?? '',
-      oemInspectionType: data['oemInspectionType'] ?? '',
-      oemInspectionReason: data['oemReason'] ?? '',
-      warrantySelection: data['warrantySelection'] ?? '',
-      updatedAt: parseTimestamp(data['lastUpdated'], ''),
-      maintenanceData: MaintenanceData.fromMap(data['maintenanceData'] ?? {}),
+      vehicleId: data['vehicleId'] ?? '',
+      oemInspectionType: data['oemInspectionType'],
+      oemReason: data['oemReason'],
+      maintenanceDocUrl: data['maintenanceDocUrl'],
+      warrantyDocUrl: data['warrantyDocUrl'],
+      maintenanceSelection: data['maintenanceSelection'],
+      warrantySelection: data['warrantySelection'],
+      lastUpdated: data['lastUpdated']?.toDate(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'maintenanceDocUrl': maintenanceDocumentUrl,
-      'warrantyDocUrl': warrantyDocumentUrl,
-      'oemInspectionType': oemInspectionType,
-      'oemReason': oemInspectionReason,
-      'warrantySelection': warrantySelection,
-      'lastUpdated': Timestamp.fromDate(updatedAt),
-      'maintenanceData': maintenanceData.toMap(),
+      'vehicleId': vehicleId,
+      'oemInspectionType': oemInspectionType ?? '',
+      'oemReason': oemReason ?? '',
+      'maintenanceDocUrl': maintenanceDocUrl ?? '',
+      'warrantyDocUrl': warrantyDocUrl ?? '',
+      'maintenanceSelection': maintenanceSelection ?? '',
+      'warrantySelection': warrantySelection ?? '',
+      'lastUpdated': lastUpdated != null ? Timestamp.fromDate(lastUpdated!) : null,
     };
   }
 
   factory Maintenance.empty() {
     return Maintenance(
-      maintenanceData:
-          MaintenanceData(vehicleId: '', oemInspectionType: '', oemReason: ''),
-      maintenanceDocumentUrl: '',
-      warrantyDocumentUrl: '',
+      vehicleId: '',
       oemInspectionType: '',
-      oemInspectionReason: '',
+      oemReason: '',
+      maintenanceDocUrl: '',
+      warrantyDocUrl: '',
+      maintenanceSelection: '',
       warrantySelection: '',
-      updatedAt: DateTime.timestamp(),
+      lastUpdated: DateTime.now(),
     );
   }
 }

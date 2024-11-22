@@ -45,6 +45,7 @@ class TyresPageState extends State<TyresPage>
   final Map<String, String> _imageUrls = {};
 
   bool _isInitialized = false; // Flag to prevent re-initialization
+  bool _isSaving = false; // Flag to indicate saving state
 
   @override
   void initState() {
@@ -55,6 +56,51 @@ class TyresPageState extends State<TyresPage>
       _virginOrRecaps[i] = '';
       _rimTypes[i] = '';
     }
+
+    if (widget.isEditing) {
+      _fetchExistingData();
+    }
+  }
+
+  /// Fetch existing data from Firestore if in editing mode
+  Future<void> _fetchExistingData() async {
+    try {
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .collection('tyres')
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // Assuming one document per tyre position
+        for (var doc in querySnapshot.docs) {
+          String key = doc.id; // e.g., 'Tyre_Pos_1'
+          if (key.startsWith('Tyre_Pos_')) {
+            final pos = int.parse(key.split('_').last);
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            _chassisConditions[pos] = data['chassisCondition'] ?? '';
+            _virginOrRecaps[pos] = data['virginOrRecap'] ?? '';
+            _rimTypes[pos] = data['rimType'] ?? '';
+
+            String photoKey = '$key Photo';
+
+            // Handle image data
+            if (data['imageUrl'] != null) {
+              _imageUrls[photoKey] = data['imageUrl'];
+            }
+            // Note: imagePath is not typically stored; if needed, handle accordingly
+          }
+        }
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    } catch (e) {
+      // Handle errors appropriately
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching existing data: $e')),
+      );
+    }
   }
 
   @override
@@ -63,22 +109,51 @@ class TyresPageState extends State<TyresPage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16.0),
-            // Generate Tyre Position Sections based on the number of tyre positions
-            ...List.generate(widget.numberOfTyrePositions,
-                (index) => _buildTyrePosSection(index + 1)),
-            const SizedBox(height: 16.0),
-          ],
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tyres Information'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: _isSaving ? null : saveData,
+            tooltip: 'Save Tyre Information',
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16.0),
+                  // Generate Tyre Position Sections based on the number of tyre positions
+                  ...List.generate(widget.numberOfTyrePositions,
+                      (index) => _buildTyrePosSection(index + 1)),
+                  const SizedBox(height: 16.0),
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : saveData,
+                    child: const Text('Save Tyre Information'),
+                  ),
+                  const SizedBox(height: 16.0),
+                ],
+              ),
+            ),
+          ),
+          if (_isSaving)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
       ),
     );
   }
 
+  /// Builds each tyre position section dynamically
   Widget _buildTyrePosSection(int pos) {
     String tyrePosKey = 'Tyre_Pos_$pos';
 
@@ -98,7 +173,7 @@ class TyresPageState extends State<TyresPage>
           ),
         ),
         const SizedBox(height: 16.0),
-        _buildImageUploadBlock('Tyre Position $pos Photo'),
+        _buildImageUploadBlock('Tyre_Pos_$pos Photo'),
         const SizedBox(height: 16.0),
         Center(
           child: const Text(
@@ -132,9 +207,7 @@ class TyresPageState extends State<TyresPage>
               groupValue: _chassisConditions[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _updateAndNotify(() {
-                    _chassisConditions[pos] = value;
-                  });
+                  _chassisConditions[pos] = value;
                 }
               },
             ),
@@ -144,9 +217,7 @@ class TyresPageState extends State<TyresPage>
               groupValue: _chassisConditions[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _updateAndNotify(() {
-                    _chassisConditions[pos] = value;
-                  });
+                  _chassisConditions[pos] = value;
                 }
               },
             ),
@@ -173,9 +244,7 @@ class TyresPageState extends State<TyresPage>
               groupValue: _virginOrRecaps[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _updateAndNotify(() {
-                    _virginOrRecaps[pos] = value;
-                  });
+                  _virginOrRecaps[pos] = value;
                 }
               },
             ),
@@ -185,9 +254,7 @@ class TyresPageState extends State<TyresPage>
               groupValue: _virginOrRecaps[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _updateAndNotify(() {
-                    _virginOrRecaps[pos] = value;
-                  });
+                  _virginOrRecaps[pos] = value;
                 }
               },
             ),
@@ -214,9 +281,7 @@ class TyresPageState extends State<TyresPage>
               groupValue: _rimTypes[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _updateAndNotify(() {
-                    _rimTypes[pos] = value;
-                  });
+                  _rimTypes[pos] = value;
                 }
               },
             ),
@@ -226,9 +291,7 @@ class TyresPageState extends State<TyresPage>
               groupValue: _rimTypes[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _updateAndNotify(() {
-                    _rimTypes[pos] = value;
-                  });
+                  _rimTypes[pos] = value;
                 }
               },
             ),
@@ -240,98 +303,141 @@ class TyresPageState extends State<TyresPage>
     );
   }
 
-  Widget _buildImageUploadBlock(String title) {
+  /// Builds the image upload block with preview and delete functionality
+  Widget _buildImageUploadBlock(String key) {
+    String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
+
     return GestureDetector(
-      onTap: () => _showImageSourceDialog(title),
-      child: Container(
-        height: 150.0,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppColors.blue.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: AppColors.blue, width: 2.0),
-        ),
-        child: Stack(
-          children: [
-            // Main image display
-            _selectedImages[title] != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
-                      _selectedImages[title]!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                  )
-                : _imageUrls[title] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          _imageUrls[title]!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes !=
-                                        null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.add_circle_outline,
-                                color: Colors.white, size: 40.0),
-                            const SizedBox(height: 8.0),
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-            // Overlay hint for editing
-            if (_selectedImages[title] != null || _imageUrls[title] != null)
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'Tap to modify image',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
+      onTap: () => _showImageSourceDialog(key),
+      child: Stack(
+        children: [
+          Container(
+            height: 150.0,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(color: AppColors.blue, width: 2.0),
+            ),
+            child: _buildImageDisplay(key, title),
+          ),
+          // Overlay hint for editing
+          if (_selectedImages[key] != null || _imageUrls[key] != null)
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Tap to modify image',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+          // Delete button
+          if (_selectedImages[key] != null || _imageUrls[key] != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedImages.remove(key);
+                    _imageUrls.remove(key);
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  void _showImageSourceDialog(String title) {
+  /// Displays the appropriate image based on the current state
+  Widget _buildImageDisplay(String key, String title) {
+    if (_selectedImages[key] != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.file(
+          _selectedImages[key]!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      );
+    } else if (_imageUrls[key] != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.network(
+          _imageUrls[key]!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Center(
+              child: Text(
+                'Failed to load image',
+                style: TextStyle(color: Colors.red, fontSize: 16),
+              ),
+            );
+          },
+        ),
+      );
+    } else {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_circle_outline,
+                color: Colors.white, size: 40.0),
+            const SizedBox(height: 8.0),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// Shows a dialog to choose the image source (Camera or Gallery)
+  void _showImageSourceDialog(String key) {
+    String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -349,7 +455,8 @@ class TyresPageState extends State<TyresPage>
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[key] = File(pickedFile.path);
+                      _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
                 },
@@ -363,7 +470,8 @@ class TyresPageState extends State<TyresPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[key] = File(pickedFile.path);
+                      _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
                 },
@@ -375,63 +483,95 @@ class TyresPageState extends State<TyresPage>
     );
   }
 
-  Future<bool> saveData() async {
-    // You can implement save logic here if needed
-    return true;
-  }
+  /// Validates and saves the data to Firestore
+  Future<void> saveData() async {
+    // Validate data before saving
+    for (int pos = 1; pos <= widget.numberOfTyrePositions; pos++) {
+      String photoKey = 'Tyre_Pos_$pos Photo';
+      if ((_selectedImages[photoKey] == null && _imageUrls[photoKey] == null) ||
+          (_chassisConditions[pos]?.isEmpty ?? true) ||
+          (_virginOrRecaps[pos]?.isEmpty ?? true) ||
+          (_rimTypes[pos]?.isEmpty ?? true)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Please complete all fields for Tyre Position $pos')),
+        );
+        return;
+      }
+    }
 
-  void initializeWithData(Map<String, dynamic> data) {
-    if (data.isEmpty) return;
     setState(() {
-      // _isInitialized = true;
-      data.forEach((key, value) {
-        if (key.startsWith('Tyre_Pos_')) {
-          final pos = int.parse(key.split('_').last);
-          _chassisConditions[pos] = value['chassisCondition'] ?? 'good';
-          _virginOrRecaps[pos] = value['virginOrRecap'] ?? 'virgin';
-          _rimTypes[pos] = value['rimType'] ?? 'aluminium';
-
-          String photoKey = '$key Photo';
-
-          // Handle image data
-          if (value['imageUrl'] != null) {
-            _imageUrls[photoKey] = value['imageUrl'];
-          }
-          if (value['imagePath'] != null) {
-            _selectedImages[photoKey] = File(value['imagePath']);
-          }
-        }
-      });
+      _isSaving = true;
     });
+
+    try {
+      await getData();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tyre data saved successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving data: $e')),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
   }
 
+  /// Handles uploading images and saving data to Firestore
   Future<Map<String, dynamic>> getData() async {
     Map<String, dynamic> data = {};
 
-    // Get data for each tyre position
     for (int pos = 1; pos <= widget.numberOfTyrePositions; pos++) {
       String posKey = 'Tyre_Pos_$pos';
       String photoKey = '$posKey Photo';
 
-      data[posKey] = {
+      // Upload image if selected
+      String? imageUrl;
+      if (_selectedImages[photoKey] != null) {
+        imageUrl = await _uploadImageToFirebase(
+            _selectedImages[photoKey]!, 'position_${pos}');
+        _imageUrls[photoKey] = imageUrl; // Update image URLs map
+      }
+
+      Map<String, dynamic> tyreData = {
         'chassisCondition': _chassisConditions[pos] ?? '',
         'virginOrRecap': _virginOrRecaps[pos] ?? '',
         'rimType': _rimTypes[pos] ?? '',
+        'imageUrl': imageUrl ?? _imageUrls[photoKey] ?? '',
       };
 
-      // Handle image data
-      if (_selectedImages[photoKey] != null) {
-        data[posKey]['imagePath'] = _selectedImages[photoKey]!.path;
-        data[posKey]['isNew'] = 'true';
-      } else if (_imageUrls[photoKey] != null) {
-        data[posKey]['imageUrl'] = _imageUrls[photoKey];
-        data[posKey]['isNew'] = 'false';
-      }
+      // Save to Firestore
+      await _firestore
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .collection('tyres')
+          .doc(posKey)
+          .set(tyreData);
+
+      data[posKey] = tyreData;
     }
 
     return data;
   }
 
+  /// Uploads an image file to Firebase Storage and returns the download URL
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+    String fileName =
+        'tyres/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+    UploadTask uploadTask = storageRef.putFile(imageFile);
+
+    // Optionally, you can monitor upload progress here
+
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
+  }
+
+  /// Resets all fields and clears images
   void reset() {
     setState(() {
       // Reset conditions to empty strings
@@ -449,6 +589,7 @@ class TyresPageState extends State<TyresPage>
     });
   }
 
+  /// Calculates the completion percentage based on filled fields
   double getCompletionPercentage() {
     int totalFields = widget.numberOfTyrePositions *
         4; // Number of tyre positions × (1 image + 3 selections) = 4 fields per position
@@ -482,10 +623,36 @@ class TyresPageState extends State<TyresPage>
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
+  /// Updates the state and notifies the parent widget about progress
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(() {
       updateFunction();
     });
     widget.onProgressUpdate();
+  }
+
+  /// Initializes the state with existing data (Called from external files)
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    setState(() {
+      data.forEach((key, value) {
+        if (key.startsWith('Tyre_Pos_')) {
+          final pos = int.parse(key.split('_').last);
+          _chassisConditions[pos] = value['chassisCondition'] ?? 'good';
+          _virginOrRecaps[pos] = value['virginOrRecap'] ?? 'virgin';
+          _rimTypes[pos] = value['rimType'] ?? 'aluminium';
+
+          String photoKey = '$key Photo';
+
+          // Handle image data
+          if (value['imageUrl'] != null) {
+            _imageUrls[photoKey] = value['imageUrl'];
+          }
+          if (value['imagePath'] != null) {
+            _selectedImages[photoKey] = File(value['imagePath']);
+          }
+        }
+      });
+    });
   }
 }

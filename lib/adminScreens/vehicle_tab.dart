@@ -144,83 +144,42 @@ class _VehiclesTabState extends State<VehiclesTab> {
   // Helper method to create default Maintenance
   Maintenance _getDefaultMaintenance(String vehicleId) {
     return Maintenance(
-      maintenanceDocumentUrl: '',
-      warrantyDocumentUrl: '',
-      oemInspectionType: '',
-      oemInspectionReason: '',
-      updatedAt: DateTime.now(),
-      maintenanceData: MaintenanceData(
-        vehicleId: vehicleId,
+        vehicleId: '',
         oemInspectionType: '',
-        oemReason: '',
-      ),
-      warrantySelection: '',
-    );
+        maintenanceDocUrl: '',
+        warrantyDocUrl: '',
+        maintenanceSelection: '',
+        warrantySelection: '',
+        lastUpdated: DateTime.now());
   }
 
   // Helper method to create default TruckConditions
   TruckConditions _getDefaultTruckConditions() {
     return TruckConditions(
       externalCab: ExternalCab(
-        selectedCondition: '',
-        anyDamages: '',
-        anyAdditionalFeatures: '',
-        photos: {
-          'FRONT VIEW': '',
-          'RIGHT SIDE VIEW': '',
-          'REAR VIEW': '',
-          'LEFT SIDE VIEW': '',
-        },
-        lastUpdated: DateTime.now(),
         damages: [],
         additionalFeatures: [],
-      ),
-      internalCab: InternalCab(
-        condition: '',
-        oemInspectionType: '',
-        oemInspectionReason: '',
-        lastUpdated: DateTime.now(),
-        photos: {
-          'Center Dash': '',
-          'Left Dash': '',
-          'Right Dash (Vehicle On)': '',
-          'Mileage': '',
-          'Sun Visors': '',
-          'Center Console': '',
-          'Steering': '',
-          'Left Door Panel': '',
-          'Left Seat': '',
-          'Roof': '',
-          'Bunk Beds': '',
-          'Rear Panel': '',
-          'Right Door Panel': '',
-          'Right Seat': '',
-        },
-        damages: [],
-        additionalFeatures: [],
-        faultCodes: [],
-      ),
-      chassis: Chassis(
         condition: '',
         damagesCondition: '',
         additionalFeaturesCondition: '',
-        photos: {
-          'Fuel Tank': '',
-          'Battery': '',
-          'Cat Walk': '',
-          'Electrical Cable Black': '',
-          'Air Cable Yellow': '',
-          'Air Cable Red': '',
-          'Tail Board': '',
-          '5th Wheel': '',
-          'Left Brake Rear Axel': '',
-          'Right Brake Rear Axel': '',
-        },
-        lastUpdated: DateTime.now(),
-        damages: [],
-        additionalFeatures: [],
-        faultCodes: [],
+        images: {},
       ),
+      internalCab: InternalCab(
+          condition: '',
+          damagesCondition: '',
+          additionalFeaturesCondition: '',
+          faultCodesCondition: '',
+          viewImages: {},
+          damages: [],
+          additionalFeatures: [],
+          faultCodes: []),
+      chassis: Chassis(
+          condition: '',
+          damagesCondition: '',
+          additionalFeaturesCondition: '',
+          images: {},
+          damages: [],
+          additionalFeatures: []),
       driveTrain: DriveTrain(
         condition: '',
         oilLeakConditionEngine: '',
@@ -229,7 +188,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
         oilLeakConditionGearbox: '',
         retarderCondition: '',
         lastUpdated: DateTime.now(),
-        photos: {
+        images: {
           'Right Brake': '',
           'Left Brake': '',
           'Front Axel': '',

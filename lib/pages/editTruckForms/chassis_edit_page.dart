@@ -719,53 +719,63 @@ class ChassisEditPageState extends State<ChassisEditPage>
       }
     });
   }
+Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  String fileName = 'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+  Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+  UploadTask uploadTask = storageRef.putFile(imageFile);
+  TaskSnapshot snapshot = await uploadTask;
+  return await snapshot.ref.getDownloadURL();
+}
 
-  Future<Map<String, dynamic>> getData() async {
-    // Create a sanitized copy of the data
-    Map<String, dynamic> sanitizedData = {
-      'condition': _selectedCondition,
-      'damagesCondition': _damagesCondition,
-      'additionalFeaturesCondition': _additionalFeaturesCondition,
-    };
-
-    // Handle images
-    Map<String, dynamic> imageData = {};
-    _selectedImages.forEach((key, value) {
-      if (value != null) {
-        imageData[key] = {'path': value.path, 'isNew': true};
-      }
-    });
-
-    // Handle damages
-    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
-      return {
-        'description': damage['description'] ?? '',
-        'imagePath': damage['image']?.path,
-        'imageUrl': damage['imageUrl'],
-        'key': damage['key'],
-        'isNew': damage['image'] != null,
+Future<Map<String, dynamic>> getData() async {
+  Map<String, dynamic> serializedImages = {};
+  for (var entry in _selectedImages.entries) {
+    if (entry.value != null) {
+      String imageUrl = await _uploadImageToFirebase(
+          entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
+      serializedImages[entry.key] = {
+        'url': imageUrl,
+        'path': entry.value!.path,
+        'isNew': true
       };
-    }).toList();
-
-    // Handle additional features
-    List<Map<String, dynamic>> serializedFeatures =
-        _additionalFeaturesList.map((feature) {
-      return {
-        'description': feature['description'] ?? '',
-        'imagePath': feature['image']?.path,
-        'imageUrl': feature['imageUrl'],
-        'key': feature['key'],
-        'isNew': feature['image'] != null,
-      };
-    }).toList();
-
-    sanitizedData['images'] = imageData;
-    sanitizedData['damages'] = serializedDamages;
-    sanitizedData['additionalFeatures'] = serializedFeatures;
-
-    return sanitizedData;
+    }
   }
 
+  List<Map<String, dynamic>> serializedDamages = [];
+  for (var damage in _damageList) {
+    if (damage['image'] != null) {
+      String imageUrl = await _uploadImageToFirebase(damage['image'], 'damage');
+      serializedDamages.add({
+        'description': damage['description'] ?? '',
+        'imageUrl': imageUrl,
+        'path': damage['image'].path,
+        'isNew': true
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> serializedFeatures = [];
+  for (var feature in _additionalFeaturesList) {
+    if (feature['image'] != null) {
+      String imageUrl = await _uploadImageToFirebase(feature['image'], 'feature');
+      serializedFeatures.add({
+        'description': feature['description'] ?? '',
+        'imageUrl': imageUrl,
+        'path': feature['image'].path,
+        'isNew': true
+      });
+    }
+  }
+
+  return {
+    'condition': _selectedCondition,
+    'images': serializedImages,
+    'damagesCondition': _damagesCondition,
+    'damages': serializedDamages,
+    'additionalFeaturesCondition': _additionalFeaturesCondition,
+    'additionalFeatures': serializedFeatures,
+  };
+}
   void reset() {
     setState(() {
       _selectedCondition = 'good';

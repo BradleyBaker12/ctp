@@ -64,6 +64,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
       }
     });
   }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -83,81 +84,42 @@ class _VehiclesListPageState extends State<VehiclesListPage>
 
   Maintenance _getDefaultMaintenance(String vehicleId) {
     return Maintenance(
-      maintenanceDocumentUrl: '',
-      warrantyDocumentUrl: '',
+      vehicleId: vehicleId,
       oemInspectionType: '',
-      oemInspectionReason: '',
-      updatedAt: DateTime.now(),
-      maintenanceData: MaintenanceData(
-        vehicleId: vehicleId,
-        oemInspectionType: '',
-        oemReason: '',
-      ),
+      maintenanceDocUrl: '',
+      warrantyDocUrl: '',
+      maintenanceSelection: '',
       warrantySelection: '',
+      lastUpdated: DateTime.now(),
     );
   }
 
   TruckConditions _getDefaultTruckConditions() {
     return TruckConditions(
       externalCab: ExternalCab(
-        selectedCondition: '',
-        anyDamages: '',
-        anyAdditionalFeatures: '',
-        photos: {
-          'FRONT VIEW': '',
-          'RIGHT SIDE VIEW': '',
-          'REAR VIEW': '',
-          'LEFT SIDE VIEW': '',
-        },
-        lastUpdated: DateTime.now(),
         damages: [],
         additionalFeatures: [],
-      ),
-      internalCab: InternalCab(
-        condition: '',
-        oemInspectionType: '',
-        oemInspectionReason: '',
-        lastUpdated: DateTime.now(),
-        photos: {
-          'Center Dash': '',
-          'Left Dash': '',
-          'Right Dash (Vehicle On)': '',
-          'Mileage': '',
-          'Sun Visors': '',
-          'Center Console': '',
-          'Steering': '',
-          'Left Door Panel': '',
-          'Left Seat': '',
-          'Roof': '',
-          'Bunk Beds': '',
-          'Rear Panel': '',
-          'Right Door Panel': '',
-          'Right Seat': '',
-        },
-        damages: [],
-        additionalFeatures: [],
-        faultCodes: [],
-      ),
-      chassis: Chassis(
         condition: '',
         damagesCondition: '',
         additionalFeaturesCondition: '',
-        photos: {
-          'Fuel Tank': '',
-          'Battery': '',
-          'Cat Walk': '',
-          'Electrical Cable Black': '',
-          'Air Cable Yellow': '',
-          'Air Cable Red': '',
-          'Tail Board': '',
-          '5th Wheel': '',
-          'Left Brake Rear Axel': '',
-          'Right Brake Rear Axel': '',
-        },
-        lastUpdated: DateTime.now(),
-        damages: [],
-        additionalFeatures: [],
-        faultCodes: [],
+        images: {},
+      ),
+      internalCab: InternalCab(
+          condition: '',
+          damagesCondition: '',
+          additionalFeaturesCondition: '',
+          faultCodesCondition: '',
+          viewImages: {},
+          damages: [],
+          additionalFeatures: [],
+          faultCodes: []),
+      chassis: Chassis(
+        condition: '',
+          damagesCondition: '',
+          additionalFeaturesCondition: '',
+          images: {},
+          damages: [],
+          additionalFeatures: []
       ),
       driveTrain: DriveTrain(
         condition: '',
@@ -167,7 +129,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         oilLeakConditionGearbox: '',
         retarderCondition: '',
         lastUpdated: DateTime.now(),
-        photos: {
+        images: {
           'Right Brake': '',
           'Left Brake': '',
           'Front Axel': '',
@@ -212,7 +174,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     }
 
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
-    print('User Id: ${currentUserId}');
+    print('User Id: $currentUserId');
     print('Fetched vehicles count: ${userVehicles.length}');
 
     // Add print statements to verify the filtering logic

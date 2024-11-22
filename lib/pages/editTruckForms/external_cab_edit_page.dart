@@ -231,36 +231,47 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     return true;
   }
 
-  @override
   Future<Map<String, dynamic>> getData() async {
-    // Convert File objects to paths for serialization
     Map<String, dynamic> serializedImages = {};
-    _selectedImages.forEach((key, value) {
-      if (value != null) {
-        serializedImages[key] = {'path': value.path, 'isNew': true};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        String imageUrl = await _uploadImageToFirebase(
+            entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
+        serializedImages[entry.key] = {
+          'url': imageUrl,
+          'path': entry.value!.path,
+          'isNew': true
+        };
       }
-    });
+    }
 
-    // Convert damage list to serializable format
-    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
-      return {
-        'description': damage['description'] ?? '',
-        'imagePath': damage['image']?.path,
-        'imageUrl': damage['imageUrl'] ?? '',
-        'isNew': damage['image'] != null
-      };
-    }).toList();
+    List<Map<String, dynamic>> serializedDamages = [];
+    for (var damage in _damageList) {
+      if (damage['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(damage['image'], 'damage');
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': damage['image'].path,
+          'isNew': true
+        });
+      }
+    }
 
-    // Convert additional features list to serializable format
-    List<Map<String, dynamic>> serializedFeatures =
-        _additionalFeaturesList.map((feature) {
-      return {
-        'description': feature['description'] ?? '',
-        'imagePath': feature['image']?.path,
-        'imageUrl': feature['imageUrl'] ?? '',
-        'isNew': feature['image'] != null
-      };
-    }).toList();
+    List<Map<String, dynamic>> serializedFeatures = [];
+    for (var feature in _additionalFeaturesList) {
+      if (feature['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(feature['image'], 'feature');
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': feature['image'].path,
+          'isNew': true
+        });
+      }
+    }
 
     return {
       'condition': _selectedCondition,
@@ -287,18 +298,14 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     });
   }
 
-  // Helper method to upload a single image to Firebase Storage
-  Future<String> _uploadImage(File file, String key) async {
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
     try {
       String fileName =
-          'external_cab/${widget.vehicleId}_$key${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'external_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(file);
-
+      UploadTask uploadTask = storageRef.putFile(imageFile);
       TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
+      return await snapshot.ref.getDownloadURL();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading image: $e')),

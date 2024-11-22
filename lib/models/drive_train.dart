@@ -12,7 +12,7 @@ class DriveTrain {
   final String oilLeakConditionGearbox;
   final String retarderCondition;
   final DateTime lastUpdated;
-  final Map<String, String> photos;
+  final Map<String, dynamic> images; // Updated to store image data with paths and URLs
   final List<dynamic> damages;
   final List<dynamic> additionalFeatures;
   final List<dynamic> faultCodes;
@@ -25,37 +25,27 @@ class DriveTrain {
     required this.oilLeakConditionGearbox,
     required this.retarderCondition,
     required this.lastUpdated,
-    required this.photos,
+    required this.images,
     required this.damages,
     required this.additionalFeatures,
     required this.faultCodes,
   });
 
   factory DriveTrain.fromMap(Map<String, dynamic> data) {
+    Map<String, dynamic> imagesData = {};
+    if (data['images'] != null && data['images'] is Map) {
+      imagesData = Map<String, dynamic>.from(data['images']);
+    }
+
     return DriveTrain(
       condition: data['condition'] ?? '',
-      oilLeakConditionEngine: data['oilLeakConditionEngine'] ?? '',
-      waterLeakConditionEngine: data['waterLeakConditionEngine'] ?? '',
+      oilLeakConditionEngine: data['engineOilLeak'] ?? '',
+      waterLeakConditionEngine: data['engineWaterLeak'] ?? '',
       blowbyCondition: data['blowbyCondition'] ?? '',
-      oilLeakConditionGearbox: data['oilLeakConditionGearbox'] ?? '',
+      oilLeakConditionGearbox: data['gearboxOilLeak'] ?? '',
       retarderCondition: data['retarderCondition'] ?? '',
       lastUpdated: parseTimestamp(data['lastUpdated'], ''),
-      photos: {
-        'Right Brake': data['Right Brake'] ?? '',
-        'Left Brake': data['Left Brake'] ?? '',
-        'Front Axel': data['Front Axel'] ?? '',
-        'Suspension': data['Suspension'] ?? '',
-        'Fuel Tank': data['Fuel Tank'] ?? '',
-        'Battery': data['Battery'] ?? '',
-        'Cat Walk': data['Cat Walk'] ?? '',
-        'Electrical Cable Black': data['Electrical Cable Black'] ?? '',
-        'Air Cable Yellow': data['Air Cable Yellow'] ?? '',
-        'Air Cable Red': data['Air Cable Red'] ?? '',
-        'Tail Board': data['Tail Board'] ?? '',
-        '5th Wheel': data['5th Wheel'] ?? '',
-        'Left Brake Rear Axel': data['Left Brake Rear Axel'] ?? '',
-        'Right Brake Rear Axel': data['Right Brake Rear Axel'] ?? '',
-      },
+      images: imagesData,
       damages: data['damages'] ?? [],
       additionalFeatures: data['additionalFeatures'] ?? [],
       faultCodes: data['faultCodes'] ?? [],
@@ -65,13 +55,13 @@ class DriveTrain {
   Map<String, dynamic> toMap() {
     return {
       'condition': condition,
-      'oilLeakConditionEngine': oilLeakConditionEngine,
-      'waterLeakConditionEngine': waterLeakConditionEngine,
+      'engineOilLeak': oilLeakConditionEngine,
+      'engineWaterLeak': waterLeakConditionEngine,
       'blowbyCondition': blowbyCondition,
-      'oilLeakConditionGearbox': oilLeakConditionGearbox,
+      'gearboxOilLeak': oilLeakConditionGearbox,
       'retarderCondition': retarderCondition,
-      ...photos,
       'lastUpdated': Timestamp.fromDate(lastUpdated),
+      'images': images,
       'damages': damages,
       'additionalFeatures': additionalFeatures,
       'faultCodes': faultCodes,
@@ -87,7 +77,7 @@ class DriveTrain {
       oilLeakConditionGearbox: '',
       retarderCondition: '',
       lastUpdated: DateTime.now(),
-      photos: {},
+      images: {},
       damages: [],
       additionalFeatures: [],
       faultCodes: [],

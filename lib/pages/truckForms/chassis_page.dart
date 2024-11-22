@@ -720,50 +720,86 @@ class ChassisPageState extends State<ChassisPage>
     });
   }
 
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+    String fileName =
+        'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+    UploadTask uploadTask = storageRef.putFile(imageFile);
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
+  }
+
   Future<Map<String, dynamic>> getData() async {
-    // Create a sanitized copy of the data
-    Map<String, dynamic> sanitizedData = {
+    Map<String, dynamic> serializedImages = {};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        String imageUrl = await _uploadImageToFirebase(
+            entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
+        serializedImages[entry.key] = {
+          'url': imageUrl,
+          'path': entry.value!.path,
+          'isNew': true
+        };
+      } else if (_imageUrls[entry.key] != null) {
+        serializedImages[entry.key] = {
+          'url': _imageUrls[entry.key],
+          'isNew': false
+        };
+      }
+    }
+
+    List<Map<String, dynamic>> serializedDamages = [];
+    for (var damage in _damageList) {
+      if (damage['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(damage['image'], 'damage');
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': damage['image'].path,
+          'key': damage['key'],
+          'isNew': true
+        });
+      } else if (damage['imageUrl'] != null) {
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': damage['imageUrl'],
+          'key': damage['key'],
+          'isNew': false
+        });
+      }
+    }
+
+    List<Map<String, dynamic>> serializedFeatures = [];
+    for (var feature in _additionalFeaturesList) {
+      if (feature['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(feature['image'], 'feature');
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': feature['image'].path,
+          'key': feature['key'],
+          'isNew': true
+        });
+      } else if (feature['imageUrl'] != null) {
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': feature['imageUrl'],
+          'key': feature['key'],
+          'isNew': false
+        });
+      }
+    }
+
+    return {
       'condition': _selectedCondition,
       'damagesCondition': _damagesCondition,
       'additionalFeaturesCondition': _additionalFeaturesCondition,
+      'images': serializedImages,
+      'damages': serializedDamages,
+      'additionalFeatures': serializedFeatures,
     };
-
-    // Handle images
-    Map<String, dynamic> imageData = {};
-    _selectedImages.forEach((key, value) {
-      if (value != null) {
-        imageData[key] = {'path': value.path, 'isNew': true};
-      }
-    });
-
-    // Handle damages
-    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
-      return {
-        'description': damage['description'] ?? '',
-        'imagePath': damage['image']?.path,
-        'imageUrl': damage['imageUrl'],
-        'key': damage['key'],
-        'isNew': damage['image'] != null,
-      };
-    }).toList();
-
-    // Handle additional features
-    List<Map<String, dynamic>> serializedFeatures =
-        _additionalFeaturesList.map((feature) {
-      return {
-        'description': feature['description'] ?? '',
-        'imagePath': feature['image']?.path,
-        'imageUrl': feature['imageUrl'],
-        'key': feature['key'],
-        'isNew': feature['image'] != null,
-      };
-    }).toList();
-
-    sanitizedData['images'] = imageData;
-    sanitizedData['damages'] = serializedDamages;
-    sanitizedData['additionalFeatures'] = serializedFeatures;
-
-    return sanitizedData;
   }
 
   void reset() {

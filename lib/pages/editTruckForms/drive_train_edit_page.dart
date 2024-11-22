@@ -475,38 +475,37 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     });
   }
 
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+    String fileName = 'drive_train/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+    UploadTask uploadTask = storageRef.putFile(imageFile);
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
+  }
+
   Future<Map<String, dynamic>> getData() async {
-    // Create a sanitized copy of the data
-    Map<String, dynamic> sanitizedData = {
+    Map<String, dynamic> serializedImages = {};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        String imageUrl = await _uploadImageToFirebase(
+            entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
+        serializedImages[entry.key] = {
+          'url': imageUrl,
+          'path': entry.value!.path,
+          'isNew': true
+        };
+      }
+    }
+
+    return {
       'condition': _selectedCondition,
       'engineOilLeak': _oilLeakConditionEngine,
       'engineWaterLeak': _waterLeakConditionEngine,
       'blowbyCondition': _blowbyCondition,
       'gearboxOilLeak': _oilLeakConditionGearbox,
       'retarderCondition': _retarderCondition,
+      'images': serializedImages,
     };
-
-    // Handle images
-    Map<String, dynamic> imageData = {};
-    for (var entry in _selectedImages.entries) {
-      if (entry.value != null) {
-        imageData[entry.key] = {
-          'path': entry.value!.path,
-          'isNew': true,
-        };
-      } else if (_imageUrls.containsKey(entry.key)) {
-        imageData[entry.key] = {
-          'url': _imageUrls[entry.key],
-          'isNew': false,
-        };
-      }
-    }
-
-    if (imageData.isNotEmpty) {
-      sanitizedData['images'] = imageData;
-    }
-
-    return sanitizedData;
   }
 
   void reset() {

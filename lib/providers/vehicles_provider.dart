@@ -95,8 +95,7 @@ class VehicleProvider with ChangeNotifier {
         // Initialize truck conditions
         if (data['truckConditions'] is Map) {
           var conditions = data['truckConditions'] as Map<String, dynamic>;
-          ['chassis', 'externalCab', 'driveTrain', 'internalCab']
-              .forEach((section) {
+          for (var section in ['chassis', 'externalCab', 'driveTrain', 'internalCab']) {
             if (conditions[section] is Map) {
               var sectionData = conditions[section] as Map<String, dynamic>;
               sectionData['damages'] = [];
@@ -105,7 +104,7 @@ class VehicleProvider with ChangeNotifier {
                 sectionData['faultCodes'] = [];
               }
             }
-          });
+          }
         }
 
         // Ensure createdAt is valid

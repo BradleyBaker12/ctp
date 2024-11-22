@@ -10,50 +10,60 @@ class Chassis {
   final String condition;
   final String damagesCondition;
   final String additionalFeaturesCondition;
-  final Map<String, String> photos;
-  final DateTime lastUpdated;
+  final Map<String, ChassisImage> images;
   final List<Damage> damages;
   final List<AdditionalFeature> additionalFeatures;
-  final List<dynamic> faultCodes;
 
-  Chassis({
+  const Chassis({
     required this.condition,
     required this.damagesCondition,
     required this.additionalFeaturesCondition,
-    required this.photos,
-    required this.lastUpdated,
+    required this.images,
     required this.damages,
     required this.additionalFeatures,
-    required this.faultCodes,
   });
 
-  factory Chassis.fromMap(Map<String, dynamic> data) {
+  factory Chassis.fromMap(Map<String, dynamic>? data) {
+    if (data == null) return Chassis.empty();
+
+    final imagesMap = <String, ChassisImage>{};
+    final rawImages = data['images'] as Map<String, dynamic>?;
+
+    if (rawImages != null) {
+      rawImages.forEach((key, value) {
+        if (value is Map<String, dynamic>) {
+          imagesMap[key] = ChassisImage.fromMap(value);
+        }
+      });
+    }
+
     return Chassis(
-      condition: data['condition'] ?? '',
-      damagesCondition: data['damagesCondition'] ?? '',
-      additionalFeaturesCondition: data['additionalFeaturesCondition'] ?? '',
-      photos: {
-        'Fuel Tank': data['Fuel Tank'] ?? '',
-        'Battery': data['Battery'] ?? '',
-        'Cat Walk': data['Cat Walk'] ?? '',
-        'Electrical Cable Black': data['Electrical Cable Black'] ?? '',
-        'Air Cable Yellow': data['Air Cable Yellow'] ?? '',
-        'Air Cable Red': data['Air Cable Red'] ?? '',
-        'Tail Board': data['Tail Board'] ?? '',
-        '5th Wheel': data['5th Wheel'] ?? '',
-        'Left Brake Rear Axel': data['Left Brake Rear Axel'] ?? '',
-        'Right Brake Rear Axel': data['Right Brake Rear Axel'] ?? '',
-      },
-      lastUpdated: parseTimestamp(data['lastUpdated'], ''),
-      damages: (data['damages'] as List<dynamic>?)
-              ?.map((d) => Damage.fromMap(d as Map<String, dynamic>))
-              .toList() ??
-          [],
-      additionalFeatures: (data['additionalFeatures'] as List<dynamic>?)
-              ?.map((a) => AdditionalFeature.fromMap(a as Map<String, dynamic>))
-              .toList() ??
-          [],
-      faultCodes: data['faultCodes'] ?? [],
+      condition: data['condition'] as String? ?? '',
+      damagesCondition: data['damagesCondition'] as String? ?? '',
+      additionalFeaturesCondition:
+          data['additionalFeaturesCondition'] as String? ?? '',
+      images: imagesMap,
+      damages: List<Damage>.from(
+        (data['damages'] as List<dynamic>? ?? []).map(
+          (x) => Damage.fromMap(x as Map<String, dynamic>),
+        ),
+      ),
+      additionalFeatures: List<AdditionalFeature>.from(
+        (data['additionalFeatures'] as List<dynamic>? ?? []).map(
+          (x) => AdditionalFeature.fromMap(x as Map<String, dynamic>),
+        ),
+      ),
+    );
+  }
+
+  factory Chassis.empty() {
+    return const Chassis(
+      condition: '',
+      damagesCondition: '',
+      additionalFeaturesCondition: '',
+      images: {},
+      damages: [],
+      additionalFeatures: [],
     );
   }
 
@@ -62,24 +72,33 @@ class Chassis {
       'condition': condition,
       'damagesCondition': damagesCondition,
       'additionalFeaturesCondition': additionalFeaturesCondition,
-      ...photos,
-      'lastUpdated': Timestamp.fromDate(lastUpdated),
+      'images': images.map((key, value) => MapEntry(key, value.toMap())),
       'damages': damages.map((d) => d.toMap()).toList(),
       'additionalFeatures': additionalFeatures.map((a) => a.toMap()).toList(),
-      'faultCodes': faultCodes,
     };
   }
+}
 
-  factory Chassis.empty() {
-    return Chassis(
-      condition: '',
-      damagesCondition: '',
-      additionalFeaturesCondition: '',
-      photos: {},
-      lastUpdated: DateTime.now(),
-      damages: [],
-      additionalFeatures: [],
-      faultCodes: [],
+class ChassisImage {
+  final bool isNew;
+  final String path;
+
+  ChassisImage({
+    required this.isNew,
+    required this.path,
+  });
+
+  factory ChassisImage.fromMap(Map<String, dynamic> data) {
+    return ChassisImage(
+      isNew: data['isNew'] ?? false,
+      path: data['path'] ?? '',
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'isNew': isNew,
+      'path': path,
+    };
   }
 }

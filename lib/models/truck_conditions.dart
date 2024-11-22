@@ -26,38 +26,35 @@ class TruckConditions {
       externalCab: map['externalCab'] != null
           ? ExternalCab.fromMap(map['externalCab'] as Map<String, dynamic>)
           : ExternalCab(
-              selectedCondition: '',
-              anyDamages: '',
-              anyAdditionalFeatures: '',
-              photos: {},
-              lastUpdated: DateTime.now(),
               damages: [],
               additionalFeatures: [],
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              images: {},
             ),
-      internalCab:
-          InternalCab.fromMap(map['internalCab'] as Map<String, dynamic>),
+      internalCab: InternalCab.fromMap(map['internalCab'] as Map<String, dynamic>),
       chassis: Chassis.fromMap(map['chassis'] as Map<String, dynamic>),
       driveTrain: DriveTrain.fromMap(map['driveTrain'] as Map<String, dynamic>),
-      tyres: (map['tyres'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(
-              key,
-              Tyres.fromMap(value as Map<String, dynamic>),
-            ),
-          ) ??
-          {'default': Tyres(lastUpdated: DateTime.now(), positions: {})},
+      tyres: {
+        'tyres': Tyres(
+          positions: _parseTyrePositions(map['tyres'] as Map<String, dynamic>?),
+          lastUpdated: DateTime.now(),
+        )
+      },
     );
   }
 
-  static Map<String, Tyres> _parseTyresData(Map<String, dynamic>? data) {
-    final tyres = <String, Tyres>{};
+  static Map<String, TyrePosition> _parseTyrePositions(Map<String, dynamic>? data) {
+    final positions = <String, TyrePosition>{};
     if (data != null) {
       data.forEach((key, value) {
         if (value is Map<String, dynamic>) {
-          tyres[key] = Tyres.fromMap(value);
+          positions[key] = TyrePosition.fromMap(value);
         }
       });
     }
-    return tyres;
+    return positions;
   }
 
   // Add an empty constructor for default values

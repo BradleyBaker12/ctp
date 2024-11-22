@@ -730,55 +730,75 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     });
   }
 
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+    String fileName = 'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+    UploadTask uploadTask = storageRef.putFile(imageFile);
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
+  }
+
   Future<Map<String, dynamic>> getData() async {
-    // Convert File objects to paths for serialization
     Map<String, dynamic> serializedImages = {};
-    _selectedImages.forEach((key, value) {
-      if (value != null) {
-        serializedImages[key] = {'path': value.path, 'isNew': true};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        String imageUrl = await _uploadImageToFirebase(
+            entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
+        serializedImages[entry.key] = {
+          'url': imageUrl,
+          'path': entry.value!.path,
+          'isNew': true
+        };
       }
-    });
+    }
 
-    // Convert damage list to serializable format
-    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
-      return {
-        'description': damage['description'] ?? '',
-        'imagePath': damage['image']?.path,
-        'imageUrl': damage['imageUrl'] ?? '',
-        'isNew': damage['image'] != null
-      };
-    }).toList();
+    List<Map<String, dynamic>> serializedDamages = [];
+    for (var damage in _damageList) {
+      if (damage['image'] != null) {
+        String imageUrl = await _uploadImageToFirebase(damage['image'], 'damage');
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': damage['image'].path,
+          'isNew': true
+        });
+      }
+    }
 
-    // Convert additional features list to serializable format
-    List<Map<String, dynamic>> serializedFeatures =
-        _additionalFeaturesList.map((feature) {
-      return {
-        'description': feature['description'] ?? '',
-        'imagePath': feature['image']?.path,
-        'imageUrl': feature['imageUrl'] ?? '',
-        'isNew': feature['image'] != null
-      };
-    }).toList();
+    List<Map<String, dynamic>> serializedFeatures = [];
+    for (var feature in _additionalFeaturesList) {
+      if (feature['image'] != null) {
+        String imageUrl = await _uploadImageToFirebase(feature['image'], 'feature');
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': feature['image'].path,
+          'isNew': true
+        });
+      }
+    }
 
-    // Convert fault codes list to serializable format
-    List<Map<String, dynamic>> serializedFaultCodes =
-        _faultCodesList.map((faultCode) {
-      return {
-        'description': faultCode['description'] ?? '',
-        'imagePath': faultCode['image']?.path,
-        'imageUrl': faultCode['imageUrl'] ?? '',
-        'isNew': faultCode['image'] != null
-      };
-    }).toList();
+    List<Map<String, dynamic>> serializedFaultCodes = [];
+    for (var faultCode in _faultCodesList) {
+      if (faultCode['image'] != null) {
+        String imageUrl = await _uploadImageToFirebase(faultCode['image'], 'fault_code');
+        serializedFaultCodes.add({
+          'description': faultCode['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': faultCode['image'].path,
+          'isNew': true
+        });
+      }
+    }
 
     return {
       'condition': _selectedCondition,
+      'images': serializedImages,
       'damagesCondition': _damagesCondition,
-      'additionalFeaturesCondition': _additionalFeaturesCondition,
-      'faultCodesCondition': _faultCodesCondition,
-      'viewImages': serializedImages,
       'damages': serializedDamages,
+      'additionalFeaturesCondition': _additionalFeaturesCondition,
       'additionalFeatures': serializedFeatures,
+      'faultCodesCondition': _faultCodesCondition,
       'faultCodes': serializedFaultCodes,
     };
   }

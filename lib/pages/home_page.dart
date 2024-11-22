@@ -89,8 +89,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       await vehicleProvider.fetchVehicles(userProvider);
 
       // Safely handle recent vehicles
+      // Fetch vehicles with proper error handling
+      await vehicleProvider.fetchVehicles(userProvider);
+
+// Safely handle recent vehicles - filter for Live status only
       final fetchedRecentVehicles = await vehicleProvider.fetchRecentVehicles();
-      recentVehicles = List<Vehicle>.from(fetchedRecentVehicles);
+      recentVehicles = List<Vehicle>.from(fetchedRecentVehicles)
+          .where((vehicle) => vehicle.vehicleStatus == 'Live')
+          .toList();
       displayedVehiclesNotifier.value = recentVehicles.take(5).toList();
 
       // Fetch offers and user preferences

@@ -100,10 +100,299 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   ];
 
   // Define manufacturer options
+  final Map<String, List<String>> _makeModelOptions = {
+    'DAF': [
+      'XF 65',
+      'XF 75',
+      'XF 85',
+      'XF 95',
+      'XF 105',
+      'CF 45',
+      'CF 55',
+      'LF 65',
+      'LF 75',
+      'LF 85',
+    ],
+    'FUSO': [
+      'Canter 140',
+      'Canter 160',
+      'Canter 180',
+      'Fighter 4x2',
+      'Fighter 6x2',
+      'Super Great 4x2',
+      'Super Great 6x2',
+      'Rosa 6x4',
+      'Rosa 6x2',
+    ],
+    'ISUZU': [
+      'NKR',
+      'NPR',
+      'NQR',
+      'FTR',
+      'FTR-S',
+      'FVR',
+      'FTR-FT',
+      'Giga 4x2',
+      'Giga 6x4',
+    ],
+    'IVECO': [
+      'Stralis HL',
+      'Stralis LT',
+      'Trakker GL',
+      'Trakker GLX',
+      'Eurocargo EC',
+      'Eurocargo XE',
+      'S-Way 4x2',
+      'S-Way 6x2',
+    ],
+    'MAN': [
+      'TGL 4x2',
+      'TGL 6x2',
+      'TGM 6x2',
+      'TGM 6x4',
+      'TGS 6x4',
+      'TGX 6x2',
+      'TGX 6x4',
+    ],
+    'MERCEDES-BENZ': [
+      'Actros 1845',
+      'Actros 2545',
+      'Actros 2745',
+      'Arocs 3245',
+      'Arocs 4245',
+      'Atego 1221',
+      'Atego 1821',
+      'Econic 1840',
+      'Econic 2640',
+    ],
+    'SCANIA': [
+      'R450',
+      'R500',
+      'R580',
+      'S450',
+      'S500',
+      'S580',
+      'G450',
+      'G500',
+      'G580',
+      'P450',
+      'P500',
+      'P580',
+    ],
+    'UD TRUCKS': [
+      'Quon 4x2',
+      'Quon 6x2',
+      'Quester 6x2',
+      'Quester 6x4',
+      'Condor 6x2',
+      'Condor 6x4',
+      'Kazet 4x2',
+      'Kazet 6x2',
+      'Croner 6x2',
+      'Croner 6x4',
+    ],
+    'VW': [
+      'Constellation 6x2',
+      'Constellation 6x4',
+      'Delivery 2.0',
+      'Delivery 2.5',
+      'Worker 11.190',
+      'Worker 13.170',
+      'Worker 15.170',
+    ],
+    'VOLVO': [
+      'FH 460',
+      'FH 480',
+      'FH 530',
+      'FM 500',
+      'FM 550',
+      'FMX 480',
+      'VNL 860',
+      'VNL 970',
+      'VNR 430',
+      'VNR 560',
+      'VHD 330',
+      'VNX 360',
+    ],
+    'FORD': [
+      'F-MAX 6x2',
+      'F-MAX 6x4',
+      'Cargo 4x2',
+      'Cargo 6x2',
+      'Transit 4x2',
+      'Transit 6x2',
+    ],
+    'TOYOTA': [
+      'Dyna 4x2',
+      'Dyna 6x2',
+      'ToyoAce 4x2',
+      'ToyoAce 6x2',
+      'Coaster 12-seater',
+      'Coaster 30-seater',
+      'Hiace 4x2',
+      'Hiace 6x2',
+    ],
+    'EICHER': [
+      'Pro 1000',
+      'Pro 2000',
+      'Pro 3000',
+      'Pro 4000',
+      'Pro 6000',
+      'Skyline 6x2',
+      'Skyline 6x4',
+    ],
+    'FAW': [
+      'Jiefang CA2124',
+      'Jiefang CA2126',
+      'Jiefang CA2141',
+      'J6P 6x2',
+      'J6P 6x4',
+      'JH6 4x2',
+      'JH6 6x2',
+    ],
+    'JAC': [
+      'Gallop 4x2',
+      'Gallop 6x2',
+      'Gallop 6x4',
+      'Kangling 4x2',
+      'Kangling 6x2',
+      'Sunray 4x2',
+      'Sunray 6x2',
+      'N-Series 6x2',
+      'N-Series 6x4',
+    ],
+    'POWERSTAR': [
+      'VX 320',
+      'VX 450',
+      'FT 620',
+      'FT 720',
+      'XP 360',
+      'XP 480',
+    ],
+    'RENAULT': [
+      'T High',
+      'T Medium',
+      'T Low',
+      'T 340',
+      'T 450',
+      'T 520',
+      'T 520 Elite',
+      'T 540',
+      'T 540 Elite',
+      'T 610',
+      'T 680',
+      'T 680 Elite',
+      'C 200',
+      'C 300',
+      'K 100',
+      'K 200',
+      'D 50',
+      'D 100',
+    ],
+    'TATA': [
+      'Prima 4x2',
+      'Prima 6x2',
+      'Signa 6x2',
+      'Signa 6x4',
+      'LPT 4x2',
+      'LPT 6x2',
+      'Ultra 6x2',
+      'Ultra 6x4',
+    ],
+    'ASHOK LEYLAND': [
+      'Captain 6x2',
+      'Captain 6x4',
+      'U-Truck 6x2',
+      'U-Truck 6x4',
+      'Ecomet 6x2',
+      'Ecomet 6x4',
+      'Boss 6x2',
+      'Boss 6x4',
+      'Dost 6x2',
+      'Dost 6x4',
+    ],
+    'FIAT': [
+      'Ducato Cargo',
+      'Ducato Chassis',
+      'Talento 4x2',
+      'Talento 6x2',
+      'Fiorino 4x2',
+      'Fiorino 6x2',
+    ],
+    'FOTON': [
+      'Auman 6x2',
+      'Auman 6x4',
+      'Aumark 6x2',
+      'Aumark 6x4',
+      'Ollin 6x2',
+      'Ollin 6x4',
+      'Toano 6x2',
+      'Toano 6x4',
+    ],
+    'HYUNDAI': [
+      'Xcient 6x2',
+      'Xcient 6x4',
+      'Mighty 4x2',
+      'Mighty 6x2',
+      'Pavise 6x2',
+      'Pavise 6x4',
+      'County 6x2',
+      'County 6x4',
+    ],
+    'PEUGEOT': [
+      'Boxer 4x2',
+      'Boxer 6x2',
+      'Expert 4x2',
+      'Expert 6x2',
+      'Partner 4x2',
+      'Partner 6x2',
+    ],
+    'US TRUCKS': [
+      'Freightliner Cascadia',
+      'Freightliner M2 106',
+      'Kenworth T680',
+      'Kenworth W990',
+      'Peterbilt 579',
+      'Peterbilt 389',
+      'Mack Anthem',
+      'Mack Pinnacle',
+    ],
+
+    // Added Makes
+    'Freightliner': ['Argosy', 'Detroit', 'Cascadia', 'M2 106', 'Sprinter'],
+    'JMC': ['Carrying', 'G7', 'Vigus', 'R-Series'],
+    'Bedford': ['TK', 'S', 'AFT', 'CF', 'CA'],
+    'Daewoo': ['Maximus', 'Novus', 'Furusan', 'BX'],
+    'ERF': ['Guardian', 'Evolution', 'Titan', 'Pro-Link'],
+    'Howo': ['A7', 'A9', '300', '500', '800', '900'],
+    'International': [
+      'Eagle 9800i',
+      'ProStar',
+      'Lonestar',
+      'LT Series',
+      'HV Series'
+    ],
+    'Kenworth': ['T680', 'W990', 'T880', 'W900', 'T370'],
+    'Kia': ['K2700', 'K3000', 'K3500'],
+    'Mack': ['Anthem', 'Pinnacle', 'Granite', 'TerraPro', 'Vision'],
+    'Mitsubishi': [
+      'Fuso Canter',
+      'Fuso Fighter',
+      'Fuso Super Great',
+      'Fuso Rosa'
+    ],
+    'Nissan': ['Atlas', 'Civilian', 'KingLong', 'NV Series'],
+    'Peterbilt': ['579', '389', '567', '349', '337'],
+    'Samil': ['Magnum', 'Ace', 'Power', 'Trident'],
+    'Sinotruk': ['Howo', 'Sitrak', 'Sinematic', 'Hanteng'],
+    'Samag': ['Samax', 'Samstrong', 'Samheavy'],
+    'Sitrak': ['SLB', 'SLF', 'SLS', 'SLT'],
+    'Westernstar': ['5700', '6900', '6800', '4300', '4800'],
+  };
+
   final List<String> _brandOptions = [
     'DAF',
     'FUSO',
-    'HINO',
     'ISUZU',
     'IVECO',
     'MAN',
@@ -114,8 +403,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     'VOLVO',
     'FORD',
     'TOYOTA',
-    'MAKE',
-    'CNHTC',
     'EICHER',
     'FAW',
     'JAC',
@@ -123,46 +410,34 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     'RENAULT',
     'TATA',
     'ASHOK LEYLAND',
-    'DAYUN',
     'FIAT',
     'FOTON',
     'HYUNDAI',
-    'JOYLONG',
     'PEUGEOT',
     'US TRUCKS',
+
+    // Added Brands
+    'Freightliner',
+    'JMC',
+    'Bedford',
+    'Daewoo',
+    'ERF',
+    'Howo',
+    'International',
+    'Kenworth',
+    'Kia',
+    'Mack',
+    'Mitsubishi',
+    'Nissan',
+    'Peterbilt',
+    'Samil',
+    'Sinotruk',
+    'Samag',
+    'Sitrak',
+    'Westernstar',
   ];
 
-  // Define makeModel options
-  final Map<String, List<String>> _makeModelOptions = {
-    'DAF': ['XF', 'CF', 'LF'],
-    'FUSO': ['Canter', 'Fighter', 'Super Great', 'Rosa'],
-    'HINO': ['300 Series', '500 Series', '700 Series'],
-    'ISUZU': ['N-Series', 'F-Series', 'Giga'],
-    'IVECO': ['Stralis', 'Trakker', 'Eurocargo', 'S-Way'],
-    'MAN': ['TGL', 'TGM', 'TGS', 'TGX'],
-    'MERCEDES-BENZ': ['Actros', 'Arocs', 'Atego', 'Econic'],
-    'SCANIA': ['R-series', 'S-series', 'G-series', 'P-series'],
-    'UD TRUCKS': ['Quon', 'Quester', 'Condor', 'Kazet', 'Croner'],
-    'VW': ['Constellation', 'Delivery', 'Worker'],
-    'VOLVO': ['FH', 'FM', 'FMX', 'VNL', 'VNR', 'VHD', 'VNX'],
-    'FORD': ['F-MAX', 'Cargo', 'Transit'],
-    'TOYOTA': ['Dyna', 'ToyoAce', 'Coaster', 'Hiace'],
-    'CNHTC': ['Howo', 'Sitrak', 'Hohan', 'Gold Prince'],
-    'EICHER': ['Pro 1000', 'Pro 3000', 'Pro 6000', 'Skyline'],
-    'FAW': ['Jiefang', 'J6P', 'JH6'],
-    'JAC': ['Gallop', 'Kangling', 'Sunray', 'N-Series'],
-    'POWERSTAR': ['VX Series', 'FT Series', 'XP Series'],
-    'RENAULT': ['T-series', 'C-series', 'K-series', 'D-series'],
-    'TATA': ['Prima', 'Signa', 'LPT', 'Ultra'],
-    'ASHOK LEYLAND': ['Captain', 'U-Truck', 'Ecomet', 'Boss', 'Dost'],
-    'DAYUN': ['CGC Series', 'N8E', 'N8V', 'N9'],
-    'FIAT': ['Ducato', 'Talento', 'Fiorino'],
-    'FOTON': ['Auman', 'Aumark', 'Ollin', 'Toano'],
-    'HYUNDAI': ['Xcient', 'Mighty', 'Pavise', 'County'],
-    'JOYLONG': ['E6', 'E5', 'HKL6700', 'HKL6800'],
-    'PEUGEOT': ['Boxer', 'Expert', 'Partner'],
-    'US TRUCKS': ['Freightliner', 'Kenworth', 'Peterbilt', 'Mack'],
-  };
+  String? _initialVehicleStatus;
 
   // Define year options
   final List<String> _yearOptions = List.generate(
@@ -394,6 +669,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       print('DEBUG: NATIS/RC1 file set: $_existingNatisRc1Url');
     });
 
+    _initialVehicleStatus = widget.vehicle?.vehicleStatus ?? 'Draft';
+    _vehicleStatus = _initialVehicleStatus;
+
     // Populate form fields with debug logging
     _vinNumberController.text = widget.vehicle?.vinNumber ?? '';
     _mileageController.text = widget.vehicle?.mileage ?? '';
@@ -411,16 +689,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       print('DEBUG: Brands type: ${widget.vehicle!.brands.runtimeType}');
       print('DEBUG: Raw brands data: ${widget.vehicle!.brands}');
 
-      if (widget.vehicle!.brands is List) {
-        if (widget.vehicle!.brands.isNotEmpty) {
-          _brandsController.text = widget.vehicle!.brands[0].toString();
-          formData.setBrands(List<String>.from(widget.vehicle!.brands));
-          print('DEBUG: Set brands from List: ${_brandsController.text}');
-        }
-      } else {
-        _brandsController.text = widget.vehicle!.brands.toString();
-        formData.setBrands([widget.vehicle!.brands.toString()]);
-        print('DEBUG: Set brands from String: ${_brandsController.text}');
+      if (widget.vehicle!.brands.isNotEmpty) {
+        _brandsController.text = widget.vehicle!.brands[0].toString();
+        formData.setBrands(List<String>.from(widget.vehicle!.brands));
+        print('DEBUG: Set brands from List: ${_brandsController.text}');
       }
     }
 
@@ -443,8 +715,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         .setTransmissionType(widget.vehicle?.transmissionType ?? 'automatic');
     formData.setHydraulics(widget.vehicle?.hydraluicType ?? 'no');
 
-    formData.setMaintenance(
-        widget.vehicle?.maintenance.maintenanceData.oemInspectionType ?? 'no');
+    formData
+        .setMaintenance(widget.vehicle?.maintenance.oemInspectionType ?? 'no');
 
     formData.setWarranty(widget.vehicle?.warrentyType ?? 'no');
     formData.setWarrantyDetails(widget.vehicle?.warrantyDetails);
@@ -844,12 +1116,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           // Vehicle Status Dropdown
           CustomDropdown(
             hintText: 'Vehicle Status',
-            value: _vehicleStatus ?? 'Draft', // Default to Draft
+            value: _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
             items: const ['Draft', 'Live'],
             onChanged: (value) {
               setState(() {
                 _vehicleStatus = value;
-                formData.setVehicleStatus(value); // Update form data provider
+                formData.setVehicleStatus(value);
               });
             },
             validator: (value) {
@@ -859,6 +1131,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               return null;
             },
           ),
+
           const SizedBox(height: 15),
           // Reference Number field
           _buildReferenceNumberField(),
@@ -1361,7 +1634,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'userId': FirebaseAuth.instance.currentUser?.uid,
-        'vehicleStatus': _vehicleStatus ?? 'Draft',
+        'vehicleStatus': _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
       };
 
       // Update existing document or create new one

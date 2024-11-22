@@ -106,8 +106,15 @@ class _TruckPageState extends State<TruckPage> {
       print('User Disliked Vehicles: ${userProvider.getDislikedVehicles}');
 
       setState(() {
-        // Remove filtering based on preferred brands
-        displayedVehicles = vehicleProvider.vehicles; // Show all vehicles
+        // Filter to show only Live vehicles
+        displayedVehicles = vehicleProvider.vehicles
+            .where((vehicle) => vehicle.vehicleStatus == 'Live')
+            .toList();
+
+        // Initialize displayedVehicles with the first page of Live vehicles
+        displayedVehicles = displayedVehicles.take(_itemsPerPage).toList();
+        _currentPage = 1;
+        _isLoading = false;
 
         // Debugging output to check displayed vehicles
         print('Displayed Vehicles: ${displayedVehicles.length}');
@@ -116,16 +123,9 @@ class _TruckPageState extends State<TruckPage> {
         }
 
         loadedVehicleIndex = displayedVehicles.length;
-        _isLoading = false; // Loading complete
 
         print(
             'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
-
-        // Initialize displayedVehicles with the first page
-        displayedVehicles =
-            vehicleProvider.vehicles.take(_itemsPerPage).toList();
-        _currentPage = 1;
-        _isLoading = false;
 
         // Initialize filter options
         _initializeFilterOptions(vehicleProvider.vehicles);
@@ -152,9 +152,9 @@ class _TruckPageState extends State<TruckPage> {
       // Calculate the start and end indices for the next page
       int startIndex = _currentPage * _itemsPerPage;
       int endIndex = startIndex + _itemsPerPage;
-
-      // Fetch the next set of vehicles
+      // Fetch the next set of vehicles (Live only)
       List<Vehicle> moreVehicles = vehicleProvider.vehicles
+          .where((vehicle) => vehicle.vehicleStatus == 'Live')
           .skip(startIndex)
           .take(_itemsPerPage)
           .toList();
@@ -230,7 +230,7 @@ class _TruckPageState extends State<TruckPage> {
       'adminData.settlementAmount': _getSettlementAmountRanges(vehicles),
       'maintenance.oemInspectionType': vehicles
           .map((v) => v.maintenance.oemInspectionType)
-          .where((value) => value.isNotEmpty)
+          .where((value) => value!.isNotEmpty)
           .toSet()
           .toList(),
     };
@@ -338,30 +338,9 @@ class _TruckPageState extends State<TruckPage> {
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
         // Temporarily show all vehicles for testing
-        displayedVehicles = vehicleProvider.vehicles.where((vehicle) {
-          print(
-              'Checking Vehicle ID: ${vehicle.id}, Status: ${vehicle.vehicleStatus}');
-
-          // Apply each filter criterion
-          for (var filter in filters) {
-            var fieldValue = _getFieldValue(vehicle, filter.fieldName);
-            if (!_evaluateFilter(fieldValue, filter)) {
-              print(
-                  'Filter failed for Vehicle ID: ${vehicle.id} on field: ${filter.fieldName} with value: ${filter.value}');
-              return false; // If any filter fails, exclude the vehicle
-            }
-          }
-
-          // Existing conditions
-          bool isNotDraft = vehicle.vehicleStatus != 'Draft';
-          bool isLive =
-              vehicle.vehicleStatus == 'Live'; // Check for Live status
-
-          print(
-              'Vehicle ID: ${vehicle.id}, Is Not Draft: $isNotDraft, Is Live: $isLive');
-
-          return isNotDraft && isLive; // Include only Live vehicles
-        }).toList();
+        displayedVehicles = vehicleProvider.vehicles
+            .where((vehicle) => vehicle.vehicleStatus == 'Live')
+            .toList();
 
         // Debugging output to check vehicles after applying filters
         print('Vehicles after applying filters: ${displayedVehicles.length}');

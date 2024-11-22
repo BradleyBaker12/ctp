@@ -364,4 +364,14 @@ class FormDataProvider with ChangeNotifier {
     _country = value;
     if (notify) notifyListeners();
   }
+
+  // Add these properties
+  String? _province;
+  String? get province => _province;
+
+  // Add this setter
+  void setProvince(String? value, {bool notify = true}) {
+    _province = value;
+    if (notify) notifyListeners();
+  }
 }

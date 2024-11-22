@@ -14,26 +14,24 @@ class Tyres {
   factory Tyres.fromMap(Map<String, dynamic> map) {
     Map<String, TyrePosition> positions = {};
     
-    // Convert each tyre position data
-    for (int i = 1; i <= 6; i++) {
-      String key = 'Tyre_Pos_$i';
-      if (map[key] != null && map[key] is Map) {
-        positions[key] = TyrePosition.fromMap(map[key] as Map<String, dynamic>);
+    map.forEach((key, value) {
+      if (key.startsWith('Tyre_Pos_') && value is Map) {
+        positions[key] = TyrePosition.fromMap(value as Map<String, dynamic>);
       }
-    }
+    });
 
     return Tyres(
       positions: positions,
-      lastUpdated: DateTime.now(),
+      lastUpdated: DateTime.fromMillisecondsSinceEpoch(
+          map['lastUpdated'] ?? DateTime.now().millisecondsSinceEpoch),
     );
   }
 
   Map<String, dynamic> toMap() {
-    Map<String, dynamic> map = {};
-    positions.forEach((key, value) {
-      map[key] = value.toMap();
-    });
-    return map;
+    return {
+      ...positions.map((key, value) => MapEntry(key, value.toMap())),
+      'lastUpdated': lastUpdated.millisecondsSinceEpoch,
+    };
   }
 }
 
@@ -41,13 +39,15 @@ class TyrePosition {
   final String chassisCondition;
   final String rimType;
   final String virginOrRecap;
-  final String? imageUrl;
+  final String imagePath;
+  final String isNew;
 
   TyrePosition({
     required this.chassisCondition,
     required this.rimType,
     required this.virginOrRecap,
-    this.imageUrl,
+    required this.imagePath,
+    required this.isNew,
   });
 
   factory TyrePosition.fromMap(Map<String, dynamic> map) {
@@ -55,7 +55,8 @@ class TyrePosition {
       chassisCondition: map['chassisCondition'] ?? '',
       rimType: map['rimType'] ?? '',
       virginOrRecap: map['virginOrRecap'] ?? '',
-      imageUrl: map['imageUrl'],
+      imagePath: map['imagePath'] ?? '',
+      isNew: map['isNew'] ?? '',
     );
   }
 
@@ -64,7 +65,8 @@ class TyrePosition {
       'chassisCondition': chassisCondition,
       'rimType': rimType,
       'virginOrRecap': virginOrRecap,
-      'imageUrl': imageUrl,
+      'imagePath': imagePath,
+      'isNew': isNew,
     };
   }
 }

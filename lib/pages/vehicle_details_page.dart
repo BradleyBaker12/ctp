@@ -1,3 +1,12 @@
+import 'dart:io';
+
+import 'package:ctp/models/admin_data.dart';
+import 'package:ctp/models/chassis.dart';
+import 'package:ctp/models/drive_train.dart';
+import 'package:ctp/models/external_cab.dart';
+import 'package:ctp/models/internal_cab.dart';
+import 'package:ctp/models/truck_conditions.dart';
+import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
@@ -7,11 +16,13 @@ import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -56,45 +67,43 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   void initState() {
     super.initState();
     _checkIfOfferMade();
-    _fetchAllDealers(); // Fetch dealers when the page initializes
+    _fetchAllDealers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        allPhotos = [];
 
-    try {
-      allPhotos = [];
+        // Add main image
+        if (widget.vehicle.mainImageUrl != null &&
+            widget.vehicle.mainImageUrl!.isNotEmpty) {
+          allPhotos.add(PhotoItem(
+              url: widget.vehicle.mainImageUrl!, label: 'Main Image'));
+        }
 
-      // Ensure the main image is added first
-      if (widget.vehicle.mainImageUrl != null &&
-          widget.vehicle.mainImageUrl!.isNotEmpty) {
-        allPhotos.add(
-            PhotoItem(url: widget.vehicle.mainImageUrl!, label: 'Main Image'));
-        print('Main Image Added: ${widget.vehicle.mainImageUrl}');
-      }
+        // Add damage photos
+        if (widget.vehicle.damagePhotos.isNotEmpty) {
+          for (int i = 0; i < widget.vehicle.damagePhotos.length; i++) {
+            _addPhotoIfExists(
+                widget.vehicle.damagePhotos[i], 'Damage Photo ${i + 1}');
+          }
+        }
 
-      // Add damage photos
-      if (widget.vehicle.damagePhotos.isNotEmpty) {
-        for (int i = 0; i < widget.vehicle.damagePhotos.length; i++) {
-          _addPhotoIfExists(
-              widget.vehicle.damagePhotos[i], 'Damage Photo ${i + 1}');
+        // Additional photos
+        _addPhotoIfExists(widget.vehicle.dashboardPhoto, 'Dashboard Photo');
+        _addPhotoIfExists(widget.vehicle.faultCodesPhoto, 'Fault Codes Photo');
+        _addPhotoIfExists(widget.vehicle.licenceDiskUrl, 'Licence Disk Photo');
+        _addPhotoIfExists(widget.vehicle.mileageImage, 'Mileage Image');
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error loading vehicle photos. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
-
-      // Additional photo fields
-      _addPhotoIfExists(widget.vehicle.dashboardPhoto, 'Dashboard Photo');
-      _addPhotoIfExists(widget.vehicle.faultCodesPhoto, 'Fault Codes Photo');
-      _addPhotoIfExists(widget.vehicle.licenceDiskUrl, 'Licence Disk Photo');
-      _addPhotoIfExists(widget.vehicle.mileageImage, 'Mileage Image');
-
-      print('Total photos added: ${allPhotos.length}');
-
-      _pageController = PageController();
-    } catch (e) {
-      print('Error loading vehicle photos: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error loading vehicle photos. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    });
+    _pageController = PageController();
   }
 
   // Helper function to add photo if it exists
@@ -248,12 +257,97 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  void _navigateToDuplicatePage(BuildContext context) {
+  void _navigateToDuplicatePage() {
+    // Create a new vehicle object with only the required fields for duplication
+    Vehicle duplicatedVehicle = Vehicle(
+      id: '', // New ID will be generated
+      brands: widget.vehicle.brands,
+      makeModel: widget.vehicle.makeModel,
+      year: widget.vehicle.year,
+      mileage: '', // Reset mileage
+      config: widget.vehicle.config,
+      application: widget.vehicle.application,
+      transmissionType: widget.vehicle.transmissionType,
+      hydraluicType: widget.vehicle.hydraluicType,
+      suspensionType: widget.vehicle.suspensionType,
+      warrentyType: widget.vehicle.warrentyType,
+      maintenance: widget.vehicle.maintenance,
+      // Reset specific fields
+      vinNumber: '',
+      registrationNumber: '',
+      engineNumber: '',
+      mainImageUrl: '',
+      damagePhotos: [],
+      damageDescription: '',
+      expectedSellingPrice: '',
+      userId: FirebaseAuth.instance.currentUser?.uid ?? '', // Current user
+      referenceNumber: '', // New reference number will be generated
+      dashboardPhoto: '',
+      faultCodesPhoto: '',
+      licenceDiskUrl: '',
+      mileageImage: '',
+      photos: [],
+      rc1NatisFile: '',
+      vehicleType: '',
+      warrantyDetails: '',
+      createdAt: DateTime.now(),
+      vehicleStatus: '',
+      vehicleAvailableImmediately: 'false',
+      availableDate: DateTime.now().toIso8601String(),
+      trailerType: '',
+      axles: '',
+      trailerLength: '',
+      adminData: AdminData(
+          settlementAmount: '',
+          natisRc1Url: '',
+          licenseDiskUrl: '',
+          settlementLetterUrl: ''), // Initialize with an empty AdminData object
+      truckConditions: TruckConditions(
+          externalCab: ExternalCab(
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              images: {},
+              damages: [],
+              additionalFeatures: []),
+          internalCab: InternalCab(
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              faultCodesCondition: '',
+              viewImages: {},
+              damages: [],
+              additionalFeatures: [],
+              faultCodes: []),
+          chassis: Chassis(
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              images: {},
+              damages: [],
+              additionalFeatures: []),
+          driveTrain: DriveTrain(
+              condition: '',
+              oilLeakConditionEngine: '',
+              waterLeakConditionEngine: '',
+              blowbyCondition: '',
+              oilLeakConditionGearbox: '',
+              retarderCondition: '',
+              lastUpdated: DateTime.now(),
+              images: {},
+              damages: [],
+              additionalFeatures: [],
+              faultCodes: []),
+          tyres: {}),
+      country: '',
+      province: '',
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => VehicleUploadScreen(
-          vehicle: widget.vehicle,
+          vehicle: duplicatedVehicle,
           isDuplicating: true,
         ),
       ),
@@ -434,47 +528,85 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   Widget _buildAdditionalInfo() {
     List<Widget> infoWidgets = [];
 
-    void addInfo(String title, String? value) {
+    void addInfo(String title, dynamic value) {
       if (value != null &&
-          value.isNotEmpty &&
-          value.toLowerCase() != 'unknown') {
-        infoWidgets.add(_buildInfoRow(title, value));
+          value.toString().isNotEmpty &&
+          value.toString().toLowerCase() != 'unknown') {
+        switch (title) {
+          case 'Photos':
+            if (value is List<String>) {
+              String photosList = value.join('\n');
+              infoWidgets.add(_buildInfoRow(title, photosList));
+            }
+            break;
+          case 'Damage Description':
+            infoWidgets.add(_buildInfoRowWithIcon(title, value.toString()));
+            break;
+          default:
+            infoWidgets.add(_buildInfoRow(title, value.toString()));
+        }
       }
     }
 
     try {
-      addInfo('Application', widget.vehicle.application as String);
-      addInfo('Damage Description', widget.vehicle.damageDescription);
-      addInfo('Engine Number', widget.vehicle.engineNumber);
-      addInfo('Hydraulics', widget.vehicle.hydraluicType);
-      addInfo('OEM Inspection', widget.vehicle.maintenance.oemInspectionType);
-      addInfo('Registration Number', widget.vehicle.registrationNumber);
-      addInfo('Settlement Amount', widget.vehicle.adminData.settlementAmount);
-      addInfo('Suspension', widget.vehicle.suspensionType);
-      addInfo('VIN Number', widget.vehicle.vinNumber);
-      addInfo('Warranty', widget.vehicle.warrentyType);
-      // Add additional fields here
-      addInfo('Mileage', widget.vehicle.mileage);
+      // Vehicle Information
       addInfo('Make Model', widget.vehicle.makeModel);
-      // addInfo('Country', widget.vehicle.country);
-      // addInfo('Fault Codes Photo', widget.vehicle.faultCodesPhoto);
-      addInfo('Photos',
-          widget.vehicle.photos.join(', ')); // Assuming photos is a list
-      addInfo('RC1 Natis File', widget.vehicle.rc1NatisFile);
+      addInfo('Year', widget.vehicle.year);
+      addInfo('Mileage', widget.vehicle.mileage);
+      addInfo('VIN Number', widget.vehicle.vinNumber);
+      addInfo('Registration Number', widget.vehicle.registrationNumber);
+
+      // Technical Details
+      addInfo('Engine Number', widget.vehicle.engineNumber);
+      addInfo('Transmission', widget.vehicle.transmissionType);
+      addInfo('Configuration', widget.vehicle.config);
+      addInfo('Application', widget.vehicle.application);
+
+      // Additional Features
+      addInfo('Hydraulics', widget.vehicle.hydraluicType);
+      addInfo('Suspension', widget.vehicle.suspensionType);
+      addInfo('Warranty', widget.vehicle.warrentyType);
+
+      // Inspection & Maintenance
+      addInfo('OEM Inspection', widget.vehicle.maintenance.oemInspectionType);
+      addInfo('Damage Description', widget.vehicle.damageDescription);
+
+      // Documentation
+      if (widget.vehicle.rc1NatisFile != null &&
+          widget.vehicle.rc1NatisFile!.isNotEmpty) {
+        infoWidgets.add(_buildInfoRowWithButton(
+            'RC1 Natis File', widget.vehicle.rc1NatisFile!));
+      }
+
+      // Financial Information
       addInfo('Expected Selling Price', widget.vehicle.expectedSellingPrice);
+      addInfo('Settlement Amount', widget.vehicle.adminData.settlementAmount);
+
+      // Photos (if any)
+      if (widget.vehicle.photos.isNotEmpty) {
+        addInfo('Photos', widget.vehicle.photos);
+      }
     } catch (e) {
-      print('Error building additional info: $e'); // Debug statement
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error loading vehicle details. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Error building additional info: $e');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error loading vehicle details. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: infoWidgets,
+      children: [
+        const SizedBox(height: 8),
+        ...infoWidgets,
+        const SizedBox(height: 16),
+      ],
     );
   }
 
@@ -505,6 +637,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   Widget _buildInfoRow(String title, String? value) {
+    // Remove brackets if present
+    String displayValue =
+        value?.replaceAll('[', '').replaceAll(']', '') ?? 'Unknown';
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -515,7 +651,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             style: _customFont(14, FontWeight.normal, Colors.white),
           ),
           Text(
-            value ?? 'Unknown',
+            displayValue,
             style: _customFont(14, FontWeight.bold, Colors.white),
           ),
         ],
@@ -589,46 +725,113 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   Widget _buildMaintenanceInfo() {
-    maintenanceWidgets.clear(); // Clear previous entries if needed
+    maintenanceWidgets.clear();
 
-    // Debug statements
-    print('Maintenance Data: ${widget.vehicle.maintenance.maintenanceData}');
-    print(
-        'Maintenance Doc URL: ${widget.vehicle.maintenance.maintenanceData.maintenanceDocUrl}');
-    print(
-        'Warranty Doc URL: ${widget.vehicle.maintenance.maintenanceData.warrantyDocUrl}');
+    final maintenanceData = widget.vehicle.maintenance;
 
-    // Add maintenance info
-    addMaintenanceInfo('Maintenance Document',
-        widget.vehicle.maintenance.maintenanceData.maintenanceDocUrl,
-        isDocument: true);
-    addMaintenanceInfo('Warranty Document',
-        widget.vehicle.maintenance.maintenanceData.warrantyDocUrl,
-        isDocument: true);
+    // Debug prints for all maintenance data fields
+    // print('=== MAINTENANCE DATA DEBUG ===');
+    // print('Vehicle ID: ${maintenanceData.vehicleId}');
+    // print('OEM Inspection Type: ${maintenanceData.oemInspectionType}');
+    // print('Maintenance Selection: ${maintenanceData.maintenanceSelection}');
+    // print('Warranty Selection: ${maintenanceData.warrantySelection}');
+    // print('Maintenance Doc URL: ${maintenanceData.maintenanceDocUrl}');
+    // print('Warranty Doc URL: ${maintenanceData.warrantyDocUrl}');
+    // print('Last Updated: ${maintenanceData.lastUpdated}');
+    // print('=== END MAINTENANCE DEBUG ===');
 
-    // Add additional maintenance info if needed
-    addMaintenanceInfo(
-        'Full Inspection', widget.vehicle.maintenance.oemInspectionType);
-    addMaintenanceInfo(
-        'Reason', widget.vehicle.maintenance.oemInspectionReason);
+    // Add inspection type info
+    if (maintenanceData.oemInspectionType != null) {
+      print('Adding Inspection Type to widgets');
+      maintenanceWidgets.add(
+          _buildInfoRow('Inspection Type', maintenanceData.oemInspectionType!));
+    }
+
+    // Add maintenance selection info
+    if (maintenanceData.maintenanceSelection != null) {
+      print('Adding Maintenance Selection to widgets');
+      maintenanceWidgets.add(_buildInfoRow(
+          'Maintenance Selection', maintenanceData.maintenanceSelection!));
+    }
+
+    // Add warranty selection info
+    if (maintenanceData.warrantySelection != null) {
+      print('Adding Warranty Selection to widgets');
+      maintenanceWidgets.add(_buildInfoRow(
+          'Warranty Selection', maintenanceData.warrantySelection!));
+    }
+
+    // Add maintenance document link
+    if (maintenanceData.maintenanceDocUrl?.isNotEmpty ?? false) {
+      print('Adding Maintenance Document URL to widgets');
+      maintenanceWidgets.add(_buildInfoRowWithButton(
+          'Maintenance Document', maintenanceData.maintenanceDocUrl!));
+    }
+
+    // Add warranty document link
+    if (maintenanceData.warrantyDocUrl?.isNotEmpty ?? false) {
+      print('Adding Warranty Document URL to widgets');
+      maintenanceWidgets.add(_buildInfoRowWithButton(
+          'Warranty Document', maintenanceData.warrantyDocUrl!));
+    }
+
+    print('Total maintenance widgets created: ${maintenanceWidgets.length}');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: maintenanceWidgets, // Use the populated list here
+      children: maintenanceWidgets,
     );
   }
 
   void _viewDocument(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not launch the document.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    try {
+      // Show loading indicator
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Get temporary directory to store the PDF
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'document_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final filePath = '${directory.path}/$fileName';
+
+      // Download the PDF file
+      final response = await http.get(Uri.parse(url));
+      final file = File(filePath);
+      await file.writeAsBytes(response.bodyBytes);
+
+      // Hide loading indicator
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Navigate to PDF viewer
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PDFView(
+              filePath: filePath,
+              enableSwipe: true,
+              swipeHorizontal: false,
+              autoSpacing: true,
+              pageFling: true,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading PDF: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -648,7 +851,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             },
             child: const Text(
               'View',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(
+                  color: Colors.white,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Colors.white),
             ),
           ),
         ],
@@ -685,7 +891,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'ADMIN DATA',
+                  'ADMIN INFO',
                   style: _customFont(20, FontWeight.bold, Colors.blue),
                 ),
               ],
@@ -772,7 +978,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             // Wrap the Text widget with Expanded to prevent overflow
             Expanded(
               child: Text(
-                widget.vehicle.makeModel.toString().toUpperCase(),
+                "${widget.vehicle.brands.join(', ')} ${widget.vehicle.makeModel.toString().toUpperCase()} ${widget.vehicle.year}",
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -782,6 +988,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 maxLines: 1,
               ),
             ),
+
             const SizedBox(width: 8),
             const Icon(
               Icons.verified,
@@ -811,7 +1018,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 size: 24,
               ), // Duplicate button
               onPressed: () {
-                _navigateToDuplicatePage(context);
+                _navigateToDuplicatePage();
               },
             ),
         ],
@@ -910,7 +1117,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildInfoContainer('YEAR', widget.vehicle.year.toString()),
+                          _buildInfoContainer(
+                              'YEAR', widget.vehicle.year.toString()),
                           const SizedBox(width: 5),
                           _buildInfoContainer(
                               'MILEAGE', widget.vehicle.mileage),
@@ -1174,15 +1382,16 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           ),
                         ),
                       const SizedBox(height: 32),
-                      if (isDealer)
-                        if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
+                      // if (isDealer)
+                      if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
                       _buildMaintenanceSection(),
                       _buildAdminDataSection(),
+                      _buildTruckConditionsSection(),
                       const SizedBox(height: 30),
                       if (isTransporter)
                         Column(children: [
                           Text(
-                            "Offers Made on This Vehicle:",
+                            "Offers Made on This Vehicle (${widget.vehicle.referenceNumber}):",
                             style: _customFont(
                                 20, FontWeight.bold, const Color(0xFFFF4E00)),
                           ),
@@ -1264,30 +1473,36 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
+  // Update the indicator sizing in _buildImageIndicators method
   Widget _buildImageIndicators(int numImages) {
     var screenSize = MediaQuery.of(context).size;
-    double indicatorWidth = screenSize.width * 0.1;
-    double totalWidth = numImages * indicatorWidth + (numImages - 1) * 8;
-    if (totalWidth > MediaQuery.of(context).size.width) {
-      indicatorWidth =
-          (MediaQuery.of(context).size.width - (numImages - 1) * 8) / numImages;
-    }
+    // Calculate available width within the carousel area
+    double availableWidth =
+        screenSize.width - (MediaQuery.of(context).size.height * 0.07);
+    // Dynamic width calculation based on number of images
+    double indicatorWidth = (availableWidth / (numImages * 2));
+    // Tighter constraints for minimum and maximum widths
+    indicatorWidth = indicatorWidth.clamp(3.0, 20.0);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(numImages, (index) {
-        return Container(
-          width: indicatorWidth,
-          height: screenSize.height * 0.004,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color:
-                index == _currentImageIndex ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: Colors.white, width: 1),
-          ),
-        );
-      }),
+    return SizedBox(
+      width: availableWidth,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(numImages, (index) {
+          return Container(
+            width: indicatorWidth,
+            height: screenSize.height * 0.003,
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            decoration: BoxDecoration(
+              color: index == _currentImageIndex
+                  ? Colors.deepOrange
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.white, width: 1),
+            ),
+          );
+        }),
+      ),
     );
   }
 
@@ -1398,17 +1613,854 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // Helper function to add maintenance info, with an option to include a 'View' button
-  void addMaintenanceInfo(String title, String? value,
-      {bool isDocument = false}) {
-    if (value != null && value.isNotEmpty && value.toLowerCase() != 'unknown') {
-      if (isDocument) {
-        maintenanceWidgets.add(_buildInfoRowWithButton(title, value));
-      } else {
-        maintenanceWidgets.add(_buildInfoRow(title, value));
+  bool _isTruckConditionsExpanded =
+      false; // Add this with other state variables
+
+  Widget _buildTruckConditionsSection() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isDealer = userRole == 'dealer';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isDealer)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isTruckConditionsExpanded = !_isTruckConditionsExpanded;
+              });
+            },
+            child: Row(
+              children: [
+                AnimatedRotation(
+                  turns: _isTruckConditionsExpanded ? 0.25 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(
+                    Icons.arrow_right,
+                    color: const Color(0xFFFF4E00),
+                    size: MediaQuery.of(context).size.height * 0.04,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'TRUCK CONDITIONS',
+                  style: _customFont(20, FontWeight.bold, Colors.blue),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 10),
+        if (_isTruckConditionsExpanded) _buildTruckConditionsInfo(),
+      ],
+    );
+  }
+
+  bool _isExternalCabExpanded = false;
+  bool _isInternalCabExpanded = false;
+  bool _isChassisExpanded = false;
+  bool _isDriveTrainExpanded = false;
+  bool _isTyresExpanded = false;
+
+  Widget _buildTruckConditionsInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // External Cab Section
+        _buildSubSection(
+          'External Cab',
+          _isExternalCabExpanded,
+          () =>
+              setState(() => _isExternalCabExpanded = !_isExternalCabExpanded),
+          _buildExternalCabInfo(),
+        ),
+
+        // Internal Cab Section
+        _buildSubSection(
+          'Internal Cab',
+          _isInternalCabExpanded,
+          () =>
+              setState(() => _isInternalCabExpanded = !_isInternalCabExpanded),
+          _buildInternalCabInfo(),
+        ),
+
+        // Chassis Section
+        _buildSubSection(
+          'Chassis',
+          _isChassisExpanded,
+          () => setState(() => _isChassisExpanded = !_isChassisExpanded),
+          _buildChassisInfo(),
+        ),
+
+        // Drive Train Section
+        _buildSubSection(
+          'Drive Train',
+          _isDriveTrainExpanded,
+          () => setState(() => _isDriveTrainExpanded = !_isDriveTrainExpanded),
+          _buildDriveTrainInfo(),
+        ),
+
+        // Tyres Section
+        _buildSubSection(
+          'Tyres',
+          _isTyresExpanded,
+          () => setState(() => _isTyresExpanded = !_isTyresExpanded),
+          _buildTyresInfo(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubSection(
+      String title, bool isExpanded, VoidCallback onTap, Widget content) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                AnimatedRotation(
+                  turns: isExpanded ? 0.25 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: const Icon(Icons.arrow_right,
+                      color: Color(0xFFFF4E00), size: 24),
+                ),
+                const SizedBox(width: 8),
+                Text(title,
+                    style: _customFont(
+                        16, FontWeight.bold, const Color(0xFF2F7FFF))),
+              ],
+            ),
+          ),
+        ),
+        if (isExpanded)
+          Padding(
+            padding: const EdgeInsets.only(left: 40.0),
+            child: content,
+          ),
+      ],
+    );
+  }
+
+  // Update the _buildExternalCabInfo() method
+  // Update the _buildExternalCabInfo() method
+  Widget _buildExternalCabInfo() {
+    List<Widget> widgets = [];
+    final externalCab = widget.vehicle.truckConditions.externalCab;
+
+    // Add condition information first
+    widgets.add(_buildInfoRow('Condition', externalCab.condition));
+    widgets.add(_buildInfoRow('Damages', externalCab.damagesCondition));
+    widgets.add(_buildInfoRow(
+        'Additional Features', externalCab.additionalFeaturesCondition));
+
+    // Add damages section
+    if (externalCab.damages.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Damages:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var damage in externalCab.damages) {
+        widgets.add(_buildInfoRow('Location', damage.imageUrl));
+        widgets.add(_buildInfoRow('Description', damage.description));
       }
-    } else {
-      maintenanceWidgets.add(_buildInfoRow(title, 'N/A'));
     }
+
+    // Add additional features section
+    if (externalCab.additionalFeatures.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Additional Features:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var feature in externalCab.additionalFeatures) {
+        widgets.add(_buildInfoRow('Feature', feature.description));
+      }
+    }
+
+    // Add image carousel at the bottom
+    if (externalCab.images.isNotEmpty) {
+      List<PhotoItem> externalPhotos = [];
+      externalCab.images.forEach((key, photoData) {
+        if (photoData.path.isNotEmpty && File(photoData.path).existsSync()) {
+          externalPhotos.add(PhotoItem(url: photoData.path, label: key));
+        }
+      });
+
+      if (externalPhotos.isNotEmpty) {
+        widgets.add(const SizedBox(height: 20));
+        widgets.add(
+          SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: Stack(
+              children: [
+                // Blue box on the left edge of screen
+                // Positioned(
+                //   left: 0,
+                //   top: 0,
+                //   bottom: 0,
+                //   child: ClipRRect(
+                //     borderRadius: const BorderRadius.only(
+                //       topRight: Radius.circular(10.0),
+                //       bottomRight: Radius.circular(10.0),
+                //     ),
+                //     child: Container(
+                //       width: MediaQuery.of(context).size.height * 0.025,
+                //       color: const Color(0xFF2F7FFF),
+                //     ),
+                //   ),
+                // ),
+                // // Blue box on the right edge of screen
+                // Positioned(
+                //   right: 0,
+                //   top: 0,
+                //   bottom: 0,
+                //   child: ClipRRect(
+                //     borderRadius: const BorderRadius.only(
+                //       topLeft: Radius.circular(10.0),
+                //       bottomLeft: Radius.circular(10.0),
+                //     ),
+                //     child: Container(
+                //       width: MediaQuery.of(context).size.height * 0.025,
+                //       color: const Color(0xFF2F7FFF),
+                //     ),
+                //   ),
+                // ),
+                // Carousel with padding
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: MediaQuery.of(context).size.height * 0.025,
+                  ),
+                  child: SizedBox(
+                    height: 200,
+                    child: Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: externalPhotos.length,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentImageIndex = index;
+                            });
+                          },
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                GestureDetector(
+                                  onTap: () =>
+                                      _showFullScreenImage(context, index),
+                                  child: Image.network(
+                                    externalPhotos[index].url,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                        'assets/default_vehicle_image.png',
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 10,
+                                  left: 10,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    color: Colors.black54,
+                                    child: Text(
+                                      externalPhotos[index].label,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: _buildImageIndicators(externalPhotos.length),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
+  }
+
+  Widget _buildInternalCabInfo() {
+    List<Widget> widgets = [];
+    final internalCab = widget.vehicle.truckConditions.internalCab;
+
+    // Add condition information first
+    widgets.add(_buildInfoRow('Condition', internalCab.condition));
+    widgets
+        .add(_buildInfoRow('Damages Condition', internalCab.damagesCondition));
+    widgets.add(_buildInfoRow('Additional Features Condition',
+        internalCab.additionalFeaturesCondition));
+    widgets.add(_buildInfoRow(
+        'Fault Codes Condition', internalCab.faultCodesCondition));
+
+    // Add damages section
+    if (internalCab.damages.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Damages:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var damage in internalCab.damages) {
+        widgets.add(_buildInfoRow('Location', damage.imageUrl));
+        widgets.add(_buildInfoRow('Description', damage.description));
+      }
+    }
+
+    // Add additional features section
+    if (internalCab.additionalFeatures.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Additional Features:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var feature in internalCab.additionalFeatures) {
+        widgets.add(_buildInfoRow('Feature', feature.description));
+      }
+    }
+
+    // Add fault codes section
+    if (internalCab.faultCodes.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Fault Codes:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var code in internalCab.faultCodes) {
+        widgets.add(_buildInfoRow('Code', code.toString()));
+      }
+    }
+
+    // Inside _buildInternalCabInfo() method:
+
+// Add image carousel at the bottom
+    if (internalCab.viewImages.isNotEmpty) {
+      List<PhotoItem> internalPhotos = [];
+      internalCab.viewImages.forEach((key, photoData) {
+        if (photoData.path.isNotEmpty) {
+          internalPhotos.add(PhotoItem(url: photoData.path, label: key));
+        }
+      });
+
+      if (internalPhotos.isNotEmpty) {
+        widgets.add(const SizedBox(height: 20));
+        widgets.add(
+          SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: Stack(
+              children: [
+                // Blue box on the left edge of screen
+                // Positioned(
+                //   left: 0,
+                //   top: 0,
+                //   bottom: 0,
+                //   child: ClipRRect(
+                //     borderRadius: const BorderRadius.only(
+                //       topRight: Radius.circular(10.0),
+                //       bottomRight: Radius.circular(10.0),
+                //     ),
+                //     child: Container(
+                //       width: MediaQuery.of(context).size.height * 0.025,
+                //       color: const Color(0xFF2F7FFF),
+                //     ),
+                //   ),
+                // ),
+                // // Blue box on the right edge of screen
+                // Positioned(
+                //   right: 0,
+                //   top: 0,
+                //   bottom: 0,
+                //   child: ClipRRect(
+                //     borderRadius: const BorderRadius.only(
+                //       topLeft: Radius.circular(10.0),
+                //       bottomLeft: Radius.circular(10.0),
+                //     ),
+                //     child: Container(
+                //       width: MediaQuery.of(context).size.height * 0.025,
+                //       color: const Color(0xFF2F7FFF),
+                //     ),
+                //   ),
+                // ),
+                // Carousel with padding
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: MediaQuery.of(context).size.height * 0.025,
+                  ),
+                  child: SizedBox(
+                    height: 200,
+                    child: Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: internalPhotos.length,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentImageIndex = index;
+                            });
+                          },
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                GestureDetector(
+                                  onTap: () =>
+                                      _showFullScreenImage(context, index),
+                                  child: Image.network(
+                                    internalPhotos[index].url,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                        'assets/default_vehicle_image.png',
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 10,
+                                  left: 10,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    color: Colors.black54,
+                                    child: Text(
+                                      internalPhotos[index].label,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: SizedBox(
+                              width: MediaQuery.of(context).size.width *
+                                  0.8, // Limit width to 80% of screen
+                              child:
+                                  _buildImageIndicators(internalPhotos.length),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
+  }
+
+  Widget _buildChassisInfo() {
+    List<Widget> widgets = [];
+    final chassis = widget.vehicle.truckConditions.chassis;
+
+    // Add basic condition information
+    widgets.add(_buildInfoRow('Condition', chassis.condition));
+    widgets.add(_buildInfoRow('Damages Condition', chassis.damagesCondition));
+    widgets.add(_buildInfoRow(
+        'Additional Features', chassis.additionalFeaturesCondition));
+
+    // Add damages section if present
+    if (chassis.damages.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Damages:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var damage in chassis.damages) {
+        widgets.add(_buildInfoRow('Location', damage.imageUrl));
+        widgets.add(_buildInfoRow('Description', damage.description));
+      }
+    }
+
+    // Add additional features section if present
+    if (chassis.additionalFeatures.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Additional Features:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var feature in chassis.additionalFeatures) {
+        widgets.add(_buildInfoRow('Feature', feature.description));
+      }
+    }
+
+    // Add chassis images carousel
+    if (chassis.images.isNotEmpty) {
+      List<PhotoItem> chassisPhotos = [];
+      chassis.images.forEach((key, imageData) {
+        if (imageData.path.isNotEmpty) {
+          chassisPhotos.add(PhotoItem(url: imageData.path, label: key));
+        }
+      });
+
+      if (chassisPhotos.isNotEmpty) {
+        widgets.add(const SizedBox(height: 20));
+        widgets.add(
+          SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: MediaQuery.of(context).size.height * 0.025,
+                  ),
+                  child: SizedBox(
+                    height: 200,
+                    child: Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: chassisPhotos.length,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentImageIndex = index;
+                            });
+                          },
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                GestureDetector(
+                                  onTap: () =>
+                                      _showFullScreenImage(context, index),
+                                  child: Image.network(
+                                    chassisPhotos[index].url,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                        'assets/default_vehicle_image.png',
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 10,
+                                  left: 10,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    color: Colors.black54,
+                                    child: Text(
+                                      chassisPhotos[index].label,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: _buildImageIndicators(chassisPhotos.length),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
+  }
+
+  Widget _buildDriveTrainInfo() {
+    List<Widget> widgets = [];
+    final driveTrain = widget.vehicle.truckConditions.driveTrain;
+
+    void addInfo(String title, String? value) {
+      if (value != null && value.isNotEmpty) {
+        widgets.add(_buildInfoRow(title, value));
+      }
+    }
+
+    // Damages section
+    if (driveTrain.damages.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Damages:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var damage in driveTrain.damages) {
+        widgets.add(_buildInfoRow('Location', damage.imageUrl));
+        widgets.add(_buildInfoRow('Description', damage.description));
+      }
+    }
+
+    // Additional features section
+    if (driveTrain.additionalFeatures.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Additional Features:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var feature in driveTrain.additionalFeatures) {
+        widgets.add(_buildInfoRow('Feature', feature.description));
+      }
+    }
+
+    // Images carousel
+    // Update the images check in _buildDriveTrainInfo
+    if (driveTrain.images.isNotEmpty) {
+      List<PhotoItem> driveTrainPhotos = [];
+      driveTrain.images.forEach((key, imageData) {
+        if (imageData is Map &&
+            imageData['path'] != null &&
+            imageData['path'].toString().isNotEmpty) {
+          driveTrainPhotos
+              .add(PhotoItem(url: imageData['path'].toString(), label: key));
+        }
+      });
+
+      if (driveTrainPhotos.isNotEmpty) {
+        widgets.add(
+          SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: MediaQuery.of(context).size.height * 0.025,
+                  ),
+                  child: SizedBox(
+                    height: 200,
+                    child: Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: driveTrainPhotos.length,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentImageIndex = index;
+                            });
+                          },
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                GestureDetector(
+                                  onTap: () =>
+                                      _showFullScreenImage(context, index),
+                                  child: Image.network(
+                                    driveTrainPhotos[index].url,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                        'assets/default_vehicle_image.png',
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 10,
+                                  left: 10,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    color: Colors.black54,
+                                    child: Text(
+                                      driveTrainPhotos[index].label,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child:
+                                _buildImageIndicators(driveTrainPhotos.length),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        widgets.add(const SizedBox(height: 20));
+      }
+    }
+
+    // Basic condition information
+    widgets.add(_buildInfoRow('Condition', driveTrain.condition));
+    widgets.add(
+        _buildInfoRow('Oil Leak Engine', driveTrain.oilLeakConditionEngine));
+    widgets.add(_buildInfoRow(
+        'Water Leak Engine', driveTrain.waterLeakConditionEngine));
+    widgets.add(_buildInfoRow('Blowby Condition', driveTrain.blowbyCondition));
+    widgets.add(
+        _buildInfoRow('Oil Leak Gearbox', driveTrain.oilLeakConditionGearbox));
+    widgets
+        .add(_buildInfoRow('Retarder Condition', driveTrain.retarderCondition));
+
+    // Damages section
+    if (driveTrain.damages.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Damages:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var damage in driveTrain.damages) {
+        widgets.add(_buildInfoRow('Location', damage.imageUrl));
+        widgets.add(_buildInfoRow('Description', damage.description));
+      }
+    }
+
+    // Additional features section
+    if (driveTrain.additionalFeatures.isNotEmpty) {
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(Text('Additional Features:',
+          style: _customFont(16, FontWeight.bold, Colors.white)));
+      for (var feature in driveTrain.additionalFeatures) {
+        widgets.add(_buildInfoRow('Feature', feature.description));
+      }
+    }
+
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
+  }
+
+  Widget _buildTyresInfo() {
+    List<Widget> widgets = [];
+    print(
+        "DEBUG - Truck Conditions Tyres: ${widget.vehicle.truckConditions.tyres}");
+    print(
+        "DEBUG - Tyres Data: ${widget.vehicle.truckConditions.tyres['tyres']}");
+    print(
+        "DEBUG - Tyres Positions: ${widget.vehicle.truckConditions.tyres['tyres']?.positions}");
+
+    Map<String, Tyres> tyresMap = widget.vehicle.truckConditions.tyres;
+    if (tyresMap.isEmpty || !tyresMap.containsKey('tyres')) {
+      return const Center(
+        child: Text(
+          'No tyre information available',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    Tyres tyresData = tyresMap['tyres']!;
+    List<PhotoItem> tyrePhotos = [];
+
+    tyresData.positions.forEach((positionKey, tyrePosition) {
+      print("DEBUG - Processing position: $positionKey");
+      print("DEBUG - Position data: $tyrePosition");
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            positionKey.replaceAll('_', ' '),
+            style: _customFont(18, FontWeight.bold, const Color(0xFF2F7FFF)),
+          ),
+        ),
+      );
+
+      widgets.add(
+          _buildInfoRow('Chassis Condition', tyrePosition.chassisCondition));
+      widgets.add(_buildInfoRow('Rim Type', tyrePosition.rimType));
+      widgets.add(_buildInfoRow('Virgin/Recap', tyrePosition.virginOrRecap));
+      widgets.add(_buildInfoRow('New Tyre', tyrePosition.isNew));
+
+      if (tyrePosition.imagePath.isNotEmpty) {
+        tyrePhotos
+            .add(PhotoItem(url: tyrePosition.imagePath, label: positionKey));
+
+        widgets.add(
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            height: 200,
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () =>
+                      _showFullScreenImage(context, tyrePhotos.length - 1),
+                  child: Image.network(
+                    tyrePosition.imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        'assets/default_vehicle_image.png',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    color: Colors.black54,
+                    child: Text(
+                      positionKey,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      widgets.add(const Divider(color: Colors.grey));
+    });
+
+    if (widgets.isEmpty) {
+      return const Center(
+        child: Text(
+          'No tyre positions found',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
   }
 }

@@ -439,7 +439,7 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _damageList,
       addItem: () {
         setState(() {
-          _damageList.add({'description': '', 'image': null, 'imageUrl': ''});
+          _damageList.add({'description': '', 'image': null});
         });
       },
       showImageSourceDialog: _showDamageImageSourceDialog,
@@ -452,8 +452,7 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _additionalFeaturesList,
       addItem: () {
         setState(() {
-          _additionalFeaturesList
-              .add({'description': '', 'image': null, 'imageUrl': ''});
+          _additionalFeaturesList.add({'description': '', 'image': null});
         });
       },
       showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
@@ -466,8 +465,7 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _faultCodesList,
       addItem: () {
         setState(() {
-          _faultCodesList
-              .add({'description': '', 'image': null, 'imageUrl': ''});
+          _faultCodesList.add({'description': '', 'image': null});
         });
       },
       showImageSourceDialog: _showFaultCodesImageSourceDialog,
@@ -660,11 +658,124 @@ class InternalCabPageState extends State<InternalCabPage>
     );
   }
 
-  // Method to upload images (if required)
+  // Method to upload an image to Firebase Storage
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+    String fileName =
+        'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    Reference storageRef = _storage.ref().child(fileName);
+    UploadTask uploadTask = storageRef.putFile(imageFile);
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
+  }
 
+  // Method to upload all images and retrieve their URLs
+  Future<Map<String, dynamic>> getData() async {
+    // Serialize and upload view images
+    Map<String, dynamic> serializedImages = {};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        String section = entry.key.replaceAll(' ', '_').toLowerCase();
+        String imageUrl = await _uploadImageToFirebase(entry.value!, section);
+        serializedImages[entry.key] = {
+          'url': imageUrl,
+          'path': entry.value!.path,
+          'isNew': true
+        };
+      }
+    }
+
+    // Serialize and upload damages
+    List<Map<String, dynamic>> serializedDamages = [];
+    for (var damage in _damageList) {
+      if (damage['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(damage['image'], 'damage');
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': damage['image']!.path,
+          'isNew': true
+        });
+      } else {
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': damage['imageUrl'] ?? '',
+          'path': damage['imagePath'] ?? '',
+          'isNew': false
+        });
+      }
+    }
+
+    // Serialize and upload additional features
+    List<Map<String, dynamic>> serializedFeatures = [];
+    for (var feature in _additionalFeaturesList) {
+      if (feature['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(feature['image'], 'feature');
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': feature['image']!.path,
+          'isNew': true
+        });
+      } else {
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': feature['imageUrl'] ?? '',
+          'path': feature['imagePath'] ?? '',
+          'isNew': false
+        });
+      }
+    }
+
+    // Serialize and upload fault codes
+    List<Map<String, dynamic>> serializedFaultCodes = [];
+    for (var faultCode in _faultCodesList) {
+      if (faultCode['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(faultCode['image'], 'fault_code');
+        serializedFaultCodes.add({
+          'description': faultCode['description'] ?? '',
+          'imageUrl': imageUrl,
+          'path': faultCode['image']!.path,
+          'isNew': true
+        });
+      } else {
+        serializedFaultCodes.add({
+          'description': faultCode['description'] ?? '',
+          'imageUrl': faultCode['imageUrl'] ?? '',
+          'path': faultCode['imagePath'] ?? '',
+          'isNew': false
+        });
+      }
+    }
+
+    return {
+      'condition': _selectedCondition,
+      'damagesCondition': _damagesCondition,
+      'additionalFeaturesCondition': _additionalFeaturesCondition,
+      'faultCodesCondition': _faultCodesCondition,
+      'viewImages': serializedImages,
+      'damages': serializedDamages,
+      'additionalFeatures': serializedFeatures,
+      'faultCodes': serializedFaultCodes,
+    };
+  }
+
+  // Placeholder method for saving data. Implement as needed.
   Future<bool> saveData() async {
-    // You can implement save logic here if needed
-    return true;
+    try {
+      Map<String, dynamic> dataToSave = await getData();
+      await _firestore
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .set({'internalCab': dataToSave}, SetOptions(merge: true));
+      return true;
+    } catch (e) {
+      // Handle errors appropriately
+      print('Error saving data: $e');
+      return false;
+    }
   }
 
   void initializeWithData(Map<String, dynamic> data) {
@@ -728,59 +839,6 @@ class InternalCabPageState extends State<InternalCabPage>
         }).toList();
       }
     });
-  }
-
-  Future<Map<String, dynamic>> getData() async {
-    // Convert File objects to paths for serialization
-    Map<String, dynamic> serializedImages = {};
-    _selectedImages.forEach((key, value) {
-      if (value != null) {
-        serializedImages[key] = {'path': value.path, 'isNew': true};
-      }
-    });
-
-    // Convert damage list to serializable format
-    List<Map<String, dynamic>> serializedDamages = _damageList.map((damage) {
-      return {
-        'description': damage['description'] ?? '',
-        'imagePath': damage['image']?.path,
-        'imageUrl': damage['imageUrl'] ?? '',
-        'isNew': damage['image'] != null
-      };
-    }).toList();
-
-    // Convert additional features list to serializable format
-    List<Map<String, dynamic>> serializedFeatures =
-        _additionalFeaturesList.map((feature) {
-      return {
-        'description': feature['description'] ?? '',
-        'imagePath': feature['image']?.path,
-        'imageUrl': feature['imageUrl'] ?? '',
-        'isNew': feature['image'] != null
-      };
-    }).toList();
-
-    // Convert fault codes list to serializable format
-    List<Map<String, dynamic>> serializedFaultCodes =
-        _faultCodesList.map((faultCode) {
-      return {
-        'description': faultCode['description'] ?? '',
-        'imagePath': faultCode['image']?.path,
-        'imageUrl': faultCode['imageUrl'] ?? '',
-        'isNew': faultCode['image'] != null
-      };
-    }).toList();
-
-    return {
-      'condition': _selectedCondition,
-      'damagesCondition': _damagesCondition,
-      'additionalFeaturesCondition': _additionalFeaturesCondition,
-      'faultCodesCondition': _faultCodesCondition,
-      'viewImages': serializedImages,
-      'damages': serializedDamages,
-      'additionalFeatures': serializedFeatures,
-      'faultCodes': serializedFaultCodes,
-    };
   }
 
   void reset() {
