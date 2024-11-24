@@ -105,51 +105,46 @@ class TyresPageState extends State<TyresPage>
 
   @override
   bool get wantKeepAlive => true; // Implementing the required getter
-
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tyres Information'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _isSaving ? null : saveData,
-            tooltip: 'Save Tyre Information',
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 16.0),
-                  // Generate Tyre Position Sections based on the number of tyre positions
-                  ...List.generate(widget.numberOfTyrePositions,
-                      (index) => _buildTyrePosSection(index + 1)),
-                  const SizedBox(height: 16.0),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : saveData,
-                    child: const Text('Save Tyre Information'),
+    super.build(context);
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 16.0),
+                Text(
+                  'Tyres Inspection'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 25,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 16.0),
-                ],
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                ...List.generate(widget.numberOfTyrePositions,
+                    (index) => _buildTyrePosSection(index + 1)),
+                const SizedBox(height: 16.0),
+              ],
+            ),
+          ),
+        ),
+        if (_isSaving)
+          Container(
+            color: Colors.black54,
+            child: Center(
+              child: Image.asset(
+                'lib/assets/Loading_Logo_CTP.gif',
+                width: 100,
+                height: 100,
               ),
             ),
           ),
-          if (_isSaving)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 

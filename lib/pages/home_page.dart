@@ -439,12 +439,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ValueListenableBuilder<List<Vehicle>>(
                     valueListenable: displayedVehiclesNotifier,
                     builder: (context, displayedVehicles, child) {
-                      if (displayedVehicles.isEmpty && _hasReachedEnd) {
+                      // Filter out vehicles that are already liked
+                      final userProvider =
+                          Provider.of<UserProvider>(context, listen: false);
+                      final filteredVehicles = displayedVehicles
+                          .where((vehicle) => !userProvider.getLikedVehicles
+                              .contains(vehicle.id))
+                          .toList();
+
+                      if (filteredVehicles.isEmpty && _hasReachedEnd) {
                         return Text(
                           "You have swiped through all the available trucks.",
                           style: _customFont(18, FontWeight.bold, Colors.white),
                         );
-                      } else if (displayedVehicles.isEmpty) {
+                      } else if (filteredVehicles.isEmpty) {
                         return Center(
                           child: Text(
                             "No vehicles available",
@@ -455,7 +463,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       } else {
                         return SwiperWidget(
                           parentContext: context,
-                          displayedVehicles: displayedVehicles,
+                          displayedVehicles:
+                              filteredVehicles, // Use filtered list here
                           controller: controller,
                           onSwipeEnd: _handleSwipe,
                           vsync: this,

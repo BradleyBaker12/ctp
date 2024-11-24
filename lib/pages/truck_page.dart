@@ -337,19 +337,16 @@ class _TruckPageState extends State<TruckPage> {
 
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
-        // Temporarily show all vehicles for testing
+        // Start with only Live vehicles
         displayedVehicles = vehicleProvider.vehicles
             .where((vehicle) => vehicle.vehicleStatus == 'Live')
-            .toList();
-
-        // Debugging output to check vehicles after applying filters
-        print('Vehicles after applying filters: ${displayedVehicles.length}');
-        if (displayedVehicles.isEmpty) {
-          print('No vehicles match the current filters.');
-        } else {
-          print(
-              'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
-        }
+            .where((vehicle) {
+          // Then apply all filter criteria
+          return filters.every((filter) {
+            dynamic fieldValue = _getFieldValue(vehicle, filter.fieldName);
+            return _evaluateFilter(fieldValue, filter);
+          });
+        }).toList();
 
         loadedVehicleIndex = displayedVehicles.length;
         _isFiltering = false;
@@ -728,7 +725,7 @@ class _TruckPageState extends State<TruckPage> {
           borderRadius: BorderRadius.circular(8), // Optional: add border radius
         ),
         child: SizedBox(
-          height: size.height * 0.22, // Increased height to 0.25
+          height: size.height * 0.245, // Increased height to 0.25
           child: Row(
             children: [
               // Image on the left with rounded corners
@@ -778,7 +775,7 @@ class _TruckPageState extends State<TruckPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              vehicle.makeModel.toString().toUpperCase(),
+                              "${vehicle.brands.join(" ")} ${vehicle.makeModel.toString().toUpperCase()}  ${vehicle.year}",
                               style: _customFont(
                                 size.height * 0.025,
                                 FontWeight.bold,

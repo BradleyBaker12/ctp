@@ -12,8 +12,9 @@ class WishCard extends StatelessWidget {
   final TextStyle Function(double, FontWeight, Color) customFont;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-  final bool hasOffer; // Add hasOffer parameter
+  final bool hasOffer;
   final String vehicleId;
+  final Vehicle vehicle; // Add Vehicle model
 
   const WishCard({
     super.key,
@@ -23,14 +24,15 @@ class WishCard extends StatelessWidget {
     required this.customFont,
     required this.onTap,
     required this.onDelete,
-    required this.hasOffer, // Include hasOffer in the constructor
+    required this.hasOffer,
     required this.vehicleId,
+    required this.vehicle, // Add to constructor
   });
 
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: Key(vehicleMakeModel),
+      key: Key(vehicleId),
       direction: DismissDirection.endToStart,
       onDismissed: (direction) {
         onDelete();
@@ -46,7 +48,7 @@ class WishCard extends StatelessWidget {
         ),
       ),
       child: GestureDetector(
-        onTap: () => navigateToVehicleDetails(context), // Navigate on tap
+        onTap: onTap,
         child: Card(
           elevation: 5,
           margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -72,11 +74,9 @@ class WishCard extends StatelessWidget {
                       height: cardHeight,
                       decoration: BoxDecoration(
                         image: DecorationImage(
-                          image: vehicleImageUrl.isNotEmpty &&
-                                  Uri.tryParse(vehicleImageUrl)
-                                          ?.hasAbsolutePath ==
-                                      true
-                              ? NetworkImage(vehicleImageUrl)
+                          image: vehicle.mainImageUrl != null &&
+                                  vehicle.mainImageUrl!.isNotEmpty
+                              ? NetworkImage(vehicle.mainImageUrl!)
                               : const AssetImage(
                                       'lib/assets/default_vehicle_image.png')
                                   as ImageProvider,
@@ -94,15 +94,13 @@ class WishCard extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              vehicleMakeModel.toUpperCase(),
-                              style: customFont(
-                                15,
-                                FontWeight.w800,
-                                Colors.white,
-                              ),
+                              '${vehicle.brands.join("")} ${vehicle.makeModel} ${vehicle.year}',
+                              style:
+                                  customFont(15, FontWeight.w800, Colors.white),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 5),
-                            _buildOfferStatus(), // Build the offer status widget
                           ],
                         ),
                       ),
@@ -135,65 +133,6 @@ class WishCard extends StatelessWidget {
       ),
     );
   }
-
-  void navigateToVehicleDetails(BuildContext context) async {
-    final vehicleProvider =
-        Provider.of<VehicleProvider>(context, listen: false);
-    Vehicle? vehicle;
-
-    try {
-      vehicle = vehicleProvider.vehicles.firstWhere(
-        (v) => v.id == vehicleId,
-        orElse: () => throw Exception('Vehicle not found in provider'),
-      );
-    } catch (e) {
-      try {
-        DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
-            .collection('vehicles')
-            .doc(vehicleId)
-            .get();
-
-        if (vehicleSnapshot.exists && vehicleSnapshot.data() != null) {
-          vehicle = Vehicle.fromFirestore(
-            vehicleSnapshot.id,
-            vehicleSnapshot.data() as Map<String, dynamic>,
-          );
-          vehicleProvider.addVehicle(vehicle); // Add to provider
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Vehicle details not found.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error fetching vehicle details: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-      ),
-    );
-    }
-
-  // Build the offer status widget based on the offer details
-  Widget _buildOfferStatus() {
-    return Text(
-      hasOffer ? 'Offer Status: Offer Made' : '',
-      style: customFont(14, FontWeight.bold, Colors.white),
-    );
-  }
 }
 
 // A FutureBuilder implementation that fetches the offer status
@@ -222,7 +161,7 @@ FutureBuilder buildWishCard(
             },
             onDelete: onDelete,
             hasOffer: false, // You can modify this to check for offer status
-            vehicleId: vehicleId,
+            vehicleId: vehicleId, vehicle: vehicle,
           );
         } else {
           return const Center(child: Text('Vehicle not found.'));

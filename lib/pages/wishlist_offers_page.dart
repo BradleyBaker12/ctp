@@ -375,7 +375,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                               );
                             }
                           },
-                          vehicleId: vehicle.id,
+                          vehicleId: vehicle.id, vehicle: vehicle,
                         );
                       },
                     );

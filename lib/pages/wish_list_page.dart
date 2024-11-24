@@ -74,6 +74,16 @@ class _WishlistPageState extends State<WishlistPage> {
             .collection('vehicles')
             .where(FieldPath.documentId, whereIn: wishlistItems)
             .get();
+
+        final vehicleProvider =
+            Provider.of<VehicleProvider>(context, listen: false);
+
+        for (var doc in vehiclesSnapshot.docs) {
+          Vehicle vehicle =
+              Vehicle.fromFirestore(doc.id, doc.data() as Map<String, dynamic>);
+          vehicleProvider.addVehicle(vehicle);
+        }
+
         setState(() {
           _wishlistVehicles.addAll(vehiclesSnapshot.docs);
         });
@@ -187,9 +197,12 @@ class _WishlistPageState extends State<WishlistPage> {
                           (v) => v.id == vehicleDoc.id,
                           orElse: () => Vehicle(
                             id: vehicleDoc.id,
-                            application: data != null && data['application'] != null
-                                    ? data['application']
-                                    : 'Unknown',
+                            application: data != null &&
+                                    data['application'] != null
+                                ? (data['application'] is String
+                                    ? [data['application']]
+                                    : List<String>.from(data['application']))
+                                : [],
                             warrantyDetails: 'N/A',
                             damageDescription: '',
                             damagePhotos: [],
@@ -221,6 +234,16 @@ class _WishlistPageState extends State<WishlistPage> {
                             trailerType: 'N/A',
                             axles: 'N/A',
                             trailerLength: 'N/A',
+                            dashboardPhoto: '',
+                            faultCodesPhoto: '',
+                            licenceDiskUrl: '',
+                            mileageImage: '',
+                            rc1NatisFile: '',
+                            config: '',
+                            referenceNumber: '',
+                            brands: [],
+                            country: '',
+                            province: '',
                             adminData: AdminData(
                               settlementAmount: '0',
                               natisRc1Url: '',
@@ -238,7 +261,7 @@ class _WishlistPageState extends State<WishlistPage> {
                             ),
                             truckConditions: TruckConditions(
                               externalCab: ExternalCab(
-                                 damages: [],
+                                damages: [],
                                 additionalFeatures: [],
                                 condition: '',
                                 damagesCondition: '',
@@ -255,13 +278,12 @@ class _WishlistPageState extends State<WishlistPage> {
                                   additionalFeatures: [],
                                   faultCodes: []),
                               chassis: Chassis(
-                                condition: '',
+                                  condition: '',
                                   damagesCondition: '',
                                   additionalFeaturesCondition: '',
                                   images: {},
                                   damages: [],
-                                  additionalFeatures: []
-                              ),
+                                  additionalFeatures: []),
                               driveTrain: DriveTrain(
                                 condition: '',
                                 oilLeakConditionEngine: '',
@@ -297,19 +319,9 @@ class _WishlistPageState extends State<WishlistPage> {
                                 ),
                               },
                             ),
-                            vehicleStatus: 'N/A',
-                            dashboardPhoto: '',
-                            faultCodesPhoto: '',
-                            licenceDiskUrl: '',
-                            mileageImage: '',
-                            rc1NatisFile: '',
-                            config: '',
-                            referenceNumber: '',
-                            brands: [],
-                            country: '', province: '',
+                            vehicleStatus: '',
                           ),
                         );
-
                         String imageUrl = data != null &&
                                 data.containsKey('mainImageUrl') &&
                                 data['mainImageUrl'] != null
@@ -321,8 +333,10 @@ class _WishlistPageState extends State<WishlistPage> {
                             .any((offer) => offer.vehicleId == vehicle.id);
 
                         return WishCard(
-                          vehicleMakeModel: vehicle.makeModel.toString(),
-                          vehicleImageUrl: imageUrl,
+                          vehicleMakeModel:
+                              "${vehicle.makeModel} ${vehicle.year}",
+                          vehicleImageUrl: vehicle.mainImageUrl ??
+                              'lib/assets/default_vehicle_image.png',
                           size: screenSize,
                           customFont: (double fontSize, FontWeight fontWeight,
                               Color color) {
@@ -344,34 +358,22 @@ class _WishlistPageState extends State<WishlistPage> {
                             );
                           },
                           onDelete: () async {
-                            // Remove the vehicle from Firestore 'likedVehicles' list
                             User? user = FirebaseAuth.instance.currentUser;
                             if (user != null) {
-                              DocumentReference userDocRef = FirebaseFirestore
-                                  .instance
+                              await FirebaseFirestore.instance
                                   .collection('users')
-                                  .doc(user.uid);
-
-                              await userDocRef.update({
+                                  .doc(user.uid)
+                                  .update({
                                 'likedVehicles':
-                                    FieldValue.arrayRemove([vehicleDoc.id]),
+                                    FieldValue.arrayRemove([vehicle.id])
                               });
-
-                              // Remove the vehicle from the local wishlist
                               setState(() {
                                 _wishlistVehicles.remove(vehicleDoc);
                               });
-
-                              // Show a confirmation snackbar
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      '${vehicle.makeModel} removed from wishlist.'),
-                                ),
-                              );
                             }
                           },
                           vehicleId: vehicle.id,
+                          vehicle: vehicle,
                         );
                       },
                     );

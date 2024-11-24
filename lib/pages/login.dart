@@ -75,6 +75,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
       Navigator.pop(context); // Remove loading indicator
+      // Change this line to navigate to phone number page instead of home
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;

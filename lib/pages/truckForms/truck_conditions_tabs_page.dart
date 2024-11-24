@@ -196,9 +196,9 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
     }
   }
 
-  // Modified Done button handler
   Future<void> _handleDone() async {
     try {
+      _showLoadingDialog(context);
       setState(() => _isSaving = true);
 
       // Collect data from all tabs
@@ -271,6 +271,7 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
       }
     } finally {
       if (mounted) {
+        Navigator.pop(context); // Remove loading dialog
         setState(() => _isSaving = false);
       }
     }
@@ -309,6 +310,7 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
   // Add method to save current tab data
   Future<void> _saveCurrentTabData() async {
     try {
+      _showLoadingDialog(context);
       Map<String, dynamic> currentTabData = {};
 
       // Get data from current tab
@@ -357,6 +359,10 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
     } catch (e) {
       print('Error saving current tab data: $e');
       rethrow;
+    } finally {
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -367,10 +373,12 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
 
   Future<void> _saveAllModifiedData() async {
     try {
+      _showLoadingDialog(context);
       setState(() => _isSaving = true);
       await _handleDone();
     } finally {
       if (mounted) {
+        Navigator.pop(context);
         setState(() => _isSaving = false);
       }
     }
@@ -552,7 +560,8 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
                 onPressed: _isSaving ? null : _saveAllModifiedData,
                 backgroundColor: Colors.green,
                 child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? Image.asset('lib/assets/Loading_Logo_CTP.gif',
+                        width: 30, height: 30)
                     : const Icon(Icons.save),
               )
             : null,
@@ -703,4 +712,30 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
         return 4; // Default value if no valid config is selected
     }
   }
+}
+
+void _showLoadingDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Container(
+        color: Colors.black.withOpacity(0.7),
+        child: Center(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Image.asset(
+              'lib/assets/Loading_Logo_CTP.gif',
+              width: 100,
+              height: 100,
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }

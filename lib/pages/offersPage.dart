@@ -89,25 +89,25 @@ class OffersPageState extends State<OffersPage> with RouteAware {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      // Normalize the userRole
       final userRole = userProvider.getUserRole.toLowerCase().trim();
 
-      // Debug: Log the normalized userRole
       print('[_fetchOffers] User Role: $userRole');
 
+      // First fetch all offers for the user
       await _offerProvider.fetchOffers(user.uid, userRole);
 
-      // Debug: Log the number of offers fetched
-      print(
-          '[_fetchOffers] Number of offers fetched: ${_offerProvider.offers.length}');
+      // Then filter the offers based on user role and ID
+      List<Offer> filteredOffers = _offerProvider.offers.where((offer) {
+        if (userRole == 'dealer') {
+          return offer.dealerId == user.uid;
+        } else if (userRole == 'transporter') {
+          return offer.transportId == user.uid;
+        }
+        return false;
+      }).toList();
 
-      // Optionally, log details of each offer
-      for (var offer in _offerProvider.offers) {
-        print(
-            '[_fetchOffers] Offer ID: ${offer.offerId}, Status: ${offer.offerStatus}');
-      }
-    } else {
-      print('[_fetchOffers] No user is currently signed in.');
+      print(
+          '[_fetchOffers] Number of filtered offers: ${_offerProvider.offers.length}');
     }
   }
 
