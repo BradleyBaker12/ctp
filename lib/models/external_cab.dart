@@ -1,6 +1,5 @@
 // lib/models/external_cab.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'damage.dart';
 import 'additional_feature.dart';
 

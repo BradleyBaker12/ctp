@@ -28,13 +28,18 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   @override
   void initState() {
     super.initState();
-    _loadCountryCodes();
-
-    _phoneController.addListener(_formatPhoneNumber);
+    print("DEBUG: PhoneNumberPage initState");
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    print("DEBUG: Current user ID: ${userProvider.userId}");
+    print("DEBUG: Current user role: ${userProvider.getUserRole}");
+  
+    if (userProvider.userId == null) {
+      print("DEBUG: No user ID found, redirecting to login");
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   @override

@@ -9,40 +9,36 @@ class Offer extends ChangeNotifier {
   final String dealerId;
   final String vehicleId;
   final String transportId;
-  double? offerAmount; // This can now be modified
-  String offerStatus; // Made mutable to update locally
-  String? description; // Added description field
+  double? offerAmount;
+  String offerStatus;
+  String? description;
   String? vehicleMakeModel;
   String? vehicleMainImage;
   String? reason;
-  DateTime? createdAt; // Include in constructor
+  DateTime? createdAt;
+  String? vehicleBrand;
 
-  // New properties for vehicle details
   List<String> vehicleImages = [];
   Map<String, String?> additionalInfo = {};
   String? vehicleYear;
   String? vehicleMileage;
   String? vehicleTransmission;
 
-  // Inspection-related properties
   DateTime? dealerSelectedInspectionDate;
   String? dealerSelectedInspectionTime;
   String? dealerSelectedInspectionLocation;
-  GeoPoint? latLng; // LatLng coordinates for location
+  GeoPoint? latLng;
 
-  // Collection-related properties
   String? dealerSelectedCollectionLocation;
   String? dealerSelectedCollectionAddress;
   DateTime? dealerSelectedCollectionDate;
   String? dealerSelectedCollectionTime;
 
-  // New fields for inspection and collection dates and locations
   final List<dynamic>? inspectionDates;
   final List<dynamic>? inspectionLocations;
   final List<dynamic>? collectionDates;
   final List<dynamic>? collectionLocations;
 
-  // Loading state
   bool isVehicleDetailsLoading = false;
 
   Offer({
@@ -52,11 +48,12 @@ class Offer extends ChangeNotifier {
     required this.transportId,
     this.offerAmount,
     required this.offerStatus,
-    this.description, // Initialize description
+    this.description,
     this.vehicleMakeModel,
     this.vehicleMainImage,
     this.reason,
-    this.createdAt, // Include in constructor
+    this.createdAt,
+    this.vehicleBrand,
     this.dealerSelectedInspectionDate,
     this.dealerSelectedInspectionTime,
     this.dealerSelectedInspectionLocation,
@@ -71,25 +68,23 @@ class Offer extends ChangeNotifier {
     this.collectionLocations,
   });
 
-  /// Factory constructor to create an Offer instance from Firestore DocumentSnapshot.
   factory Offer.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Offer(
-      offerId: doc.id, // Use document ID as offerId
+      offerId: doc.id,
       dealerId: data['dealerId'] ?? '',
       vehicleId: data['vehicleId'] ?? '',
       transportId: data['transportId'] ?? '',
       offerAmount: data['offerAmount']?.toDouble(),
-      offerStatus:
-          data['offerStatus'] ?? 'pending', // Updated to match Firestore field
-      description:
-          data['description'] ?? 'No Description', // Initialize description
-      vehicleMakeModel: data['vehicleMakeModel'],
+      offerStatus: data['offerStatus'] ?? 'pending',
+      description: data['description'] ?? 'No Description',
+      vehicleMakeModel: data['makeModel'],
       vehicleMainImage: data['vehicleMainImage'],
       reason: data['reason'],
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
-          : null, // Handle null case
+          : null,
+      vehicleBrand: data['brands'],
       dealerSelectedInspectionDate: data['dealerSelectedInspectionDate'] != null
           ? (data['dealerSelectedInspectionDate'] as Timestamp).toDate()
           : null,
@@ -111,7 +106,6 @@ class Offer extends ChangeNotifier {
     );
   }
 
-  /// Fetches related vehicle details from Firestore.
   Future<void> fetchVehicleDetails() async {
     isVehicleDetailsLoading = true;
     notifyListeners();
@@ -125,13 +119,13 @@ class Offer extends ChangeNotifier {
       if (vehicleSnapshot.exists) {
         Map<String, dynamic> vehicleData =
             vehicleSnapshot.data() as Map<String, dynamic>;
+        vehicleBrand = vehicleData['brand'] ?? 'Unknown Brand';
         vehicleMakeModel = vehicleData['makeModel'] ?? 'Unknown';
         vehicleMainImage = vehicleData['mainImageUrl'];
         vehicleImages = List<String>.from(vehicleData['photos'] ?? []);
         additionalInfo = {
           'Engine Number': vehicleData['engineNumber'],
           'VIN Number': vehicleData['vinNumber'],
-          // Add more fields as necessary
         };
         vehicleYear = vehicleData['year'];
         vehicleMileage = vehicleData['mileage'];
@@ -150,15 +144,14 @@ class Offer extends ChangeNotifier {
     }
   }
 
-  /// Updates the offer amount both locally and in Firestore.
   Future<void> updateOfferAmount(double newAmount) async {
     try {
-      offerAmount = newAmount; // Update local value
+      offerAmount = newAmount;
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(offerId)
           .update({'offerAmount': newAmount});
-      notifyListeners(); // Notify listeners after updating
+      notifyListeners();
     } catch (e) {
       print('Error updating offer amount: $e');
     }

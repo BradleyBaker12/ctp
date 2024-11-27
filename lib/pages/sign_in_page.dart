@@ -25,6 +25,7 @@ class _SignInPageState extends State<SignInPage> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _passwordVisible = false;
 
   // List of admin emails
   final List<String> adminEmails = [
@@ -238,8 +239,21 @@ class _SignInPageState extends State<SignInPage> {
                               SizedBox(height: screenSize.height * 0.02),
                               CustomTextField(
                                 hintText: 'PASSWORD',
-                                obscureText: true,
+                                obscureText: !_passwordVisible,
                                 controller: _passwordController,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _passwordVisible
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _passwordVisible = !_passwordVisible;
+                                    });
+                                  },
+                                ),
                               ),
                             ],
                           ),

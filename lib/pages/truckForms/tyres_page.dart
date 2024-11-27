@@ -528,7 +528,7 @@ class TyresPageState extends State<TyresPage>
       String? imageUrl;
       if (_selectedImages[photoKey] != null) {
         imageUrl = await _uploadImageToFirebase(
-            _selectedImages[photoKey]!, 'position_${pos}');
+            _selectedImages[photoKey]!, 'position_$pos');
         _imageUrls[photoKey] = imageUrl; // Update image URLs map
       }
 

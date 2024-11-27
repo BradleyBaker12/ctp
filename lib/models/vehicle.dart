@@ -5,7 +5,6 @@ import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
 import 'package:ctp/models/external_cab.dart';
 import 'package:ctp/models/internal_cab.dart';
-import 'package:ctp/models/maintenance_data.dart';
 import 'package:ctp/models/tyres.dart';
 import 'admin_data.dart';
 import 'maintenance.dart';
@@ -52,6 +51,7 @@ class Vehicle {
   final String? requireToSettleType;
   final String country;
   final String province;
+  final String? variant;
 
   // Nested Objects
   final AdminData adminData;
@@ -101,6 +101,7 @@ class Vehicle {
     this.requireToSettleType,
     required this.country,
     required this.province,
+    this.variant,
   });
   // Factory constructor to create a Vehicle instance from Firestore data
   factory Vehicle.fromFirestore(String docId, Map<String, dynamic> data) {
@@ -263,6 +264,7 @@ class Vehicle {
       requireToSettleType: data['requireToSettleType'] as String?,
       country: getString(data['country'] ?? ''),
       province: getString(data['province'] ?? ''),
+      variant: getString(data['variant'] ?? ''),
     );
   } // Method to convert Vehicle instance to a Map (for Firestore updates)
   Map<String, dynamic> toMap() {
@@ -306,6 +308,7 @@ class Vehicle {
       'brands': brands,
       'requireToSettleType': requireToSettleType,
       'country': country,
+      'variant': variant,
     };
   }
 
@@ -470,6 +473,7 @@ class Vehicle {
       requireToSettleType: data['requireToSettleType'] as String?,
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
+      variant: data['variant'] ?? 'N/A',
     );
   }
   factory Vehicle.fromMap(Map<String, dynamic> data) {
@@ -607,6 +611,7 @@ class Vehicle {
       brands: data['brands'] ?? '',
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
+      variant: data['variant'] ?? 'N/A',
     );
   }
 }

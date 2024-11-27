@@ -1,10 +1,8 @@
 // lib/models/chassis.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'damage.dart';
 import 'additional_feature.dart';
-import '../utils/timestamp_helper.dart';
 
 class Chassis {
   final String condition;

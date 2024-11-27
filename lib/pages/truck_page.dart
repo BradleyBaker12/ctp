@@ -781,6 +781,9 @@ class _TruckPageState extends State<TruckPage> {
                                 FontWeight.bold,
                                 Colors.white,
                               ),
+                              overflow: TextOverflow.ellipsis, // Add this line
+                              maxLines:
+                                  3, // Optionally add this to limit to single line
                             ),
                           ),
                           IconButton(

@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/services.dart'; // Added for loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -60,6 +61,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   bool _isLoading = false;
   String? _vehicleId;
   DateTime? _availableDate;
+  bool isDealer = false;
 
   List<String> _countryOptions = []; // Define the country options list
 
@@ -99,351 +101,71 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     // Add any other configurations if needed
   ];
 
-  // Define manufacturer options
-  final Map<String, List<String>> _makeModelOptions = {
-    'DAF': [
-      'XF 65',
-      'XF 75',
-      'XF 85',
-      'XF 95',
-      'XF 105',
-      'CF 45',
-      'CF 55',
-      'LF 65',
-      'LF 75',
-      'LF 85',
-    ],
-    'FUSO': [
-      'Canter 140',
-      'Canter 160',
-      'Canter 180',
-      'Fighter 4x2',
-      'Fighter 6x2',
-      'Super Great 4x2',
-      'Super Great 6x2',
-      'Rosa 6x4',
-      'Rosa 6x2',
-    ],
-    'ISUZU': [
-      'NKR',
-      'NPR',
-      'NQR',
-      'FTR',
-      'FTR-S',
-      'FVR',
-      'FTR-FT',
-      'Giga 4x2',
-      'Giga 6x4',
-    ],
-    'IVECO': [
-      'Stralis HL',
-      'Stralis LT',
-      'Trakker GL',
-      'Trakker GLX',
-      'Eurocargo EC',
-      'Eurocargo XE',
-      'S-Way 4x2',
-      'S-Way 6x2',
-    ],
-    'MAN': [
-      'TGL 4x2',
-      'TGL 6x2',
-      'TGM 6x2',
-      'TGM 6x4',
-      'TGS 6x4',
-      'TGX 6x2',
-      'TGX 6x4',
-    ],
-    'MERCEDES-BENZ': [
-      'Actros 1845',
-      'Actros 2545',
-      'Actros 2745',
-      'Arocs 3245',
-      'Arocs 4245',
-      'Atego 1221',
-      'Atego 1821',
-      'Econic 1840',
-      'Econic 2640',
-    ],
-    'SCANIA': [
-      'R450',
-      'R500',
-      'R580',
-      'S450',
-      'S500',
-      'S580',
-      'G450',
-      'G500',
-      'G580',
-      'P450',
-      'P500',
-      'P580',
-    ],
-    'UD TRUCKS': [
-      'Quon 4x2',
-      'Quon 6x2',
-      'Quester 6x2',
-      'Quester 6x4',
-      'Condor 6x2',
-      'Condor 6x4',
-      'Kazet 4x2',
-      'Kazet 6x2',
-      'Croner 6x2',
-      'Croner 6x4',
-    ],
-    'VW': [
-      'Constellation 6x2',
-      'Constellation 6x4',
-      'Delivery 2.0',
-      'Delivery 2.5',
-      'Worker 11.190',
-      'Worker 13.170',
-      'Worker 15.170',
-    ],
-    'VOLVO': [
-      'FH 460',
-      'FH 480',
-      'FH 530',
-      'FM 500',
-      'FM 550',
-      'FMX 480',
-      'VNL 860',
-      'VNL 970',
-      'VNR 430',
-      'VNR 560',
-      'VHD 330',
-      'VNX 360',
-    ],
-    'FORD': [
-      'F-MAX 6x2',
-      'F-MAX 6x4',
-      'Cargo 4x2',
-      'Cargo 6x2',
-      'Transit 4x2',
-      'Transit 6x2',
-    ],
-    'TOYOTA': [
-      'Dyna 4x2',
-      'Dyna 6x2',
-      'ToyoAce 4x2',
-      'ToyoAce 6x2',
-      'Coaster 12-seater',
-      'Coaster 30-seater',
-      'Hiace 4x2',
-      'Hiace 6x2',
-    ],
-    'EICHER': [
-      'Pro 1000',
-      'Pro 2000',
-      'Pro 3000',
-      'Pro 4000',
-      'Pro 6000',
-      'Skyline 6x2',
-      'Skyline 6x4',
-    ],
-    'FAW': [
-      'Jiefang CA2124',
-      'Jiefang CA2126',
-      'Jiefang CA2141',
-      'J6P 6x2',
-      'J6P 6x4',
-      'JH6 4x2',
-      'JH6 6x2',
-    ],
-    'JAC': [
-      'Gallop 4x2',
-      'Gallop 6x2',
-      'Gallop 6x4',
-      'Kangling 4x2',
-      'Kangling 6x2',
-      'Sunray 4x2',
-      'Sunray 6x2',
-      'N-Series 6x2',
-      'N-Series 6x4',
-    ],
-    'POWERSTAR': [
-      'VX 320',
-      'VX 450',
-      'FT 620',
-      'FT 720',
-      'XP 360',
-      'XP 480',
-    ],
-    'RENAULT': [
-      'T High',
-      'T Medium',
-      'T Low',
-      'T 340',
-      'T 450',
-      'T 520',
-      'T 520 Elite',
-      'T 540',
-      'T 540 Elite',
-      'T 610',
-      'T 680',
-      'T 680 Elite',
-      'C 200',
-      'C 300',
-      'K 100',
-      'K 200',
-      'D 50',
-      'D 100',
-    ],
-    'TATA': [
-      'Prima 4x2',
-      'Prima 6x2',
-      'Signa 6x2',
-      'Signa 6x4',
-      'LPT 4x2',
-      'LPT 6x2',
-      'Ultra 6x2',
-      'Ultra 6x4',
-    ],
-    'ASHOK LEYLAND': [
-      'Captain 6x2',
-      'Captain 6x4',
-      'U-Truck 6x2',
-      'U-Truck 6x4',
-      'Ecomet 6x2',
-      'Ecomet 6x4',
-      'Boss 6x2',
-      'Boss 6x4',
-      'Dost 6x2',
-      'Dost 6x4',
-    ],
-    'FIAT': [
-      'Ducato Cargo',
-      'Ducato Chassis',
-      'Talento 4x2',
-      'Talento 6x2',
-      'Fiorino 4x2',
-      'Fiorino 6x2',
-    ],
-    'FOTON': [
-      'Auman 6x2',
-      'Auman 6x4',
-      'Aumark 6x2',
-      'Aumark 6x4',
-      'Ollin 6x2',
-      'Ollin 6x4',
-      'Toano 6x2',
-      'Toano 6x4',
-    ],
-    'HYUNDAI': [
-      'Xcient 6x2',
-      'Xcient 6x4',
-      'Mighty 4x2',
-      'Mighty 6x2',
-      'Pavise 6x2',
-      'Pavise 6x4',
-      'County 6x2',
-      'County 6x4',
-    ],
-    'PEUGEOT': [
-      'Boxer 4x2',
-      'Boxer 6x2',
-      'Expert 4x2',
-      'Expert 6x2',
-      'Partner 4x2',
-      'Partner 6x2',
-    ],
-    'US TRUCKS': [
-      'Freightliner Cascadia',
-      'Freightliner M2 106',
-      'Kenworth T680',
-      'Kenworth W990',
-      'Peterbilt 579',
-      'Peterbilt 389',
-      'Mack Anthem',
-      'Mack Pinnacle',
-    ],
+  late Map<String, List<String>> _makeModelOptions = {};
+  List<String> _variantOptions = [];
+  final Map<String, List<String>> _modelVariants = {};
+  List<String> _yearOptions = [];
+  List<String> _brandOptions = [];
 
-    // Added Makes
-    'Freightliner': ['Argosy', 'Detroit', 'Cascadia', 'M2 106', 'Sprinter'],
-    'JMC': ['Carrying', 'G7', 'Vigus', 'R-Series'],
-    'Bedford': ['TK', 'S', 'AFT', 'CF', 'CA'],
-    'Daewoo': ['Maximus', 'Novus', 'Furusan', 'BX'],
-    'ERF': ['Guardian', 'Evolution', 'Titan', 'Pro-Link'],
-    'Howo': ['A7', 'A9', '300', '500', '800', '900'],
-    'International': [
-      'Eagle 9800i',
-      'ProStar',
-      'Lonestar',
-      'LT Series',
-      'HV Series'
-    ],
-    'Kenworth': ['T680', 'W990', 'T880', 'W900', 'T370'],
-    'Kia': ['K2700', 'K3000', 'K3500'],
-    'Mack': ['Anthem', 'Pinnacle', 'Granite', 'TerraPro', 'Vision'],
-    'Mitsubishi': [
-      'Fuso Canter',
-      'Fuso Fighter',
-      'Fuso Super Great',
-      'Fuso Rosa'
-    ],
-    'Nissan': ['Atlas', 'Civilian', 'KingLong', 'NV Series'],
-    'Peterbilt': ['579', '389', '567', '349', '337'],
-    'Samil': ['Magnum', 'Ace', 'Power', 'Trident'],
-    'Sinotruk': ['Howo', 'Sitrak', 'Sinematic', 'Hanteng'],
-    'Samag': ['Samax', 'Samstrong', 'Samheavy'],
-    'Sitrak': ['SLB', 'SLF', 'SLS', 'SLT'],
-    'Westernstar': ['5700', '6900', '6800', '4300', '4800'],
-  };
+  Future<void> _loadYearOptions() async {
+    final String response =
+        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+    final data = json.decode(response);
+    setState(() {
+      _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
+    });
+  }
 
-  final List<String> _brandOptions = [
-    'DAF',
-    'FUSO',
-    'ISUZU',
-    'IVECO',
-    'MAN',
-    'MERCEDES-BENZ',
-    'SCANIA',
-    'UD TRUCKS',
-    'VW',
-    'VOLVO',
-    'FORD',
-    'TOYOTA',
-    'EICHER',
-    'FAW',
-    'JAC',
-    'POWERSTAR',
-    'RENAULT',
-    'TATA',
-    'ASHOK LEYLAND',
-    'FIAT',
-    'FOTON',
-    'HYUNDAI',
-    'PEUGEOT',
-    'US TRUCKS',
+  Future<void> _loadBrandsForYear() async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final String response =
+        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+    final data = json.decode(response);
+    setState(() {
+      _brandOptions = data[formData.year]?.keys.toList() ?? [];
+      formData.setBrands(null);
+      formData.setMakeModel(null);
+      formData.setVariant(null);
+    });
+  }
 
-    // Added Brands
-    'Freightliner',
-    'JMC',
-    'Bedford',
-    'Daewoo',
-    'ERF',
-    'Howo',
-    'International',
-    'Kenworth',
-    'Kia',
-    'Mack',
-    'Mitsubishi',
-    'Nissan',
-    'Peterbilt',
-    'Samil',
-    'Sinotruk',
-    'Samag',
-    'Sitrak',
-    'Westernstar',
-  ];
+  Future<void> _loadModelsForBrand() async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final String response =
+        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+    final data = json.decode(response);
+
+    if (formData.year != null && formData.brands?.isNotEmpty == true) {
+      setState(() {
+        final models = (data[formData.year][formData.brands!.first]
+                as Map<String, dynamic>)
+            .keys
+            .toList();
+        _makeModelOptions = {formData.brands!.first: models.cast<String>()};
+        formData.setMakeModel(null);
+        formData.setVariant(null);
+      });
+    }
+  }
+
+  Future<void> _loadVariantsForModel() async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final String response =
+        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+    final data = json.decode(response);
+
+    if (formData.year != null &&
+        formData.brands?.isNotEmpty == true &&
+        formData.makeModel != null) {
+      setState(() {
+        _variantOptions = List<String>.from(
+            data[formData.year][formData.brands!.first][formData.makeModel]);
+        formData.setVariant(null);
+      });
+    }
+  }
 
   String? _initialVehicleStatus;
-
-  // Define year options
-  final List<String> _yearOptions = List.generate(
-    DateTime.now().year - 1980 + 1,
-    (index) => (1980 + index).toString(),
-  ).reversed.toList(); // Reverse to show the latest year first
 
   // Variable to hold selected RC1/NATIS file
   File? _natisRc1File;
@@ -469,6 +191,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   void initState() {
     super.initState();
     _loadCountryOptions(); // Load country options on initialization
+    _loadYearOptions();
+    _loadBrandsForYear();
+    _loadModelsForBrand();
+    _loadVariantsForModel();
+    _checkUserRole();
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
 
@@ -500,6 +227,21 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         _imageHeight = 300.0 - offset;
       });
     });
+  }
+
+  Future<void> _checkUserRole() async {
+    // Get current user's role from your auth system
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userData = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      setState(() {
+        isDealer = userData.data()?['role'] == 'dealer';
+      });
+    }
   }
 
   // New method to load country options from JSON
@@ -698,8 +440,34 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
     // Update form provider
     print('DEBUG: Updating FormDataProvider');
-    formData.setYear(widget.vehicle?.year as String);
+    print('DEBUG: Starting data population');
+    print('DEBUG: Year: ${widget.vehicle?.year}');
+    print('DEBUG: Brands: ${widget.vehicle?.brands}');
+    print('DEBUG: Model: ${widget.vehicle?.makeModel}');
+    print('DEBUG: Variant: ${widget.vehicle?.variant}');
+    formData.setYear(widget.vehicle?.year);
+    _yearOptions = []; // Clear and reload year options
+    _loadYearOptions().then((_) {
+      // After years loaded, handle brands
+      _loadBrandsForYear().then((_) {
+        if (widget.vehicle?.brands != null &&
+            widget.vehicle!.brands.isNotEmpty) {
+          formData.setBrands(widget.vehicle!.brands);
+
+          // After brands loaded, handle models
+          _loadModelsForBrand().then((_) {
+            formData.setMakeModel(widget.vehicle?.makeModel);
+
+            // After models loaded, handle variants
+            _loadVariantsForModel().then((_) {
+              formData.setVariant(widget.vehicle?.variant);
+            });
+          });
+        }
+      });
+    });
     formData.setMakeModel(widget.vehicle?.makeModel as String);
+    formData.setVariant(widget.vehicle?.variant);
     formData.setVinNumber(widget.vehicle?.vinNumber);
     formData.setConfig(widget.vehicle?.config);
     formData.setMileage(widget.vehicle?.mileage);
@@ -724,6 +492,22 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         .setRequireToSettleType(widget.vehicle?.requireToSettleType ?? 'no');
     formData.setReferenceNumber(widget.vehicle?.referenceNumber);
     formData.setCountry(widget.vehicle?.country ?? 'South Africa');
+    // Set year and trigger brand loading
+    formData.setYear(widget.vehicle?.year);
+    _loadBrandsForYear();
+
+    // Set brand and trigger model loading
+    if (widget.vehicle?.brands != null && widget.vehicle!.brands.isNotEmpty) {
+      formData.setBrands(widget.vehicle!.brands);
+      _loadModelsForBrand();
+    }
+
+    // Set model and trigger variant loading
+    formData.setMakeModel(widget.vehicle?.makeModel);
+    _loadVariantsForModel();
+
+    // Set variant
+    formData.setVariant(widget.vehicle?.variant);
 
     print('DEBUG: Completed _populateExistingVehicleData');
   }
@@ -1075,6 +859,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   }
 
   Widget _buildMandatorySection() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     final formData = Provider.of<FormDataProvider>(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -1114,30 +904,31 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           const SizedBox(height: 20),
           const SizedBox(height: 15),
           // Vehicle Status Dropdown
-          CustomDropdown(
-            hintText: 'Vehicle Status',
-            value: _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
-            items: const ['Draft', 'Live'],
-            onChanged: (value) {
-              setState(() {
-                _vehicleStatus = value;
-                formData.setVehicleStatus(value);
-              });
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please select the vehicle status';
-              }
-              return null;
-            },
-          ),
+          if (isTransporter)
+            CustomDropdown(
+              hintText: 'Vehicle Status',
+              value: _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
+              items: const ['Draft', 'Live'],
+              onChanged: (value) {
+                setState(() {
+                  _vehicleStatus = value;
+                  formData.setVehicleStatus(value);
+                });
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select the vehicle status';
+                }
+                return null;
+              },
+            ),
 
           const SizedBox(height: 15),
           // Reference Number field
           _buildReferenceNumberField(),
           const SizedBox(height: 15),
           // RC1/NATIS File Upload Section
-          _buildNatisRc1Section(),
+          if (isTransporter) _buildNatisRc1Section(),
           const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1163,29 +954,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          // Manufacturer field
-          CustomDropdown(
-            hintText: 'Manufacturer',
-            value: formData.brands?.isNotEmpty == true
-                ? formData.brands![0]
-                : null,
-            items: _brandOptions,
-            onChanged: (value) {
-              if (value != null) {
-                formData.setBrands([value]);
-                formData
-                    .setMakeModel(null); // Reset makeModel when brand changes
-                formData.saveFormState();
-              }
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please select the manufacturer';
-              }
-              return null;
-            },
-          ),
           const SizedBox(height: 15),
           Form(
             key: _formKeys[0],
@@ -1193,49 +961,62 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Year and Make/Model
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomDropdown(
-                        hintText: 'Year',
-                        value: formData.year,
-                        items: _yearOptions,
-                        onChanged: (value) {
-                          formData.setYear(value);
-                          formData.saveFormState();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please select the year';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: CustomDropdown(
-                        hintText: 'Make/Model',
-                        value: formData.makeModel,
-                        items: _makeModelOptions[
-                                formData.brands?.isNotEmpty == true
-                                    ? formData.brands![0]
-                                    : ''] ??
-                            [],
-                        onChanged: (value) {
-                          formData.setMakeModel(value);
-                          formData.saveFormState();
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please select the make/model';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
+                // Year and Make/Model
+                CustomDropdown(
+                  hintText: 'Year',
+                  value: formData.year,
+                  items: _yearOptions,
+                  onChanged: (value) {
+                    formData.setYear(value);
+                    _loadBrandsForYear();
+                    formData.saveFormState();
+                  },
                 ),
+                const SizedBox(height: 15),
+
+// Manufacturer field
+                CustomDropdown(
+                  hintText: 'Manufacturer',
+                  value: formData.brands?.isNotEmpty == true
+                      ? formData.brands![0]
+                      : null,
+                  items: _brandOptions,
+                  onChanged: (value) {
+                    if (value != null) {
+                      formData.setBrands([value]);
+                      _loadModelsForBrand();
+                      formData.saveFormState();
+                    }
+                  },
+                ),
+                const SizedBox(height: 15),
+
+                CustomDropdown(
+                  hintText: 'Make/Model',
+                  value: formData.makeModel,
+                  items: _makeModelOptions[formData.brands?.isNotEmpty == true
+                          ? formData.brands![0]
+                          : ''] ??
+                      [],
+                  onChanged: (value) {
+                    formData.setMakeModel(value);
+                    _loadVariantsForModel();
+                    formData.saveFormState();
+                  },
+                ),
+                const SizedBox(height: 15),
+
+// Add the missing Variant dropdown
+                CustomDropdown(
+                  hintText: 'Variant',
+                  value: formData.variant,
+                  items: _variantOptions,
+                  onChanged: (value) {
+                    formData.setVariant(value);
+                    formData.saveFormState();
+                  },
+                ),
+
                 const SizedBox(height: 15),
                 // Country Dropdown
                 CustomDropdown(
@@ -1307,17 +1088,18 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 // VIN Number
-                CustomTextField(
-                  controller: _vinNumberController,
-                  hintText: 'VIN Number',
-                  inputFormatter: [UpperCaseTextFormatter()],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter the VIN number';
-                    }
-                    return null;
-                  },
-                ),
+                if (isTransporter)
+                  CustomTextField(
+                    controller: _vinNumberController,
+                    hintText: 'VIN Number',
+                    inputFormatter: [UpperCaseTextFormatter()],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the VIN number';
+                      }
+                      return null;
+                    },
+                  ),
                 const SizedBox(height: 15),
                 // Engine Number
                 CustomTextField(
@@ -1334,22 +1116,23 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 // Selling Price
-                CustomTextField(
-                  controller: _sellingPriceController,
-                  hintText: 'Selling Price',
-                  isCurrency: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatter: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    ThousandsSeparatorInputFormatter(),
-                  ],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter the selling price';
-                    }
-                    return null;
-                  },
-                ),
+                if (isTransporter)
+                  CustomTextField(
+                    controller: _sellingPriceController,
+                    hintText: 'Selling Price',
+                    isCurrency: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatter: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      ThousandsSeparatorInputFormatter(),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the selling price';
+                      }
+                      return null;
+                    },
+                  ),
                 const SizedBox(height: 15),
                 Center(
                   child: Text(
@@ -1611,6 +1394,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       final vehicleData = {
         'year': formData.year,
         'makeModel': formData.makeModel,
+        'variant': formData.variant, //
         'vinNumber': formData.vinNumber,
         'config': formData.config,
         'mileage': formData.mileage,

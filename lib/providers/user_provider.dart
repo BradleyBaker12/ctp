@@ -75,15 +75,13 @@ class UserProvider extends ChangeNotifier {
       if (newUser != null) {
         _user = newUser;
         try {
-          await fetchUserData(); // Wait for data fetch
+          await fetchUserData();
         } catch (e) {
           print('Error fetching user data: $e');
-          _clearUserData(); // Clear data if fetch fails
+          _clearUserData();
         }
-      } else {
-        _clearUserData();
+        notifyListeners();
       }
-      notifyListeners();
     });
   }
 
@@ -132,12 +130,15 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> fetchUserData() async {
+    print("DEBUG: Fetching user data");
     try {
       if (_user != null) {
+        print("DEBUG: Fetching for user: ${_user!.uid}");
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(_user!.uid)
             .get();
+        print("DEBUG: User doc exists: ${userDoc.exists}");
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
           _userRole = data['userRole'] ?? 'guest';
@@ -694,6 +695,7 @@ class UserProvider extends ChangeNotifier {
 
   // Method to set the user
   void setUser(User? user) {
+    print("DEBUG: Setting user in provider: ${user?.uid}");
     _user = user;
     notifyListeners();
     // Remove fetchUserData from here since it's handled by auth state listener

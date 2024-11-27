@@ -2,7 +2,6 @@
 
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
-import 'package:ctp/models/maintenance_data.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/offersPage.dart';
 import 'package:ctp/pages/profile_page.dart';

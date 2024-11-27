@@ -89,6 +89,229 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     }
   }
 
+  int _calculateBasicInfoProgress() {
+    int completedSteps = 0;
+    const totalSteps = 15; // Total number of possible fields
+
+    // Main image
+    if (vehicle?.mainImageUrl != null) completedSteps++;
+    // Vehicle status
+    // if (vehicle?.vehicleStatus != null) completedSteps++;
+    // Reference number
+    // if (vehicle?.referenceNumber != null) completedSteps++;
+    // RC1/NATIS file
+    // if (vehicle?.rc1NatisFile != null) completedSteps++;
+    // Vehicle type (truck/trailer)
+    if (vehicle?.vehicleType != null) completedSteps++;
+    // Year
+    if (vehicle?.year != null) completedSteps++;
+    // Make/Model
+    if (vehicle?.makeModel != null) completedSteps++;
+    // Variant
+    if (vehicle?.variant != null) completedSteps++;
+    // Country
+    if (vehicle?.country != null) completedSteps++;
+    // Mileage
+    if (vehicle?.mileage != null) completedSteps++;
+    // Configuration
+    if (vehicle?.config != null) completedSteps++;
+    // Application
+    if (vehicle?.application.isNotEmpty == true) completedSteps++;
+    // VIN Number
+    // if (vehicle?.vinNumber != null) completedSteps++;
+    // Engine Number
+    if (vehicle?.engineNumber != null) completedSteps++;
+    // Registration Number
+    if (vehicle?.registrationNumber != null) completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateMaintenanceProgress() {
+    int completedSteps = 0;
+    const totalSteps = 4; // Total possible fields
+
+    // Check maintenance document
+    if (vehicle?.maintenance.maintenanceDocUrl != null) completedSteps++;
+    // Check warranty document
+    if (vehicle?.maintenance.warrantyDocUrl != null) completedSteps++;
+    // Check OEM inspection type
+    if (vehicle?.maintenance.oemInspectionType != null) completedSteps++;
+    // Check OEM reason if inspection type is 'no'
+    if (vehicle?.maintenance.oemInspectionType == 'no' &&
+        vehicle?.maintenance.oemReason?.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateAdminProgress() {
+    int completedSteps = 0;
+    const totalSteps = 4; // Total possible fields
+
+    // NATIS/RC1 document
+    if (vehicle?.adminData.natisRc1Url != null) completedSteps++;
+    // License disk
+    if (vehicle?.adminData.licenseDiskUrl != null) completedSteps++;
+    // Settlement letter (if required)
+    if (vehicle?.requireToSettleType == 'yes') {
+      if (vehicle?.adminData.settlementLetterUrl != null) completedSteps++;
+      if (vehicle?.adminData.settlementAmount.isNotEmpty == true) {
+        completedSteps++;
+      }
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateExternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps = 3; // Base fields: condition, damages, additional features
+
+    final externalCab = vehicle?.truckConditions.externalCab;
+
+    // Check main condition
+    if (externalCab?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    if (externalCab?.images.isNotEmpty == true) completedSteps++;
+
+    // Check damages section
+    if (externalCab?.damagesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check additional features section
+    if (externalCab?.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateInternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        5; // Base fields: condition, damages, additional features, fault codes, view images
+
+    final internalCab = vehicle?.truckConditions.internalCab;
+
+    // Check main condition
+    if (internalCab?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check view images
+    if (internalCab?.viewImages.isNotEmpty == true) completedSteps++;
+
+    // Check damages section
+    if (internalCab?.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (internalCab?.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check fault codes section
+    if (internalCab?.faultCodesCondition.isNotEmpty == true) completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateDriveTrainProgress() {
+    int completedSteps = 0;
+    int totalSteps = 10; // All fields from the DriveTrain model
+
+    final driveTrain = vehicle?.truckConditions.driveTrain;
+
+    // Check main condition
+    if (driveTrain?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check engine conditions
+    if (driveTrain?.oilLeakConditionEngine.isNotEmpty == true) completedSteps++;
+    if (driveTrain?.waterLeakConditionEngine.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain?.blowbyCondition.isNotEmpty == true) completedSteps++;
+
+    // Check gearbox and retarder conditions
+    if (driveTrain?.oilLeakConditionGearbox.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain?.retarderCondition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    if (driveTrain?.images.isNotEmpty == true) completedSteps++;
+
+    // Check damages
+    if (driveTrain?.damages.isNotEmpty == true) completedSteps++;
+
+    // Check additional features
+    if (driveTrain?.additionalFeatures.isNotEmpty == true) completedSteps++;
+
+    // Check fault codes
+    if (driveTrain?.faultCodes.isNotEmpty == true) completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateChassisProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        4; // Base fields: condition, images, damages, additional features
+
+    final chassis = vehicle?.truckConditions.chassis;
+
+    // Check main condition
+    if (chassis?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    if (chassis?.images.isNotEmpty == true) completedSteps++;
+
+    // Check damages section
+    if (chassis?.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (chassis?.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateTyresProgress() {
+    int completedSteps = 0;
+
+    final tyresMap = vehicle?.truckConditions.tyres;
+    if (tyresMap != null) {
+      tyresMap.forEach((key, tyres) {
+        // Loop through tyre positions
+        for (int pos = 1; pos <= 6; pos++) {
+          String posKey = 'Tyre_Pos_$pos';
+          final tyreData =
+              tyres.positions[posKey]; // Access `positions` from `Tyres`
+
+          if (tyreData?.chassisCondition != null &&
+              tyreData!.chassisCondition.isNotEmpty) completedSteps++;
+          if (tyreData?.virginOrRecap != null &&
+              tyreData!.virginOrRecap.isNotEmpty) completedSteps++;
+          if (tyreData?.rimType != null && tyreData!.rimType.isNotEmpty) {
+            completedSteps++;
+          }
+        }
+      });
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateTruckConditionsProgress() {
+    return _calculateExternalCabProgress() +
+        _calculateInternalCabProgress() +
+        _calculateDriveTrainProgress() +
+        _calculateChassisProgress() +
+        _calculateTyresProgress();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (vehicle == null) {
@@ -149,32 +372,71 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         ],
       ),
       body: GradientBackground(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            const Text(
-              'COMPLETE ALL STEPS AS\nPOSSIBLE TO RECEIVE\nBETTER OFFERS',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              const Text(
+                'COMPLETE ALL STEPS AS\nPOSSIBLE TO RECEIVE\nBETTER OFFERS',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            _buildSection(
-                context, 'BASIC\nINFORMATION', '10 OF 20 STEPS\nCOMPLETED'),
-            _buildSection(
-                context, 'TRUCK CONDITION', '10 OF 20 STEPS\nCOMPLETED'),
-            _buildSection(
-              context,
-              'MAINTENANCE\nAND WARRANTY',
-              '10 OF 20 STEPS\nCOMPLETED',
-            ),
-            _buildSection(context, 'ADMIN', '10 OF 20 STEPS\nCOMPLETED'),
-            const Spacer(),
-            _buildBottomButtons(),
-          ],
+              const SizedBox(height: 20),
+              _buildSection(context, 'BASIC\nINFORMATION',
+                  '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED'),
+              _buildSection(context, 'TRUCK CONDITION',
+                  '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED'),
+              _buildSection(
+                context,
+                'MAINTENANCE\nAND WARRANTY',
+                '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
+              ),
+              _buildSection(context, 'ADMIN',
+                  '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
+              const SizedBox(height: 20),
+              if (vehicle?.vehicleStatus == 'Draft')
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                  child: CustomButton(
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection('vehicles')
+                          .doc(vehicle!.id)
+                          .update({'vehicleStatus': 'Live'});
+
+                      // Fetch updated vehicle data
+                      await _fetchVehicleData();
+                    },
+                    text: 'PUSH TO LIVE',
+                    borderColor: Colors.green,
+                  ),
+                )
+              else if (vehicle?.vehicleStatus == 'Live')
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                  child: CustomButton(
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection('vehicles')
+                          .doc(vehicle!.id)
+                          .update({'vehicleStatus': 'Draft'});
+
+                      // Fetch updated vehicle data
+                      await _fetchVehicleData();
+                    },
+                    text: 'MOVE TO DRAFT',
+                    borderColor: Colors.blueAccent,
+                  ),
+                ),
+              const SizedBox(height: 20),
+              _buildBottomButtons(),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );

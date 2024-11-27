@@ -8,7 +8,11 @@ import 'package:ctp/models/internal_cab.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
+import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
+import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
+import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -42,13 +46,21 @@ class VehicleDetailsPage extends StatefulWidget {
 }
 
 class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
+  Vehicle? _vehicle;
+  Vehicle get vehicle => _vehicle ?? widget.vehicle;
+  set vehicle(Vehicle value) {
+    setState(() {
+      _vehicle = value;
+    });
+  }
+
   final TextEditingController _controller = TextEditingController();
   double _totalCost = 0.0;
   int _currentImageIndex = 0;
   bool _isLoading = false;
   double _offerAmount = 0.0;
   bool _hasMadeOffer = false;
-  bool _isAdditionalInfoExpanded = true; // State to track the dropdown
+  final bool _isAdditionalInfoExpanded = true; // State to track the dropdown
   List<PhotoItem> allPhotos = [];
   late PageController _pageController;
   String _offerStatus = 'in-progress'; // Default status for the offer
@@ -64,8 +76,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   bool _isAdminDataExpanded = false; // State to track the admin data expansion
 
   @override
+  @override
   void initState() {
     super.initState();
+    _vehicle = widget.vehicle;
     _checkIfOfferMade();
     _fetchAllDealers();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -434,6 +448,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               ? user.uid
               : ''; // Use selected dealer for admin, own userId for dealer
       String vehicleId = widget.vehicle.id;
+      print("Vehicle Id :$vehicleId");
       String transporterId = widget.vehicle.userId;
       DateTime createdAt = DateTime.now();
 
@@ -526,6 +541,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   Widget _buildAdditionalInfo() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
     List<Widget> infoWidgets = [];
 
     void addInfo(String title, dynamic value) {
@@ -572,10 +589,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       addInfo('Damage Description', widget.vehicle.damageDescription);
 
       // Documentation
-      if (widget.vehicle.rc1NatisFile != null &&
-          widget.vehicle.rc1NatisFile!.isNotEmpty) {
+      if (widget.vehicle.rc1NatisFile.isNotEmpty && userRole == 'transporter') {
         infoWidgets.add(_buildInfoRowWithButton(
-            'RC1 Natis File', widget.vehicle.rc1NatisFile!));
+            'RC1 Natis File', widget.vehicle.rc1NatisFile));
       }
 
       // Financial Information
@@ -785,40 +801,119 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   void _viewDocument(String url) async {
     try {
-      // Show loading indicator
       setState(() {
         _isLoading = true;
       });
 
-      // Get temporary directory to store the PDF
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'document_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final filePath = '${directory.path}/$fileName';
+      // Check file type from URL
+      final fileExtension = url.split('.').last.toLowerCase();
+      final isImage = ['jpg', 'jpeg', 'png', 'gif'].contains(fileExtension);
+      final isPDF = fileExtension == 'pdf';
 
-      // Download the PDF file
-      final response = await http.get(Uri.parse(url));
-      final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
+      if (isImage) {
+        // Show image viewer
+        setState(() {
+          _isLoading = false;
+        });
 
-      // Hide loading indicator
-      setState(() {
-        _isLoading = false;
-      });
-
-      // Navigate to PDF viewer
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PDFView(
-              filePath: filePath,
-              enableSwipe: true,
-              swipeHorizontal: false,
-              autoSpacing: true,
-              pageFling: true,
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                backgroundColor: Colors.black,
+                appBar: AppBar(
+                  backgroundColor: Colors.black,
+                  leading: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                body: Center(
+                  child: InteractiveViewer(
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFFFF4E00)),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Text('Error loading image',
+                              style: TextStyle(color: Colors.white)),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
+          );
+        }
+      } else if (isPDF) {
+        // Existing PDF viewing logic
+        final directory = await getApplicationDocumentsDirectory();
+        final fileName =
+            'document_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final filePath = '${directory.path}/$fileName';
+
+        final response = await http.get(Uri.parse(url)).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw Exception('Download timeout - please try again');
+          },
         );
+
+        if (response.statusCode != 200) {
+          throw Exception('Failed to download document');
+        }
+
+        final file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PDFView(
+                filePath: filePath,
+                enableSwipe: true,
+                swipeHorizontal: false,
+                autoSpacing: true,
+                pageFling: true,
+                pageSnap: true,
+                defaultPage: 0,
+                fitPolicy: FitPolicy.BOTH,
+                preventLinkNavigation: false,
+                onError: (error) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Error loading PDF: $error'),
+                        backgroundColor: Colors.red),
+                  );
+                  Navigator.pop(context);
+                },
+                onPageError: (page, error) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Error loading page $page: $error'),
+                        backgroundColor: Colors.red),
+                  );
+                },
+              ),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Unsupported file format');
       }
     } catch (e) {
       setState(() {
@@ -827,9 +922,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading PDF: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+              content: Text('Error loading document: ${e.toString()}'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -1078,20 +1172,20 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 ),
                               ),
                               // Overlay label on top left corner
-                              Positioned(
-                                top: 10,
-                                left: 10,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  color: Colors.black54,
-                                  child: Text(
-                                    allPhotos[index].label,
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 16),
-                                  ),
-                                ),
-                              ),
+                              // Positioned(
+                              //   top: 10,
+                              //   left: 10,
+                              //   child: Container(
+                              //     padding: const EdgeInsets.symmetric(
+                              //         horizontal: 8, vertical: 4),
+                              //     color: Colors.black54,
+                              //     child: Text(
+                              //       allPhotos[index].label,
+                              //       style: const TextStyle(
+                              //           color: Colors.white, fontSize: 16),
+                              //     ),
+                              //   ),
+                              // ),
                             ],
                           );
                         },
@@ -1356,37 +1450,20 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ),
                       const SizedBox(height: 40),
                       if (isDealer)
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isAdditionalInfoExpanded =
-                                  !_isAdditionalInfoExpanded;
-                            });
-                          },
-                          child: Row(
-                            children: [
-                              AnimatedRotation(
-                                turns: _isAdditionalInfoExpanded ? 0.25 : 0.0,
-                                duration: const Duration(milliseconds: 300),
-                                child: Icon(
-                                  Icons.arrow_right,
-                                  color: const Color(0xFFFF4E00),
-                                  size: screenSize.height * 0.04,
-                                ),
-                              ),
-                              const SizedBox(width: 0),
-                              Text('ADDITIONAL INFO',
-                                  style: _customFont(
-                                      20, FontWeight.bold, Colors.blue)),
-                            ],
-                          ),
+                        _buildSection(context, 'BASIC\nINFORMATION',
+                            '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED'),
+                      if (isDealer)
+                        _buildSection(context, 'TRUCK CONDITION',
+                            '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED'),
+                      if (isDealer)
+                        _buildSection(
+                          context,
+                          'MAINTENANCE\nAND WARRANTY',
+                          '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
                         ),
-                      const SizedBox(height: 32),
                       // if (isDealer)
-                      if (_isAdditionalInfoExpanded) _buildAdditionalInfo(),
-                      _buildMaintenanceSection(),
-                      _buildAdminDataSection(),
-                      _buildTruckConditionsSection(),
+                      //   _buildSection(context, 'ADMIN',
+                      //       '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
                       const SizedBox(height: 30),
                       if (isTransporter)
                         Column(children: [
@@ -1424,6 +1501,436 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   },
                 )
               : null, // Optionally handle other roles
+    );
+  }
+
+  int _calculateBasicInfoProgress() {
+    int completedSteps = 0;
+    const totalSteps = 15; // Total number of possible fields
+
+    // Main image
+    if (vehicle.mainImageUrl != null) completedSteps++;
+    // Vehicle status
+    // if (vehicle?.vehicleStatus != null) completedSteps++;
+    // Reference number
+    // if (vehicle?.referenceNumber != null) completedSteps++;
+    // RC1/NATIS file
+    // if (vehicle?.rc1NatisFile != null) completedSteps++;
+    // Vehicle type (truck/trailer)
+    completedSteps++;
+    // Year
+    completedSteps++;
+    // Make/Model
+    completedSteps++;
+    // Variant
+    if (vehicle.variant != null) completedSteps++;
+    // Country
+    completedSteps++;
+    // Mileage
+    completedSteps++;
+    // Configuration
+    completedSteps++;
+    // Application
+    if (vehicle.application.isNotEmpty == true) completedSteps++;
+    // VIN Number
+    // if (vehicle?.vinNumber != null) completedSteps++;
+    // Engine Number
+    completedSteps++;
+    // Registration Number
+    completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateMaintenanceProgress() {
+    int completedSteps = 0;
+    const totalSteps = 4; // Total possible fields
+
+    // Check maintenance document
+    if (vehicle.maintenance.maintenanceDocUrl != null) completedSteps++;
+    // Check warranty document
+    if (vehicle.maintenance.warrantyDocUrl != null) completedSteps++;
+    // Check OEM inspection type
+    if (vehicle.maintenance.oemInspectionType != null) completedSteps++;
+    // Check OEM reason if inspection type is 'no'
+    if (vehicle.maintenance.oemInspectionType == 'no' &&
+        vehicle.maintenance.oemReason?.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateAdminProgress() {
+    int completedSteps = 0;
+    const totalSteps = 4; // Total possible fields
+
+    // NATIS/RC1 document
+    completedSteps++;
+    // License disk
+    completedSteps++;
+    // Settlement letter (if required)
+    if (vehicle.requireToSettleType == 'yes') {
+      completedSteps++;
+      if (vehicle.adminData.settlementAmount.isNotEmpty == true) {
+        completedSteps++;
+      }
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateExternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps = 3; // Base fields: condition, damages, additional features
+
+    final externalCab = vehicle.truckConditions.externalCab;
+
+    // Check main condition
+    if (externalCab.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    if (externalCab.images.isNotEmpty == true) completedSteps++;
+
+    // Check damages section
+    if (externalCab.damagesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check additional features section
+    if (externalCab.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateInternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        5; // Base fields: condition, damages, additional features, fault codes, view images
+
+    final internalCab = vehicle.truckConditions.internalCab;
+
+    // Check main condition
+    if (internalCab.condition.isNotEmpty == true) completedSteps++;
+
+    // Check view images
+    if (internalCab.viewImages.isNotEmpty == true) completedSteps++;
+
+    // Check damages section
+    if (internalCab.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (internalCab.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check fault codes section
+    if (internalCab.faultCodesCondition.isNotEmpty == true) completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateDriveTrainProgress() {
+    int completedSteps = 0;
+    int totalSteps = 10; // All fields from the DriveTrain model
+
+    final driveTrain = vehicle.truckConditions.driveTrain;
+
+    // Check main condition
+    if (driveTrain.condition.isNotEmpty == true) completedSteps++;
+
+    // Check engine conditions
+    if (driveTrain.oilLeakConditionEngine.isNotEmpty == true) completedSteps++;
+    if (driveTrain.waterLeakConditionEngine.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain.blowbyCondition.isNotEmpty == true) completedSteps++;
+
+    // Check gearbox and retarder conditions
+    if (driveTrain.oilLeakConditionGearbox.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain.retarderCondition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    if (driveTrain.images.isNotEmpty == true) completedSteps++;
+
+    // Check damages
+    if (driveTrain.damages.isNotEmpty == true) completedSteps++;
+
+    // Check additional features
+    if (driveTrain.additionalFeatures.isNotEmpty == true) completedSteps++;
+
+    // Check fault codes
+    if (driveTrain.faultCodes.isNotEmpty == true) completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateChassisProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        4; // Base fields: condition, images, damages, additional features
+
+    final chassis = vehicle.truckConditions.chassis;
+
+    // Check main condition
+    if (chassis.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    if (chassis.images.isNotEmpty == true) completedSteps++;
+
+    // Check damages section
+    if (chassis.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (chassis.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateTyresProgress() {
+    int completedSteps = 0;
+
+    final tyresMap = vehicle.truckConditions.tyres;
+    tyresMap.forEach((key, tyres) {
+      // Loop through tyre positions
+      for (int pos = 1; pos <= 6; pos++) {
+        String posKey = 'Tyre_Pos_$pos';
+        final tyreData =
+            tyres.positions[posKey]; // Access `positions` from `Tyres`
+
+        if (tyreData?.chassisCondition != null &&
+            tyreData!.chassisCondition.isNotEmpty) completedSteps++;
+        if (tyreData?.virginOrRecap != null &&
+            tyreData!.virginOrRecap.isNotEmpty) completedSteps++;
+        if (tyreData?.rimType != null && tyreData!.rimType.isNotEmpty) {
+          completedSteps++;
+        }
+      }
+    });
+  
+    return completedSteps;
+  }
+
+  int _calculateTruckConditionsProgress() {
+    return _calculateExternalCabProgress() +
+        _calculateInternalCabProgress() +
+        _calculateDriveTrainProgress() +
+        _calculateChassisProgress() +
+        _calculateTyresProgress();
+  }
+
+  Widget _buildSection(BuildContext context, String title, String progress) {
+    return GestureDetector(
+      onTap: () async {
+        if (title.contains('MAINTENANCE')) {
+          try {
+            // Fetch the maintenance data from Firestore
+            DocumentSnapshot doc = await FirebaseFirestore.instance
+                .collection('vehicles')
+                .doc(vehicle.id)
+                .get();
+
+            if (!doc.exists) {
+              throw Exception('Vehicle document not found');
+            }
+
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            Map<String, dynamic> maintenanceData =
+                data['maintenanceData'] as Map<String, dynamic>? ?? {};
+
+            // Navigate to maintenance section with existing data
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (BuildContext context) => Scaffold(
+                  appBar: AppBar(
+                    backgroundColor: Colors.blueAccent,
+                    leading: Container(
+                      margin: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 30,
+                          minHeight: 30,
+                        ),
+                        icon: const Text(
+                          'BACK',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          vehicle.referenceNumber ?? 'REF',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 15),
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          vehicle.makeModel.toString().toUpperCase(),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0),
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundImage: vehicle.mainImageUrl != null
+                              ? NetworkImage(vehicle.mainImageUrl!)
+                                  as ImageProvider
+                              : const AssetImage('assets/truck_image.png'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  body: MaintenanceEditSection(
+                    vehicleId: vehicle.id,
+                    isUploading: false,
+                    isEditing: true,
+                    onMaintenanceFileSelected: (file) {
+                      // Handle maintenance file selection
+                    },
+                    onWarrantyFileSelected: (file) {
+                      // Handle warranty file selection
+                    },
+                    oemInspectionType:
+                        maintenanceData['oemInspectionType'] ?? 'yes',
+                    oemInspectionExplanation:
+                        maintenanceData['oemReason'] ?? '',
+                    onProgressUpdate: () {
+                      setState(() {
+                        // Update progress if needed
+                      });
+                    },
+                    maintenanceSelection:
+                        maintenanceData['maintenanceSelection'] ?? 'yes',
+                    warrantySelection:
+                        maintenanceData['warrantySelection'] ?? 'yes',
+                    maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
+                    warrantyDocUrl: maintenanceData['warrantyDocUrl'],
+                  ),
+                ),
+              ),
+            );
+
+            // Refresh the vehicle data after returning from maintenance
+            setState(() {});
+          } catch (e) {
+            print('Error loading maintenance data: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error loading maintenance data: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else if (title.contains('BASIC')) {
+          var updatedVehicle = await Navigator.of(context).push<Vehicle>(
+            MaterialPageRoute(
+              builder: (BuildContext context) => BasicInformationEdit(
+                vehicle: vehicle,
+              ),
+            ),
+          );
+          if (updatedVehicle != null) {
+            setState(() {
+              // Update the vehicle property
+              vehicle = updatedVehicle;
+            });
+          }
+        } else if (title.contains('TRUCK CONDITION')) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (BuildContext context) => TruckConditionsTabsEditPage(
+                initialIndex: 0,
+                vehicleId: vehicle.id,
+                mainImageUrl: vehicle.mainImageUrl,
+                referenceNumber: vehicle.referenceNumber ?? 'REF',
+                isEditing: true,
+              ),
+            ),
+          );
+          // Refresh the vehicle data after returning from truck conditions
+          setState(() {});
+        } else if (title.contains('ADMIN')) {
+          // Navigate to AdminEditSection with vehicleId
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (BuildContext context) => AdminEditSection(
+                vehicle: vehicle,
+                isUploading: false,
+                isEditing: true,
+                onAdminDoc1Selected: (file) {
+                  // Handle admin doc 1 selection
+                },
+                onAdminDoc2Selected: (file) {
+                  // Handle admin doc 2 selection
+                },
+                onAdminDoc3Selected: (file) {
+                  // Handle admin doc 3 selection
+                },
+                requireToSettleType: vehicle.requireToSettleType ?? 'no',
+                settlementAmount: vehicle.adminData.settlementAmount,
+                natisRc1Url: vehicle.adminData.natisRc1Url,
+                licenseDiskUrl: vehicle.adminData.licenseDiskUrl,
+                settlementLetterUrl: vehicle.adminData.settlementLetterUrl,
+              ),
+            ),
+          );
+          // Refresh the vehicle data after returning from admin edit
+          setState(() {});
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              progress,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -7,6 +7,7 @@ class CustomDropdown extends StatelessWidget {
   final List<String> items;
   final void Function(String?) onChanged;
   final String? Function(String?)? validator;
+  final Widget Function(BuildContext, String)? itemBuilder;
 
   const CustomDropdown({
     super.key,
@@ -15,11 +16,11 @@ class CustomDropdown extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.validator,
+    this.itemBuilder,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Ensure value is null if it's empty or not in items list
     final validValue =
         (value?.isNotEmpty == true && items.contains(value)) ? value : null;
 
@@ -56,7 +57,7 @@ class CustomDropdown extends StatelessWidget {
         items: items
             .map((item) => DropdownMenuItem<String>(
                   value: item,
-                  child: Text(item),
+                  child: itemBuilder?.call(context, item) ?? Text(item),
                 ))
             .toList(),
         icon: const Icon(

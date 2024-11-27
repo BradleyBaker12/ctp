@@ -1,7 +1,6 @@
 // lib/models/maintenance.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/timestamp_helper.dart';
 
 class Maintenance {
   final String vehicleId;

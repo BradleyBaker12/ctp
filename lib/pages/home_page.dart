@@ -71,11 +71,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      if (userProvider.getUserRole == 'guest') {
-        await FirebaseAuth.instance.signOut();
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
+      // if (userProvider.getUserRole == 'guest') {
+      //   await FirebaseAuth.instance.signOut();
+      //   Navigator.pushReplacementNamed(context, '/login');
+      //   return;
+      // }
 
       if (userProvider.getUserRole == 'admin') {
         Navigator.pushReplacement(
@@ -542,6 +542,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
+                if (recentOffers.isEmpty) ...[
+                  SizedBox(height: screenSize.height * 0.01),
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: const Color(0xFF2F7FFF), width: 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Image.asset(
+                          'lib/assets/shaking_hands.png',
+                          height: 50,
+                          width: 50,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'NO OFFERS YET',
+                          style: _customFont(18, FontWeight.bold, Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Start trading to see your offers here',
+                          style:
+                              _customFont(14, FontWeight.normal, Colors.grey),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: screenSize.height * 0.02),
+                ],
+
                 // Display the 5 most recent offers (excluding 'Done' offers)
                 if (recentOffers.isNotEmpty) ...[
                   SizedBox(height: screenSize.height * 0.01),
@@ -1151,7 +1188,7 @@ class SwiperWidget extends StatelessWidget {
                                 Padding(
                                   padding: const EdgeInsets.only(left: 8.0),
                                   child: Text(
-                                    vehicle.makeModel.toString().toUpperCase(),
+                                    "${vehicle.brands.join('')} ${vehicle.makeModel.toString().toUpperCase()}",
                                     style: const TextStyle(
                                       fontSize: 25,
                                       fontWeight: FontWeight.w900,

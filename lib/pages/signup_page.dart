@@ -26,6 +26,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   bool _isLoading = false;
+  bool _passwordVisible = false;
+  bool _confirmPasswordVisible = false;
 
   bool _isEmailValid(String email) {
     final RegExp emailRegExp = RegExp(
@@ -83,16 +85,21 @@ class _SignUpPageState extends State<SignUpPage> {
       User? user = userCredential.user;
 
       if (user != null) {
+        print("DEBUG: User created with ID: ${user.uid}");
+
         await _firestore.collection('users').doc(user.uid).set({
           'email': user.email,
           'createdAt': FieldValue.serverTimestamp(),
+          'role': 'guest',
+          'accountStatus': 'active'
         });
+        print("DEBUG: Firestore document created");
 
-        if (!mounted) return;
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         userProvider.setUser(user);
+        print("DEBUG: User set in provider");
 
-        if (!mounted) return;
+        print("DEBUG: Navigating to phone number page");
         Navigator.pushReplacementNamed(context, '/phoneNumber');
       }
     } on FirebaseAuthException catch (e) {
@@ -177,18 +184,45 @@ class _SignUpPageState extends State<SignUpPage> {
                                     controller: _emailController,
                                   ),
                                   SizedBox(
-                                      height: constraints.maxHeight * 0.02),
+                                      height: constraints.maxHeight * 0.03),
                                   CustomTextField(
                                     hintText: 'PASSWORD',
-                                    obscureText: true,
+                                    obscureText: !_passwordVisible,
                                     controller: _passwordController,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _passwordVisible
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _passwordVisible = !_passwordVisible;
+                                        });
+                                      },
+                                    ),
                                   ),
                                   SizedBox(
-                                      height: constraints.maxHeight * 0.02),
+                                      height: constraints.maxHeight * 0.03),
                                   CustomTextField(
                                     hintText: 'CONFIRM PASSWORD',
-                                    obscureText: true,
+                                    obscureText: !_confirmPasswordVisible,
                                     controller: _confirmPasswordController,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _confirmPasswordVisible
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _confirmPasswordVisible =
+                                              !_confirmPasswordVisible;
+                                        });
+                                      },
+                                    ),
                                   ),
                                 ],
                               ),

@@ -1,6 +1,5 @@
 import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/vehicles_provider.dart';

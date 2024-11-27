@@ -138,7 +138,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
+    // Comment out this line
+    // return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
+
+    // Replace with just
+    return _buildMobileLoginPage();
   }
 
   Widget _buildWebLoginPage() {

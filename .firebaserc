@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "ctp-central-database"
-  }
+    "default": "ctp-central-database",
+    "staging": "ctp-central-database"
+  },
+  "targets": {},
+  "etags": {}
 }

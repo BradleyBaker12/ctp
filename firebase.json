@@ -45,7 +45,8 @@
     }
   ],
   "hosting": {
-    "public": "build",
+    "site": "ctp-app-b",
+    "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",

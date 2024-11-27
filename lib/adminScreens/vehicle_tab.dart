@@ -1,7 +1,6 @@
 // lib/adminScreens/vehicle_tab.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/models/maintenance_data.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/maintenance.dart';

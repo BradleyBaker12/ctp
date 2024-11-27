@@ -4,7 +4,6 @@ import 'package:ctp/models/drive_train.dart';
 import 'package:ctp/models/external_cab.dart';
 import 'package:ctp/models/internal_cab.dart';
 import 'package:ctp/models/maintenance.dart';
-import 'package:ctp/models/maintenance_data.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';

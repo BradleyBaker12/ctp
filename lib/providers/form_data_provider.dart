@@ -207,6 +207,7 @@ class FormDataProvider with ChangeNotifier {
     // Save basic vehicle information
     await prefs.setString('vehicleType', _vehicleType ?? '');
     await prefs.setString('year', _year ?? '');
+    await prefs.setString('variant', _variant ?? '');
     await prefs.setString('makeModel', _makeModel ?? '');
     await prefs.setString('sellingPrice', _sellingPrice ?? '');
     await prefs.setString('vinNumber', _vinNumber ?? '');
@@ -237,7 +238,8 @@ class FormDataProvider with ChangeNotifier {
 
     // Load basic vehicle information
     _vehicleType = prefs.getString('vehicleType');
-    _year = prefs.getString('year');
+    _year = prefs.getString('variant');
+    _variant = prefs.getString('year');
     _makeModel = prefs.getString('makeModel');
     _sellingPrice = prefs.getString('sellingPrice');
     _vinNumber = prefs.getString('vinNumber');
@@ -372,6 +374,16 @@ class FormDataProvider with ChangeNotifier {
   // Add this setter
   void setProvince(String? value, {bool notify = true}) {
     _province = value;
+    if (notify) notifyListeners();
+  }
+
+  String? _variant;
+
+  String? get variant => _variant;
+
+// Add this setter
+  void setVariant(String? value, {bool notify = true}) {
+    _variant = value;
     if (notify) notifyListeners();
   }
 }

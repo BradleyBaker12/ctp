@@ -618,7 +618,7 @@ class _OfferCardState extends State<OfferCard> {
           builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
         ),
       );
-        } catch (e) {
+    } catch (e) {
       try {
         DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
             .collection('vehicles')

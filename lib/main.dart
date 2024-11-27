@@ -163,13 +163,16 @@ class AuthWrapper extends StatelessWidget {
       userProvider.fetchUserData();
       complaintsProvider.fetchAllComplaints();
     });
-
     User? firebaseUser = FirebaseAuth.instance.currentUser;
+
+    // print('Firebase User: ${FirebaseAuth.instance.currentUser}');
+    // print('Account Status: ${userProvider.getAccountStatus}');
 
     if (firebaseUser != null && !firebaseUser.isAnonymous) {
       if (userProvider.getAccountStatus == 'suspended') {
         return const WaitingForApprovalPage();
       }
+      // All authenticated users including guests can proceed to HomePage
       return const HomePage();
     } else {
       return const LoginPage();

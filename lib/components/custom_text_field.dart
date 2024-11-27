@@ -7,6 +7,7 @@ class CustomTextField extends StatelessWidget {
   final bool obscureText;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
+  final Widget? suffixIcon; // Add this line
 
   const CustomTextField({
     super.key,
@@ -15,6 +16,7 @@ class CustomTextField extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType,
     this.inputFormatters,
+    this.suffixIcon, // Add this line
   });
 
   @override
@@ -49,15 +51,8 @@ class CustomTextField extends StatelessWidget {
           ),
           contentPadding:
               const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-          suffixIcon: obscureText
-              ? IconButton(
-                  icon: Icon(
-                    obscureText ? Icons.visibility : Icons.visibility_off,
-                    color: Colors.white.withOpacity(0.7),
-                  ),
-                  onPressed: _toggleObscureText,
-                )
-              : null,
+          suffixIcon:
+              suffixIcon, // Replace the existing suffixIcon logic with this
         ),
         style: const TextStyle(color: Colors.white),
         obscureText: obscureText,

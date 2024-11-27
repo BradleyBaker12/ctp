@@ -1,0 +1,1171 @@
+{
+  "2004": {
+    "ASHOK LEYLAND": {
+      "CARGO": ["CARGO 75.12 F/C C/C Intro 1/1/2004 1"]
+    }
+  },
+  "2005": {
+    "TATA": {
+      "nan": ["LPT 1518 F/C C/C Intro 4/1/2005 1"]
+    },
+    "ASHOK LEYLAND": {
+      "nan": ["CARGO 90.12 F/C C/C Intro 7/1/2005 1"]
+    }
+  },
+  "2006": {
+    "US TRUCK": {
+      "US TRUCKS 2500": ["RAM HEAVY DUTY P/U D/C Intro 7/3/2006 1"]
+    }
+  },
+  "2007": {
+    "VOLKSWAGEN": {
+      "CONSTELLATION": ["17.250 4X2 BB LWB EXEC SLEEP F/C C/C Intro 9/4/2007"],
+      "nan": [
+        "19.320 4X2 BBS HR EXEC SLEEP T/T C/C Intro 9/4/2007",
+        "24.250 6X2 BBL LWB EXEC SLEEP F/C C/C Intro 9/4/2007"
+      ]
+    },
+    "TATA": {
+      "nan": [
+        "LPT 1518 SLEEP F/C C/C Intro 5/11/2007",
+        "LPK 1518 TIP C/C Intro 6/27/2007",
+        "NOVUS K5MVF 6X4 MIX C/C Intro 3/26/2007"
+      ],
+      "NOVUS": ["NOVUS K5DEF 6X4 TIP C/C Intro 3/26/2007"]
+    }
+  },
+  "2008": {
+    "PEUGEOT": {
+      "BOXER": ["BOXER L2H1 2.2 HDi M F/C P/V Intro 9/10/2008"]
+    },
+    "FIAT": {
+      "Ducato": ["DUCATO 2.3 JTD F/C C/C Intro 12/22/2008"]
+    }
+  },
+  "2009": {
+    "ASHOK LEYLAND": {
+      "AL": ["AL 8014 F/C C/C Intro 2/3/2009 1"]
+    }
+  },
+  "2010": {
+    "TATA": {
+      "LPT / LPTA / LPK / LPT": ["LPT 813 EX2 F/C C/C Intro 2/23/2010"],
+      "LPT 709 / 809 / SK 709": ["LPT 813 EX2 F/C C/C Intro 2/23/2010"]
+    },
+    "POWERSTAR": {
+      "26 SERIES": ["VX 2628K 6X4 SWB 10M3 TUB TIP Intro 11/19/2010"],
+      "nan": ["VX 2628 6X4 LWB W/TANK Intro 11/19/2010"],
+      "40 SERIES": ["VX 4035B 8X4 LWB 18/20M3 TIP Intro 11/19/2010"]
+    },
+    "ISUZU": {
+      "FXR / FXZ / FYH / GXR / GXZ": ["FXR 17-360 F/C C/C Intro 9/27/2010"],
+      "nan": [
+        "FXZ 26-360 F/C C/C Intro 9/27/2010",
+        "FXZ 28-360 COMPACTOR C/C Intro 9/27/2010",
+        "GXR 35-360 T/T C/C Intro 10/6/2010",
+        "GXR 40-360 T/T C/C Intro 10/6/2010"
+      ]
+    }
+  },
+  "2011": {
+    "RENAULT": {
+      "MIDLUM": ["MIDLUM 280/18 4x2 F/C C/C Intro 5/9/2011 1"]
+    },
+    "CITROEN": {
+      "RELAY": ["RELAY 2.2 HDi 100/110 F/C P/V Intro 3/3/2011 1"],
+      "nan": [
+        "RELAY 2.2 HDi 120/130 F/C P/V Intro 3/3/2011 1",
+        "RELAY 3.0 HDi 160/180 F/C P/V Intro 3/3/2011 1"
+      ]
+    },
+    "TATA": {
+      "nan": ["LPK 813 EX2 TIP C/C Intro 5/11/2011"]
+    },
+    "IVECO": {
+      "nan": ["TRAKKER AD410T42H 8X4 A/T C/C Intro 10/31/2011"]
+    }
+  },
+  "2012": {
+    "TATA": {
+      "nan": ["LPTA 715 4X4 F/C C/C Intro 4/19/2012"]
+    },
+    "POWERSTAR": {
+      "17 SERIES": ["VX 1729A 4X4 LWB C/C C/C Intro 10/1/2012"],
+      "nan": [
+        "VX 2628K 6X4 SWB C/C C/C Intro 10/1/2012",
+        "VX 2628 6X4 LWB C/C C/C Intro 10/1/2012",
+        "VX 2635A 6X6 LWB F/C C/C Intro 10/1/2012",
+        "VX 2642S 6X4 SLEEP T/T C/C Intro 10/1/2012",
+        "VX 3335 6X4 LWB C/C C/C Intro 10/1/2012",
+        "VX 4035B 8X4 LWB C/C C/C Intro 10/1/2012"
+      ],
+      "33 SERIES": ["VX 3335K 6X4 SWB C/C C/C Intro 10/1/2012"]
+    }
+  },
+  "2013": {
+    "CITROEN": {
+      "nan": ["RELAY 3.0HDi 180 L4H2 19 SEAT Intro 12/13/2013"]
+    },
+    "POWERSTAR": {
+      "16 SERIES": ["VX 1627 4X2 LWB C/C C/C Intro 10/1/2013"],
+      "nan": ["V3 2646S 6X4 SLEEP T/T C/C Intro 9/6/2013 1"]
+    },
+    "IVECO": {
+      "nan": [
+        "EUROCARGO MLC180E28 C/C Intro 9/19/2013",
+        "TRAKKER AD380T42WH 6X6 C/C Intro 10/22/2013",
+        "TRAKKER AT750T44TH SLEEP 6X4 A/T T/T Intro 3/19/2013"
+      ],
+      "TRAKKER/EUROTRAKKER 2002 - ON": [
+        "TRAKKER AD190T38WH 4X4 C/C Intro 3/19/2013"
+      ]
+    },
+    "ISUZU": {
+      "nan": [
+        "FXZ 26-360 TIP C/C Intro 1/3/2013",
+        "FXZ 26-360 MIX C/C Intro 7/24/2013",
+        "GXZ 45-360 T/T C/C Intro 7/23/2013"
+      ]
+    },
+    "FUSO": {
+      "nan": [
+        "CANTER FE6-109 F/C C/C Intro 1/1/2013 1",
+        "CANTER FG6-136 DWA F/C C/C Intro 1/1/2013 1",
+        "CANTER FE7-136 F/C C/C Intro 1/7/2013 1",
+        "FK13-240 F/C C/C Intro 1/1/2013",
+        "FM16-270 F/C C/C Intro 1/1/2013",
+        "FN25-270 F/C C/C Intro 1/1/2013"
+      ]
+    }
+  },
+  "2014": {
+    "TATA": {
+      "nan": ["PRIMA 2528K 6X4 TIP C/C Intro 2/13/2014"]
+    },
+    "IVECO": {
+      "EUROCARGO 2000 - ON": ["EUROCARGO MLC140E22 DAY C/C Intro 12/12/2014"],
+      "nan": [
+        "EUROCARGO MLC150E24WS 4X4 DAY C/C Intro 2/18/2014",
+        "TRAKKER AD340T38HB 8X4 A/T MIX C/C Intro 12/12/2014"
+      ]
+    },
+    "FORD": {
+      "Transit": ["TRANSIT 2.2 TDCi MWB 92KW F/C P/V Intro 8/15/2014"],
+      "nan": [
+        "TRANSIT 2.2 TDCi ELWB 114KW F/C P/V Intro 8/15/2014",
+        "TRANSIT 2.2 TDCi MWB 92KW F/C C/C Intro 8/15/2014",
+        "TRANSIT 2.2 TDCi ELWB 114KW F/C C/C Intro 8/15/2014"
+      ],
+      "Transit / spectron": [
+        "TRANSIT 2.2 TDCi MWB 92KW F/C P/V Intro 8/15/2014"
+      ]
+    },
+    "FUSO": {
+      "nan": [
+        "CANTER FE6-130 F/C C/C Intro 8/28/2014",
+        "CANTER FE7-150 A/T F/C C/C Intro 8/28/2014",
+        "CANTER FE8-150 A/T F/C C/C Intro 8/28/2014",
+        "CANTER FE8-150 A/T D/C F/C C/C Intro 8/28/2014"
+      ]
+    }
+  },
+  "2015": {
+    "UD TRUCKS": {
+      "nan": [
+        "CWE330 (E23) 6X4 TIP C/C Intro 4/22/2015",
+        "CWE330 (E24) 6X4 F/C C/C Intro 4/22/2015",
+        "CWE370 (E25) 6X4 TIP C/C Intro 4/22/2015",
+        "CWE370 (E26) 6X4 F/C C/C Intro 4/22/2015"
+      ]
+    },
+    "TATA": {
+      "nan": ["LPT 1623 F/C C/C Intro 5/8/2015 1"]
+    },
+    "FIAT": {
+      "nan": ["DUCATO XLH2 HR F/C P/V Intro 8/21/2015"]
+    },
+    "FAW": {
+      "15 Series": ["15.180FD TIP C/C Intro 10/8/2015"],
+      "nan": ["15.180FT 4X2 C/C Intro 10/8/2015"],
+      "8 Series": ["8.140 FL F/C C/C Intro 5/7/2015 1"]
+    },
+    "FUSO": {
+      "F-SERIES": ["FA9-137S TIP C/C Intro 10/2/2015"],
+      "nan": ["FA9-137L F/C C/C Intro 10/2/2015"]
+    }
+  },
+  "2016": {
+    "CNHTC": {
+      "SINOTRUK HOWO-7": ["SINOTRUK HOWO-7 64 336 C/C Intro 8/18/2016"],
+      "nan": [
+        "SINOTRUK HOWO-7 64 290 TIP Intro 8/18/2016",
+        "SINOTRUK HOWO-7 64 290 MIX Intro 8/18/2016"
+      ],
+      "SINOTRUK HOWO-V7": ["SINOTRUK HOWO-V7 64 430 T/T Intro 8/18/2016"]
+    },
+    "TATA": {
+      "nan": ["LPT 1216 F/C C/C Intro 1/19/2016"]
+    },
+    "IVECO": {
+      "nan": [
+        "35S17 E5 A8 CAMPER A/T C/C Intro 2/1/2016 1",
+        "EUROCARGO MLC160E24 DAY C/C Intro 5/23/2016"
+      ]
+    },
+    "FIAT": {
+      "nan": [
+        "DUCATO CH2 F/C P/V Intro 2/1/2016 1",
+        "DUCATO MH2 HR F/C P/V Intro 2/1/2016 1"
+      ]
+    },
+    "FUSO": {
+      "nan": [
+        "FJ16-230S F/C C/C Intro 6/7/2016",
+        "FJ16-230L F/C C/C Intro 6/7/2016"
+      ]
+    }
+  },
+  "2017": {
+    "CNHTC": {
+      "nan": [
+        "SINOTRUK HOWO-7 64 290 W/T Intro 10/31/2017",
+        "SINOTRUK HOWO-7 84 336 TIP Intro 10/20/2017"
+      ]
+    },
+    "UD TRUCKS": {
+      "CRONER": ["CRONER MKE 210 (H22) 4X2 F/C C/C Intro 6/29/2017"],
+      "nan": [
+        "CRONER PKE 250 (H29) 4X2 F/C C/C Intro 6/8/2017",
+        "CRONER PKE 250 (H28) 4X2 A/T TIP C/C Intro 6/8/2017",
+        "CRONER PKE 250 (H30) 4X2 A/T F/C C/C Intro 6/8/2017",
+        "CRONER PKE 250 (H31) 4X2 A/T F/C C/C Intro 6/8/2017",
+        "CRONER PKE 280 (H33) 4X2 F/C C/C Intro 6/8/2017",
+        "CRONER PKE 280 (H35) 4X2 A/T F/C C/C Intro 6/8/2017"
+      ]
+    },
+    "TATA": {
+      "DAEWOO": ["DAEWOO NOVUS KL3TX ZF 6X4 T/T C/C Intro 7/6/2017"],
+      "PRIMA": ["PRIMA 2528 6X4 F/C C/C Intro 2/15/2017"]
+    },
+    "POWERSTAR": {
+      "FT": ["FT3 4X2 F/C C/C Intro 10/20/2017"],
+      "nan": ["V3 2646S 6X4 SLEEP A/T T/T C/C Intro 10/20/2017"]
+    },
+    "PEUGEOT": {
+      "nan": ["BOXER L4H2 2.2HDi BVM6 PUMA 4TON F/C P/V Intro 11/9/2017"]
+    },
+    "FUSO": {
+      "CANTER": ["CANTER FE4-130TF F/C C/C Intro 10/11/2017"],
+      "nan": [
+        "CANTER FE4-130TF A/T F/C C/C Intro 10/11/2017",
+        "FJ26-280C F/C C/C Intro 1/11/2017"
+      ]
+    },
+    "HINO": {
+      "500 SERIES": ["500 1627 (DH5) 4X2 TIP C/C Intro 10/27/2017"],
+      "nan": [
+        "500 1627 (DJ5/EJ5) 4X2 LWB F/C C/C Intro 10/27/2017",
+        "500 1627 (DK5/EK5) 4X2 LWB A/T F/C C/C Intro 10/27/2017",
+        "500 1627 (DL5/EL5) 4X2 SLWB F/C C/C Intro 10/27/2017",
+        "500 1627 (DM5/EM5) 4X2 SLWB A/T F/C C/C Intro 10/27/2017",
+        "500 2829 (DN5) 6X2 LWB F/C C/C Intro 10/27/2017",
+        "500 2829 (DP5) 6X2 LWB A/T F/C C/C Intro 10/27/2017",
+        "500 2829 (DR5) 6X2 SLWB F/C C/C Intro 10/27/2017",
+        "500 2829 (DQ5) 6X2 SLWB A/T F/C C/C Intro 10/27/2017",
+        "500 2836 (DU5) 6X4 LWB F/C C/C Intro 10/27/2017",
+        "500 2836 (DS5) 6X4 TIP C/C Intro 10/27/2017",
+        "500 2836 (DT5) 6X4 MIX C/C Intro 10/27/2017"
+      ]
+    },
+    "MERCEDES-BENZ": {
+      "UNIMOG": [
+        "UNIMOG U4000 CREW CAB U/T CIC Intro 4/10/2017",
+        "UNIMOG U5000 CREW CAB UJT CIC Intro 4/10/2017"
+      ]
+    }
+  },
+  "2018": {
+    "VOLKSWAGEN": {
+      "CRAFTER": ["CRAFTER 35 2.0TDi MWB 103KW F/C P/V Intro 2/15/2018"],
+      "nan": [
+        "CRAFTER 35 2.0TDi MWB 103KW F/C P/V Intro 2/15/2018",
+        "CRAFTER 50 2.0TDi 103KW LWB F/C P/V Intro 2/15/2018",
+        "CRAFTER 50 2.0TDi 103KW XLWB F/C P/V Intro 2/15/2018"
+      ]
+    },
+    "UD TRUCKS": {
+      "nan": [
+        "CRONER MKE 210 (H40) 4X2 A/T F/C C/C Intro 9/10/2018",
+        "CRONER LKE 210 (H41) 4X2 F/C C/C Intro 9/10/2018",
+        "CRONER LKE 210 (H42) 4X2 A/T F/C C/C Intro 9/10/2018",
+        "CWE330 (E48) 6X4 A/T TIP C/C Intro 9/10/2018",
+        "CWE370 (E46) 6X4 A/T TIP C/C Intro 9/10/2018",
+        "CGE370 (E47) 8X4 A/T MIX C/C Intro 9/10/2018"
+      ],
+      "QUESTER": ["CWE330 (E41) 6X4 A/T MIX C/C Intro 9/10/2018"]
+    },
+    "TATA": {
+      "nan": [
+        "DAEWOO NOVUS KL3TX EATON 6X4 T/T C/C Intro 12/20/2018",
+        "NOVUS K7CEF 6X4 T/T C/C Intro 1/2/2018"
+      ]
+    },
+    "JAC": {
+      "N56": ["N56 2.8TD F/C C/C Intro 11/8/2018"],
+      "nan": ["N56 2.8TD F/C D/S Intro 11/8/2018"]
+    },
+    "IVECO": {
+      "nan": ["EUROCARGO MLC180E24K 4X2 TIP C/C Intro 7/11/2018"]
+    },
+    "ISUZU": {
+      "nan": [
+        "FXZ 26-360 A/T F/C C/C Intro 9/28/2018",
+        "FXZ 28-360 A/T COMPACTOR C/C Intro 12/19/2018",
+        "FYH 33-360 TIP C/C Intro 9/28/2018",
+        "FYH 33-360 A/T TIP C/C Intro 10/8/2018",
+        "FYH 33-360 MIX C/C Intro 10/8/2018",
+        "FYH 33-360 A/T MIX C/C Intro 10/8/2018",
+        "GXR 35-360 A/T T/T C/C Intro 9/28/2018",
+        "GXZ 45-360 A/T T/T C/C Intro 12/19/2018"
+      ]
+    },
+    "HYUNDAI": {
+      "nan": [
+        "EX-8 SWB F/C C/C Intro 11/27/2018",
+        "EX-8 LWB F/C C/C Intro 1/12/2018",
+        "EX-8 LWB A/C F/C C/C Intro 1/12/2018",
+        "EX-8 F/C D/S Intro 1/12/2018",
+        "EX-8 A/C F/C D/S Intro 1/12/2018",
+        "EX-8 SWB TIP Intro 1/12/2018"
+      ]
+    },
+    "FORD": {
+      "nan": [
+        "TRANSIT CUSTOM 2.2TDCi AMBIENTE LWB 92KW F/C P/V Intro 11/16/2018",
+        "TRANSIT CUSTOM 2.2TDCI SPORT 114KW F/C P/V Intro 11/16/2018"
+      ]
+    },
+    "EICHER": {
+      "nan": [
+        "PRO 6016 (C25) LWB 4X2 F/C C/C Intro 2/14/2018",
+        "PRO 6025 (C28) SWB 6X4 TIP C/C Intro 6/6/2018"
+      ]
+    },
+    "HINO": {
+      "9 - 17 / 25 / 500 SERIES": [
+        "500 1018 (5AT/SEP) 4X2 F/C C/C Intro 5/30/2018"
+      ],
+      "nan": [
+        "500 1322 (SDE) 4X4 DWA F/C C/C Intro 5/30/2018",
+        "500 1322 (SDF) 4X4 SWA F/C C/C Intro 5/30/2018",
+        "500 1326 (5BD) 4X2 F/C C/C Intro 5/30/2018",
+        "500 1326 (5AU) 4X2 TIP C/C Intro 5/30/2018"
+      ]
+    }
+  },
+  "2019": {
+    "CNHTC": {
+      "nan": [
+        "SINOTRUK HOWO-7 84 371 TIP Intro 12/19/2019",
+        "SINOTRUK HOWO-V7G 64 430 A/T T/T Intro 12/20/2019",
+        "SINOTRUK HOWO-V7G 64 540 A/T T/T Intro 12/20/2019"
+      ]
+    },
+    "SCANIA": {
+      "nan": [
+        "P310 B6X4NZ C/C Intro 9/25/2019",
+        "P360 A6X2NA F/C C/C Intro 7/11/2019",
+        "P410 A6X4NA T/T C/C Intro 7/11/2019",
+        "P410 A6X4HZ T/T C/C Intro 3/28/2019",
+        "P410 A6X4NZ T/T C/C Intro 3/28/2019",
+        "R410 A6X4NZ T/T C/C Intro 7/11/2019",
+        "G460 A6X4HZ T/T C/C Intro 3/28/2019",
+        "G460 A6X4NA T/T C/C Intro 3/28/2019",
+        "G460 A6X4NZ T/T C/C Intro 3/28/2019",
+        "R460 A6X4NZ T/T C/C Intro 3/28/2019",
+        "R560 A6X4NZ T/T C/C Intro 3/28/2019"
+      ]
+    },
+    "UD TRUCKS": {
+      "KUZER": ["KUZER RKE150 (M04/D04) 4x2 F/C C/C Intro 4/23/2019"],
+      "nan": [
+        "CRONER PKE 250 (H38) 4X2 COMPACTOR C/C Intro 2/21/2019",
+        "CRONER PKE 250 (H37) 4X2 A/T COMPACTOR C/C Intro 2/21/2019",
+        "CWE370 (E51) 6X4 A/T F/C C/C Intro 3/18/2019",
+        "GKE370 (E50) 4X2 A/T T/T C/C Intro 3/18/2019",
+        "GWE390 (E53) 6X4 RET A/T T/T C/C Intro 3/18/2019",
+        "CGE370 (E56) 8X4 RET A/T TIP C/C Intro 3/18/2019",
+        "CGE440 (E57) 8X4 HR RET A/T TIP C/C Intro 3/18/2019",
+        "CWE440 (E52) 6X4 RET A/T F/C C/C Intro 3/18/2019",
+        "GWE440 (E54) 6X4 RET A/T T/T C/C Intro 3/18/2019",
+        "GWE440 (E55) 6X4 HR RET A/T T/T C/C Intro 3/18/2019",
+        "GW 26 460 (E71) ASHR RET A/T T/T C/C Intro 10/28/2019",
+        "CW 26 460 (E72) SR RET A/T F/C C/C Intro 10/28/2019",
+        "CW 26 460 (E73) ASSR RET A/T F/C C/C Intro 10/28/2019",
+        "GW 26 460 (E74) HR RET ADR A/T T/T C/C Intro 10/28/2019",
+        "GW 26 460 (E75) ASHR RET ADR A/T T/T C/C Intro 10/28/2019",
+        "CW 26 460 (E76) SR RET ADR A/T F/C C/C Intro 10/28/2019",
+        "CW 26 460 (E77) ASSR RET ADR A/T F/C C/C Intro 10/28/2019"
+      ],
+      "QUON": ["GW 26 460 (E70) HR RET A/T T/T C/C Intro 10/28/2019"]
+    },
+    "TOYOTA": {
+      "QUANTUM": ["QUANTUM 2.8 GL SLWB 14 SEAT Intro 3/29/2019"],
+      "nan": [
+        "QUANTUM 2.8 LWB F/C P/V Intro 3/29/2019",
+        "QUANTUM 2.8 SLWB F/C P/V Intro 3/29/2019",
+        "QUANTUM 2.8 LWB CREWCAB F/C P/V Intro 3/29/2019"
+      ],
+      "QUANTUM/HIACE - 2019": ["QUANTUM 2.8 GL SLWB 14 SEAT Intro 3/29/2019"]
+    },
+    "POWERSTAR": {
+      "nan": ["FT8 1317-52 4X2 F/C C/C Intro 2/28/2019"]
+    },
+    "JAC": {
+      "nan": [
+        "N75 5T 4X2 F/C C/C Intro 3/26/2019",
+        "N75 5T 4X2 F/C D/S Intro 3/26/2019"
+      ]
+    },
+    "HYUNDAI": {
+      "nan": ["EX-8 SWB A/C F/C C/C Intro 1/22/2019"]
+    },
+    "FAW": {
+      "6 Series": ["6.130 FL F/C C/C Intro 1/7/2019 1"],
+      "28 SERIES": ["J5N 28.290FL F/C C/C Intro 5/24/2019"],
+      "nan": ["J5N 28.380FT T/T C/C Intro 5/24/2019"],
+      "33 SERIES": ["J5N 33.340FD 6X4 H/RED TIP Intro 5/24/2019"]
+    },
+    "EICHER": {
+      "nan": ["PRO 6016 (C27) SWB 4X2 TIP C/C Intro 1/14/2019"]
+    },
+    "FUSO": {
+      "nan": [
+        "FI12-170R F/C C/C Intro 1/11/2019",
+        "FJ26-280R F/C C/C Intro 1/11/2019",
+        "FJ18-280S F/C C/C Intro 1/11/2019",
+        "FJ18-280L F/C C/C Intro 1/11/2019"
+      ]
+    },
+    "HINO": {
+      "nan": [
+        "500 1627 (CM5) 4X2 SLWB CREW CAB F/C C/C Intro 2/13/2019",
+        "500 1627 (CC5) 4X2 SLWB A/T CREW CAB F/C C/C Intro 2/13/2019"
+      ]
+    }
+  },
+  "2020": {
+    "JMC": {
+      "CARRYING 3 TON": ["CARRYING 2.8 TDI 12M A/P C/C Intro 8/25/2020"],
+      "nan": ["CARRYING 2.8 TDI 14M A/P C/C Intro 8/25/2020"]
+    },
+    "CNHTC": {
+      "nan": [
+        "SINOTRUK HOWO-7 64 350 COMPACTOR Intro 2/27/2020",
+        "SINOTRUK HOWO-7 84 336 MIX Intro 2/25/2020"
+      ]
+    },
+    "SCANIA": {
+      "nan": [
+        "P410 B8X4HZ TIP C/C Intro 7/9/2020",
+        "G460 B8X4HZ TIP C/C Intro 7/31/2020",
+        "R460 A6X4NA ADR T/T C/C Intro 11/18/2020"
+      ]
+    },
+    "VOLKSWAGEN": {
+      "nan": [
+        "CRAFTER 35 2.0TDi MWB 103KW A/T F/C P/V Intro 8/25/2020",
+        "CRAFTER 35 2.0TDi MWB 103KW 4MOT F/C P/V Intro 8/25/2020"
+      ]
+    },
+    "UD TRUCKS": {
+      "nan": [
+        "CRONER LKE 210 (H44) 4X2 A/T F/C C/C Intro 11/20/2020",
+        "CRONER PKE 280 (H36) 4X2 A/T F/C C/C Intro 8/26/2020",
+        "CRONER PKE 280 (H32TT) 4X2 A/T T/T C/C Intro 8/26/2020"
+      ]
+    },
+    "POWERSTAR": {
+      "nan": ["FT10 M4 1627-57 4X2 F/C C/C Intro 1/31/2020"]
+    },
+    "JAC": {
+      "N90": ["N90 6T 4X2 F/C C/C Intro 3/18/2020"],
+      "nan": [
+        "N90 6T 4X2 F/C D/S Intro 3/18/2020",
+        "N140 9T 4X2 F/C D/S Intro 1/27/2020"
+      ]
+    },
+    "IVECO": {
+      "nan": [
+        "35S17 E5 A8 V11 C10 A/T P/V Intro 7/29/2020",
+        "35S17 E5 A8 V11 C8 A/T P/V Intro 11/18/2020",
+        "50C15 E3 V16 P/V Intro 9/21/2020",
+        "50C15 E3 V16 23 SEAT B/S Intro 9/21/2020",
+        "50C17V16 A8 E5 A/T P/V Intro 11/13/2020",
+        "50C17 E5 A8 CAMPER A/T C/C Intro 9/21/2020",
+        "65C15V18 E3 P/V Intro 9/21/2020",
+        "65C15V18 E3 26 SEAT B/S Intro 9/21/2020",
+        "70C15 E3 C/C Intro 9/21/2020",
+        "70C15V20 E3 P/V Intro 9/21/2020",
+        "70C15D E3 D/C C/C Intro 9/21/2020",
+        "70S15 A8 WX UTILITY 4X4 A/T C/C Intro 2/27/2020",
+        "AFRIWAY 18.28A A/T B/S Intro 10/2/2020",
+        "AFRIWAY 26.28M B/S Intro 10/2/2020",
+        "AFRIWAY 26.28A A/T B/S Intro 10/2/2020",
+        "STRALIS AS750S48TZ HI-WAY STEEL SLEEP 6X4 A/T T/T Intro 2/28/2020"
+      ],
+      "AFRIWAY": ["AFRIWAY 18.28M B/S Intro 10/2/2020"],
+      "STRALIS": ["STRALIS AT700S43TZ STEEL SLEEP 6X4 A/T T/T Intro 2/28/2020"]
+    },
+    "FAW": {
+      "nan": [
+        "J5N 28.290FL REFUSE Intro 11/18/2020",
+        "J5N 28.290FD TIP C/C Intro 11/18/2020",
+        "JH6 28.500FT A/T T/T C/C Intro 11/18/2020",
+        "J5N 33.340FC 6X4 6M3 MIXER Intro 6/22/2020"
+      ],
+      "35 SERIES": ["J5N 35.340 FD TIP C/C Intro 11/18/2020"]
+    },
+    "EICHER": {
+      "6000 Series": ["PRO 6016 (C26) SWB 4X2 F/C C/C Intro 12/1/2020"],
+      "nan": [
+        "PRO 6016 (C30) LWB 4X2 SLEEP F/C C/C Intro 7/7/2020",
+        "PRO 6018 (C31) 4X2 T/T C/C Intro 12/1/2020",
+        "PRO 6025 (C32) 6X4 TIP C/C Intro 12/1/2020"
+      ]
+    },
+    "MERCEDES-BENZ": {
+      "17/18/19 SERIES": ["ACTROS 1836LS/37 4X2 A/T T/T C/C Intro 2/25/2020"],
+      "nan": [
+        "AROCS 1836A/45 4X4 A/T FIC C/C Intro 2/25/2020",
+        "ACTROS 1840LS/37 FS 4X2 A/T T/T CIC Intro 1/15/2020",
+        "ACTROS 1842LS/37 4X2 T/T C/C Intro 2/25/2020",
+        "ACTROS 1842LS/37 E3 RE 4X2 A/T T/T C/C Intro 2/25/2020",
+        "ACTROS 1842LS/37 E5 RE 4X2 A/T T/T C/C Intro 2/25/2020",
+        "AROCS 2636L/57 6X2 A/T F/C C/C Intro 2/28/2020",
+        "ACTROS 2640L$/33 A/T T/T C/C Intro 7/2/2020 1",
+        "ACTROS 2645LS/33 PURE 6X4 A/T T/T C/C Intro 1/15/2020",
+        "ACTROS 2645LS/33 FS 6X4 A/T T/T C/C Intro 1/15/2020",
+        "ACTROS 2645LS/33 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 2645LS/33 E3 RE 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 2645LS/33 E5 RE 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 2652LS/33 PURE 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 2652LS/33 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 2652LS/33 RE 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 2652LS/33 FS 6X4 A/T T/T C/C Intro 8/6/2020 1",
+        "ACTROS 2663LS/33 E5 6X4 A/T T/T C/C Intro 2/26/2020",
+        "AROCS 3236/51 8X4 A/T MIX C/C Intro 2/25/2020",
+        "AROCS 3336K/36 6X4 A/T TIP C/C Intro 2/28/2020",
+        "AROCS 3336/48 6X4 A/T FIC C/C Intro 2/25/2020",
+        "AROCS 3340/48 6X4 A/T FIC C/C Intro 2/25/2020",
+        "ACTROS 3340$/33 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 3352S/33 6X4 A/T T/T C/C Intro 2/26/2020",
+        "ACTROS 3358LS/33 6X4 A/T T/T C/C Intro 2/26/2020",
+        "AROCS 3345A/45 6X6 A/T F/C CIC Intro 2/25/2020",
+        "AROCS 3345/48 6X4 A/T FIC C/C Intro 2/25/2020",
+        "ACTROS 33458/33 6X4 A/T T/T C/C Intro 1/15/2020",
+        "AROCS 3352/45 6X4 A/T FIC C/C Intro 7/2/2020 1",
+        "AROCS 4145K/51 8X4 A/T TIP C/C Intro 2/25/2020"
+      ]
+    }
+  },
+  "2021": {
+    "CNHTC": {
+      "nan": [
+        "SINOTRUK HOWO-7 64 371 T/T Intro 5/26/2021",
+        "SINOTRUK HOWO-7 64 420 T/T Intro 5/26/2021",
+        "SITRAK C7H 64 480 A/T T/T Intro 4/12/2021",
+        "SITRAK C7H 64 540 A/T T/T Intro 4/12/2021"
+      ],
+      "SITRAK": ["SITRAK C7H 64 430 A/T T/T Intro 4/12/2021"]
+    },
+    "DAF": {
+      "XF/CF 2021 ON": [
+        "XF480(BAB1003) FTT 6X4 DD SR AIR SPC E3 SMART T/T Intro 2/15/2021"
+      ],
+      "nan": [
+        "XF480(BAB2003) FTT 6X4 DD SR AIR SPC E3 PREM+ T/T Intro 2/15/2021",
+        "XF530(BAB3003) FTT 6X4 DD SR AIR SSC E3 S/S+ T/T Intro 12/8/2021",
+        "CF430(BAB5003) FTT 6X4 DD SR AIR SLC E3 LEAN T/T Intro 2/15/2021"
+      ]
+    },
+    "MAN": {
+      "nan": [
+        "TG3 TGM 18.250 4X4 BB CH CC DWA F/C C/C Intro 9/10/2021",
+        "TG3 TGM 18.250 4X4 BB CH CC SWA F/C C/C Intro 9/10/2021",
+        "TG3 TGS 18.400 4X2 BL SA TM T/T Intro 9/10/2021",
+        "TG3 TGM 26.290 6X4 BB CH CC F/C C/C Intro 9/10/2021",
+        "TG3 TGM 26.320 6X4 CC CH CC F/C C/C Intro 9/10/2021",
+        "TG3 TGS 26.440 6X4 BL SA TM T/T Intro 9/10/2021",
+        "TG3 TGS 26.480 6X4 BL SA TM T/T Intro 9/10/2021",
+        "TG3 TGX 26.540 6X4 BL SA GM E5 T/T Intro 9/10/2021",
+        "TG3 TGS 27.440/33.440 6X4 BB SA TN T/T Intro 9/10/2021",
+        "TG3 TGS 27.480/33.480 6X4 BB SA TM T/T Intro 9/10/2021",
+        "TG3 TGS 33.360 6X4 BB CH NN F/C C/C Intro 9/10/2021",
+        "TG3 TGS 33.480 6X4 BB CH NN F/C C/C Intro 9/10/2021",
+        "TG3 TGS 33.480 6X4 BB SA TN T/T Intro 9/10/2021",
+        "TG2 TGX 33.540 BBS XLX 6X4 T/T Intro 11/25/2021",
+        "TG3 TGS 41.480 8X4 BB CH NN F/C C/C Intro 9/10/2021"
+      ]
+    },
+    "SCANIA": {
+      "NTG SERIES 2019 - ON": ["P310 B6X2NA C/C Intro 6/29/2021"]
+    },
+    "VOLVO": {
+      "FH 16 / 400 - 700 2004 - ON": [
+        "FH (5) 400 6X4 SLEEP A/T T/T C/C Intro 6/4/2021"
+      ],
+      "nan": [
+        "FH (5) 400 6X4 AIR SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 400 6X4 SLEEP H/RED A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 440 6X4 SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 440 6X4 AIR SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 440 6X4 SLEEP H/RED A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 480 6X4 SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 480 6X4 AIR SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 480 6X4 SLEEP H/RED A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 520 6X4 SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 520 6X4 AIR SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 520 6X4 SLEEP H/RED A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 610 6X4 GLOBE A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 610 6X4 AIR GLOBE A/T T/T C/C Intro 6/4/2021",
+        "FH (5) 610 6X4 GLOBE H/RED A/T T/T C/C Intro 6/4/2021",
+        "FM (5) 400 6X4 AIR SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FMX (5) 400 6X4 SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FM (5) 440 6X4 SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FM (5) 440 6X4 AIR SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FMX (5) 440 6X4 SLEEP A/T T/T C/C Intro 6/4/2021",
+        "FMX (5) 440 6X4 SLEEP H/RED A/T T/T C/C Intro 6/4/2021",
+        "FMX (5) 480 6X4 SLEEP A/T T/T C/C Intro 6/4/2021"
+      ],
+      "FM 2006 - ON": ["FM (5) 400 6X4 SLEEP A/T T/T C/C Intro 6/4/2021"]
+    },
+    "VOLKSWAGEN": {
+      "nan": ["CRAFTER 35 2.0TDi MWB A/T F/C P/V Intro 8/16/2021"]
+    },
+    "UD TRUCKS": {
+      "nan": ["CRONER PKE 280 (H39) A/T F/C C/C Intro 7/7/2021"]
+    },
+    "TOYOTA": {
+      "nan": [
+        "COASTER 4.0D 23 SEATER B/S Intro 5/14/2021",
+        "QUANTUM 2.8 GL SLWB A/T 14 SEAT Intro 8/24/2021"
+      ]
+    },
+    "POWERSTAR": {
+      "nan": [
+        "FT5 M4 4X2 F/C C/C Intro 7/8/2021 1",
+        "FT10 6X2 F/FC C/C Intro 9/14/2021"
+      ]
+    },
+    "IVECO": {
+      "nan": [
+        "70S15A8 WX CAMPER 4X4 A/TC/C Intro 10/6/2021",
+        "70S15 A8 D WX A/T 4X4 CREW CAB C/C Intro 10/6/2021",
+        "70S15V16 A8 WX A/T 4X4 P/V Intro 10/6/2021",
+        "STRALIS AT700S43TZP 6X4 A/T T/T Intro 5/21/2021",
+        "STRALIS AS75048TZP 6X4 A/T T/T Intro 5/21/2021"
+      ]
+    },
+    "HYUNDAI": {
+      "MIGHTY HD65/72/EX-6/EX-8": ["EX-6 D/C F/C C/C Intro 1/19/2021"],
+      "nan": ["EX-6 D/C D/S Intro 11/3/2021"]
+    },
+    "FAW": {
+      "nan": [
+        "8.140 FL A/T C/C Intro 7/5/2021 1",
+        "J5N 35.340 FC 8M3 MIXER Intro 7/7/2021"
+      ]
+    },
+    "FUSO": {
+      "nan": [
+        "CANTER FE8-150 TF F/C C/C Intro 11/9/2021",
+        "FJ26-280C HYPOID C/C C/C Intro 2/8/2021",
+        "FJ26-280R SLEEPER F/C C/C Intro 3/3/2021"
+      ]
+    },
+    "HINO": {
+      "300 Series": ["HINO 300 614 SWB (EU3) F/C C/C Intro 3/18/2021"],
+      "nan": [
+        "HINO 300 614 A/T SWB (EV3) F/C C/C Intro 3/18/2021",
+        "HINO 300 614 LWB (EW3) F/C C/C Intro 3/18/2021",
+        "HINO 300 714 SWB (EX3) F/C C/C Intro 3/18/2021",
+        "HINO 300 714 A/T SWB (EY3) F/C C/C Intro 3/18/2021",
+        "HINO 300 714 LWB (EZ3) F/C C/C Intro 3/18/2021",
+        "HINO 300 714 LWB (FC3) CREW CAB A/T F/C C/C Intro 3/18/2021",
+        "HINO 300 816 SWB (FA3) F/C C/C Intro 3/18/2021",
+        "HINO 300 816 SWB (FB3) A/T F/C C/C Intro 3/18/2021",
+        "HINO 300 816 LWB (FF3) CREW CAB A/T F/C C/C Intro 3/18/2021",
+        "HINO 300 916 LWB (FD3) F/C C/C Intro 3/18/2021",
+        "HINO 300 916 LWB (FE3) A/T F/C C/C Intro 3/18/2021",
+        "HINO 300 916 LWB (FG3) CREW CAB A/T F/C C/C Intro 3/18/2021"
+      ]
+    },
+    "MERCEDES-BENZ": {
+      "nan": ["ACTROS 2644LS/33 6X2 T/T Intro 1/1/2021 1"]
+    }
+  },
+  "2022": {
+    "DAF": {
+      "nan": [
+        "XF480(BAB1004P) FTT 6X4 DD SR AIR SPC E3 PBS T/T Intro 11/30/2022",
+        "XF480(BAB2003P) FTT 6X4 DD SR AIR SPC E3 PBS T/T Intro 2/24/2022",
+        "CF430(BAB8003) FTT 6X4 ODSR AIR SLC E3 RUGGEDX T/T Intro 2/24/2022"
+      ]
+    },
+    "MAN": {
+      "TG2 / TG3": ["TG3 TGM 15.250 4X2 BL CH CC A/T C/C Intro 10/4/2022"],
+      "nan": [
+        "TG3 TGM 18.250 4X2 BB CH A/T C/C Intro 10/4/2022",
+        "TG3 TGS 18.440 4X2 BL SA TM A/T T/T Intro 10/4/2022",
+        "TG3 TGM 25.290/26.290 6X2=2 BL CH TN A/T C/C Intro 10/4/2022",
+        "TG3 TGS 32.360 8X4 BB CH NN A/T C/C Intro 10/4/2022"
+      ]
+    },
+    "SCANIA": {
+      "nan": [
+        "P360 B6X4HZ W/T C/C Intro 3/23/2022",
+        "R560 A6X4HZ T/T C/C Intro 10/12/2022",
+        "R560 A6X4NA T/T C/C Intro 4/12/2022"
+      ]
+    },
+    "VOLKSWAGEN": {
+      "nan": ["CRAFTER 35 2.0TDi MWB 103KW 4MOT F/C P/V Intro 4/28/2022"]
+    },
+    "TOYOTA": {
+      "COASTER": ["COASTER 2.8D GL A/T 23 SEATER B/S Intro 2/28/2022"],
+      "HI ACE": ["COASTER 2.8D GL A/T 23 SEATER B/S Intro 2/28/2022"]
+    },
+    "TATA": {
+      "nan": [
+        "ULTRA 1418 4X2 C/C Intro 5/11/2022",
+        "DAEWOO MAXIMUS KL3TX - 500 6X4 A/T T/T Intro 5/11/2022",
+        "DAEWOO MAXIMUS KL4T8 6X4 A/T T/T Intro 5/11/2022"
+      ]
+    },
+    "POWERSTAR": {
+      "nan": ["FT3 M4 4X2 C/C Intro 10/12/2022"]
+    },
+    "JOYLONG": {
+      "EV": ["EW5 EV P/V Intro 8/11/2022"]
+    },
+    "JAC": {
+      "N55": ["N55 EV 3 TON S/C C/C Intro 7/1/2022 1"],
+      "N75": ["N75 4T EV 4X2 C/C Intro 8/23/2022"]
+    },
+    "IVECO": {
+      "nan": [
+        "35S15 E3 D CREW CAB C/C Intro 12/1/2022",
+        "S-WAY AT440S43TZ OFF 6X4 A/T T/T Intro 3/9/2022",
+        "S-WAY AT440S43TZ/P ON 6X4 A/T T/T Intro 3/9/2022",
+        "S-WAY AS440S47TZ/P ON 6X4 A/T T/T Intro 3/9/2022",
+        "S-WAY AT440S47TZ ON+ 6X4 A/T T/T Intro 3/9/2022",
+        "S-WAY AT440S47TZ OFF 6X4 A/T T/T Intro 5/17/2022",
+        "T-WAY AD380T43H 6X4 A/T T/T Intro 12/1/2022",
+        "T-WAY AD410T43H 8X4 A/T C/C Intro 12/1/2022",
+        "T-WAY AT720T47T H OFF 6X4 A/T T/T Intro 12/1/2022"
+      ],
+      "S-WAY": ["S-WAY AD300S36Z 6X4 A/T T/T Intro 12/1/2022"],
+      "T-WAY": ["T-WAY AD190T43W H 4X4 A/T C/C Intro 12/1/2022"]
+    },
+    "ISUZU": {
+      "N / NPR / NPS / NKR / NQR": ["NPR 275 AMT C/C Intro 5/18/2022"],
+      "nan": [
+        "NPR 275 C/C Intro 4/28/2022",
+        "NPR 300 C/C Intro 4/28/2022",
+        "NPR 300 AMT C/C Intro 4/28/2022",
+        "NPS 300 4X4 C/C Intro 6/1/2022 1",
+        "NPS 300 4X4 SWA C/C Intro 9/29/2022",
+        "NPS 300 CREW 4X4 C/C Intro 6/1/2022 1",
+        "NPS 300 CREW 4X4 SWA C/C Intro 9/29/2022",
+        "NPR 400 SWB C/C Intro 4/28/2022",
+        "NPR 400 C/C Intro 4/28/2022",
+        "NPR 400 AMT C/C Intro 4/28/2022",
+        "NPR 400 AMT (E5) C/C Intro 4/28/2022",
+        "NPR 400 CREW CAB AMT C/C Intro 4/28/2022",
+        "NQR 500 AMT C/C Intro 4/29/2022",
+        "NQR 500 SWB C/C Intro 4/29/2022",
+        "NQR 500 C/C Intro 4/29/2022",
+        "NPR 400 C/C Intro 8/30/2022",
+        "NPR 400 SWB C/C Intro 8/30/2022",
+        "NPR 400 AMT C/C Intro 8/30/2022",
+        "NMR 250 SWB C/C Intro 4/28/2022",
+        "NMR 250 SWB AMT C/C Intro 5/18/2022",
+        "NMR 250 C/C Intro 4/28/2022",
+        "NMR 250 AMT C/C Intro 4/28/2022",
+        "NMR 250 CREW CAB C/C Intro 6/1/2022 1",
+        "NMR 250 CREW CAB AMT C/C Intro 5/18/2022",
+        "FRR 600 AMT C/C Intro 4/28/2022",
+        "FRR 600 AMT (E5) C/C Intro 5/18/2022",
+        "FSR 750 CREW CAB AMT C/C Intro 5/18/2022",
+        "FSR 750 CREW CAB AMT (E5) C/C Intro 6/1/2022",
+        "FTS 750 4X4 C/C Intro 5/18/2022",
+        "FTS 750 4X4 SWA C/C Intro 5/18/2022",
+        "FSR 800 SWB C/C Intro 5/18/2022",
+        "FSR 800 C/C Intro 5/18/2022",
+        "FSR 800 AMT C/C Intro 5/18/2022",
+        "FTR 850 C/C Intro 4/28/2022",
+        "FTR 850 C C/C Intro 9/29/2022",
+        "FTR 850 LWB C/C Intro 5/18/2022",
+        "FTR 850 SWB C/C Intro 6/1/2022",
+        "FTR 850 AMT C/C Intro 4/28/2022",
+        "FTR 850 AMT (E5) C/C Intro 4/28/2022",
+        "FVR 900 C/C Intro 4/28/2022",
+        "FVM 1200 6X2 C/C Intro 4/28/2022",
+        "FVZ 1400 AMT 6X4 C/C Intro 4/28/2022",
+        "FVZ 1400 6X4 C/C Intro 4/28/2022",
+        "FVZ 1400 6X4 SWB C/C Intro 5/18/2022",
+        "FVZ 1400 SWB 6X4 A/T C/C Intro 6/1/2022",
+        "FVZ 1600 E5 A/T COMPACTOR C/C Intro 11/1/2022",
+        "FVZ 1600 COMPACTOR C/C Intro 9/29/2022",
+        "FXZ 26-350 E5 6X4 A/T C/C Intro 11/1/2022",
+        "FYH 33-350 E5 8X4 A/T C/C Intro 11/1/2022",
+        "GRR 16-210 4X2 AMT T/T Intro 8/31/2022",
+        "GRR 16-240 4X2 T/T Intro 8/31/2022",
+        "GSR 18-240 4X2 T/T Intro 8/31/2022",
+        "GSR 18-240 4X2 AMT T/T Intro 8/31/2022",
+        "GTR 24-240 4X2 T/T Intro 8/31/2022",
+        "GTR 24-240 4X2 AMT T/T Intro 8/31/2022",
+        "GXR 35-350 E5 4X2 A/T T/T Intro 11/1/2022",
+        "GVR 32-300 4X2 T/T Intro 8/31/2022"
+      ],
+      "NHR / NLR / NMR / NKR": ["NLR 150 C/C Intro 4/28/2022"],
+      "F / GVR SERIES": ["FRR 550 C/C Intro 5/18/2022"]
+    },
+    "FAW": {
+      "nan": ["JH6 33.420FT T/T C/C Intro 6/13/2022"]
+    },
+    "EICHER": {
+      "2000 Series": ["Pro2080 (E33) F/C C/C Intro 4/22/2022"]
+    },
+    "FUSO": {
+      "TV SERIES": ["TV33-400S A/T 6X4 T/T Intro 1/20/2022"]
+    },
+    "MERCEDES-BENZ": {
+      "nan": [
+        "ACTROS 2652LS/33 HT 6X4 A/T T/T Intro 11/29/2022",
+        "AROCS 3352AE/48 6X6 A/T FIC C/C Intro 2/16/2022",
+        "ACTROS 3352LS/33 PURE 6X4 A/T T/T Intro 11/29/2022",
+        "AROCS 4152K/51 8X4 A/T TIP C/C Intro 2/16/2022",
+        "4152AE/54 8X8 A/T TIP C/C Intro 11/30/2022"
+      ],
+      "28 / 33 / 35 SERIES": ["ACTROS 2845S/33 6X4 A/T T/T Intro 2/7/2022 1"],
+      "38 / 40 / 41 SERIES / eACTROS": [
+        "ACTROS 4058$/39 6X4 A/T T/T Intro 9/20/2022"
+      ]
+    }
+  },
+  "2023": {
+    "CNHTC": {
+      "SINOTRUCK HOWO- NX": ["SINOTRUK HOWO-NX 64 300 TIP Intro 12/11/2023"],
+      "nan": [
+        "SINOTRUK HOWO-NX 64 400 T/T Intro 12/11/2023",
+        "SINOTRUK HOWO-NX 64 480 A/T T/T Intro 12/11/2023",
+        "SINOTRUK HOWO-7 64 300 W/T Intro 12/11/2023",
+        "SINOTRUK HOWO-7 64 400 T/T Intro 12/11/2023",
+        "SINOTRUK HOWO-7 64 400 C/C Intro 12/11/2023",
+        "SINOTRUK HOWO-7 64 400 TIP Intro 12/11/2023",
+        "SINOTRUK HOWO-7 84 400 TIP Intro 12/11/2023",
+        "SINOTRUK HOWO-7 64 430 T/T Intro 12/11/2023"
+      ]
+    },
+    "DAF": {
+      "nan": [
+        "XF530(BAB4004) FTT 6X4 OD HR TRAP SPC E3 H/H T/T Intro 5/11/2023",
+        "CF480(BAB7004) FTT 6X4 ODHR TRAP SLC E3 TOUGHX T/T Intro 5/11/2023"
+      ]
+    },
+    "MAN": {
+      "nan": ["TG3 TGX 26.510 6X4 BL SA GM 6X4 T/T Intro 8/31/2023"]
+    },
+    "SCANIA": {
+      "nan": [
+        "P410 B8X4HZ CP14L (10) TIP Intro 9/12/2023",
+        "P410 B8X4HZ CP14L XT (36) F/C C/C Intro 9/12/2023",
+        "G450 A6X4NZ CG20N (50) T/T Intro 9/13/2023",
+        "G450 A6X4NA CG20N ADR (51) T/T Intro 9/13/2023",
+        "G460 A6X4NZ CG20N XT (5) T/T Intro 9/12/2023",
+        "G460 A6X4NA CG20N ADR (6) T/T Intro 9/12/2023",
+        "G460 A6X4NZ CG20 (Double skin) (49) T/T Intro 9/13/2023",
+        "R450 A6X4NA CR20N Euro 5 (56) T/T Intro 9/13/2023",
+        "R460 A6X4 NZ CR20N (2) Intro 9/12/2023",
+        "R500 A6X4NZ CR20H (53) T/T Intro 9/13/2023",
+        "R500 A6X4 NZ CR20N PBS (54) T/T Intro 9/13/2023",
+        "R500 A6X4NA CR20N (55) T/T Intro 9/13/2023",
+        "S770 A6X4NB CS20H T/T Intro 9/13/2023"
+      ]
+    },
+    "UD TRUCKS": {
+      "nan": [
+        "CRONER PKE 240 (H60) 4X2 A/T C/C Intro 3/22/2023",
+        "CRONER PDE 250 (H59) 6X2 A/T F/C C/C Intro 9/29/2023",
+        "CRONER PKE 250 (H51) 4X2 A/T C/C Intro 3/22/2023",
+        "CRONER PKE 250 (H50) 4X2 A/T TIP C/C Intro 3/22/2023",
+        "CRONER PKE 250 (H57) 4X2 A/T COMPACTOR C/C Intro 3/22/2023",
+        "CWE350 (E81) 6X4 A/T COMPACTOR C/C Intro 8/17/2023",
+        "CWE370 (E82) 6X4 A/T COMPACTOR C/C Intro 8/17/2023",
+        "CWE460 (E88) 6X4 SR RET E5 A/T C/C Intro 1/20/2023",
+        "GWE460 (E90) 6X4 SR RET E5 A/T T/T Intro 9/27/2023",
+        "GWE460 (E91) 6X4 HR RET E5 A/T T/T Intro 1/20/2023"
+      ]
+    },
+    "TATA": {
+      "ULTRA": ["ULTRA T.9 4X2 F/C C/C Intro 8/23/2023"]
+    },
+    "POWERSTAR": {
+      "nan": [
+        "FT9 M4 1521-52 4X2 C/C Intro 4/18/2023",
+        "FT10 TT 4X2 F/C Intro 4/14/2023"
+      ]
+    },
+    "JAC": {
+      "N140": ["N140 9T 4X2 F/C C/C Intro 8/30/2023"]
+    },
+    "IVECO": {
+      "DAILY 2007 - ON": ["35S15E3 V9 F/C P/V Intro 10/5/2023"],
+      "nan": [
+        "35S15HA8 V9 EV A/T F/C P/V Intro 10/2/2023",
+        "35S15HA8 V11 E5 A/T P/V Intro 1/17/2023",
+        "35S15HA8 V16 E5 A/T P/V Intro 1/17/2023",
+        "35S15HA8 E5 A/T C/C Intro 1/17/2023",
+        "35S15HA8 D E5 A/T D/C C/C Intro 1/17/2023",
+        "50C15HA8 E5 A/T C/C Intro 1/17/2023",
+        "50C15HA8 V16 E5 23 SEAT A/T B/S Intro 1/27/2023",
+        "50C15HA8 V16 E5 A/T P/V Intro 1/17/2023",
+        "65C15HA8 V18 E5 A/T P/V Intro 1/17/2023",
+        "65C15HA8 V20 E5 A/T P/V Intro 1/17/2023",
+        "70C15HA8 E5 A/T C/C Intro 1/17/2023",
+        "70C15HA8 D E5 A/T D/C C/C Intro 1/17/2023",
+        "70S15EA38 V11 WX 4X4 A/T P/V Intro 1/17/2023",
+        "S-WAY AS440X57TZ ON+T/T C/C Intro 11/17/2023"
+      ]
+    },
+    "ISUZU": {
+      "nan": [
+        "NPR 400 CREW CAB AMT (E5) C/C Intro 2/21/2023",
+        "NQR BUS CHASSIS Intro 2/21/2023",
+        "NQR AMT BUS CHASSIS Intro 2/21/2023",
+        "NPR 400 CNG (CBU) C/C Intro 2/21/2023",
+        "NPR 400 R F/C Intro 9/5/2023 1",
+        "NPR 400 AMT R F/C Intro 9/5/2023 1",
+        "NMR 250 CREW CAB AMT (E5) C/C Intro 2/21/2023",
+        "FTR 850 XLWB AMT F/C Intro 9/5/2023",
+        "GXR 35-350 E5 4X2 T/T Intro 2/21/2023",
+        "GXZ 45-350 E5 T/T C/C Intro 6/14/2023"
+      ]
+    },
+    "FAW": {
+      "nan": [
+        "15.180 FL 8 TON F/C C/C Intro 2/24/2023",
+        "JK6 15.220FL 4X2 C/C Intro 9/28/2023",
+        "JK6 15.220 FD TIP Intro 9/7/2023 1",
+        "16.240 FT 4X2 T/T Intro 9/19/2023",
+        "JH6 28.320FL 6X4 A/T C/C Intro 2/2/2023",
+        "JH6 33.390FD 6X4 TIP Intro 3/8/2023",
+        "JH6 33.390FT T/T C/C Intro 11/20/2023",
+        "JH6 35.420FD 8X4 TIP Intro 3/8/2023"
+      ],
+      "16 SERIES": ["16.240 FD 4X2 TIP Intro 9/19/2023"]
+    },
+    "ASHOK LEYLAND": {
+      "Partner": ["PARTNER 3.0 DDTi F/C C/C Intro 12/19/2023"],
+      "nan": ["PARTNER 3.0 DDTi F/C D/S Intro 12/19/2023"]
+    },
+    "HINO": {
+      "20/28 / 700 SERIES": [
+        "HINO 700 2841 (ER7) AMT 6X4 F/C C/C Intro 3/17/2023"
+      ],
+      "nan": [
+        "HINO 700 2841 (ES7) AMT 6X4 T/T Intro 3/17/2023",
+        "HINO 700 2841 (EQ7) AMT 6X4 TIP C/C Intro 3/17/2023",
+        "HINO 700 2845 (ET7) 6X4 AMT T/T Intro 3/17/2023"
+      ]
+    },
+    "MERCEDES-BENZ": {
+      "nan": [
+        "ACTROS 1842LS/37 E5 4X2 A/T T/T Intro 6/1/2023 1",
+        "ACTROS 2645LS/33 E5 FS 6X4 A/T T/T Intro 6/1/2023 1"
+      ]
+    }
+  },
+  "2024": {
+    "CNHTC": {
+      "nan": [
+        "SITRAK C9H 64 480 A/T T/T Intro 5/31/2024",
+        "SITRAK C9H 64 540 A/T T/T Intro 5/31/2024"
+      ]
+    },
+    "MAN": {
+      "nan": [
+        "TG3 TGM 18.290 BB CH 4X2 F/C C/C Intro 10/16/2024",
+        "TG3 TGX 26.480 6X4 BL SA GN T/T Intro 9/23/2024",
+        "TG3 TGS 33.440 6X6 BB CH NN F/C C/C Intro 5/31/2024"
+      ]
+    },
+    "SCANIA": {
+      "nan": ["P410 A4X2NA T/T C/C Intro 7/8/2024"],
+      "P/R/G SERIES 2002 - 2019": [
+        "P250B6X2NA CP20N (13) F/C C/C Intro 2/28/2024"
+      ]
+    },
+    "VOLVO": {
+      "nan": [
+        "FH (E6) 420 6X4 AIR SLEEP RET A/T T/T C/C Intro 11/20/2024",
+        "FH (E6) 460 6X4 AIR SLEEP RET A/T T/T C/C Intro 11/20/2024",
+        "FH (E6) 500 6X4 AIR GLOBE RET A/T T/T C/C Intro 11/20/2024",
+        "FH (5) 480 8X4 SLEEPER A/T T/T C/C Intro 9/4/2024"
+      ]
+    },
+    "UD TRUCKS": {
+      "nan": ["CRONER PKE 280 (H53) E5 4X2 A/T T/T C/C Intro 2/28/2024"]
+    },
+    "TOYOTA": {
+      "nan": [
+        "QUANTUM 2.8 LWB F/C P/V Intro 6/4/2024 1",
+        "QUANTUM 2.8 SLWB F/C P/V Intro 6/4/2024 1"
+      ]
+    },
+    "POWERSTAR": {
+      "nan": [
+        "FT8 - M4 1317-47 F/C C/C Intro 2/5/2024 1",
+        "FT8 - M4 1317-38 T/T C/C Intro 5/22/2024",
+        "VX 4042K 8X4 C/C C/C Intro 9/10/2024"
+      ]
+    },
+    "JAC": {
+      "nan": ["N140 9T 4X2 AMT F/C C/C Intro 11/5/2024"]
+    },
+    "IVECO": {
+      "nan": ["T-WAY AD380T43WH 6X6 F/C C/C Intro 1/4/2024"]
+    },
+    "ISUZU": {
+      "nan": [
+        "SBR 500 SPECIAL EDITION F/C C/C Intro 11/14/2024",
+        "JCR 800 SPECIAL EDITION F/C C/C Intro 11/14/2024"
+      ]
+    },
+    "FOTON": {
+      "eAUmARK": ["eAUMARK F/C C/C (4TON) Intro 6/21/2024"],
+      "nan": [
+        "eAUMARK F/C D/S (4TON) Intro 6/21/2024",
+        "MILER TRUCK F/C D/S Intro 5/9/2024 1"
+      ],
+      "MILER": ["MILER TRUCK F/C C/C Intro 5/9/2024 1"]
+    },
+    "FORD": {
+      "nan": [
+        "TRANSIT CUSTOM 2.0TDCI LWB BASE F/C P/V Intro 4/9/2024 1",
+        "TRANSIT CUSTOM 2.2TDCI LWB 92KW AMBULANCE Intro 5/30/2024",
+        "TRANSIT CUSTOM 2.0TDCI LWB BASE AMBULANCE Intro 6/6/2024 1",
+        "TRANSIT CUSTOM 2.0 TDCi SPORT A/T F/C P/V Intro 10/16/2024"
+      ]
+    },
+    "FAW": {
+      "2 Ton": ["4.110 F/C C/C Intro 10/22/2024"],
+      "nan": [
+        "8.140FL-AMT F/C C/C Intro 11/15/2024",
+        "JK6 16.260FL F/C C/C Intro 2/16/2024",
+        "JK6 16.260FL AMT F/C C/C Intro 2/16/2024",
+        "JH6 28.460/33 460 FT T/T C/C Intro 2/16/2024",
+        "JH6 33.460 FT AMT 6X4 T/T C/C Intro 10/22/2024",
+        "JH5 28.380FT 6X4 T/T C/C Intro 1/15/2024",
+        "JH6 550FT 6X4 T/T C/C Intro 10/22/2024",
+        "JH6 33.500FT T/T C/C Intro 2/9/2024"
+      ]
+    },
+    "DAYUN": {
+      "Autoplead": ["Autopleas S/C C/C Intro 4/25/2024"]
+    },
+    "MERCEDES-BENZ": {
+      "2628 / 2635-8 /2640-3-4-8 / 2650-4-8": [
+        "ACTROS 2636L/55 6X2 F/C CC Intro 1/4/2024 1"
+      ],
+      "nan": [
+        "ACTROS 2645LS/33 PURE E5 6X4 A/T T/T Intro 1/4/2024 1",
+        "ACTROS 2645LS/33 E5 6X4 A/T T/T Intro 1/4/2024 1",
+        "AROCS 3352L/54 6X4 A/T F/C C/C Intro 1/4/2024 1",
+        "eACTROS 300L 4X2 A/T F/C C/C Intro 6/13/2024",
+        "eACTROS 300LS 4X2 A/T T/T CC Intro 6/13/2024",
+        "eACTROS 300L 6X2 A/T F/C C/C Intro 6/13/2024"
+      ],
+      "420/500 SE/S/SL": ["ACTROS 2636L/55 6X2 F/C C/C Intro 1/4/2024 1"]
+    }
+  },
+  "nan": {
+    "POWERLAND": {
+      "17/18/19 SERIES": ["nan"],
+      "2628 / 2635-8 /2640-3-4-8 / 2650-4-8": ["nan"],
+      "28 / 33 / 35 SERIES": ["nan"],
+      "38 / 40 / 41 SERIES / eACTROS": ["nan"],
+      "420/500 SE/S/SL": ["nan"],
+      "UNIMOG": ["nan"]
+    },
+    "DAIHATSU": {
+      "2.0 / 3.5/ 4.0 TON": ["nan"]
+    },
+    "MERCEDES-BENZ": {
+      "SPRINTER": ["VITO 111 1.6 CDI F/C P/V"],
+      "nan": [
+        "VITO 111 1.6 CDI MIXTO CREWCAB F/C P/V",
+        "VITO 114 2.0 CDI F/C P/V",
+        "VITO 114 2.0 CDI MIXTO PRO CREW CAB P/V",
+        "VITO 114 2.0 CDI MIXTO CREW CAB P/V",
+        "VITO 114 2.0 CDI PRO F/C P/V",
+        "VITO 116 2.0 CDI F/C P/V",
+        "VITO 116 2.0 CDI MIXTO CREWCAB A/T F/C P/V",
+        "VITO 116 2.0 CDI MIXTO PRO CREWCAB A/T F/C P/V",
+        "SPRINTER 311 2.0 CDI F/C P/V",
+        "SPRINTER 311 2.0 CDI PRO F/C P/V",
+        "SPRINTER 311 CDI F/C P/V",
+        "SPRINTER 311 2.0 CDI BASE F/C P/V",
+        "SPRINTER 311 2.0 CDI PRO F/C P/V (MED)",
+        "SPRINTER 317 2.0 CDI BASE F/C P/V (125KW)",
+        "SPRINTER 316 CDI LWB F/C C/C",
+        "SPRINTER 316 CDI F/C P/V",
+        "SPRINTER 317 CDI LWB F/C P/V",
+        "SPRINTER 319 CDI F/C P/V",
+        "SPRINTER 319 2.0 CDI A/T F/C P/V",
+        "SPRINTER 319 CDI AWD F/C P/V",
+        "SPRINTER 319 2.0 CDI AWD A/T F/C P/V",
+        "SPRINTER 319 2.0 CDI SELECT AWD A/T F/C P/V",
+        "SPRINTER 319 CDI AWD F/C C/C",
+        "SPRINTER 319 2.0 CDI PRO AWD F/C C/C A/T",
+        "SPRINTER 516 CDI F/C P/V",
+        "SPRINTER 516 2.0 CDI INKANYEZI E3 23 SEAT B/S",
+        "SPRINTER 516 XL CDI LWB F/C P/V",
+        "SPRINTER 516 CDI INKANYEZI F/C P/V",
+        "SPRINTER 519 CDI F/C C/C",
+        "SPRINTER 519 CDI D/C F/C C/C",
+        "SPRINTER 519 2.0 CDI D/C F/C C/C",
+        "SPRINTER 519 CDI F/C P/V",
+        "SPRINTER 519 CDI LWB F/C P/V",
+        "SPRINTER 519 2.0 CDI XL F/C P/V",
+        "SPRINTER 519 CDI 5.5TON LWB F/C P/V",
+        "SPRINTER 519 2.0 CDI XL 5.5TON P/V",
+        "SPRINTER 519 CDI AWD F/C P/V",
+        "SPRINTER 519 2.0 CDI AWD F/C P/V",
+        "SPRINTER 519 CDI LWB PRO F/C P/V",
+        "SPRINTER 519 CDI EX LWB PRO F/C P/V",
+        "SPRINTER 519 CDI AWD PRO F/C P/V",
+        "SPRINTER 317 2.0 CDI LWB F/C C/C",
+        "SPRINTER 317 2.0 P/V",
+        "SPRINTER 317 2.0 LWB P/V",
+        "SPRINTER 317 2.0 CDI LWB P/V",
+        "SPRINTER 317 2.0 CDi MH LWB A/T P/V",
+        "SPRINTER 517 2.0 CDI LONG P/V",
+        "SPRINTER 517 2.0 CDI XL P/V",
+        "SPRINTER 517 CDI LWB F/C P/V",
+        "SPRINTER 517 CDI LWB PRO F/C P/V",
+        "SPRINTER 517 CDI EX LWB PRO F/C P/V",
+        "SPRINTER 517 2.0 CDI INKANYEZI B/S",
+        "eSPRINTER 414 PRO F/C P/V",
+        "eSPRINTER 420 PRO LWB F/C P/V (81KWH)",
+        "eSPRINTER 420 PRO LWB F/C P/V (113KWH)"
+      ],
+      "VITO / SPRINTER": ["VITO 111 1.6 CDI F/C P/V"]
+    },
+    "FORCE": {
+      "Urbania": ["nan"]
+    }
+  }
+}
