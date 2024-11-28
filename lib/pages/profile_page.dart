@@ -11,8 +11,13 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     var screenSize = MediaQuery.of(context).size;
-    final userProvider = Provider.of<UserProvider>(context);
     // final size = MediaQuery.of(context).size;
     const Color borderColor = Color(0xFFFF4E00);
     final Color backgroundColor = borderColor.withOpacity(0.6);
@@ -138,15 +143,21 @@ class ProfilePage extends StatelessWidget {
                   userProvider.getBankConfirmationUrl,
                   Icons.visibility,
                   context),
-              _buildDocumentItem(
-                  'CIPC CERTIFICATE',
-                  userProvider.getCipcCertificateUrl,
-                  Icons.visibility,
-                  context),
+              if (isDealer)
+                _buildDocumentItem(
+                    'CIPC CERTIFICATE',
+                    userProvider.getCipcCertificateUrl,
+                    Icons.visibility,
+                    context),
               _buildDocumentItem(
                   'PROXY', userProvider.getProxyUrl, Icons.visibility, context),
               _buildDocumentItem(
                   'BRNC', userProvider.getBrncUrl, Icons.visibility, context),
+              _buildDocumentItem(
+                  'TERMS AND CONDITIONS',
+                  'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
+                  Icons.visibility,
+                  context),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
@@ -169,7 +180,7 @@ class ProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'Version 4.7.0',
+                'Alpha Version 5.1.0',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.white.withOpacity(0.7),

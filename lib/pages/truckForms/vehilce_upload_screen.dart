@@ -52,6 +52,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       TextEditingController();
   final TextEditingController _referenceNumberController =
       TextEditingController();
+  final TextEditingController _modelController = TextEditingController();
+  final TextEditingController _variantController = TextEditingController();
+
   final TextEditingController _brandsController = TextEditingController();
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
@@ -94,8 +97,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     '8X4',
     // Add any other configurations if needed
   ];
-
-  
 
   late Map<String, List<String>> _makeModelOptions = {};
 
@@ -862,64 +863,145 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
+                // CustomDropdown(
+                //   hintText: 'Year',
+                //   value: formData.year,
+                //   items: _yearOptions,
+                //   onChanged: (value) {
+                //     formData.setYear(value);
+                //     _loadBrandsForYear(
+                //         value!); // This will populate brands based on year
+                //   },
+                // ),
+                // const SizedBox(height: 15),
+                // // Manufacturer field
+                // CustomDropdown(
+                //   hintText: 'Manufacturer',
+                //   value: formData.brands?.isNotEmpty == true
+                //       ? formData.brands![0]
+                //       : null,
+                //   items: _brandOptions,
+                //   onChanged: (value) {
+                //     if (value != null) {
+                //       formData.setBrands([value]);
+                //       _loadModelsForBrand(value);
+                //     }
+                //   },
+                // ),
+                // const SizedBox(height: 20),
+                // // Year and Make/Model
+
+                // CustomDropdown(
+                //   hintText: 'Model',
+                //   value: formData.makeModel,
+                //   items: _makeModelOptions[formData.brands?.isNotEmpty == true
+                //           ? formData.brands![0]
+                //           : ''] ??
+                //       [],
+                //   onChanged: (value) {
+                //     formData.setMakeModel(value);
+                //     _loadVariantsForModel(value!);
+                //   },
+                // ),
+
+                // const SizedBox(height: 15),
+                // CustomDropdown(
+                //   hintText: 'Variant',
+                //   value: formData.variant,
+                //   items: _variantOptions,
+                //   onChanged: (value) {
+                //     formData.setVariant(value);
+                //   },
+                //   itemBuilder: (context, item) => SizedBox(
+                //     width: MediaQuery.of(context).size.width * 0.8,
+                //     child: Text(
+                //       item,
+                //       softWrap: true,
+                //       overflow: TextOverflow.visible,
+                //       style: TextStyle(color: Colors.white),
+                //     ),
+                //   ),
+                // ),
+
+                const SizedBox(height: 20),
+// Temporary Year Dropdown
                 CustomDropdown(
                   hintText: 'Year',
                   value: formData.year,
-                  items: _yearOptions,
+                  items:
+                      List.generate(24, (index) => (2024 - index).toString()),
                   onChanged: (value) {
                     formData.setYear(value);
-                    _loadBrandsForYear(
-                        value!); // This will populate brands based on year
                   },
                 ),
+
                 const SizedBox(height: 15),
-                // Manufacturer field
+// Temporary Brand Dropdown
                 CustomDropdown(
-                  hintText: 'Manufacturer',
+                  hintText: 'Brand',
                   value: formData.brands?.isNotEmpty == true
                       ? formData.brands![0]
                       : null,
-                  items: _brandOptions,
+                  items: [
+                    'Ashok Leyland',
+                    'Dayun',
+                    'Eicher',
+                    'FAW',
+                    'Fiat',
+                    'Ford',
+                    'Foton',
+                    'Fuso',
+                    'Hino',
+                    'Hyundai',
+                    'Isuzu',
+                    'Iveco',
+                    'JAC',
+                    'Joylong',
+                    'MAN',
+                    'Mercedes-Benz',
+                    'Peugeot',
+                    'Powerstar',
+                    'Renault',
+                    'Scania',
+                    'Tata',
+                    'Toyota',
+                    'UD Trucks',
+                    'US Truck',
+                    'Volkswagen',
+                    'Volvo',
+                    'CNHTC',
+                    'DAF',
+                    'Freightliner',
+                    'Mack',
+                    'Powerland'
+                  ],
                   onChanged: (value) {
                     if (value != null) {
                       formData.setBrands([value]);
-                      _loadModelsForBrand(value);
                     }
-                  },
-                ),
-                const SizedBox(height: 20),
-                // Year and Make/Model
-
-                CustomDropdown(
-                  hintText: 'Make/Model',
-                  value: formData.makeModel,
-                  items: _makeModelOptions[formData.brands?.isNotEmpty == true
-                          ? formData.brands![0]
-                          : ''] ??
-                      [],
-                  onChanged: (value) {
-                    formData.setMakeModel(value);
-                    _loadVariantsForModel(value!);
                   },
                 ),
 
                 const SizedBox(height: 15),
-                CustomDropdown(
+// Temporary Model Text Input
+                CustomTextField(
+                  controller: _modelController,
+                  hintText: 'Model',
+                  inputFormatter: [UpperCaseTextFormatter()],
+                  onChanged: (value) {
+                    formData.setMakeModel(value);
+                  },
+                ),
+
+                const SizedBox(height: 15),
+
+                CustomTextField(
+                  controller: _variantController,
                   hintText: 'Variant',
-                  value: formData.variant,
-                  items: _variantOptions,
+                  inputFormatter: [UpperCaseTextFormatter()],
                   onChanged: (value) {
                     formData.setVariant(value);
                   },
-                  itemBuilder: (context, item) => SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.8,
-                    child: Text(
-                      item,
-                      softWrap: true,
-                      overflow: TextOverflow.visible,
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
                 ),
 
                 const SizedBox(height: 15),
@@ -1327,8 +1409,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
       final vehicleData = {
         'year': formData.year,
-        'makeModel': formData.makeModel,
-        'variant': formData.variant,
+        'makeModel': _modelController.text,
+        'variant': _variantController.text,
         'vinNumber': formData.vinNumber,
         'config': formData.config,
         'mileage': formData.mileage,

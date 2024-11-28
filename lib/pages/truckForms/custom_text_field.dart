@@ -13,6 +13,7 @@ class CustomTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final TextCapitalization textCapitalization;
   final Function(String)? onChanged;
+  final bool enabled;
 
   const CustomTextField({
     super.key,
@@ -24,6 +25,7 @@ class CustomTextField extends StatelessWidget {
     this.validator,
     this.textCapitalization = TextCapitalization.none,
     this.onChanged,
+    this.enabled = true,
   });
 
   String _capitalizeHintText(String hint) {
@@ -57,6 +59,7 @@ class CustomTextField extends StatelessWidget {
         child: TextFormField(
           controller: controller,
           keyboardType: keyboardType ?? TextInputType.text,
+          enabled: enabled,
           textCapitalization: textCapitalization,
           cursorColor: AppColors.orange,
           decoration: InputDecoration(

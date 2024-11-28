@@ -53,6 +53,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       TextEditingController();
   final TextEditingController _referenceNumberController =
       TextEditingController();
+  final TextEditingController _modelController = TextEditingController();
+  final TextEditingController _variantController = TextEditingController();
+
   final TextEditingController _brandsController = TextEditingController();
   final TextEditingController _countryController =
       TextEditingController(); // Added for country selection
@@ -105,7 +108,39 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   List<String> _variantOptions = [];
   final Map<String, List<String>> _modelVariants = {};
   List<String> _yearOptions = [];
-  List<String> _brandOptions = [];
+  List<String> _brandOptions = [
+    'Ashok Leyland',
+    'Dayun',
+    'Eicher',
+    'FAW',
+    'Fiat',
+    'Ford',
+    'Foton',
+    'Fuso',
+    'Hino',
+    'Hyundai',
+    'Isuzu',
+    'Iveco',
+    'JAC',
+    'Joylong',
+    'MAN',
+    'Mercedes-Benz',
+    'Peugeot',
+    'Powerstar',
+    'Renault',
+    'Scania',
+    'Tata',
+    'Toyota',
+    'UD Trucks',
+    'US Truck',
+    'Volkswagen',
+    'Volvo',
+    'CNHTC',
+    'DAF',
+    'Freightliner',
+    'Mack',
+    'Powerland'
+  ];
 
   Future<void> _loadYearOptions() async {
     final String response =
@@ -319,6 +354,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ? formData.brands![0]
             : '';
     _countryController.text = formData.country ?? 'South Africa';
+    _modelController.text = formData.makeModel ?? '';
+    _variantController.text = formData.variant ?? '';
   }
 
   void _addControllerListeners(FormDataProvider formData) {
@@ -415,6 +452,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     _vehicleStatus = _initialVehicleStatus;
 
     // Populate form fields with debug logging
+    _modelController.text = widget.vehicle?.makeModel ?? '';
+    _variantController.text = widget.vehicle?.variant ?? '';
+
     _vinNumberController.text = widget.vehicle?.vinNumber ?? '';
     _mileageController.text = widget.vehicle?.mileage ?? '';
     _engineNumberController.text = widget.vehicle?.engineNumber ?? '';
@@ -436,6 +476,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         formData.setBrands(List<String>.from(widget.vehicle!.brands));
         print('DEBUG: Set brands from List: ${_brandsController.text}');
       }
+      // Update the brands population
+      // if (widget.vehicle?.brands != null && widget.vehicle!.brands.isNotEmpty) {
+      //   formData.setBrands(List<String>.from(widget.vehicle!.brands));
+      // }
     }
 
     // Update form provider
@@ -705,6 +749,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   }
 
   Widget _buildImageSection() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     final formData = Provider.of<FormDataProvider>(context);
 
     // Function to show image picker dialog
@@ -742,6 +792,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
     // Function to handle image tap
     void handleImageTap() {
+      if (isDealer) return;
       if (formData.selectedMainImage != null ||
           (formData.mainImageUrl != null &&
               formData.mainImageUrl!.isNotEmpty)) {
@@ -834,24 +885,26 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 },
               ),
             // Add an overlay hint
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Tap to modify image',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
+
+            if (isTransporter)
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Tap to modify image',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -884,16 +937,17 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ),
           ),
           const SizedBox(height: 10),
-          Center(
-            child: Text(
-              'Please fill out the required details below.',
-              style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+          if (isTransporter)
+            Center(
+              child: Text(
+                'Please fill out the required details below.',
+                style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
           Center(
             child: Text(
               'Your trusted partner on the road.',
@@ -902,7 +956,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ),
           ),
           const SizedBox(height: 20),
-          const SizedBox(height: 15),
           // Vehicle Status Dropdown
           if (isTransporter)
             CustomDropdown(
@@ -921,11 +974,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 }
                 return null;
               },
+              isTransporter: isTransporter,
             ),
 
           const SizedBox(height: 15),
           // Reference Number field
-          _buildReferenceNumberField(),
+          if (isTransporter) _buildReferenceNumberField(),
           const SizedBox(height: 15),
           // RC1/NATIS File Upload Section
           if (isTransporter) _buildNatisRc1Section(),
@@ -937,6 +991,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 label: 'Truck',
                 value: 'truck',
                 groupValue: formData.vehicleType,
+                enabled: !isDealer,
                 onChanged: (value) {
                   formData.setVehicleType(value);
                   formData.saveFormState();
@@ -947,6 +1002,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 label: 'Trailer',
                 value: 'trailer',
                 groupValue: formData.vehicleType,
+                enabled: !isDealer,
                 onChanged: (value) {
                   formData.setVehicleType(value);
                   formData.saveFormState();
@@ -960,23 +1016,58 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (isDealer)
+                  Text(
+                    'Year',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 // Year and Make/Model
-                // Year and Make/Model
+                // CustomDropdown(
+                //   hintText: 'Year',
+                //   enabled: !isDealer,
+                //   value: formData.year,
+                //   items: _yearOptions,
+                //   onChanged: (value) {
+                //     formData.setYear(value);
+                //     _loadBrandsForYear();
+                //     formData.saveFormState();
+                //   },
+                //   isTransporter: isTransporter,
+                // ),
+
                 CustomDropdown(
                   hintText: 'Year',
+                  enabled: !isDealer,
                   value: formData.year,
-                  items: _yearOptions,
+                  items:
+                      List.generate(24, (index) => (2024 - index).toString()),
                   onChanged: (value) {
                     formData.setYear(value);
-                    _loadBrandsForYear();
                     formData.saveFormState();
                   },
+                  isTransporter: isTransporter,
                 ),
                 const SizedBox(height: 15),
 
 // Manufacturer field
+                if (isDealer)
+                  Text(
+                    'Manufacturer',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Manufacturer',
+                  enabled: !isDealer,
                   value: formData.brands?.isNotEmpty == true
                       ? formData.brands![0]
                       : null,
@@ -984,33 +1075,126 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   onChanged: (value) {
                     if (value != null) {
                       formData.setBrands([value]);
-                      _loadModelsForBrand();
+                      // _loadModelsForBrand();
                       formData.saveFormState();
                     }
                   },
+                  isTransporter: isTransporter,
                 ),
+                // CustomDropdown(
+                //   hintText: 'Brand',
+                //   enabled: !isDealer,
+                //   value: formData.brands?.isNotEmpty == true
+                //       ? formData.brands![0]
+                //       : null,
+                //   items: [
+                //     'Ashok Leyland',
+                //     'Dayun',
+                //     'Eicher',
+                //     'FAW',
+                //     'Fiat',
+                //     'Ford',
+                //     'Foton',
+                //     'Fuso',
+                //     'Hino',
+                //     'Hyundai',
+                //     'Isuzu',
+                //     'Iveco',
+                //     'JAC',
+                //     'Joylong',
+                //     'MAN',
+                //     'Mercedes-Benz',
+                //     'Peugeot',
+                //     'Powerstar',
+                //     'Renault',
+                //     'Scania',
+                //     'Tata',
+                //     'Toyota',
+                //     'UD Trucks',
+                //     'US Truck',
+                //     'Volkswagen',
+                //     'Volvo',
+                //     'CNHTC',
+                //     'DAF',
+                //     'Freightliner',
+                //     'Mack',
+                //     'Powerland'
+                //   ],
+                //   onChanged: (value) {
+                //     if (value != null) {
+                //       formData.setBrands([value]);
+                //       formData.saveFormState();
+                //     }
+                //   },
+                //   isTransporter: isTransporter,
+                // ),
+
                 const SizedBox(height: 15),
 
-                CustomDropdown(
-                  hintText: 'Make/Model',
-                  value: formData.makeModel,
-                  items: _makeModelOptions[formData.brands?.isNotEmpty == true
-                          ? formData.brands![0]
-                          : ''] ??
-                      [],
+                if (isDealer)
+                  Text(
+                    'Model',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
+                // CustomDropdown(
+                //   hintText: 'Make/Model',
+                //   enabled: !isDealer,
+                //   value: formData.makeModel,
+                //   items: _makeModelOptions[formData.brands?.isNotEmpty == true
+                //           ? formData.brands![0]
+                //           : ''] ??
+                //       [],
+                //   onChanged: (value) {
+                //     formData.setMakeModel(value);
+                //     _loadVariantsForModel();
+                //     formData.saveFormState();
+                //   },
+                //   isTransporter: isTransporter,
+                // ),
+                CustomTextField(
+                  controller: _modelController,
+                  enabled: !isDealer,
+                  hintText: 'Model',
+                  inputFormatter: [UpperCaseTextFormatter()],
                   onChanged: (value) {
                     formData.setMakeModel(value);
-                    _loadVariantsForModel();
                     formData.saveFormState();
                   },
                 ),
                 const SizedBox(height: 15),
 
 // Add the missing Variant dropdown
-                CustomDropdown(
+                if (isDealer)
+                  Text(
+                    'Variant',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
+                // CustomDropdown(
+                //   hintText: 'Variant',
+                //   value: formData.variant,
+                //   enabled: !isDealer,
+                //   items: _variantOptions,
+                //   onChanged: (value) {
+                //     formData.setVariant(value);
+                //     formData.saveFormState();
+                //   },
+                //   isTransporter: isTransporter,
+                // ),
+                CustomTextField(
+                  controller: _variantController,
+                  enabled: !isDealer,
                   hintText: 'Variant',
-                  value: formData.variant,
-                  items: _variantOptions,
+                  inputFormatter: [UpperCaseTextFormatter()],
                   onChanged: (value) {
                     formData.setVariant(value);
                     formData.saveFormState();
@@ -1019,8 +1203,19 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
                 const SizedBox(height: 15),
                 // Country Dropdown
+                if (isDealer)
+                  Text(
+                    'Country',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Select Country',
+                  enabled: !isDealer,
                   value: formData.country?.isNotEmpty == true
                       ? formData.country
                       : null,
@@ -1028,6 +1223,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   onChanged: (value) {
                     formData.setCountry(value);
                   },
+                  isTransporter: isTransporter,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select a country';
@@ -1037,9 +1233,20 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 // Mileage
+                if (isDealer)
+                  Text(
+                    'Mileage',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 CustomTextField(
                   controller: _mileageController,
                   hintText: 'Mileage',
+                  enabled: !isDealer,
                   keyboardType: TextInputType.number,
                   inputFormatter: [FilteringTextInputFormatter.digitsOnly],
                   validator: (value) {
@@ -1050,8 +1257,19 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   },
                 ),
                 const SizedBox(height: 15),
+                if (isDealer)
+                  Text(
+                    'Configuration',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Configuration',
+                  enabled: !isDealer,
                   value: formData.config?.isNotEmpty == true
                       ? formData.config
                       : null,
@@ -1060,6 +1278,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     formData.setConfig(value);
                     formData.saveFormState();
                   },
+                  isTransporter: isTransporter,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select the configuration';
@@ -1069,8 +1288,19 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 // Application of Use
+                if (isDealer)
+                  Text(
+                    'Application of Use',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Application of Use',
+                  enabled: !isDealer,
                   value: formData.application?.isNotEmpty == true
                       ? formData.application
                       : null,
@@ -1085,6 +1315,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     }
                     return null;
                   },
+                  isTransporter: isTransporter,
                 ),
                 const SizedBox(height: 15),
                 // VIN Number
@@ -1102,15 +1333,37 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   ),
                 const SizedBox(height: 15),
                 // Engine Number
+                if (isDealer)
+                  Text(
+                    'Engine No.',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 CustomTextField(
                   controller: _engineNumberController,
+                  enabled: !isDealer,
                   hintText: 'Engine No.',
                   inputFormatter: [UpperCaseTextFormatter()],
                 ),
                 const SizedBox(height: 15),
                 // Registration Number
+                if (isDealer)
+                  Text(
+                    'Registration No.',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                if (isDealer) const SizedBox(height: 15),
                 CustomTextField(
                   controller: _registrationNumberController,
+                  enabled: !isDealer,
                   hintText: 'Registration No.',
                   inputFormatter: [UpperCaseTextFormatter()],
                 ),
@@ -1149,6 +1402,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Spring',
                       value: 'spring',
                       groupValue: formData.suspension,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setSuspension(value);
                         formData.saveFormState();
@@ -1159,6 +1413,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Air',
                       value: 'air',
                       groupValue: formData.suspension,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setSuspension(value);
                         formData.saveFormState();
@@ -1184,6 +1439,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Automatic',
                       value: 'automatic',
                       groupValue: formData.transmissionType,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setTransmissionType(value);
                         formData.saveFormState();
@@ -1194,6 +1450,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Manual',
                       value: 'manual',
                       groupValue: formData.transmissionType,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setTransmissionType(value);
                         formData.saveFormState();
@@ -1219,6 +1476,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Yes',
                       value: 'yes',
                       groupValue: formData.hydraulics,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setHydraulics(value);
                         formData.saveFormState();
@@ -1229,6 +1487,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'No',
                       value: 'no',
                       groupValue: formData.hydraulics,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setHydraulics(value);
                         formData.saveFormState();
@@ -1254,6 +1513,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Yes',
                       value: 'yes',
                       groupValue: formData.maintenance,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setMaintenance(value);
                         formData.saveFormState();
@@ -1264,6 +1524,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'No',
                       value: 'no',
                       groupValue: formData.maintenance,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setMaintenance(value);
                         formData.saveFormState();
@@ -1289,6 +1550,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Yes',
                       value: 'yes',
                       groupValue: formData.warranty,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setWarranty(value);
                         formData.saveFormState();
@@ -1299,6 +1561,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'No',
                       value: 'no',
                       groupValue: formData.warranty,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setWarranty(value);
                         formData.saveFormState();
@@ -1322,14 +1585,27 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 const SizedBox(height: 15),
                 Divider(),
                 const SizedBox(height: 15),
-                Center(
-                  child: Text(
-                    'Do you require the truck to be settled before selling'
-                        .toUpperCase(),
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    textAlign: TextAlign.center,
+
+                if (isTransporter)
+                  Center(
+                    child: Text(
+                      'Do you require the truck to be settled before selling'
+                          .toUpperCase(),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
+                if (isDealer)
+                  Center(
+                    child: Text(
+                      'Settlement Needed',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.start,
+                    ),
+                  ),
                 const SizedBox(height: 15),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1338,6 +1614,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'Yes',
                       value: 'yes',
                       groupValue: formData.requireToSettleType,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setRequireToSettleType(value);
                         formData.saveFormState();
@@ -1348,6 +1625,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       label: 'No',
                       value: 'no',
                       groupValue: formData.requireToSettleType,
+                      enabled: !isDealer,
                       onChanged: (value) {
                         formData.setRequireToSettleType(value);
                         formData.saveFormState();
@@ -1359,7 +1637,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ),
           ),
           const SizedBox(height: 20),
-          _buildNextButton(),
+          if (isTransporter) _buildNextButton(),
           const SizedBox(height: 30),
         ],
       ),

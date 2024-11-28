@@ -1455,12 +1455,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       if (isDealer)
                         _buildSection(context, 'TRUCK CONDITION',
                             '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED'),
-                      if (isDealer)
-                        _buildSection(
-                          context,
-                          'MAINTENANCE\nAND WARRANTY',
-                          '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
-                        ),
+                      // if (isDealer)
+                      //   _buildSection(
+                      //     context,
+                      //     'MAINTENANCE\nAND WARRANTY',
+                      //     '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
+                      //   ),
                       // if (isDealer)
                       //   _buildSection(context, 'ADMIN',
                       //       '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
@@ -1713,7 +1713,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         }
       }
     });
-  
+
     return completedSteps;
   }
 

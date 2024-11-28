@@ -6,11 +6,13 @@ import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/internal_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/tyres_edit_page.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:provider/provider.dart';
 
 class TruckConditionsTabsEditPage extends StatefulWidget {
   final int initialIndex;
@@ -380,6 +382,12 @@ class _TruckConditionsTabsEditPageState
   // Modified build method to include a save button
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     return WillPopScope(
       onWillPop: () async {
         if (!_isNavigatingHome && _modifiedSections.values.contains(true)) {
@@ -421,16 +429,17 @@ class _TruckConditionsTabsEditPageState
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        "Ref#: ${widget.referenceNumber}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                      if (isTransporter)
+                        Text(
+                          "Ref#: ${widget.referenceNumber}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
                       const SizedBox(width: 16),
                       Text(
-                        "Make/Model: $_makeModel",
+                        "Make/Model: ${_makeModel}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,

@@ -8,6 +8,7 @@ class CustomRadioButton extends StatelessWidget {
   final Color selectedColor;
   final Color unselectedColor;
   final Color textColor;
+  final bool enabled; // Add this parameter
 
   const CustomRadioButton({
     super.key,
@@ -18,6 +19,7 @@ class CustomRadioButton extends StatelessWidget {
     this.selectedColor = const Color(0xFFFF4E00),
     this.unselectedColor = Colors.transparent,
     this.textColor = Colors.white,
+    this.enabled = true, // Default to true
   });
 
   @override
@@ -25,7 +27,8 @@ class CustomRadioButton extends StatelessWidget {
     bool isSelected = groupValue == value;
 
     return InkWell(
-      onTap: () => onChanged(value),
+      onTap:
+          enabled ? () => onChanged(value) : null, // Only allow tap if enabled
       child: Container(
         decoration: BoxDecoration(
           color: isSelected ? selectedColor : unselectedColor,
@@ -38,7 +41,9 @@ class CustomRadioButton extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : textColor.withOpacity(0.7),
+            color: enabled
+                ? (isSelected ? Colors.white : textColor)
+                : Colors.grey, // Grey out text when disabled
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),

@@ -7,6 +7,7 @@ class CustomRadioButton extends StatelessWidget {
   final String value;
   final String groupValue;
   final void Function(String?) onChanged;
+  final bool enabled;
 
   const CustomRadioButton({
     super.key,
@@ -14,6 +15,7 @@ class CustomRadioButton extends StatelessWidget {
     required this.value,
     required this.groupValue,
     required this.onChanged,
+    this.enabled = true,
   });
 
   @override
@@ -21,7 +23,7 @@ class CustomRadioButton extends StatelessWidget {
     bool isSelected = groupValue == value;
 
     return InkWell(
-      onTap: () => onChanged(value),
+      onTap: enabled ? () => onChanged(value) : null,
       child: Container(
         width: 150.0, // Set fixed width
         height: 50.0, // Set fixed height

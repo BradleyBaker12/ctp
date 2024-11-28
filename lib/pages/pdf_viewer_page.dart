@@ -36,7 +36,7 @@ class PdfViewerPage extends StatelessWidget {
           return PDFView(
             filePath: snapshot.data!.path,
             autoSpacing: true,
-            swipeHorizontal: true,
+            swipeHorizontal: false,
             pageFling: true,
             onRender: (pages) {
               print("Total pages: $pages");

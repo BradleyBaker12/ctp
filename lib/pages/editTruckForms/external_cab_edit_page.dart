@@ -1,11 +1,13 @@
 // lib/pages/truckForms/external_cab_page.dart
 
 import 'dart:io';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Image picker for uploading images
 import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_radio_button.dart'; // Ensure this import path is correct
+import 'package:ctp/components/custom_radio_button.dart';
+import 'package:provider/provider.dart'; // Ensure this import path is correct
 
 class ExternalCabEditPage extends StatefulWidget {
   final String vehicleId;
@@ -64,6 +66,12 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     super.build(context);
     return SingleChildScrollView(
       controller: _scrollController, // Attach the scroll controller
@@ -98,6 +106,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               CustomRadioButton(
                 label: 'Poor',
                 value: 'poor',
+                enabled: !isDealer,
                 groupValue: _selectedCondition,
                 onChanged: _updateCondition,
               ),
@@ -105,12 +114,14 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                 label: 'Good',
                 value: 'good',
                 groupValue: _selectedCondition,
+                enabled: !isDealer,
                 onChanged: _updateCondition,
               ),
               CustomRadioButton(
                 label: 'Excellent',
                 value: 'excellent',
                 groupValue: _selectedCondition,
+                enabled: !isDealer,
                 onChanged: _updateCondition,
               ),
             ],
