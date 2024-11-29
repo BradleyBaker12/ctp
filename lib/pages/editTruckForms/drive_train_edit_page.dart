@@ -1,12 +1,14 @@
 // lib/pages/truckForms/drive_train_page.dart
 
 import 'dart:io';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:provider/provider.dart';
 
 class DriveTrainEditPage extends StatefulWidget {
   final String vehicleId;
@@ -58,7 +60,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     'Gearbox Oil Leak': null,
   };
 
-  // Add a map to store image URLs
+  // Map to store image URLs
   final Map<String, String> _imageUrls = {};
 
   bool _isInitialized = false; // Flag to prevent re-initialization
@@ -69,6 +71,9 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
     return SingleChildScrollView(
         child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -104,18 +109,21 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                       value: 'poor',
                       groupValue: _selectedCondition,
                       onChanged: _updateCondition,
+                      enabled: !isDealer,
                     ),
                     CustomRadioButton(
                       label: 'Good',
                       value: 'good',
                       groupValue: _selectedCondition,
                       onChanged: _updateCondition,
+                      enabled: !isDealer,
                     ),
                     CustomRadioButton(
                       label: 'Excellent',
                       value: 'excellent',
                       groupValue: _selectedCondition,
                       onChanged: _updateCondition,
+                      enabled: !isDealer,
                     ),
                   ],
                 ),
@@ -274,8 +282,35 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
 
   // Helper method to create a photo block
   Widget _buildPhotoBlock(String title) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
     return GestureDetector(
-      onTap: () => _showImageSourceDialog(title),
+      onTap: () {
+        if ((isDealer || !isDealer) &&
+            (_selectedImages[title] != null ||
+                (_imageUrls[title] != null && _imageUrls[title]!.isNotEmpty))) {
+          // View image
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                body: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Center(
+                    child: _selectedImages[title] != null
+                        ? Image.file(_selectedImages[title]!)
+                        : Image.network(_imageUrls[title]!),
+                  ),
+                ),
+              ),
+            ),
+          );
+        } else if (!isDealer) {
+          // Transporter functionality - upload images
+          _showImageSourceDialog(title);
+        }
+      },
       child: Container(
         width: double.infinity,
         height: 130,
@@ -284,34 +319,50 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] == null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.add_circle_outline,
-                      color: Colors.white, size: 40.0),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              )
-            : ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  _selectedImages[title]!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
+        child: _getImageWidget(title, isDealer),
       ),
     );
+  }
+
+  // Helper method to get the appropriate image widget
+  Widget _getImageWidget(String title, bool isDealer) {
+    if (_selectedImages[title] != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.file(
+          _selectedImages[title]!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      );
+    } else if (_imageUrls[title] != null && _imageUrls[title]!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.network(
+          _imageUrls[title]!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      );
+    } else {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (!isDealer)
+            const Icon(Icons.add_circle_outline,
+                color: Colors.white, size: 40.0),
+          const SizedBox(height: 8.0),
+          Text(
+            title,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
   }
 
   // Method to show the dialog for selecting image source (Camera or Gallery)
@@ -334,6 +385,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                   if (pickedFile != null) {
                     setState(() {
                       _selectedImages[title] = File(pickedFile.path);
+                      _imageUrls[title] = ''; // Clear any existing URL
                     });
                   }
                 },
@@ -348,6 +400,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                   if (pickedFile != null) {
                     setState(() {
                       _selectedImages[title] = File(pickedFile.path);
+                      _imageUrls[title] = ''; // Clear any existing URL
                     });
                   }
                 },
@@ -366,6 +419,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     required ValueChanged<String?> onChanged,
     required String imageKey,
   }) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
     return Column(
       children: [
         Text(
@@ -386,6 +441,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               value: 'yes',
               groupValue: groupValue,
               onChanged: onChanged,
+              enabled: !isDealer,
             ),
             const SizedBox(width: 15),
             CustomRadioButton(
@@ -393,6 +449,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               value: 'no',
               groupValue: groupValue,
               onChanged: onChanged,
+              enabled: !isDealer,
             ),
           ],
         ),
@@ -408,6 +465,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     required String groupValue,
     required ValueChanged<String?> onChanged,
   }) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
     return Column(
       children: [
         Text(
@@ -428,6 +487,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               value: 'yes',
               groupValue: groupValue,
               onChanged: onChanged,
+              enabled: !isDealer,
             ),
             const SizedBox(width: 15),
             CustomRadioButton(
@@ -435,6 +495,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               value: 'no',
               groupValue: groupValue,
               onChanged: onChanged,
+              enabled: !isDealer,
             ),
           ],
         ),
@@ -442,48 +503,15 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     );
   }
 
-  // Method to upload images (if required)
-  Future<bool> saveData() async {
-    // You can implement save logic here if needed
-    return true;
-  }
-
-  void initializeWithData(Map<String, dynamic> data) {
-    if (data.isEmpty) return;
-    setState(() {
-      // _isInitialized = true
-      // Initialize basic fields
-      _selectedCondition = data['condition'] ?? 'good';
-      _oilLeakConditionEngine = data['engineOilLeak'] ?? 'no';
-      _waterLeakConditionEngine = data['engineWaterLeak'] ?? 'no';
-      _blowbyCondition = data['blowbyCondition'] ?? 'no';
-      _oilLeakConditionGearbox = data['gearboxOilLeak'] ?? 'no';
-      _retarderCondition = data['retarderCondition'] ?? 'no';
-
-      // Initialize images
-      if (data['images'] != null) {
-        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
-        images.forEach((key, value) {
-          if (value is Map && value['path'] != null) {
-            _selectedImages[key] = File(value['path']);
-          } else if (value is Map && value['url'] != null) {
-            // Store URL for later use
-            _imageUrls[key] = value['url'];
-          }
-        });
-      }
-    });
-  }
-
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
-    String fileName = 'drive_train/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(imageFile);
-    TaskSnapshot snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
-  }
-
+  // Update getData method
   Future<Map<String, dynamic>> getData() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isTransporter = userProvider.getUserRole == 'transporter';
+
+    if (!isTransporter) {
+      return {};
+    }
+
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
       if (entry.value != null) {
@@ -493,6 +521,12 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           'url': imageUrl,
           'path': entry.value!.path,
           'isNew': true
+        };
+      } else if (_imageUrls[entry.key] != null &&
+          _imageUrls[entry.key]!.isNotEmpty) {
+        serializedImages[entry.key] = {
+          'url': _imageUrls[entry.key],
+          'isNew': false,
         };
       }
     }
@@ -506,6 +540,56 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       'retarderCondition': _retarderCondition,
       'images': serializedImages,
     };
+  }
+
+  // Method to upload images to Firebase Storage
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+    try {
+      String fileName =
+          'drive_train/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+      UploadTask uploadTask = storageRef.putFile(imageFile);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading image: $e')),
+      );
+      return '';
+    }
+  }
+
+  // Method to upload images (if required)
+  Future<bool> saveData() async {
+    // You can implement save logic here if needed
+    return true;
+  }
+
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    setState(() {
+      // Initialize basic fields
+      _selectedCondition = data['condition'] ?? 'good';
+      _oilLeakConditionEngine = data['engineOilLeak'] ?? 'no';
+      _waterLeakConditionEngine = data['engineWaterLeak'] ?? 'no';
+      _blowbyCondition = data['blowbyCondition'] ?? 'no';
+      _oilLeakConditionGearbox = data['gearboxOilLeak'] ?? 'no';
+      _retarderCondition = data['retarderCondition'] ?? 'no';
+
+      // Initialize images
+      if (data['images'] != null) {
+        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
+        images.forEach((key, value) {
+          if (value is Map) {
+            if (value['path'] != null) {
+              _selectedImages[key] = File(value['path']);
+            } else if (value['url'] != null && value['url'].isNotEmpty) {
+              _imageUrls[key] = value['url'];
+            }
+          }
+        });
+      }
+    });
   }
 
   void reset() {
@@ -544,10 +628,16 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
             (_waterLeakConditionEngine == 'yes' &&
                 key == 'Engine Water Leak') ||
             (_oilLeakConditionGearbox == 'yes' && key == 'Gearbox Oil Leak')) {
-          if (value != null) filledFields++;
+          if (value != null ||
+              (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
+            filledFields++;
+          }
         }
       } else {
-        if (value != null) filledFields++;
+        if (value != null ||
+            (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
+          filledFields++;
+        }
       }
     });
 
@@ -555,14 +645,18 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     // Oil leak engine
     if (_oilLeakConditionEngine == 'no' ||
         (_oilLeakConditionEngine == 'yes' &&
-            _selectedImages['Engine Oil Leak'] != null)) {
+            (_selectedImages['Engine Oil Leak'] != null ||
+                (_imageUrls['Engine Oil Leak'] != null &&
+                    _imageUrls['Engine Oil Leak']!.isNotEmpty)))) {
       filledFields++;
     }
 
     // Water leak engine
     if (_waterLeakConditionEngine == 'no' ||
         (_waterLeakConditionEngine == 'yes' &&
-            _selectedImages['Engine Water Leak'] != null)) {
+            (_selectedImages['Engine Water Leak'] != null ||
+                (_imageUrls['Engine Water Leak'] != null &&
+                    _imageUrls['Engine Water Leak']!.isNotEmpty)))) {
       filledFields++;
     }
 
@@ -572,7 +666,9 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     // Gearbox oil leak
     if (_oilLeakConditionGearbox == 'no' ||
         (_oilLeakConditionGearbox == 'yes' &&
-            _selectedImages['Gearbox Oil Leak'] != null)) {
+            (_selectedImages['Gearbox Oil Leak'] != null ||
+                (_imageUrls['Gearbox Oil Leak'] != null &&
+                    _imageUrls['Gearbox Oil Leak']!.isNotEmpty)))) {
       filledFields++;
     }
 
@@ -583,16 +679,13 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
-  // Add helper method for updates
+  // Helper method for updates
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(() {
       updateFunction();
     });
     widget.onProgressUpdate();
   }
-
-  // Update all setState calls to use _updateAndNotify
-  // For example:
 
   // For condition selection
   void _updateCondition(String? value) {
@@ -610,6 +703,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         _oilLeakConditionEngine = value;
         if (value == 'no') {
           _selectedImages['Engine Oil Leak'] = null;
+          _imageUrls['Engine Oil Leak'] = '';
         }
       });
     }
@@ -622,6 +716,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         _waterLeakConditionEngine = value;
         if (value == 'no') {
           _selectedImages['Engine Water Leak'] = null;
+          _imageUrls['Engine Water Leak'] = '';
         }
       });
     }
@@ -643,6 +738,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         _oilLeakConditionGearbox = value;
         if (value == 'no') {
           _selectedImages['Gearbox Oil Leak'] = null;
+          _imageUrls['Gearbox Oil Leak'] = '';
         }
       });
     }
@@ -661,6 +757,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   Future<void> _updateImage(String title, File imageFile) async {
     _updateAndNotify(() {
       _selectedImages[title] = imageFile;
+      _imageUrls[title] = ''; // Clear any existing URL
     });
   }
 }

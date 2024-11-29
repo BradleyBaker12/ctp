@@ -6,6 +6,7 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -14,6 +15,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:provider/provider.dart';
 
 class MaintenanceEditSection extends StatefulWidget {
   final String vehicleId;
@@ -557,6 +559,12 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final userProvider = Provider.of<UserProvider>(context);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
 
     return GradientBackground(
       child: SizedBox(
@@ -775,6 +783,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           });
                           notifyProgress();
                         },
+                        enabled: !isDealer,
                       ),
                       const SizedBox(width: 15),
                       CustomRadioButton(
@@ -787,6 +796,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           });
                           notifyProgress();
                         },
+                        enabled: !isDealer,
                       ),
                     ],
                   ),
@@ -955,97 +965,102 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                     ),
                   ),
                   const SizedBox(height: 20), // Add spacing before the button
-                  CustomButton(
-                    onPressed: () async {
-                      // Show loading indicator
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (BuildContext context) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
+
+                  if (isTransporter)
+                    CustomButton(
+                      onPressed: () async {
+                        // Show loading indicator
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            );
+                          },
+                        );
+
+                        try {
+                          String? maintenanceDocUrl = widget.maintenanceDocUrl;
+                          String? warrantyDocUrl = widget.warrantyDocUrl;
+
+                          // Upload maintenance file if new one is selected
+                          if (_maintenanceDocFile != null) {
+                            final storageRef = FirebaseStorage.instance
+                                .ref()
+                                .child(
+                                    'vehicles/${widget.vehicleId}/maintenance')
+                                .child(
+                                    'maintenance_doc_${DateTime.now().millisecondsSinceEpoch}');
+
+                            await storageRef.putFile(_maintenanceDocFile!);
+                            maintenanceDocUrl =
+                                await storageRef.getDownloadURL();
+                          }
+
+                          // Upload warranty file if new one is selected
+                          if (_warrantyDocFile != null) {
+                            final storageRef = FirebaseStorage.instance
+                                .ref()
+                                .child(
+                                    'vehicles/${widget.vehicleId}/maintenance')
+                                .child(
+                                    'warranty_doc_${DateTime.now().millisecondsSinceEpoch}');
+
+                            await storageRef.putFile(_warrantyDocFile!);
+                            warrantyDocUrl = await storageRef.getDownloadURL();
+                          }
+
+                          // Prepare the maintenance data
+                          Map<String, dynamic> maintenanceData = {
+                            'vehicleId': widget.vehicleId,
+                            'oemInspectionType': _oemInspectionType,
+                            'oemReason': _oemInspectionType == 'no'
+                                ? _oemReasonController.text.trim()
+                                : null,
+                            'maintenanceDocUrl': maintenanceDocUrl,
+                            'warrantyDocUrl': warrantyDocUrl,
+                            'maintenanceSelection': widget.maintenanceSelection,
+                            'warrantySelection': widget.warrantySelection,
+                            'lastUpdated': FieldValue.serverTimestamp(),
+                          };
+
+                          // Update the vehicle document in Firestore
+                          await FirebaseFirestore.instance
+                              .collection('vehicles')
+                              .doc(widget.vehicleId)
+                              .set({
+                            'maintenanceData': maintenanceData,
+                          }, SetOptions(merge: true));
+
+                          // Dismiss loading indicator and pop back
+                          Navigator.pop(context); // Dismiss loading indicator
+                          Navigator.pop(context); // Return to previous screen
+
+                          // Show success message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Maintenance data saved successfully')),
                           );
-                        },
-                      );
+                        } catch (error) {
+                          // Dismiss loading indicator
+                          Navigator.pop(context);
 
-                      try {
-                        String? maintenanceDocUrl = widget.maintenanceDocUrl;
-                        String? warrantyDocUrl = widget.warrantyDocUrl;
-
-                        // Upload maintenance file if new one is selected
-                        if (_maintenanceDocFile != null) {
-                          final storageRef = FirebaseStorage.instance
-                              .ref()
-                              .child('vehicles/${widget.vehicleId}/maintenance')
-                              .child(
-                                  'maintenance_doc_${DateTime.now().millisecondsSinceEpoch}');
-
-                          await storageRef.putFile(_maintenanceDocFile!);
-                          maintenanceDocUrl = await storageRef.getDownloadURL();
+                          // Show error message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Error saving maintenance data: $error')),
+                          );
                         }
-
-                        // Upload warranty file if new one is selected
-                        if (_warrantyDocFile != null) {
-                          final storageRef = FirebaseStorage.instance
-                              .ref()
-                              .child('vehicles/${widget.vehicleId}/maintenance')
-                              .child(
-                                  'warranty_doc_${DateTime.now().millisecondsSinceEpoch}');
-
-                          await storageRef.putFile(_warrantyDocFile!);
-                          warrantyDocUrl = await storageRef.getDownloadURL();
-                        }
-
-                        // Prepare the maintenance data
-                        Map<String, dynamic> maintenanceData = {
-                          'vehicleId': widget.vehicleId,
-                          'oemInspectionType': _oemInspectionType,
-                          'oemReason': _oemInspectionType == 'no'
-                              ? _oemReasonController.text.trim()
-                              : null,
-                          'maintenanceDocUrl': maintenanceDocUrl,
-                          'warrantyDocUrl': warrantyDocUrl,
-                          'maintenanceSelection': widget.maintenanceSelection,
-                          'warrantySelection': widget.warrantySelection,
-                          'lastUpdated': FieldValue.serverTimestamp(),
-                        };
-
-                        // Update the vehicle document in Firestore
-                        await FirebaseFirestore.instance
-                            .collection('vehicles')
-                            .doc(widget.vehicleId)
-                            .set({
-                          'maintenanceData': maintenanceData,
-                        }, SetOptions(merge: true));
-
-                        // Dismiss loading indicator and pop back
-                        Navigator.pop(context); // Dismiss loading indicator
-                        Navigator.pop(context); // Return to previous screen
-
-                        // Show success message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content:
-                                  Text('Maintenance data saved successfully')),
-                        );
-                      } catch (error) {
-                        // Dismiss loading indicator
-                        Navigator.pop(context);
-
-                        // Show error message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Error saving maintenance data: $error')),
-                        );
-                      }
-                    },
-                    text: 'DONE',
-                    borderColor: Colors.deepOrange,
-                  ),
+                      },
+                      text: 'DONE',
+                      borderColor: Colors.deepOrange,
+                    ),
                 ],
               ],
             ),

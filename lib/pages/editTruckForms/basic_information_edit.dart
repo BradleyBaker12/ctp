@@ -306,6 +306,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     formData.setYear(null);
     formData.setMakeModel(null);
     formData.setVinNumber(null);
+    formData.setVariant(null);
     formData.setConfig(null);
     formData.setMileage(null);
     formData.setApplication(null);
@@ -408,10 +409,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       }
     });
 
-    // Brands controller
-    _brandsController.addListener(() {
-      formData.setBrands([_brandsController.text]);
+    // Model controller
+    _modelController.addListener(() {
+      formData.setMakeModel(_modelController.text.trim());
       formData.saveFormState();
+    });
+
+// Variant controller
+    _variantController.addListener(() {
+      formData.setVariant(_variantController.text.trim());
+      formData.saveFormState();
+    });
+
+// Brands controller
+    _brandsController.addListener(() {
+      if (_brandsController.text.isNotEmpty) {
+        formData.setBrands([_brandsController.text.trim()]);
+        formData.saveFormState();
+      }
     });
 
     // Config controller
@@ -510,7 +525,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         }
       });
     });
-    formData.setMakeModel(widget.vehicle?.makeModel as String);
+    formData.setMakeModel(widget.vehicle?.makeModel);
     formData.setVariant(widget.vehicle?.variant);
     formData.setVinNumber(widget.vehicle?.vinNumber);
     formData.setConfig(widget.vehicle?.config);
@@ -1067,7 +1082,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Manufacturer',
-                  enabled: !isDealer,
                   value: formData.brands?.isNotEmpty == true
                       ? formData.brands![0]
                       : null,
@@ -1075,12 +1089,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   onChanged: (value) {
                     if (value != null) {
                       formData.setBrands([value]);
-                      // _loadModelsForBrand();
+                      _brandsController.text = value;
                       formData.saveFormState();
                     }
                   },
-                  isTransporter: isTransporter,
                 ),
+
                 // CustomDropdown(
                 //   hintText: 'Brand',
                 //   enabled: !isDealer,
@@ -1331,43 +1345,26 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       return null;
                     },
                   ),
-                const SizedBox(height: 15),
+                if (isTransporter) const SizedBox(height: 15),
                 // Engine Number
-                if (isDealer)
-                  Text(
-                    'Engine No.',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+
+                if (isTransporter)
+                  CustomTextField(
+                    controller: _engineNumberController,
+                    enabled: !isDealer,
+                    hintText: 'Engine No.',
+                    inputFormatter: [UpperCaseTextFormatter()],
                   ),
-                if (isDealer) const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _engineNumberController,
-                  enabled: !isDealer,
-                  hintText: 'Engine No.',
-                  inputFormatter: [UpperCaseTextFormatter()],
-                ),
-                const SizedBox(height: 15),
+                if (isTransporter) const SizedBox(height: 15),
                 // Registration Number
-                if (isDealer)
-                  Text(
-                    'Registration No.',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                if (isTransporter)
+                  CustomTextField(
+                    controller: _registrationNumberController,
+                    enabled: !isDealer,
+                    hintText: 'Registration No.',
+                    inputFormatter: [UpperCaseTextFormatter()],
                   ),
-                if (isDealer) const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _registrationNumberController,
-                  enabled: !isDealer,
-                  hintText: 'Registration No.',
-                  inputFormatter: [UpperCaseTextFormatter()],
-                ),
-                const SizedBox(height: 15),
+                if (isTransporter) const SizedBox(height: 15),
                 // Selling Price
                 if (isTransporter)
                   CustomTextField(
@@ -1671,8 +1668,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
       final vehicleData = {
         'year': formData.year,
-        'makeModel': formData.makeModel,
-        'variant': formData.variant, //
+        'brands': formData.brands ?? [], // Ensure brands is always an array
+        'makeModel': formData.makeModel?.trim() ?? '', // Trim whitespace
+        'variant': formData.variant?.trim() ?? '', // Trim whitespace
+
         'vinNumber': formData.vinNumber,
         'config': formData.config,
         'mileage': formData.mileage,
@@ -1689,7 +1688,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         'warrantyDetails': formData.warrantyDetails,
         'requireToSettleType': formData.requireToSettleType,
         'referenceNumber': formData.referenceNumber,
-        'brands': formData.brands,
         'mainImageUrl': imageUrl,
         'rc1NatisFile': natisRc1Url,
         'country': formData.country,

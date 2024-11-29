@@ -8,7 +8,7 @@ import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -34,14 +34,12 @@ class _WishlistPageState extends State<WishlistPage> {
   late OfferProvider _offerProvider;
 
   String _selectedTab = 'Trucks';
-
   @override
   void initState() {
     super.initState();
     _offerProvider = Provider.of<OfferProvider>(context, listen: false);
-    _fetchUserProfile();
-    _fetchWishlist();
-    _fetchOffersFuture = _fetchOffers(); // Moved initialization here
+    _fetchOffersFuture =
+        Future.wait([_fetchUserProfile(), _fetchWishlist(), _fetchOffers()]);
   }
 
   Future<void> _fetchUserProfile() async {
@@ -126,32 +124,37 @@ class _WishlistPageState extends State<WishlistPage> {
 
     final filteredVehicles = _getFilteredVehicles();
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: const BlurryAppBar(),
-      body: GradientBackground(
-        child: Column(
+    return GradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: CustomAppBar(),
+        body: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(height: screenSize.height * 0.02),
-                  Image.asset(
-                    'lib/assets/CTPLogo.png',
-                    height: screenSize.height * 0.2,
-                    width: screenSize.height * 0.2,
-                    fit: BoxFit.cover,
-                  ),
                   SizedBox(height: screenSize.height * 0.05),
-                  const Text(
-                    'WISHLIST',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'lib/assets/HeartVector.png',
+                        width: 30,
+                        height: 30,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'WISHLIST',
+                        style: TextStyle(
+                          color: Color(0xFFFF4E00),
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                   SizedBox(height: screenSize.height * 0.03),
                   Row(
@@ -321,21 +324,16 @@ class _WishlistPageState extends State<WishlistPage> {
                             vehicleStatus: '',
                           ),
                         );
-                        String imageUrl = data != null &&
-                                data.containsKey('mainImageUrl') &&
-                                data['mainImageUrl'] != null
-                            ? data['mainImageUrl']
-                            : 'lib/assets/default_vehicle_image.png';
 
-                        // Check if there's an offer for this vehicle
                         bool hasOffer = offerProvider.offers
                             .any((offer) => offer.vehicleId == vehicle.id);
 
                         return WishCard(
                           vehicleMakeModel:
                               "${vehicle.makeModel} ${vehicle.year}",
-                          vehicleImageUrl: vehicle.mainImageUrl ??
-                              'lib/assets/default_vehicle_image.png',
+                          vehicleImageUrl: vehicle.mainImageUrl != null
+                              ? vehicle.mainImageUrl!
+                              : 'lib/assets/default_vehicle_image.png',
                           size: screenSize,
                           customFont: (double fontSize, FontWeight fontWeight,
                               Color color) {
@@ -382,14 +380,14 @@ class _WishlistPageState extends State<WishlistPage> {
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: 3,
-        onItemTapped: (index) {
-          setState(() {
-            // Handle navigation here
-          });
-        },
+        bottomNavigationBar: CustomBottomNavigation(
+          selectedIndex: 3,
+          onItemTapped: (index) {
+            setState(() {
+              // Handle navigation here
+            });
+          },
+        ),
       ),
     );
   }

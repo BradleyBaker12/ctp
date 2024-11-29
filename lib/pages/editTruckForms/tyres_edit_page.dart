@@ -2,11 +2,13 @@
 
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:provider/provider.dart';
 
 class TyresEditPage extends StatefulWidget {
   final String vehicleId;
@@ -103,50 +105,30 @@ class TyresEditPageState extends State<TyresEditPage>
 
   @override
   bool get wantKeepAlive => true; // Implementing the required getter
-
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Tyres Information'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _isSaving ? null : saveData,
-            tooltip: 'Save Tyre Information',
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 16.0),
-                  // Generate Tyre Position Sections (Assuming 6 positions)
-                  ...List.generate(
-                      6, (index) => _buildTyrePosSection(index + 1)),
-                  const SizedBox(height: 16.0),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : saveData,
-                    child: const Text('Save Tyre Information'),
-                  ),
-                  const SizedBox(height: 16.0),
-                ],
+    super.build(context);
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 16.0),
+            Text(
+              'Details for TYRES'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
               ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          if (_isSaving)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-        ],
+            const SizedBox(height: 16.0),
+            // Generate Tyre Position Sections
+            ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
+            const SizedBox(height: 16.0),
+          ],
+        ),
       ),
     );
   }
@@ -300,10 +282,42 @@ class TyresEditPageState extends State<TyresEditPage>
   }
 
   Widget _buildImageUploadBlock(String key) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
     String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
-
     return GestureDetector(
-      onTap: () => _showImageSourceDialog(key),
+      onTap: () {
+        if (isDealer && (_selectedImages[key] != null || _imageUrls[key] != null)) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                backgroundColor: Colors.black,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                body: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Center(
+                    child: InteractiveViewer(
+                      child: _selectedImages[key] != null 
+                          ? Image.file(_selectedImages[key]!)
+                          : Image.network(_imageUrls[key]!),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        } else if (!isDealer) {
+          _showImageSourceDialog(key);
+        }
+      },
       child: Stack(
         children: [
           Container(
@@ -316,71 +330,49 @@ class TyresEditPageState extends State<TyresEditPage>
             ),
             child: Stack(
               children: [
-                // Main image display
-                _selectedImages[key] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.file(
-                          _selectedImages[key]!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-                      )
-                    : _imageUrls[key] != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8.0),
-                            child: Image.network(
-                              _imageUrls[key]!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes !=
-                                            null
-                                        ? loadingProgress
-                                                .cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                        : null,
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Text(
-                                    'Failed to load image',
-                                    style: TextStyle(
-                                        color: Colors.red, fontSize: 16),
-                                  ),
-                                );
-                              },
-                            ),
-                          )
-                        : Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.add_circle_outline,
-                                    color: Colors.white, size: 40.0),
-                                const SizedBox(height: 8.0),
-                                Text(
-                                  title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                if (_selectedImages[key] != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.file(
+                      _selectedImages[key]!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  )
+                else if (_imageUrls[key] != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      _imageUrls[key]!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  )
+                else
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (!isDealer)
+                          const Icon(Icons.add_circle_outline,
+                              color: Colors.white, size: 40.0),
+                        const SizedBox(height: 8.0),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                // Overlay hint for editing
-                if (_selectedImages[key] != null || _imageUrls[key] != null)
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                if (!isDealer &&
+                    (_selectedImages[key] != null || _imageUrls[key] != null))
                   Positioned(
                     bottom: 8,
                     right: 8,
@@ -399,8 +391,8 @@ class TyresEditPageState extends State<TyresEditPage>
                       ),
                     ),
                   ),
-                // Delete button
-                if (_selectedImages[key] != null || _imageUrls[key] != null)
+                if (!isDealer &&
+                    (_selectedImages[key] != null || _imageUrls[key] != null))
                   Positioned(
                     top: 8,
                     right: 8,
@@ -412,7 +404,7 @@ class TyresEditPageState extends State<TyresEditPage>
                         });
                       },
                       child: Container(
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: Colors.black54,
                           shape: BoxShape.circle,
                         ),
@@ -516,9 +508,15 @@ class TyresEditPageState extends State<TyresEditPage>
       });
     }
   }
-
   /// Handles uploading images and saving data to Firestore
   Future<Map<String, dynamic>> getData() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isTransporter = userProvider.getUserRole == 'transporter';
+
+    if (!isTransporter) {
+      return {};
+    }
+
     Map<String, dynamic> data = {};
 
     // Get data for each tyre position
@@ -553,7 +551,6 @@ class TyresEditPageState extends State<TyresEditPage>
 
     return data;
   }
-
   /// Uploads an image file to Firebase Storage and returns the download URL
   Future<String> _uploadImageToFirebase(File imageFile, String section) async {
     String fileName =

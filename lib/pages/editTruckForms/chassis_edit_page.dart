@@ -1,12 +1,14 @@
-// lib/pages/truckForms/chassis_page.dart
+// lib/pages/truckForms/chassis_edit_page.dart
 
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:provider/provider.dart';
 
 class ChassisEditPage extends StatefulWidget {
   final String vehicleId;
@@ -14,11 +16,11 @@ class ChassisEditPage extends StatefulWidget {
   final bool isEditing;
 
   const ChassisEditPage({
-    super.key,
+    Key? key,
     required this.vehicleId,
     required this.onProgressUpdate,
     this.isEditing = false,
-  });
+  }) : super(key: key);
 
   @override
   ChassisEditPageState createState() => ChassisEditPageState();
@@ -36,23 +38,6 @@ class ChassisEditPageState extends State<ChassisEditPage>
   String _damagesCondition = 'no';
 
   // Maps to store selected images and their URLs
-  final Map<String, String?> _imageUrls = {
-    'Right Brake': null,
-    'Left Brake': null,
-    'Front Axel': null,
-    'Suspension': null,
-    'Fuel Tank': null,
-    'Battery': null,
-    'Cat Walk': null,
-    'Electrical Cable Black': null,
-    'Air Cable Yellow': null,
-    'Air Cable Red': null,
-    'Tail Board': null,
-    '5th Wheel': null,
-    'Left Brake Rear Axel': null,
-    'Right Brake Rear Axel': null,
-  };
-
   final Map<String, File?> _selectedImages = {
     'Right Brake': null,
     'Left Brake': null,
@@ -70,6 +55,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
     'Right Brake Rear Axel': null,
   };
 
+  final Map<String, String> _imageUrls = {};
+
   // Lists to store damages and additional features
   List<Map<String, dynamic>> _damageList = [];
   List<Map<String, dynamic>> _additionalFeaturesList = [];
@@ -82,6 +69,9 @@ class ChassisEditPageState extends State<ChassisEditPage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
     return SingleChildScrollView(
         child: Padding(
       padding: const EdgeInsets.all(16.0),
@@ -123,31 +113,32 @@ class ChassisEditPageState extends State<ChassisEditPage>
                     });
                   }
                 },
+                enabled: !isDealer,
               ),
               CustomRadioButton(
-                label: 'Good',
-                value: 'good',
-                groupValue: _selectedCondition,
-                onChanged: (value) {
-                  if (value != null) {
-                    _updateAndNotify(() {
-                      _selectedCondition = value;
-                    });
-                  }
-                },
-              ),
+                  label: 'Good',
+                  value: 'good',
+                  groupValue: _selectedCondition,
+                  onChanged: (value) {
+                    if (value != null) {
+                      _updateAndNotify(() {
+                        _selectedCondition = value;
+                      });
+                    }
+                  },
+                  enabled: !isDealer),
               CustomRadioButton(
-                label: 'Excellent',
-                value: 'excellent',
-                groupValue: _selectedCondition,
-                onChanged: (value) {
-                  if (value != null) {
-                    _updateAndNotify(() {
-                      _selectedCondition = value;
-                    });
-                  }
-                },
-              ),
+                  label: 'Excellent',
+                  value: 'excellent',
+                  groupValue: _selectedCondition,
+                  onChanged: (value) {
+                    if (value != null) {
+                      _updateAndNotify(() {
+                        _selectedCondition = value;
+                      });
+                    }
+                  },
+                  enabled: !isDealer),
             ],
           ),
           const SizedBox(height: 16.0),
@@ -277,15 +268,53 @@ class ChassisEditPageState extends State<ChassisEditPage>
 
   // Helper method to create a photo block
   Widget _buildPhotoBlock(String title) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
+    bool hasFile = _selectedImages[title] != null;
+    bool hasUrl = _imageUrls[title] != null && _imageUrls[title]!.isNotEmpty;
+
+    // Debugging statements
+    print(
+        'In _buildPhotoBlock for $title, hasFile: $hasFile, hasUrl: $hasUrl, URL: ${_imageUrls[title]}');
+
     return GestureDetector(
-      onTap: () => _showImageSourceDialog(title),
+      onTap: () {
+        if ((isDealer || !isDealer) && (hasFile || hasUrl)) {
+          // View image
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                body: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Center(
+                    child: hasFile
+                        ? Image.file(_selectedImages[title]!)
+                        : Image.network(
+                            _imageUrls[title]!,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(Icons.error_outline,
+                                  color: Colors.red);
+                            },
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        } else if (!isDealer) {
+          // Transporter functionality - upload images
+          _showImageSourceDialog(title);
+        }
+      },
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.blue.withOpacity(0.3),
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] != null
+        child: hasFile
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
                 child: Image.file(
@@ -295,7 +324,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   height: double.infinity,
                 ),
               )
-            : _imageUrls[title] != null && widget.isEditing
+            : hasUrl
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
                     child: Image.network(
@@ -303,24 +332,18 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                          ),
-                        );
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.error_outline,
+                            color: Colors.red);
                       },
                     ),
                   )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.add_circle_outline,
-                          color: Colors.white, size: 40.0),
+                      if (!isDealer)
+                        const Icon(Icons.add_circle_outline,
+                            color: Colors.white, size: 40.0),
                       const SizedBox(height: 8.0),
                       Text(
                         title,
@@ -356,6 +379,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   if (pickedFile != null) {
                     _updateAndNotify(() {
                       _selectedImages[title] = File(pickedFile.path);
+                      _imageUrls[title] = ''; // Clear any existing URL
                     });
                   }
                 },
@@ -370,6 +394,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   if (pickedFile != null) {
                     _updateAndNotify(() {
                       _selectedImages[title] = File(pickedFile.path);
+                      _imageUrls[title] = ''; // Clear any existing URL
                     });
                   }
                 },
@@ -388,6 +413,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
     required ValueChanged<String?> onChange,
     required Widget Function() buildItemSection,
   }) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
     return Column(
       children: [
         Text(
@@ -404,18 +431,18 @@ class ChassisEditPageState extends State<ChassisEditPage>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CustomRadioButton(
-              label: 'Yes',
-              value: 'yes',
-              groupValue: anyItemsType,
-              onChanged: onChange,
-            ),
+                label: 'Yes',
+                value: 'yes',
+                groupValue: anyItemsType,
+                onChanged: onChange,
+                enabled: !isDealer),
             const SizedBox(width: 15),
             CustomRadioButton(
-              label: 'No',
-              value: 'no',
-              groupValue: anyItemsType,
-              onChanged: onChange,
-            ),
+                label: 'No',
+                value: 'no',
+                groupValue: anyItemsType,
+                onChanged: onChange,
+                enabled: !isDealer),
           ],
         ),
         const SizedBox(height: 16.0),
@@ -466,28 +493,32 @@ class ChassisEditPageState extends State<ChassisEditPage>
     required VoidCallback addItem,
     required void Function(Map<String, dynamic>) showImageSourceDialog,
   }) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
     return Column(
       children: [
         ...items.asMap().entries.map((entry) => _buildItemWidget(
             entry.key, entry.value, showImageSourceDialog, items)),
         const SizedBox(height: 16.0),
-        GestureDetector(
-          onTap: addItem,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
-              SizedBox(width: 8.0),
-              Text(
-                'Add Additional Item',
-                style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
+        if (!isDealer)
+          GestureDetector(
+            onTap: addItem,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text(
+                  'Add Additional Item',
+                  style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
@@ -498,6 +529,12 @@ class ChassisEditPageState extends State<ChassisEditPage>
       Map<String, dynamic> item,
       void Function(Map<String, dynamic>) showImageSourceDialog,
       List<Map<String, dynamic>> list) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
+    bool hasFile = item['image'] != null;
+    bool hasUrl = item['imageUrl'] != null && item['imageUrl'].isNotEmpty;
+
     return Column(
       children: [
         const SizedBox(height: 16.0),
@@ -513,6 +550,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                     item['description'] = value;
                   });
                 },
+                readOnly: isDealer,
                 decoration: InputDecoration(
                   labelText: 'Describe Item',
                   labelStyle: const TextStyle(color: Colors.white),
@@ -525,19 +563,48 @@ class ChassisEditPageState extends State<ChassisEditPage>
                 style: const TextStyle(color: Colors.white),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () {
-                _updateAndNotify(() {
-                  list.removeAt(index);
-                });
-              },
-            ),
+            if (!isDealer)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  _updateAndNotify(() {
+                    list.removeAt(index);
+                  });
+                },
+              ),
           ],
         ),
         const SizedBox(height: 16.0),
         GestureDetector(
-          onTap: () => showImageSourceDialog(item),
+          onTap: () {
+            if ((isDealer || !isDealer) && (hasFile || hasUrl)) {
+              // View image
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => Scaffold(
+                    body: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Center(
+                        child: hasFile
+                            ? Image.file(item['image'])
+                            : Image.network(
+                                item['imageUrl'],
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.error_outline,
+                                      color: Colors.red);
+                                },
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            } else if (!isDealer) {
+              // Transporter functionality - upload images
+              showImageSourceDialog(item);
+            }
+          },
           child: Container(
             height: 150.0,
             width: double.infinity,
@@ -546,7 +613,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: item['image'] != null
+            child: hasFile
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
                     child: Image.file(
@@ -556,7 +623,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       height: double.infinity,
                     ),
                   )
-                : item['imageUrl'] != null && widget.isEditing
+                : hasUrl
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
                         child: Image.network(
@@ -564,17 +631,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes !=
-                                        null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            );
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildImagePlaceholder();
                           },
                         ),
                       )
@@ -631,6 +689,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   if (pickedFile != null) {
                     _updateAndNotify(() {
                       item['image'] = File(pickedFile.path);
+                      item['imageUrl'] = ''; // Clear any existing URL
                     });
                   }
                 },
@@ -645,6 +704,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   if (pickedFile != null) {
                     _updateAndNotify(() {
                       item['image'] = File(pickedFile.path);
+                      item['imageUrl'] = ''; // Clear any existing URL
                     });
                   }
                 },
@@ -656,126 +716,158 @@ class ChassisEditPageState extends State<ChassisEditPage>
     );
   }
 
-  // Method to upload images (if required)
-  Future<bool> saveData() async {
-    // You can implement save logic here if needed
-    return true;
+  // Method to upload images to Firebase Storage
+  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+    try {
+      String fileName =
+          'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+      UploadTask uploadTask = storageRef.putFile(imageFile);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading image: $e')),
+      );
+      return '';
+    }
   }
 
-  void initializeWithData(Map<String, dynamic> data) {
-    if (data.isEmpty) return;
+  Future<Map<String, dynamic>> getData() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isTransporter = userProvider.getUserRole == 'transporter';
 
-    setState(() {
-      // _isInitialized = true;
+    if (!isTransporter) {
+      return {};
+    }
 
-      // Initialize basic fields
-      _selectedCondition = data['condition'] ?? 'good';
-      _damagesCondition = data['damagesCondition'] ?? 'no';
-      _additionalFeaturesCondition =
-          data['additionalFeaturesCondition'] ?? 'no';
+    Map<String, dynamic> serializedImages = {};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value != null) {
+        String imageUrl = await _uploadImageToFirebase(
+            entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
+        serializedImages[entry.key] = {
+          'url': imageUrl,
+          'isNew': true,
+        };
+      } else if (_imageUrls[entry.key] != null &&
+          _imageUrls[entry.key]!.isNotEmpty) {
+        serializedImages[entry.key] = {
+          'url': _imageUrls[entry.key],
+          'isNew': false,
+        };
+      }
+    }
 
-      // Initialize images
-      if (data['images'] != null) {
-        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
-        images.forEach((key, value) {
-          if (value is Map) {
-            if (value['path'] != null) {
-              _selectedImages[key] = File(value['path']);
-            } else if (value['url'] != null) {
-              _imageUrls[key] = value['url'];
-            }
-          }
+    List<Map<String, dynamic>> serializedDamages = [];
+    for (var damage in _damageList) {
+      if (damage['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(damage['image'], 'damage');
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': imageUrl,
+          'isNew': true,
+        });
+      } else if (damage['imageUrl'] != null && damage['imageUrl'].isNotEmpty) {
+        serializedDamages.add({
+          'description': damage['description'] ?? '',
+          'imageUrl': damage['imageUrl'],
+          'isNew': false,
         });
       }
+    }
+
+    List<Map<String, dynamic>> serializedFeatures = [];
+    for (var feature in _additionalFeaturesList) {
+      if (feature['image'] != null) {
+        String imageUrl =
+            await _uploadImageToFirebase(feature['image'], 'feature');
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': imageUrl,
+          'isNew': true,
+        });
+      } else if (feature['imageUrl'] != null &&
+          feature['imageUrl'].isNotEmpty) {
+        serializedFeatures.add({
+          'description': feature['description'] ?? '',
+          'imageUrl': feature['imageUrl'],
+          'isNew': false,
+        });
+      }
+    }
+
+    return {
+      'condition': _selectedCondition,
+      'images': serializedImages,
+      'damagesCondition': _damagesCondition,
+      'damages': serializedDamages,
+      'additionalFeaturesCondition': _additionalFeaturesCondition,
+      'additionalFeatures': serializedFeatures,
+    };
+  }
+
+  // Method to initialize data
+  void initializeWithData(Map<String, dynamic> data) {
+    if (data.isEmpty) {
+      return;
+    }
+
+    // Use the data directly
+    Map<String, dynamic> chassisData = data;
+
+    setState(() {
+      // Initialize basic fields
+      _selectedCondition = chassisData['condition'] ?? 'good';
+      _damagesCondition = chassisData['damagesCondition'] ?? 'no';
+      _additionalFeaturesCondition =
+          chassisData['additionalFeaturesCondition'] ?? 'no';
+
+      // Initialize images
+      if (chassisData['images'] != null) {
+        Map<String, dynamic> images =
+            Map<String, dynamic>.from(chassisData['images']);
+        images.forEach((key, value) {
+          if (value is Map && value.containsKey('url')) {
+            String? url = value['url']?.toString();
+            if (url == null || url.isEmpty) {
+              url = null;
+            } else {}
+            _imageUrls[key] = url ?? '';
+            _selectedImages[key] = null;
+          } else {}
+        });
+      } else {}
 
       // Initialize damage list
-      if (data['damages'] != null) {
-        _damageList = (data['damages'] as List).map((damage) {
+      if (chassisData['damages'] != null) {
+        _damageList = (chassisData['damages'] as List).map((damage) {
           return {
             'description': damage['description'] ?? '',
-            'image':
-                damage['imagePath'] != null ? File(damage['imagePath']) : null,
-            'imageUrl': damage['imageUrl'],
-            'key': damage['key'] ??
-                DateTime.now().millisecondsSinceEpoch.toString(),
+            'image': null,
+            'imageUrl': damage['imageUrl'] ?? '',
+            'key': UniqueKey().toString(),
           };
         }).toList();
-      }
+      } else {}
 
       // Initialize additional features list
-      if (data['additionalFeatures'] != null) {
+      if (chassisData['additionalFeatures'] != null) {
         _additionalFeaturesList =
-            (data['additionalFeatures'] as List).map((feature) {
+            (chassisData['additionalFeatures'] as List).map((feature) {
           return {
             'description': feature['description'] ?? '',
-            'image': feature['imagePath'] != null
-                ? File(feature['imagePath'])
-                : null,
-            'imageUrl': feature['imageUrl'],
-            'key': feature['key'] ??
-                DateTime.now().millisecondsSinceEpoch.toString(),
+            'image': null,
+            'imageUrl': feature['imageUrl'] ?? '',
+            'key': UniqueKey().toString(),
           };
         }).toList();
-      }
+      } else {}
     });
   }
-Future<String> _uploadImageToFirebase(File imageFile, String section) async {
-  String fileName = 'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-  Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-  UploadTask uploadTask = storageRef.putFile(imageFile);
-  TaskSnapshot snapshot = await uploadTask;
-  return await snapshot.ref.getDownloadURL();
-}
 
-Future<Map<String, dynamic>> getData() async {
-  Map<String, dynamic> serializedImages = {};
-  for (var entry in _selectedImages.entries) {
-    if (entry.value != null) {
-      String imageUrl = await _uploadImageToFirebase(
-          entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
-      serializedImages[entry.key] = {
-        'url': imageUrl,
-        'path': entry.value!.path,
-        'isNew': true
-      };
-    }
-  }
-
-  List<Map<String, dynamic>> serializedDamages = [];
-  for (var damage in _damageList) {
-    if (damage['image'] != null) {
-      String imageUrl = await _uploadImageToFirebase(damage['image'], 'damage');
-      serializedDamages.add({
-        'description': damage['description'] ?? '',
-        'imageUrl': imageUrl,
-        'path': damage['image'].path,
-        'isNew': true
-      });
-    }
-  }
-
-  List<Map<String, dynamic>> serializedFeatures = [];
-  for (var feature in _additionalFeaturesList) {
-    if (feature['image'] != null) {
-      String imageUrl = await _uploadImageToFirebase(feature['image'], 'feature');
-      serializedFeatures.add({
-        'description': feature['description'] ?? '',
-        'imageUrl': imageUrl,
-        'path': feature['image'].path,
-        'isNew': true
-      });
-    }
-  }
-
-  return {
-    'condition': _selectedCondition,
-    'images': serializedImages,
-    'damagesCondition': _damagesCondition,
-    'damages': serializedDamages,
-    'additionalFeaturesCondition': _additionalFeaturesCondition,
-    'additionalFeatures': serializedFeatures,
-  };
-}
+  // Method to reset the form
   void reset() {
     setState(() {
       _selectedCondition = 'good';
@@ -799,8 +891,7 @@ Future<Map<String, dynamic>> getData() async {
   }
 
   double getCompletionPercentage() {
-    int totalFields =
-        17; // 1 condition + 14 images + 2 sections (damages and additional features)
+    int totalFields = 17; // Total number of fields to fill
     int filledFields = 0;
 
     // Check condition selection (1 field)
@@ -808,7 +899,10 @@ Future<Map<String, dynamic>> getData() async {
 
     // Check all images (14 fields)
     _selectedImages.forEach((key, value) {
-      if (value != null) filledFields++;
+      if (value != null ||
+          (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
+        filledFields++;
+      }
     });
 
     // Check damages section (1 field)
@@ -816,7 +910,9 @@ Future<Map<String, dynamic>> getData() async {
       filledFields++;
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
       bool isDamagesComplete = _damageList.every((damage) =>
-          damage['description']?.isNotEmpty == true && damage['image'] != null);
+          damage['description']?.isNotEmpty == true &&
+          (damage['image'] != null ||
+              (damage['imageUrl'] != null && damage['imageUrl'].isNotEmpty)));
       if (isDamagesComplete) filledFields++;
     }
 
@@ -827,7 +923,8 @@ Future<Map<String, dynamic>> getData() async {
         _additionalFeaturesList.isNotEmpty) {
       bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
           feature['description']?.isNotEmpty == true &&
-          feature['image'] != null);
+          (feature['image'] != null ||
+              (feature['imageUrl'] != null && feature['imageUrl'].isNotEmpty)));
       if (isFeaturesComplete) filledFields++;
     }
 

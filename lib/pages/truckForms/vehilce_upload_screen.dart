@@ -942,7 +942,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   value: formData.brands?.isNotEmpty == true
                       ? formData.brands![0]
                       : null,
-                  items: [
+                  items: const [
                     'Ashok Leyland',
                     'Dayun',
                     'Eicher',

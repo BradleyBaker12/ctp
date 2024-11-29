@@ -1,6 +1,5 @@
 // lib/models/internal_cab.dart
 
-
 import 'damage.dart';
 import 'additional_feature.dart';
 
@@ -31,7 +30,8 @@ class InternalCab {
       damagesCondition: data['damagesCondition'] ?? '',
       additionalFeaturesCondition: data['additionalFeaturesCondition'] ?? '',
       faultCodesCondition: data['faultCodesCondition'] ?? '',
-      viewImages: _parseViewImages(data['viewImages'] as Map<String, dynamic>? ?? {}),
+      viewImages:
+          _parseViewImages(data['viewImages'] as Map<String, dynamic>? ?? {}),
       damages: (data['damages'] as List<dynamic>?)
               ?.map((d) => Damage.fromMap(d as Map<String, dynamic>))
               .toList() ??
@@ -44,7 +44,8 @@ class InternalCab {
     );
   }
 
-  static Map<String, PhotoData> _parseViewImages(Map<String, dynamic> imagesData) {
+  static Map<String, PhotoData> _parseViewImages(
+      Map<String, dynamic> imagesData) {
     Map<String, PhotoData> result = {};
     imagesData.forEach((key, value) {
       if (value is Map<String, dynamic>) {
@@ -91,24 +92,24 @@ class InternalCab {
 
 class PhotoData {
   final bool isNew;
-  final String path;
+  final String url; // This should store the Firebase Storage URL
 
   PhotoData({
     required this.isNew,
-    required this.path,
+    required this.url,
   });
 
   factory PhotoData.fromMap(Map<String, dynamic> data) {
     return PhotoData(
       isNew: data['isNew'] ?? false,
-      path: data['path'] ?? '',
+      url: data['url'] ?? '', // Use url instead of path
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'isNew': isNew,
-      'path': path,
+      'url': url, // Use url instead of path
     };
   }
 }

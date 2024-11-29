@@ -1344,7 +1344,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
                                       // Format the input value with spaces
                                       String formattedValue =
-                                          _formatNumberWithSpaces(numericValue);
+                                          "R ${_formatNumberWithSpaces(numericValue)}";
                                       _controller.value =
                                           _controller.value.copyWith(
                                         text: formattedValue,
@@ -1455,15 +1455,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       if (isDealer)
                         _buildSection(context, 'TRUCK CONDITION',
                             '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED'),
-                      // if (isDealer)
-                      //   _buildSection(
-                      //     context,
-                      //     'MAINTENANCE\nAND WARRANTY',
-                      //     '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
-                      //   ),
-                      // if (isDealer)
-                      //   _buildSection(context, 'ADMIN',
-                      //       '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
+                      if (isDealer)
+                        _buildSection(
+                          context,
+                          'MAINTENANCE\nAND WARRANTY',
+                          '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
+                        ),
                       const SizedBox(height: 30),
                       if (isTransporter)
                         Column(children: [
@@ -2459,8 +2456,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     if (internalCab.viewImages.isNotEmpty) {
       List<PhotoItem> internalPhotos = [];
       internalCab.viewImages.forEach((key, photoData) {
-        if (photoData.path.isNotEmpty) {
-          internalPhotos.add(PhotoItem(url: photoData.path, label: key));
+        if (photoData.url.isNotEmpty) {
+          internalPhotos.add(PhotoItem(url: photoData.url, label: key));
         }
       });
 

@@ -118,15 +118,9 @@ class _TruckConditionsTabsEditPageState
 
       if (doc.exists) {
         Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
-        if (data != null) {
-          // Load truckConditions data if it exists
-          if (data['truckConditions'] != null) {
-            setState(() {
-              _cachedData = Map<String, dynamic>.from(data['truckConditions']);
-            });
-          }
+        if (data != null && data['truckConditions'] != null) {
+          _cachedData = Map<String, dynamic>.from(data['truckConditions']);
 
-          // Initialize each tab with its respective data
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _initializeTabsWithData();
           });
@@ -199,8 +193,26 @@ class _TruckConditionsTabsEditPageState
     }
   }
 
+  // Dealer's Next Tab handler
+  void _handleNextTab() {
+    if (_selectedTabIndex < 4) {
+      setState(() {
+        _selectedTabIndex = _selectedTabIndex + 1;
+      });
+    } else {
+      Navigator.of(context).pop(); // Navigate back when 'Done' is pressed
+    }
+  }
+
   // Modified Done button handler
   Future<void> _handleDone() async {
+    // Only allow saving for transporters
+    if (Provider.of<UserProvider>(context, listen: false).getUserRole !=
+        'transporter') {
+      Navigator.of(context).pop(); // Just exit for dealers
+      return;
+    }
+
     try {
       setState(() => _isSaving = true);
 
@@ -292,11 +304,6 @@ class _TruckConditionsTabsEditPageState
         _selectedTabIndex = newIndex;
       });
 
-      // Remove re-initialization of tabs
-      // WidgetsBinding.instance.addPostFrameCallback((_) {
-      //   _initializeTabWithCachedData(newIndex);
-      // });
-
       return true;
     } catch (e) {
       print('Error handling tab change: $e');
@@ -311,6 +318,12 @@ class _TruckConditionsTabsEditPageState
 
   // Add method to save current tab data
   Future<void> _saveCurrentTabData() async {
+    // Only proceed with saving if user is a transporter
+    if (Provider.of<UserProvider>(context, listen: false).getUserRole !=
+        'transporter') {
+      return; // Exit early without saving for non-transporters
+    }
+
     try {
       Map<String, dynamic> currentTabData = {};
 
@@ -363,11 +376,6 @@ class _TruckConditionsTabsEditPageState
     }
   }
 
-  // Update the _cacheCurrentTabData method
-  Future<void> _cacheCurrentTabData() async {
-    // This can be empty or removed since we're getting fresh data in _handleDone
-  }
-
   Future<void> _saveAllModifiedData() async {
     try {
       setState(() => _isSaving = true);
@@ -379,18 +387,22 @@ class _TruckConditionsTabsEditPageState
     }
   }
 
-  // Modified build method to include a save button
+  // Modified build method to include the role checks
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
-    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
-    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
-    final bool isTransporter =
-        userRole == 'transporter'; // Check if the user is a dealer
+    final bool isDealer = userRole == 'dealer';
+    final bool isTransporter = userRole == 'transporter';
+
     return WillPopScope(
       onWillPop: () async {
-        if (!_isNavigatingHome && _modifiedSections.values.contains(true)) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final String userRole = userProvider.getUserRole;
+
+        if (userRole == 'transporter' &&
+            !_isNavigatingHome &&
+            _modifiedSections.values.contains(true)) {
           bool shouldSave = await showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -439,7 +451,7 @@ class _TruckConditionsTabsEditPageState
                         ),
                       const SizedBox(width: 16),
                       Text(
-                        "Make/Model: ${_makeModel}",
+                        "Make/Model: $_makeModel",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -526,23 +538,36 @@ class _TruckConditionsTabsEditPageState
                         const SizedBox(height: 24.0),
                         Row(
                           children: [
-                            if (_selectedTabIndex < 4)
+                            if (isTransporter) ...[
+                              if (_selectedTabIndex < 4)
+                                Expanded(
+                                  child: CustomButton(
+                                    text: 'Continue',
+                                    onPressed:
+                                        _isSaving ? null : _handleContinue,
+                                    borderColor: AppColors.blue,
+                                  ),
+                                ),
+                              if (_selectedTabIndex < 4)
+                                const SizedBox(width: 16.0),
                               Expanded(
                                 child: CustomButton(
-                                  text: 'Continue',
-                                  onPressed: _isSaving ? null : _handleContinue,
+                                  text: 'Done',
+                                  onPressed: _isSaving ? null : _handleDone,
+                                  borderColor: AppColors.green,
+                                ),
+                              ),
+                            ] else if (isDealer) ...[
+                              Expanded(
+                                child: CustomButton(
+                                  text: _selectedTabIndex < 4
+                                      ? 'Next Tab'
+                                      : 'Done',
+                                  onPressed: _handleNextTab,
                                   borderColor: AppColors.blue,
                                 ),
                               ),
-                            if (_selectedTabIndex < 4)
-                              const SizedBox(width: 16.0),
-                            Expanded(
-                              child: CustomButton(
-                                text: 'Done',
-                                onPressed: _isSaving ? null : _handleDone,
-                                borderColor: AppColors.green,
-                              ),
-                            ),
+                            ],
                           ],
                         ),
                       ],
@@ -554,16 +579,17 @@ class _TruckConditionsTabsEditPageState
           ),
         ),
 
-        // FAB for saving
-        floatingActionButton: _modifiedSections.values.contains(true)
-            ? FloatingActionButton(
-                onPressed: _isSaving ? null : _saveAllModifiedData,
-                backgroundColor: Colors.green,
-                child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Icon(Icons.save),
-              )
-            : null,
+        // FAB for saving (only visible to transporters)
+        floatingActionButton:
+            isTransporter && _modifiedSections.values.contains(true)
+                ? FloatingActionButton(
+                    onPressed: _isSaving ? null : _saveAllModifiedData,
+                    backgroundColor: Colors.green,
+                    child: _isSaving
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Icon(Icons.save),
+                  )
+                : null,
       ),
     );
   }
@@ -580,9 +606,15 @@ class _TruckConditionsTabsEditPageState
       child: GestureDetector(
         onTap: () async {
           if (isBackButton) {
-            bool shouldSave = await _showSaveDialog();
-            if (shouldSave) {
-              await _saveAllModifiedData();
+            final userProvider =
+                Provider.of<UserProvider>(context, listen: false);
+            final String userRole = userProvider.getUserRole;
+
+            if (userRole == 'transporter') {
+              bool shouldSave = await _showSaveDialog();
+              if (shouldSave) {
+                await _saveAllModifiedData();
+              }
             }
             Navigator.of(context).pop();
           } else {

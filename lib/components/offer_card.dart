@@ -549,7 +549,7 @@ class _OfferCardState extends State<OfferCard> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        (widget.offer.vehicleMakeModel ?? 'Unknown')
+                        "${widget.offer.vehicleBrand ?? 'Unknown'} ${widget.offer.vehicleMakeModel ?? 'Unknown'} ${widget.offer.vehicleYear ?? 'Unknown'}"
                             .toUpperCase(),
                         style: customFont(screenSize.height * 0.016,
                             FontWeight.w800, Colors.white),
@@ -607,47 +607,53 @@ class _OfferCardState extends State<OfferCard> {
     Vehicle? vehicle;
 
     try {
+      // First attempt to get from provider
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.id == widget.offer.vehicleId,
         orElse: () => throw Exception('Vehicle not found in provider'),
       );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-        ),
-      );
     } catch (e) {
       try {
+        // If not in provider, fetch from Firestore
         DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
             .collection('vehicles')
             .doc(widget.offer.vehicleId)
             .get();
 
         if (vehicleSnapshot.exists) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-            ),
-          );
-        } else {
+          vehicle = Vehicle.fromDocument(vehicleSnapshot);
+          vehicleProvider.addVehicle(vehicle); // Add to provider for future use
+
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Vehicle details not found.'),
+            SnackBar(
+              content: Text('Error loading vehicle details: $e'),
               backgroundColor: Colors.red,
             ),
           );
         }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error fetching vehicle details: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
+      return;
+    }
+
+    // If vehicle was found in provider, navigate
+    if (mounted && vehicle != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
+        ),
+      );
     }
   }
 
