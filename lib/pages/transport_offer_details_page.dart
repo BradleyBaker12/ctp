@@ -385,46 +385,42 @@ class _TransporterOfferDetailsPageState
                       ),
 
                     // Setup Inspection and Collection Buttons
-                    if (offerStatus == 'accepted') ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        child: Column(
-                          children: [
-                            if (!isInspectionComplete)
-                              CustomButton(
-                                text: 'Setup Inspection',
-                                borderColor: Colors.blue,
-                                onPressed: _setupInspection,
-                              )
-                            else
-                              Center(
-                                child: Text(
-                                  'Inspection Setup Complete',
-                                  style: customFont(
-                                      18, FontWeight.bold, Colors.green),
-                                  textAlign: TextAlign.center,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Column(
+                        children: [
+                          isInspectionComplete
+                              ? Center(
+                                  child: Text(
+                                    'Inspection Setup Complete',
+                                    style: customFont(
+                                        18, FontWeight.bold, Colors.green),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )
+                              : CustomButton(
+                                  text: 'Setup Inspection',
+                                  borderColor: Colors.blue,
+                                  onPressed: _setupInspection,
                                 ),
-                              ),
-                            const SizedBox(height: 16),
-                            if (!isCollectionComplete)
-                              CustomButton(
-                                text: 'Setup Collection',
-                                borderColor: Colors.blue,
-                                onPressed: _setupCollection,
-                              )
-                            else
-                              Center(
-                                child: Text(
-                                  'Collection Setup Complete',
-                                  style: customFont(
-                                      18, FontWeight.bold, Colors.green),
-                                  textAlign: TextAlign.center,
+                          const SizedBox(height: 16),
+                          isCollectionComplete
+                              ? Center(
+                                  child: Text(
+                                    'Collection Setup Complete',
+                                    style: customFont(
+                                        18, FontWeight.bold, Colors.green),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )
+                              : CustomButton(
+                                  text: 'Setup Collection',
+                                  borderColor: Colors.blue,
+                                  onPressed: _setupCollection,
                                 ),
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
 
                     // Offer Details Section
                     Padding(
@@ -450,7 +446,8 @@ class _TransporterOfferDetailsPageState
                                 customFont(20, FontWeight.bold, Colors.white),
                           ),
                           const SizedBox(height: 10),
-                          _buildInfoRow('Make/Model', widget.vehicle.makeModel.toString()),
+                          _buildInfoRow('Make/Model',
+                              widget.vehicle.makeModel.toString()),
                           _buildInfoRow('Year', widget.vehicle.year.toString()),
                         ],
                       ),

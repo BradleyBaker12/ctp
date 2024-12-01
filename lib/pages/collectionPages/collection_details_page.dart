@@ -401,11 +401,31 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           color: Colors.transparent,
           child: Stack(
             children: [
-              Center(
-                child: Text(
-                  'No collection locations available.',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                  textAlign: TextAlign.center,
+              SafeArea(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Waiting for collection locations from transporter.',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        CustomButton(
+                          text: 'HOME',
+                          onPressed: () => Navigator.of(context)
+                              .pushNamedAndRemoveUntil('/', (route) => false),
+                          borderColor: const Color(0xFFFF4E00),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               Positioned(
@@ -676,10 +696,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                       ),
                     ),
                   ),
-                ),
-                CustomBottomNavigation(
-                  selectedIndex: _selectedIndex,
-                  onItemTapped: _onItemTapped,
                 ),
               ],
             ),

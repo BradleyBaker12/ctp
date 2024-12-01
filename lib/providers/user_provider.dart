@@ -350,19 +350,17 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> removeLikedVehicle(String vehicleId) async {
+  Future<void> unlikeVehicle(String vehicleId) async {
     if (_user != null) {
-      if (_likedVehicles.contains(vehicleId)) {
-        _likedVehicles.remove(vehicleId);
-        try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(_user!.uid)
-              .update({'likedVehicles': _likedVehicles});
-          notifyListeners();
-        } catch (e) {
-          print('Error updating likedVehicles in Firestore: $e');
-        }
+      _likedVehicles.remove(vehicleId);
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({'likedVehicles': _likedVehicles});
+        notifyListeners();
+      } catch (e) {
+        print('Error removing vehicle from likedVehicles in Firestore: $e');
       }
     }
   }

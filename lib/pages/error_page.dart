@@ -43,7 +43,7 @@ class ErrorPage extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: Text(
-                      'We could not find an account associated with that Facebook Account.',
+                      'We could not find an account associated with that Account.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.montserrat(
                         fontSize: screenSize.height * 0.02,

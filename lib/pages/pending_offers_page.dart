@@ -139,9 +139,7 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
                           Offer offer = filteredOffers[index];
                           print(
                               'Displaying offer: ${offer.offerId} with status ${offer.offerStatus}');
-                          return OfferCard(
-                            offer: offer,
-                          );
+                          return ;
                         },
                       ),
               ),

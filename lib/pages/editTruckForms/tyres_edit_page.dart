@@ -134,6 +134,8 @@ class TyresEditPageState extends State<TyresEditPage>
   }
 
   Widget _buildTyrePosSection(int pos) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
     String tyrePosKey = 'Tyre_Pos_$pos';
 
     return Column(
@@ -179,6 +181,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   });
                 }
               },
+              enabled: !isDealer,
             ),
             CustomRadioButton(
               label: 'Good',
@@ -189,6 +192,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   _chassisConditions[pos] = value;
                 }
               },
+              enabled: !isDealer,
             ),
             CustomRadioButton(
               label: 'Excellent',
@@ -199,6 +203,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   _chassisConditions[pos] = value;
                 }
               },
+              enabled: !isDealer,
             ),
           ],
         ),
@@ -226,6 +231,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   _virginOrRecaps[pos] = value;
                 }
               },
+              enabled: !isDealer,
             ),
             CustomRadioButton(
               label: 'Recap',
@@ -236,6 +242,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   _virginOrRecaps[pos] = value;
                 }
               },
+              enabled: !isDealer,
             ),
           ],
         ),
@@ -263,6 +270,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   _rimTypes[pos] = value;
                 }
               },
+              enabled: !isDealer,
             ),
             CustomRadioButton(
               label: 'Steel',
@@ -273,6 +281,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   _rimTypes[pos] = value;
                 }
               },
+              enabled: !isDealer,
             ),
           ],
         ),
@@ -287,7 +296,8 @@ class TyresEditPageState extends State<TyresEditPage>
     String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
     return GestureDetector(
       onTap: () {
-        if (isDealer && (_selectedImages[key] != null || _imageUrls[key] != null)) {
+        if (isDealer &&
+            (_selectedImages[key] != null || _imageUrls[key] != null)) {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -305,7 +315,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   onTap: () => Navigator.pop(context),
                   child: Center(
                     child: InteractiveViewer(
-                      child: _selectedImages[key] != null 
+                      child: _selectedImages[key] != null
                           ? Image.file(_selectedImages[key]!)
                           : Image.network(_imageUrls[key]!),
                     ),
@@ -508,6 +518,7 @@ class TyresEditPageState extends State<TyresEditPage>
       });
     }
   }
+
   /// Handles uploading images and saving data to Firestore
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -551,6 +562,7 @@ class TyresEditPageState extends State<TyresEditPage>
 
     return data;
   }
+
   /// Uploads an image file to Firebase Storage and returns the download URL
   Future<String> _uploadImageToFirebase(File imageFile, String section) async {
     String fileName =

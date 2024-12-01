@@ -35,12 +35,35 @@ class _SignInPageState extends State<SignInPage> {
   ];
 
   Future<void> _signIn() async {
+    // First check for empty fields
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both email and password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Check for valid email format
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email address'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      print('Attempting Email/Password Sign-In');
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -96,46 +119,51 @@ class _SignInPageState extends State<SignInPage> {
         }
       }
     } on FirebaseAuthException catch (e) {
-      print("FirebaseAuthException Code: ${e.code}");
-
-      // Provide specific feedback based on the error code
       String errorMessage;
+      Color backgroundColor = Colors.red;
+
       switch (e.code) {
-        case 'invalid-credential':
-        case 'invalid-login-credentials':
-        case 'user-not-found':
-          errorMessage = 'No user found with that email address.';
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ErrorPage()),
-          );
-          break;
         case 'wrong-password':
-          errorMessage = 'The password is incorrect. Please try again.';
+          errorMessage = 'Incorrect password. Please try again.';
+          break;
+        case 'user-not-found':
+          errorMessage =
+              'No account exists with this email. Please check your email or sign up.';
           break;
         case 'invalid-email':
           errorMessage =
-              'The email address is not valid. Please check it and try again.';
+              'Invalid email format. Please enter a valid email address.';
+          break;
+        case 'invalid-credential':
+        case 'invalid-login-credentials':
+          errorMessage =
+              'Invalid email or password. Please check your credentials.';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          backgroundColor = Colors.orange;
           break;
         case 'user-disabled':
           errorMessage =
-              'This user has been disabled. Please contact support for help.';
-          break;
-        case 'too-many-requests':
-          errorMessage =
-              'Too many unsuccessful login attempts. Please try again later.';
+              'This account has been disabled. Please contact support.';
           break;
         default:
-          errorMessage = 'An unknown error occurred. Please try again.';
+          errorMessage = 'An error occurred during sign in. Please try again.';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
-    } catch (e) {
-      print("Error: ${e.toString()}");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: backgroundColor,
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
       );
     } finally {
       setState(() {

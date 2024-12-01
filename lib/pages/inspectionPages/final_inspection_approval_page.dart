@@ -83,15 +83,17 @@ class _FinalInspectionApprovalPageState
           .collection('offers')
           .doc(widget.offerId)
           .get();
-      bool dealerApproved = offerSnapshot['dealerApproved'] ?? false;
-      bool transporterApproved = offerSnapshot['transporterApproved'] ?? false;
+
+      Map<String, dynamic> data = offerSnapshot.data() as Map<String, dynamic>;
+      bool dealerApproved = data['dealerApproved'] ?? false;
+      bool transporterApproved = data['transporterApproved'] ?? false;
 
       // Navigate to the appropriate rating page only if both parties have approved
       if (dealerApproved && transporterApproved) {
         await FirebaseFirestore.instance
             .collection('offers')
             .doc(widget.offerId)
-            .update({'offerStatus': 'Done'});
+            .update({'offerStatus': 'Inspection Done'});
 
         if (userRole == 'dealer') {
           // Dealer rates the transporter

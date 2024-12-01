@@ -8,7 +8,7 @@ class Offer extends ChangeNotifier {
   final String offerId;
   final String dealerId;
   final String vehicleId;
-  final String transportId;
+  final String transporterId;
   double? offerAmount;
   String offerStatus;
   String? description;
@@ -45,7 +45,7 @@ class Offer extends ChangeNotifier {
     required this.offerId,
     required this.dealerId,
     required this.vehicleId,
-    required this.transportId,
+    required this.transporterId,
     this.offerAmount,
     required this.offerStatus,
     this.description,
@@ -74,7 +74,7 @@ class Offer extends ChangeNotifier {
       offerId: doc.id,
       dealerId: data['dealerId'] ?? '',
       vehicleId: data['vehicleId'] ?? '',
-      transportId: data['transportId'] ?? '',
+      transporterId: data['transporterId'] ?? '',
       offerAmount: data['offerAmount']?.toDouble(),
       offerStatus: data['offerStatus'] ?? 'pending',
       description: data['description'] ?? 'No Description',
@@ -130,14 +130,10 @@ class Offer extends ChangeNotifier {
         vehicleYear = vehicleData['year'];
         vehicleMileage = vehicleData['mileage'];
         vehicleTransmission = vehicleData['transmission'];
-        print('Fetched vehicle details for $vehicleId');
       } else {
         vehicleMakeModel = 'Unknown';
         vehicleMainImage = null;
-        print('No vehicle details found for $vehicleId');
       }
-    } catch (e) {
-      print('Error fetching vehicle details: $e');
     } finally {
       isVehicleDetailsLoading = false;
       notifyListeners();
@@ -153,7 +149,7 @@ class Offer extends ChangeNotifier {
           .update({'offerAmount': newAmount});
       notifyListeners();
     } catch (e) {
-      print('Error updating offer amount: $e');
+      // print('Error updating offer amount: $e');
     }
   }
 }
@@ -176,8 +172,8 @@ class OfferProvider extends ChangeNotifier {
   bool _hasMore = true;
   DocumentSnapshot? _lastDocument;
   final int _limit = 10; // Number of offers to fetch per page
-  String _currentUserId = '';
-  String _currentUserRole = '';
+  final String _currentUserId = '';
+  final String _currentUserRole = '';
   String? _errorMessage; // Optional: Track error messages
 
   List<Offer> get offers => _offers;
@@ -187,42 +183,54 @@ class OfferProvider extends ChangeNotifier {
 
   /// Fetches the initial batch of offers based on user ID and role.
   Future<void> fetchOffers(String userId, String userRole) async {
-    if (_isFetching) return;
-
-    _currentUserId = userId;
-    _currentUserRole = userRole;
+    if (_isFetching) {
+      // print('DEBUG: Already fetching, returning early');
+      return;
+    }
 
     _isFetching = true;
-    _errorMessage = null;
-    Future.microtask(() {
-      notifyListeners();
-    });
+    notifyListeners();
 
     try {
       Query query = _buildQuery(userId, userRole);
+      // print('DEBUG: Query built, fetching documents');
 
       QuerySnapshot querySnapshot = await query.get();
+      // print(
+      // 'DEBUG: Query results - document count: ${querySnapshot.docs.length}');
 
       if (querySnapshot.docs.isNotEmpty) {
         _lastDocument = querySnapshot.docs.last;
-        _offers =
-            querySnapshot.docs.map((doc) => Offer.fromFirestore(doc)).toList();
+        _offers = querySnapshot.docs.map((doc) {
+          // print('DEBUG: Processing document ID: ${doc.id}');
+          return Offer.fromFirestore(doc);
+        }).toList();
 
-        // Fetch related vehicle details for each offer
+        // print('DEBUG: Processed ${_offers.length} offers');
+
+        // Fetch vehicle details
         for (Offer offer in _offers) {
+          // print('DEBUG: Fetching vehicle details for offer ${offer.offerId}');
           await offer.fetchVehicleDetails();
         }
 
-        if (querySnapshot.docs.length < _limit) {
-          _hasMore = false;
+        // print('Number of offers fetched: ${_offers.length}');
+        for (var offer in _offers) {
+          print('''
+    Offer ID: ${offer.offerId}
+    Status: ${offer.offerStatus}
+    Amount: ${offer.offerAmount}
+    Vehicle: ${offer.vehicleMakeModel}
+    Created: ${offer.createdAt}
+    ''');
         }
       } else {
-        _hasMore = false;
+        // print('DEBUG: No documents found in query result');
+        // _hasMore = false;
       }
-      notifyListeners();
     } catch (e) {
-      print('Error fetching offers: $e');
-      _errorMessage = 'Failed to load offers. Please try again.';
+      // print('DEBUG: Error in fetchOffers: $e');
+      // _errorMessage = 'Failed to load offers. Please try again.';
     }
 
     _isFetching = false;
@@ -263,7 +271,7 @@ class OfferProvider extends ChangeNotifier {
         _hasMore = false;
       }
     } catch (e) {
-      print('Error fetching more offers: $e');
+      // print('Error fetching more offers: $e');
       _errorMessage = 'Failed to load more offers. Please try again.';
     }
 
@@ -281,23 +289,33 @@ class OfferProvider extends ChangeNotifier {
 
   /// Builds the Firestore query based on user role.
   Query _buildQuery(String userId, String userRole) {
-    Query query = _firestore
-        .collection('offers')
+    print('''
+=== OFFER QUERY DEBUG ===
+UserID: $userId
+UserRole: $userRole
+''');
+
+    var query = _firestore.collection('offers');
+
+    // Debug all offers first
+    query.get().then((snapshot) {
+      print('=== ALL OFFERS IN COLLECTION ===');
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        print('''
+Offer ID: ${doc.id}
+DealerId: ${data['dealerId']}
+TransporterId: ${data['transporterId']}
+Status: ${data['offerStatus']}
+''');
+      }
+    });
+
+    return query
+        .where(userRole == 'dealer' ? 'dealerId' : 'transporterId',
+            isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .limit(_limit);
-
-    if (userRole == 'dealer') {
-      query = query.where('dealerId', isEqualTo: userId);
-    } else if (userRole == 'transporter') {
-      query = query.where('transportId', isEqualTo: userId);
-    } else if (userRole == 'admin') {
-      // Admin can fetch all offers, already handled by the base query
-    } else {
-      // Handle other roles or throw an error
-      print('Unsupported user role: $userRole');
-    }
-
-    return query;
   }
 
   /// Updates the status of an offer (e.g., Approve, Reject).
@@ -307,7 +325,7 @@ class OfferProvider extends ChangeNotifier {
           .collection('offers')
           .doc(offerId)
           .update({'status': newStatus});
-      print('Offer $offerId status updated to $newStatus');
+      // print('Offer $offerId status updated to $newStatus');
 
       // Update local state
       Offer? offer = getOfferById(offerId);
@@ -316,7 +334,7 @@ class OfferProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error updating offer status: $e');
+      // print('Error updating offer status: $e');
       _errorMessage = 'Failed to update offer status. Please try again.';
       notifyListeners();
     }
@@ -326,13 +344,13 @@ class OfferProvider extends ChangeNotifier {
   Future<void> deleteOffer(String offerId) async {
     try {
       await _firestore.collection('offers').doc(offerId).delete();
-      print('Offer $offerId deleted');
+      // print('Offer $offerId deleted');
 
       // Update local state
       _offers.removeWhere((offer) => offer.offerId == offerId);
       notifyListeners();
     } catch (e) {
-      print('Error deleting offer: $e');
+      // print('Error deleting offer: $e');
       _errorMessage = 'Failed to delete offer. Please try again.';
       notifyListeners();
     }
@@ -355,11 +373,11 @@ class OfferProvider extends ChangeNotifier {
         _offers.add(offer);
         notifyListeners();
       } else {
-        print('No offer found with ID $offerId');
+        // print('No offer found with ID $offerId');
       }
     } catch (e) {
-      print('Error fetching offer: $e');
-      _errorMessage = 'Failed to fetch offer details. Please try again.';
+      // print('Error fetching offer: $e');
+      // _errorMessage = 'Failed to fetch offer details. Please try again.';
       notifyListeners();
     }
   }
@@ -372,12 +390,12 @@ class OfferProvider extends ChangeNotifier {
         await offer.updateOfferAmount(newAmount);
         notifyListeners(); // Notify listeners after updating
       } else {
-        print('Offer not found for update');
+        // print('Offer not found for update');
         _errorMessage = 'Offer not found.';
         notifyListeners();
       }
     } catch (e) {
-      print('Error updating offer amount: $e');
+      // print('Error updating offer amount: $e');
       _errorMessage = 'Failed to update offer amount. Please try again.';
       notifyListeners();
     }
@@ -401,7 +419,7 @@ class OfferProvider extends ChangeNotifier {
 
       return vehicleOffers;
     } catch (e) {
-      print('Error fetching offers for vehicle: $e');
+      // print('Error fetching offers for vehicle: $e');
       _errorMessage = 'Failed to fetch offers for vehicle. Please try again.';
       notifyListeners();
       return [];

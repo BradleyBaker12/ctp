@@ -113,13 +113,12 @@ class _VehiclesListPageState extends State<VehiclesListPage>
           additionalFeatures: [],
           faultCodes: []),
       chassis: Chassis(
-        condition: '',
+          condition: '',
           damagesCondition: '',
           additionalFeaturesCondition: '',
           images: {},
           damages: [],
-          additionalFeatures: []
-      ),
+          additionalFeatures: []),
       driveTrain: DriveTrain(
         condition: '',
         oilLeakConditionEngine: '',
@@ -288,6 +287,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                               },
                               vehicleId: vehicle.id,
                               referenceNumber: vehicle.referenceNumber,
+                              brands: vehicle.brands,
                             );
                           },
                         ),
@@ -303,6 +303,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           itemBuilder: (context, index) {
                             final vehicle = pending[index];
                             return ListingCard(
+                              brands: vehicle.brands,
                               vehicleMakeModel: vehicle.makeModel.toString(),
                               vehicleImageUrl: vehicle.mainImageUrl,
                               vehicleYear: vehicle.year.toString(),
@@ -335,6 +336,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           itemBuilder: (context, index) {
                             final vehicle = live[index];
                             return ListingCard(
+                              brands: vehicle.brands,
                               vehicleMakeModel: vehicle.makeModel.toString(),
                               vehicleImageUrl: vehicle.mainImageUrl,
                               vehicleYear: vehicle.year.toString(),

@@ -379,6 +379,18 @@ class _OfferCardState extends State<OfferCard> {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole ?? '';
+    final userId = userProvider.userId;
+
+    print('''
+=== OFFER CARD DEBUG ===
+Rendering Offer:
+  OfferID: ${widget.offer.offerId}
+  Current UserID: $userId
+  Current UserRole: $userRole
+  Offer DealerId: ${widget.offer.dealerId}
+  Offer TransporterId: ${widget.offer.transporterId}
+''');
+
     Color statusColor = getStatusColor(widget.offer.offerStatus);
 
     return LayoutBuilder(
@@ -408,7 +420,7 @@ class _OfferCardState extends State<OfferCard> {
 
   Widget _buildDealerCard(Color statusColor, BoxConstraints constraints) {
     var screenSize = MediaQuery.of(context).size;
-    double cardHeight = screenSize.height * 0.13;
+    double cardHeight = screenSize.height * 0.14;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -505,7 +517,7 @@ class _OfferCardState extends State<OfferCard> {
 
   Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
     var screenSize = MediaQuery.of(context).size;
-    double cardHeight = screenSize.height * 0.13;
+    double cardHeight = screenSize.height * 0.14;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -571,20 +583,20 @@ class _OfferCardState extends State<OfferCard> {
               child: Container(
                 width: constraints.maxWidth * 0.23,
                 height: cardHeight,
-                color: Colors.green,
+                color: statusColor,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                          Icons.remove_red_eye,
+                        Icon(
+                          getIcon(),
                           color: Colors.white,
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          'View',
+                          getDisplayStatus(widget.offer.offerStatus),
                           style: customFont(screenSize.height * 0.016,
                               FontWeight.bold, Colors.white),
                           textAlign: TextAlign.center,
@@ -647,7 +659,7 @@ class _OfferCardState extends State<OfferCard> {
     }
 
     // If vehicle was found in provider, navigate
-    if (mounted && vehicle != null) {
+    if (mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -660,7 +672,7 @@ class _OfferCardState extends State<OfferCard> {
   String getDisplayStatus(String? offerStatus) {
     switch (offerStatus) {
       case 'in-progress':
-        return 'In Progress';
+        return 'Offer Made';
       case 'select location and time':
         return 'Set Location and Time';
       case 'accepted':
@@ -675,6 +687,8 @@ class _OfferCardState extends State<OfferCard> {
         return 'Step 3 of 4';
       case 'paid':
         return 'Paid';
+      case 'payment pending':
+        return 'Payment Pending';
       case 'Issue reported':
         return 'Issue Reported';
       case 'resolved':

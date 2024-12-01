@@ -12,6 +12,7 @@ class ListingCard extends StatelessWidget {
   final String vehicleMileage;
   final String vehicleTransmission;
   final VoidCallback onTap;
+  final List<String> brands;
 
   const ListingCard({
     super.key,
@@ -23,8 +24,8 @@ class ListingCard extends StatelessWidget {
     required this.vehicleTransmission,
     required this.onTap,
     required this.referenceNumber,
+    required this.brands,
   });
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -74,7 +75,8 @@ class ListingCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            vehicleMakeModel.toUpperCase(),
+                            '${brands.isNotEmpty ? "${brands.first} " : ""}$vehicleMakeModel'
+                                .toUpperCase(),
                             style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,

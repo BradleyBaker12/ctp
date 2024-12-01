@@ -942,7 +942,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              'truck/trailer form'.toUpperCase(),
+              'truck form'.toUpperCase(),
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -999,32 +999,32 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           // RC1/NATIS File Upload Section
           if (isTransporter) _buildNatisRc1Section(),
           const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CustomRadioButton(
-                label: 'Truck',
-                value: 'truck',
-                groupValue: formData.vehicleType,
-                enabled: !isDealer,
-                onChanged: (value) {
-                  formData.setVehicleType(value);
-                  formData.saveFormState();
-                },
-              ),
-              const SizedBox(width: 15),
-              CustomRadioButton(
-                label: 'Trailer',
-                value: 'trailer',
-                groupValue: formData.vehicleType,
-                enabled: !isDealer,
-                onChanged: (value) {
-                  formData.setVehicleType(value);
-                  formData.saveFormState();
-                },
-              ),
-            ],
-          ),
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.center,
+          //   children: [
+          //     CustomRadioButton(
+          //       label: 'Truck',
+          //       value: 'truck',
+          //       groupValue: formData.vehicleType,
+          //       enabled: !isDealer,
+          //       onChanged: (value) {
+          //         formData.setVehicleType(value);
+          //         formData.saveFormState();
+          //       },
+          //     ),
+          //     const SizedBox(width: 15),
+          //     CustomRadioButton(
+          //       label: 'Trailer',
+          //       value: 'trailer',
+          //       groupValue: formData.vehicleType,
+          //       enabled: !isDealer,
+          //       onChanged: (value) {
+          //         formData.setVehicleType(value);
+          //         formData.saveFormState();
+          //       },
+          //     ),
+          //   ],
+          // ),
           const SizedBox(height: 15),
           Form(
             key: _formKeys[0],
@@ -1093,6 +1093,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       formData.saveFormState();
                     }
                   },
+                  enabled: !isDealer,
                 ),
 
                 // CustomDropdown(
@@ -1577,6 +1578,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       }
                       return null;
                     },
+                    enabled: !isDealer,
                   ),
                 ],
                 const SizedBox(height: 15),

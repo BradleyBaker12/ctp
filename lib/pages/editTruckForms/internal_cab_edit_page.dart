@@ -32,11 +32,11 @@ class InternalCabEditPage extends StatefulWidget {
   final bool isEditing;
 
   const InternalCabEditPage({
-    Key? key,
+    super.key,
     required this.vehicleId,
     required this.onProgressUpdate,
     this.isEditing = false,
-  }) : super(key: key);
+  });
 
   @override
   InternalCabEditPageState createState() => InternalCabEditPageState();
@@ -618,6 +618,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                     item.description = value;
                   });
                 },
+                enabled: !isDealer,
                 readOnly: isDealer,
                 decoration: InputDecoration(
                   labelText: 'Describe Item',

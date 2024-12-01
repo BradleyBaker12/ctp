@@ -91,23 +91,30 @@ class OffersPageState extends State<OffersPage> with RouteAware {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final userRole = userProvider.getUserRole.toLowerCase().trim();
 
-      print('[_fetchOffers] User Role: $userRole');
+      print('''
+  === FETCH OFFERS DEBUG ===
+  Current User ID: ${user.uid}
+  User Role: $userRole
+  User Email: ${user.email}
+  ''');
 
-      // First fetch all offers for the user
       await _offerProvider.fetchOffers(user.uid, userRole);
 
-      // Then filter the offers based on user role and ID
-      List<Offer> filteredOffers = _offerProvider.offers.where((offer) {
-        if (userRole == 'dealer') {
-          return offer.dealerId == user.uid;
-        } else if (userRole == 'transporter') {
-          return offer.transportId == user.uid;
-        }
-        return false;
-      }).toList();
+      print('''
+  === FETCHED OFFERS RESULT ===
+  Total Offers: ${_offerProvider.offers.length}
+  ''');
 
-      print(
-          '[_fetchOffers] Number of filtered offers: ${_offerProvider.offers.length}');
+      for (var offer in _offerProvider.offers) {
+        print('''
+  Offer Details:
+    ID: ${offer.offerId}
+    DealerId: ${offer.dealerId}
+    TransporterId: ${offer.transporterId}
+    Status: ${offer.offerStatus}
+    Created: ${offer.createdAt}
+  ''');
+      }
     }
   }
 
@@ -149,7 +156,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
     // Determine selectedIndex based on userRole
     int selectedIndex;
     if (userRole == 'dealer') {
-      selectedIndex = 4; // OffersPage index for dealer
+      selectedIndex = 2; // OffersPage index for dealer
     } else if (userRole == 'transporter') {
       selectedIndex = 2; // OffersPage index for transporter
     } else {

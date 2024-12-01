@@ -384,42 +384,55 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final String title =
         isMaintenance ? 'Maintenance Document' : 'Warranty Document';
 
-    if (url != null) {
-      await _viewPdf(url, title);
-    } else if (file != null) {
-      // For local files
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => Scaffold(
-            appBar: AppBar(
-              title: Text(title),
-              backgroundColor: const Color(0xFF0E4CAF),
-            ),
-            body: PDFView(
-              filePath: file.path,
-              enableSwipe: true,
-              swipeHorizontal: false,
-              autoSpacing: true,
-              pageFling: true,
-              pageSnap: true,
-              defaultPage: 0,
-              fitPolicy: FitPolicy.BOTH,
-              preventLinkNavigation: false,
-              onError: (error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $error')),
-                );
-              },
-              onPageError: (page, error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error on page $page: $error')),
-                );
-              },
+    if (url != null || file != null) {
+      final String path = url ?? file!.path;
+
+      if (_isImageFile(path)) {
+        // Show image viewer
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(
+                title: Text(title),
+                backgroundColor: const Color(0xFF0E4CAF),
+              ),
+              body: Center(
+                child: InteractiveViewer(
+                  child: url != null ? Image.network(url) : Image.file(file!),
+                ),
+              ),
             ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Show PDF viewer
+        if (url != null) {
+          await _viewPdf(url, title);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                appBar: AppBar(
+                  title: Text(title),
+                  backgroundColor: const Color(0xFF0E4CAF),
+                ),
+                body: PDFView(
+                  filePath: file!.path,
+                  enableSwipe: true,
+                  swipeHorizontal: false,
+                  autoSpacing: true,
+                  pageFling: true,
+                  pageSnap: true,
+                  defaultPage: 0,
+                  fitPolicy: FitPolicy.BOTH,
+                ),
+              ),
+            ),
+          );
+        }
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No document available to view.')),

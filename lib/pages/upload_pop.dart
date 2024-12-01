@@ -1,3 +1,5 @@
+// File: upload_proof_of_payment_page.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -6,7 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/pages/payment_pending_page.dart';
+import 'package:ctp/pages/payment_pending_page.dart'; // Updated import
 
 class UploadProofOfPaymentPage extends StatefulWidget {
   final String offerId;
@@ -33,6 +35,9 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
       }
     } catch (e) {
       print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
     }
   }
 
@@ -46,6 +51,9 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
       }
     } catch (e) {
       print('Error picking file: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking file: $e')),
+      );
     }
   }
 
@@ -55,11 +63,17 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
     });
 
     try {
+      String fileExtension = file.path.split('.').last;
       String fileName =
-          'proof_of_payment/${widget.offerId}/${DateTime.now().millisecondsSinceEpoch}';
+          'proof_of_payment/${widget.offerId}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
       Reference storageReference =
           FirebaseStorage.instance.ref().child(fileName);
       UploadTask uploadTask = storageReference.putFile(file);
+
+      // Show upload progress
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        // You can implement progress indicator here if desired
+      });
 
       await uploadTask.whenComplete(() => null);
       String fileURL = await storageReference.getDownloadURL();
@@ -102,8 +116,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
       context: context,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Wrap(
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library),
@@ -146,6 +159,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Top Content
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -172,6 +186,14 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.check, color: Colors.white, size: 60),
+                          SizedBox(height: 10),
+                          Text(
+                            'Proof of payment uploaded!',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     )
@@ -210,6 +232,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                     ),
                 ],
               ),
+              // Bottom Buttons
               Column(
                 children: [
                   CustomButton(

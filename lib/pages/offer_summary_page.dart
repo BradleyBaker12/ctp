@@ -48,7 +48,7 @@ class OfferSummaryPage extends StatelessWidget {
         : null;
 
     // Calculate VAT, Commission, and Total
-    final offerAmount = offerData['offerAmount'] ?? 0.0;
+    final offerAmount = (offerData['offerAmount'] as num?)?.toDouble() ?? 0.0;
     final vatAmount = offerAmount * 0.15;
     const commissionAmount = 12000.0;
     final totalAmount = offerAmount + vatAmount + commissionAmount;
@@ -278,7 +278,8 @@ class OfferSummaryPage extends StatelessWidget {
                                     font: robotoBold,
                                     fontSize: 16,
                                     color: PdfColors.white)),
-                            pw.Text(transporterData['bankDetails'] ?? 'unknown',
+                            pw.Text(
+                                'Name: ${transporterData['firstName'] ?? 'N/A'} ${transporterData['middleName'] ?? ''} ${transporterData['lastName'] ?? 'N/A'}',
                                 style: pw.TextStyle(
                                     font: robotoRegular,
                                     color: PdfColors.white)),
@@ -340,7 +341,7 @@ class OfferSummaryPage extends StatelessWidget {
         .collection(collection)
         .doc(docId)
         .get();
-    return docSnapshot.exists ? docSnapshot.data() as Map<String, dynamic> : {};
+    return docSnapshot.exists ? docSnapshot.data() ?? {} : {};
   }
 
   @override
@@ -361,78 +362,100 @@ class OfferSummaryPage extends StatelessWidget {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        final offerData = snapshot.data![0] as Map<String, dynamic>;
-        final userData = snapshot.data![1] as Map<String, dynamic>;
+        if (snapshot.hasData) {
+          final offerData = snapshot.data![0] as Map<String, dynamic>;
+          final userData = snapshot.data![1] as Map<String, dynamic>;
 
-        return FutureBuilder(
-          future: Future.wait([
-            _fetchDocumentData('vehicles', offerData['vehicleId']),
-            _fetchDocumentData('users', offerData['transportId']),
-          ]),
-          builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+          print('Offer Data: $offerData');
+          print('User Data: $userData');
 
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
+          // Add before accessing vehicleData
+          print('Vehicle ID being accessed: ${offerData['vehicleId']}');
+          print('Transport ID being accessed: ${offerData['transporterId']}');
 
-            final vehicleData = snapshot.data![0] as Map<String, dynamic>;
-            final transporterData = snapshot.data![1] as Map<String, dynamic>;
+          return FutureBuilder(
+            future: Future.wait([
+              _fetchDocumentData('vehicles', offerData['vehicleId']),
+              _fetchDocumentData('users', offerData['transporterId']),
+            ]),
+            builder: (context, AsyncSnapshot<List<dynamic>> innerSnapshot) {
+              if (innerSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            return Scaffold(
-              body: GradientBackground(
-                child: FutureBuilder<File>(
-                  future: _generatePdf(
-                    context,
-                    offerData,
-                    userData,
-                    vehicleData,
-                    transporterData,
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+              if (innerSnapshot.hasError) {
+                return Center(child: Text('Error: ${innerSnapshot.error}'));
+              }
 
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text('Error generating PDF: ${snapshot.error}'),
-                      );
-                    }
+              if (innerSnapshot.hasData) {
+                final vehicleData =
+                    innerSnapshot.data![0] as Map<String, dynamic>;
+                final transporterData =
+                    innerSnapshot.data![1] as Map<String, dynamic>;
 
-                    final file = snapshot.data;
+                print('Vehicle Data: $vehicleData');
+                print('Transporter Data: $transporterData');
 
-                    return file == null
-                        ? const Center(child: Text('Failed to generate PDF'))
-                        : PDFView(
-                            filePath: file.path,
-                            autoSpacing: true,
-                            swipeHorizontal: true,
-                            pageFling: true,
+                return Scaffold(
+                  body: GradientBackground(
+                    child: FutureBuilder<File>(
+                      future: _generatePdf(
+                        context,
+                        offerData,
+                        userData,
+                        vehicleData,
+                        transporterData,
+                      ),
+                      builder: (context, pdfSnapshot) {
+                        if (pdfSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        if (pdfSnapshot.hasError) {
+                          return Center(
+                            child: Text(
+                                'Error generating PDF: ${pdfSnapshot.error}'),
                           );
-                  },
-                ),
-              ),
-              floatingActionButton: FloatingActionButton(
-                onPressed: () async {
-                  final file = await _generatePdf(
-                    context,
-                    offerData,
-                    userData,
-                    vehicleData,
-                    transporterData,
-                  );
-                  final xFile = XFile(file.path);
-                  await Share.shareXFiles([xFile], text: 'Offer Summary');
-                },
-                tooltip: 'Share PDF',
-                child: const Icon(Icons.share),
-              ),
-            );
-          },
-        );
+                        }
+
+                        final file = pdfSnapshot.data;
+
+                        return file == null
+                            ? const Center(
+                                child: Text('Failed to generate PDF'))
+                            : PDFView(
+                                filePath: file.path,
+                                autoSpacing: true,
+                                swipeHorizontal: true,
+                                pageFling: true,
+                              );
+                      },
+                    ),
+                  ),
+                  floatingActionButton: FloatingActionButton(
+                    onPressed: () async {
+                      final file = await _generatePdf(
+                        context,
+                        offerData,
+                        userData,
+                        vehicleData,
+                        transporterData,
+                      );
+                      final xFile = XFile(file.path);
+                      await Share.shareXFiles([xFile], text: 'Offer Summary');
+                    },
+                    tooltip: 'Share PDF',
+                    child: const Icon(Icons.share),
+                  ),
+                );
+              }
+              return const Center(child: Text('No data available'));
+            },
+          );
+        }
+        return const Center(child: Text('No data available'));
       },
     );
   }

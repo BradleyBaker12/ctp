@@ -61,7 +61,7 @@ class _RateDealerPageState extends State<RateDealerPage> {
           offerId: '', // Default or fallback values
           dealerId: '',
           vehicleId: '',
-          transportId: '',
+          transporterId: '',
           offerStatus: '',
         ),
       );

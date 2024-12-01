@@ -135,6 +135,7 @@ flutter:
     - lib/assets/countries.json
     - lib/assets/updated_truck_data.json
     - lib/assets/reorganized_truck_data.json
+    - lib/assets/version.json
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
   # For details regarding adding assets from package dependencies, see

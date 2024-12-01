@@ -16,11 +16,11 @@ class ChassisEditPage extends StatefulWidget {
   final bool isEditing;
 
   const ChassisEditPage({
-    Key? key,
+    super.key,
     required this.vehicleId,
     required this.onProgressUpdate,
     this.isEditing = false,
-  }) : super(key: key);
+  });
 
   @override
   ChassisEditPageState createState() => ChassisEditPageState();

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
@@ -13,6 +14,8 @@ import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
+import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/pages/setup_inspection.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -54,6 +57,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     });
   }
 
+  bool isInspectionComplete = false;
+  bool isCollectionComplete = false;
+
   final TextEditingController _controller = TextEditingController();
   double _totalCost = 0.0;
   int _currentImageIndex = 0;
@@ -82,6 +88,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     _vehicle = widget.vehicle;
     _checkIfOfferMade();
     _fetchAllDealers();
+    _checkSetupStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
         allPhotos = [];
@@ -487,6 +494,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               : null;
         }
       });
+
+      // Add this section to show the offer card
+      Widget offerCard = OfferCard(
+        offer: Offer(
+          offerId: offerId,
+          dealerId: dealerId,
+          vehicleId: vehicleId,
+          transporterId: transporterId,
+          createdAt: createdAt,
+          offerStatus: 'in-progress',
+          offerAmount: _offerAmount,
+          vehicleMakeModel: widget.vehicle.makeModel,
+          vehicleMainImage: widget.vehicle.mainImageUrl,
+        ),
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1033,6 +1055,44 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: adminDataWidgets, // Use the populated list here
     );
+  }
+
+  Future<void> _setupInspection() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SetupInspectionPage(
+          vehicleId: widget.vehicle.id,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setupCollection() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SetupCollectionPage(vehicleId: widget.vehicle.id),
+      ),
+    );
+  }
+
+  Future<void> _checkSetupStatus() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicle.id)
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          isInspectionComplete = doc.data()?['isInspectionComplete'] ?? false;
+          isCollectionComplete = doc.data()?['isCollectionComplete'] ?? false;
+        });
+      }
+    } catch (e) {
+      print('Error checking setup status: $e');
+    }
   }
 
   @override

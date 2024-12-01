@@ -775,7 +775,7 @@ class _TruckPageState extends State<TruckPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              "${vehicle.brands.join(" ")} ${vehicle.makeModel.toString().toUpperCase()}  ${vehicle.year}",
+                              "${vehicle.brands.join(" ")} ${vehicle.makeModel.toString().toUpperCase()}",
                               style: _customFont(
                                 size.height * 0.025,
                                 FontWeight.bold,
@@ -786,22 +786,42 @@ class _TruckPageState extends State<TruckPage> {
                                   3, // Optionally add this to limit to single line
                             ),
                           ),
-                          IconButton(
-                            icon: Icon(
-                              Provider.of<UserProvider>(context, listen: false)
-                                      .getLikedVehicles
-                                      .contains(vehicle.id)
-                                  ? Icons.favorite // Solid red heart
-                                  : Icons.favorite_border, // Outlined heart
-                              color: Provider.of<UserProvider>(context,
-                                          listen: false)
-                                      .getLikedVehicles
-                                      .contains(vehicle.id)
-                                  ? Colors.red // Red color for liked
-                                  : Colors.white, // White color for not liked
-                            ),
-                            onPressed: () => _markAsInterested(vehicle),
-                          ),
+                          Consumer<UserProvider>(
+                            builder: (context, userProvider, child) {
+                              return TweenAnimationBuilder(
+                                duration: Duration(milliseconds: 200),
+                                tween: Tween<double>(
+                                  begin: userProvider.getLikedVehicles
+                                          .contains(vehicle.id)
+                                      ? 0.0
+                                      : 1.0,
+                                  end: userProvider.getLikedVehicles
+                                          .contains(vehicle.id)
+                                      ? 1.0
+                                      : 0.0,
+                                ),
+                                builder: (context, double value, child) {
+                                  return Transform.scale(
+                                    scale: 0.8 + (value * 0.4),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        userProvider.getLikedVehicles
+                                                .contains(vehicle.id)
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: userProvider.getLikedVehicles
+                                                .contains(vehicle.id)
+                                            ? Colors.red
+                                            : Colors.white,
+                                      ),
+                                      onPressed: () =>
+                                          _markAsInterested(vehicle),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          )
                         ],
                       ),
                       SizedBox(height: 8),
@@ -846,28 +866,20 @@ class _TruckPageState extends State<TruckPage> {
   void _markAsInterested(Vehicle vehicle) async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
+      print('Before action - Liked vehicles: ${userProvider.getLikedVehicles}');
+      print('Current vehicle ID: ${vehicle.id}');
 
-      if (!userProvider.getLikedVehicles.contains(vehicle.id)) {
-        await userProvider.likeVehicle(vehicle.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Marked as Interested'),
-          ),
-        );
+      if (userProvider.getLikedVehicles.contains(vehicle.id)) {
+        await userProvider.unlikeVehicle(vehicle.id);
+        print(
+            'After unlike - Liked vehicles: ${userProvider.getLikedVehicles}');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Vehicle already marked as interested.')),
-        );
+        await userProvider.likeVehicle(vehicle.id);
+        print('After like - Liked vehicles: ${userProvider.getLikedVehicles}');
       }
+      setState(() {});
     } catch (e) {
       print('Error in _markAsInterested: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Failed to mark vehicle as interested. Please try again.'),
-        ),
-      );
     }
   }
 

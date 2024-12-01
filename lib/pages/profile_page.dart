@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -179,12 +181,22 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              Text(
-                'Alpha Version 5.1.0',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.7),
-                ),
+              FutureBuilder<String>(
+                future: DefaultAssetBundle.of(context)
+                    .loadString('lib/assets/version.json')
+                    .then((jsonStr) {
+                  final Map<String, dynamic> versionData = json.decode(jsonStr);
+                  return "${versionData['type']} Version ${versionData['version']}";
+                }),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data ?? 'Loading...',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 20),
             ],

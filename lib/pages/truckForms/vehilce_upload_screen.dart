@@ -1143,7 +1143,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 // Selling Price
                 CustomTextField(
                   controller: _sellingPriceController,
-                  hintText: 'Selling Price',
+                  hintText: 'Expected Selling Price',
                   isCurrency: true,
                   keyboardType: TextInputType.number,
                   inputFormatter: [
@@ -1152,7 +1152,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   ],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter the selling price';
+                      return 'Please enter the expected selling price';
                     }
                     return null;
                   },

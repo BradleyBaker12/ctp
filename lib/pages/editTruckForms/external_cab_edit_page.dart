@@ -32,12 +32,12 @@ class ExternalCabEditPage extends StatefulWidget {
   final bool isEditing;
 
   const ExternalCabEditPage({
-    Key? key,
+    super.key,
     required this.vehicleId,
     this.onContinue,
     required this.onProgressUpdate,
     this.isEditing = false,
-  }) : super(key: key);
+  });
 
   @override
   ExternalCabEditPageState createState() => ExternalCabEditPageState();
@@ -557,6 +557,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     required ValueChanged<String?> onChange,
     required Widget Function() buildItemSection,
   }) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
     return Column(
       children: [
         Text(
@@ -577,6 +579,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               value: 'yes',
               groupValue: anyItemsType,
               onChanged: onChange,
+              enabled: !isDealer,
             ),
             const SizedBox(width: 15),
             CustomRadioButton(
@@ -584,6 +587,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               value: 'no',
               groupValue: anyItemsType,
               onChanged: onChange,
+              enabled: !isDealer,
             ),
           ],
         ),
@@ -676,6 +680,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
           children: [
             Expanded(
               child: TextField(
+                enabled: !isDealer,
                 controller: TextEditingController(text: item.description),
                 onChanged: (value) => _updateDamageDescription(index, value),
                 readOnly: isDealer,
@@ -860,8 +865,9 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
     // Check images
     _selectedImages.forEach((key, value) {
-      if (value.file != null || (value.url != null && value.url!.isNotEmpty))
+      if (value.file != null || (value.url != null && value.url!.isNotEmpty)) {
         filledFields++;
+      }
     });
 
     // Check damages section

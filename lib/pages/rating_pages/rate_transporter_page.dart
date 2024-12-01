@@ -64,12 +64,12 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
           offerId: '', // Default or fallback values
           dealerId: '',
           vehicleId: '',
-          transportId: '', offerStatus: '',
+          transporterId: '', offerStatus: '',
         ),
       );
 
       if (offer.offerId.isNotEmpty) {
-        _transportId = offer.transportId;
+        _transportId = offer.transporterId;
 
         if (_transportId != null) {
           DocumentSnapshot transporterDoc = await FirebaseFirestore.instance
