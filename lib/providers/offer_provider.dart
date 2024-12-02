@@ -119,20 +119,21 @@ class Offer extends ChangeNotifier {
       if (vehicleSnapshot.exists) {
         Map<String, dynamic> vehicleData =
             vehicleSnapshot.data() as Map<String, dynamic>;
-        vehicleBrand = vehicleData['brand'] ?? 'Unknown Brand';
-        vehicleMakeModel = vehicleData['makeModel'] ?? 'Unknown';
+
+        // Map the data directly from the vehicle document
+        vehicleBrand = vehicleData['brands'] is List
+            ? (vehicleData['brands'] as List).first.toString()
+            : vehicleData['brands']?.toString();
+
+        // Explicitly map the makeModel
+        vehicleMakeModel = vehicleData['makeModel']?.toString();
         vehicleMainImage = vehicleData['mainImageUrl'];
-        vehicleImages = List<String>.from(vehicleData['photos'] ?? []);
-        additionalInfo = {
-          'Engine Number': vehicleData['engineNumber'],
-          'VIN Number': vehicleData['vinNumber'],
-        };
-        vehicleYear = vehicleData['year'];
-        vehicleMileage = vehicleData['mileage'];
-        vehicleTransmission = vehicleData['transmission'];
-      } else {
-        vehicleMakeModel = 'Unknown';
-        vehicleMainImage = null;
+
+        print('''
+  === VEHICLE DETAILS FETCH ===
+  Brand: $vehicleBrand
+  MakeModel: $vehicleMakeModel
+        ''');
       }
     } finally {
       isVehicleDetailsLoading = false;
@@ -217,11 +218,11 @@ class OfferProvider extends ChangeNotifier {
         // print('Number of offers fetched: ${_offers.length}');
         for (var offer in _offers) {
           print('''
-    Offer ID: ${offer.offerId}
-    Status: ${offer.offerStatus}
-    Amount: ${offer.offerAmount}
-    Vehicle: ${offer.vehicleMakeModel}
-    Created: ${offer.createdAt}
+=== OFFER DEBUG ===
+OfferID: ${offer.offerId}
+Brand: ${offer.vehicleBrand}
+Model: ${offer.vehicleMakeModel}
+MainImage: ${offer.vehicleMainImage}
     ''');
         }
       } else {

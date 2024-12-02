@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/pages/collectionPages/collection_details_page.dart';
+import 'package:ctp/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -7,22 +8,24 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/offer_provider.dart';
 
-class RateDealerPage extends StatefulWidget {
+class RateTransporterPageTwo extends StatefulWidget {
   final String offerId;
+  final bool fromCollectionPage;
 
-  const RateDealerPage({
+  const RateTransporterPageTwo({
     super.key,
     required this.offerId,
+    required this.fromCollectionPage,
   });
 
   @override
-  _RateDealerPageState createState() => _RateDealerPageState();
+  _RateTransporterPageTwoState createState() => _RateTransporterPageTwoState();
 }
 
-class _RateDealerPageState extends State<RateDealerPage> {
+class _RateTransporterPageTwoState extends State<RateTransporterPageTwo> {
   int _stars = 5;
-  String? _dealerProfileImageUrl;
-  String? _dealerId;
+  String? _transporterProfileImageUrl;
+  String? _transportId;
   bool _isSecondRating = false;
   bool _useDefaultImage = false;
 
@@ -38,13 +41,13 @@ class _RateDealerPageState extends State<RateDealerPage> {
   void initState() {
     super.initState();
     _startImageLoadingTimer();
-    _fetchDealerProfileImage();
+    _fetchTransporterProfileImage();
     _checkIfSecondRating();
   }
 
   void _startImageLoadingTimer() {
     Timer(const Duration(seconds: 5), () {
-      if (_dealerProfileImageUrl == null) {
+      if (_transporterProfileImageUrl == null) {
         setState(() {
           _useDefaultImage = true;
         });
@@ -52,7 +55,7 @@ class _RateDealerPageState extends State<RateDealerPage> {
     });
   }
 
-  void _fetchDealerProfileImage() async {
+  void _fetchTransporterProfileImage() async {
     try {
       OfferProvider offerProvider =
           Provider.of<OfferProvider>(context, listen: false);
@@ -62,34 +65,34 @@ class _RateDealerPageState extends State<RateDealerPage> {
           offerId: '', // Default or fallback values
           dealerId: '',
           vehicleId: '',
-          transporterId: '',
-          offerStatus: '',
+          transporterId: '', offerStatus: '',
         ),
       );
 
       if (offer.offerId.isNotEmpty) {
-        _dealerId = offer.dealerId;
+        _transportId = offer.transporterId;
 
-        if (_dealerId != null) {
-          DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
+        if (_transportId != null) {
+          DocumentSnapshot transporterDoc = await FirebaseFirestore.instance
               .collection('users')
-              .doc(_dealerId)
+              .doc(_transportId)
               .get();
 
-          if (dealerDoc.exists) {
+          if (transporterDoc.exists) {
             setState(() {
-              _dealerProfileImageUrl = dealerDoc['profileImageUrl'];
+              _transporterProfileImageUrl = transporterDoc['profileImageUrl'];
             });
 
-            print('Dealer profile image URL: $_dealerProfileImageUrl');
+            print(
+                'Transporter profile image URL: $_transporterProfileImageUrl');
           } else {
-            print('Error: Dealer document does not exist.');
+            print('Error: Transporter document does not exist.');
             setState(() {
               _useDefaultImage = true;
             });
           }
         } else {
-          print('Error: Dealer ID is null.');
+          print('Error: Transporter ID is null.');
           setState(() {
             _useDefaultImage = true;
           });
@@ -102,7 +105,7 @@ class _RateDealerPageState extends State<RateDealerPage> {
         });
       }
     } catch (e) {
-      print('Error fetching dealer profile image: $e');
+      print('Error fetching transporter profile image: $e');
       setState(() {
         _useDefaultImage = true;
       });
@@ -110,11 +113,11 @@ class _RateDealerPageState extends State<RateDealerPage> {
   }
 
   void _checkIfSecondRating() async {
-    if (_dealerId != null) {
+    if (_transportId != null) {
       try {
         CollectionReference ratingsRef = FirebaseFirestore.instance
             .collection('users')
-            .doc(_dealerId)
+            .doc(_transportId)
             .collection('ratings');
 
         QuerySnapshot ratingSnapshot =
@@ -139,11 +142,11 @@ class _RateDealerPageState extends State<RateDealerPage> {
   }
 
   Future<void> _submitRating() async {
-    if (_dealerId != null) {
+    if (_transportId != null) {
       try {
         CollectionReference ratingsRef = FirebaseFirestore.instance
             .collection('users')
-            .doc(_dealerId)
+            .doc(_transportId)
             .collection('ratings');
 
         await ratingsRef.add({
@@ -164,13 +167,13 @@ class _RateDealerPageState extends State<RateDealerPage> {
 
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(_dealerId)
+            .doc(_transportId)
             .update({
           'averageRating': averageRating,
           'ratingCount': ratingsDocs.length,
         });
 
-        // Removed code that changes the offer status
+        // Update the offer status to 'Collection Location Confirmation'
         // await FirebaseFirestore.instance
         //     .collection('offers')
         //     .doc(widget.offerId)
@@ -184,18 +187,14 @@ class _RateDealerPageState extends State<RateDealerPage> {
   void _onSubmit() async {
     await _submitRating();
 
-    // Navigate to setup collection page instead of home
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(
-          vehicleId: Provider.of<OfferProvider>(context, listen: false)
-              .offers
-              .firstWhere((offer) => offer.offerId == widget.offerId)
-              .vehicleId,
-        ),
-      ),
-    );
+    if (widget.fromCollectionPage) {
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+      );
+    }
   }
 
   @override
@@ -216,7 +215,7 @@ class _RateDealerPageState extends State<RateDealerPage> {
                       child: Image.asset('lib/assets/CTPLogo.png')),
                   const SizedBox(height: 32),
                   const Text(
-                    'RATE THE DEALER',
+                    'RATE THE TRANSPORTER',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -226,7 +225,7 @@ class _RateDealerPageState extends State<RateDealerPage> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'The dealer is automatically given five stars. For every trait you uncheck, the dealer loses one star.',
+                    'The transporter is automatically given five stars. For every trait you uncheck, the transporter loses one star.',
                     style: TextStyle(
                         fontSize: 14,
                         color: Colors.white,
@@ -240,8 +239,8 @@ class _RateDealerPageState extends State<RateDealerPage> {
                         ? const AssetImage(
                                 'lib/assets/default-profile-photo.jpg')
                             as ImageProvider
-                        : (_dealerProfileImageUrl != null
-                            ? NetworkImage(_dealerProfileImageUrl!)
+                        : (_transporterProfileImageUrl != null
+                            ? NetworkImage(_transporterProfileImageUrl!)
                             : const AssetImage(
                                 'lib/assets/default-profile-photo.jpg')),
                   ),

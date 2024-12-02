@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
+import 'package:ctp/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -172,11 +173,11 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
           'ratingCount': ratingsDocs.length,
         });
 
-        // // Update the offer status to 'Done'
-        // await FirebaseFirestore.instance
-        //     .collection('offers')
-        //     .doc(widget.offerId)
-        //     .update({'offerStatus': 'Done'});
+        // Update the offer status to 'Collection Location Confirmation'
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .update({'offerStatus': 'Collection Location Confirmation'});
       } catch (e) {
         print('Error submitting rating: $e');
       }
@@ -191,11 +192,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => CollectionDetailsPage(
-            offerId: widget.offerId,
-          ),
-        ),
+        MaterialPageRoute(builder: (context) => HomePage()),
       );
     }
   }

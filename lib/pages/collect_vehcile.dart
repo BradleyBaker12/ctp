@@ -1,7 +1,10 @@
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/rating_pages/rate_dealer_page_two.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
+import 'package:ctp/pages/rating_pages/rate_transporter_page_two.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -23,56 +26,52 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
   String _registrationNumber = '';
   final TextEditingController _licensePlateController = TextEditingController();
   bool _isMatched = false;
-
   @override
   void initState() {
     super.initState();
-    _fetchTruckData();
+    // Use Future.microtask to schedule the fetch after the build
+    Future.microtask(_fetchTruckData);
   }
 
   Future<void> _fetchTruckData() async {
-    try {
-      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
-      final vehicleProvider =
-          Provider.of<VehicleProvider>(context, listen: false);
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final offerProvider = Provider.of<OfferProvider>(context, listen: false);
 
-      final Offer? offer = offerProvider.offers
-          .firstWhereOrNull((o) => o.offerId == widget.offerId);
+    await vehicleProvider.fetchVehicles(userProvider);
 
-      if (offer == null) {
-        print('Offer not found for offerId: ${widget.offerId}');
-        return;
-      }
-
+    final Offer? offer = offerProvider.offers
+        .firstWhereOrNull((o) => o.offerId == widget.offerId);
+    if (offer != null) {
       final Vehicle? vehicle = vehicleProvider.vehicles
           .firstWhereOrNull((v) => v.id == offer.vehicleId);
 
-      if (vehicle == null) {
-        print('Vehicle not found for vehicleId: ${offer.vehicleId}');
-        return;
+      if (mounted) {
+        setState(() {
+          _truckMainImageUrl = vehicle?.mainImageUrl;
+          _truckName = vehicle?.makeModel ?? '';
+          _registrationNumber = vehicle?.registrationNumber ?? '';
+        });
       }
-
-      setState(() {
-        _truckMainImageUrl = vehicle.mainImageUrl;
-        _truckName = vehicle.makeModel.toString();
-        _registrationNumber = vehicle.registrationNumber;
-      });
-
-      print(
-          'Fetched Vehicle Data: registrationNumber=$_registrationNumber, truckName=$_truckName');
-    } catch (e) {
-      print('Error fetching truck data: $e');
     }
   }
 
   void _verifyLicensePlate() {
-    print('Entered License Plate: ${_licensePlateController.text}');
-    print('Expected Registration Number: $_registrationNumber');
-
     if (_licensePlateController.text == _registrationNumber) {
       setState(() {
         _isMatched = true;
       });
+
+      // Get the current user's role from UserProvider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final String userRole = userProvider.getUserRole;
+      final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+      final bool isDealer =
+          userRole == 'dealer'; // Check if the user is a dealer
+      final bool isTransporter =
+          userRole == 'transporter'; // Check if the user is a dealer
+
       ScaffoldMessenger.of(context)
           .showSnackBar(
             const SnackBar(
@@ -81,15 +80,28 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
           )
           .closed
           .then((_) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RateTransporterPage(
-              offerId: widget.offerId,
-              fromCollectionPage: true,
+        if (isDealer) {
+          // If user is dealer, navigate to rate transporter page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RateTransporterPageTwo(
+                offerId: widget.offerId,
+                fromCollectionPage: true,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // If user is transporter, navigate to rate dealer page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RateDealerPageTwo(
+                offerId: widget.offerId,
+              ),
+            ),
+          );
+        }
       });
     } else {
       setState(() {

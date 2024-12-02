@@ -267,7 +267,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
           ),
         );
 
-        Navigator.pop(context);
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/home', (route) => false);
       } catch (e) {
         _showErrorDialog(
             'Failed to save collection details. Please try again.');

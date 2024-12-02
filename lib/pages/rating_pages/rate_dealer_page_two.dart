@@ -7,19 +7,19 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/offer_provider.dart';
 
-class RateDealerPage extends StatefulWidget {
+class RateDealerPageTwo extends StatefulWidget {
   final String offerId;
 
-  const RateDealerPage({
+  const RateDealerPageTwo({
     super.key,
     required this.offerId,
   });
 
   @override
-  _RateDealerPageState createState() => _RateDealerPageState();
+  _RateDealerPageTwoState createState() => _RateDealerPageTwoState();
 }
 
-class _RateDealerPageState extends State<RateDealerPage> {
+class _RateDealerPageTwoState extends State<RateDealerPageTwo> {
   int _stars = 5;
   String? _dealerProfileImageUrl;
   String? _dealerId;
@@ -184,18 +184,8 @@ class _RateDealerPageState extends State<RateDealerPage> {
   void _onSubmit() async {
     await _submitRating();
 
-    // Navigate to setup collection page instead of home
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(
-          vehicleId: Provider.of<OfferProvider>(context, listen: false)
-              .offers
-              .firstWhere((offer) => offer.offerId == widget.offerId)
-              .vehicleId,
-        ),
-      ),
-    );
+    // Navigate to home page and clear the navigation stack
+    Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
   }
 
   @override

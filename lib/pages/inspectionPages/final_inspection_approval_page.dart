@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/adjust_offer.dart';
+import 'package:ctp/pages/rating_pages/rate_dealer_page_two.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
 import 'package:ctp/pages/rating_pages/rate_dealer_page.dart'; // Import RateDealerPage
 import 'package:ctp/pages/report_issue.dart';
@@ -111,7 +112,7 @@ class _FinalInspectionApprovalPageState
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => RateDealerPage(
+              builder: (context) => RateDealerPageTwo(
                 offerId: widget.offerId,
               ),
             ),

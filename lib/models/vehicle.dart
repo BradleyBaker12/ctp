@@ -105,6 +105,13 @@ class Vehicle {
   });
   // Factory constructor to create a Vehicle instance from Firestore data
   factory Vehicle.fromFirestore(String docId, Map<String, dynamic> data) {
+    print('''
+  === VEHICLE DEBUG ===
+  DocID: $docId
+  Brand: ${data['brands']}
+  MakeModel: ${data['makeModel']}
+  MainImage: ${data['mainImageUrl']}
+    ''');
     // Handle timestamp
     DateTime parsedCreatedAt = data['createdAt'] is Timestamp
         ? (data['createdAt'] as Timestamp).toDate()
@@ -119,6 +126,7 @@ class Vehicle {
       applications = [data['application'] as String];
     }
 
+    // Handle brands list
     // Handle brands list
     List<String> brands = [];
     if (data['brands'] is List) {

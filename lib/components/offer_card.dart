@@ -1,6 +1,7 @@
 // lib/components/offer_card.dart
 
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/payment_approved.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/pages/transport_offer_details_page.dart';
@@ -273,6 +274,16 @@ class _OfferCardState extends State<OfferCard> {
       case 'payment pending':
         _navigateToRespectivePage(userRole);
         break;
+      case 'paid':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentApprovedPage(
+              offerId: widget.offer.offerId,
+            ),
+          ),
+        );
+        break;
       default:
         print(
             "Offer status not handled for dealer: ${widget.offer.offerStatus}");
@@ -353,7 +364,8 @@ class _OfferCardState extends State<OfferCard> {
             builder: (context) => FinalInspectionApprovalPage(
               offerId: widget.offer.offerId,
               oldOffer: formatOfferAmount(widget.offer.offerAmount),
-              vehicleName: widget.offer.vehicleMakeModel ?? 'Unknown',
+              vehicleName:
+                  (widget.offer.vehicleMakeModel ?? 'Unknown').toUpperCase(),
             ),
           ),
         );
@@ -463,7 +475,7 @@ Rendering Offer:
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        (widget.offer.vehicleMakeModel ?? 'Unknown')
+                        "${widget.offer.vehicleBrand ?? 'Unknown'} ${widget.offer.vehicleMakeModel ?? 'Unknown'} ${widget.offer.vehicleYear ?? 'Unknown'}"
                             .toUpperCase(),
                         style: customFont(screenSize.height * 0.016,
                             FontWeight.w800, Colors.white),
@@ -516,6 +528,13 @@ Rendering Offer:
   }
 
   Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
+    print('''
+  === OFFER CARD DEBUG ===
+  Brand: ${widget.offer.vehicleBrand}
+  MakeModel: ${widget.offer.vehicleMakeModel}
+  MainImage: ${widget.offer.vehicleMainImage}
+    ''');
+
     var screenSize = MediaQuery.of(context).size;
     double cardHeight = screenSize.height * 0.14;
 
@@ -670,6 +689,14 @@ Rendering Offer:
   }
 
   String getDisplayStatus(String? offerStatus) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userRole = userProvider.getUserRole ?? '';
+
+    if (userRole == 'transporter' &&
+        (offerStatus == 'payment pending' || offerStatus == 'paid')) {
+      return 'Payment Processing';
+    }
+
     switch (offerStatus) {
       case 'in-progress':
         return 'Offer Made';

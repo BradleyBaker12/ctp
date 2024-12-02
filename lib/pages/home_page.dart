@@ -586,6 +586,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     children: recentOffers.map((offer) {
                       return OfferCard(
                         offer: offer,
+                        
                       );
                     }).toList(),
                   ),
