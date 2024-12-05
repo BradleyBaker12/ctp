@@ -291,9 +291,13 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
               tyres.positions[posKey]; // Access `positions` from `Tyres`
 
           if (tyreData?.chassisCondition != null &&
-              tyreData!.chassisCondition.isNotEmpty) completedSteps++;
+              tyreData!.chassisCondition.isNotEmpty) {
+            completedSteps++;
+          }
           if (tyreData?.virginOrRecap != null &&
-              tyreData!.virginOrRecap.isNotEmpty) completedSteps++;
+              tyreData!.virginOrRecap.isNotEmpty) {
+            completedSteps++;
+          }
           if (tyreData?.rimType != null && tyreData!.rimType.isNotEmpty) {
             completedSteps++;
           }

@@ -70,11 +70,6 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
           FirebaseStorage.instance.ref().child(fileName);
       UploadTask uploadTask = storageReference.putFile(file);
 
-      // Show upload progress
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        // You can implement progress indicator here if desired
-      });
-
       await uploadTask.whenComplete(() => null);
       String fileURL = await storageReference.getDownloadURL();
 

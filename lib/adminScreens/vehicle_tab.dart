@@ -10,6 +10,7 @@ import 'package:ctp/models/internal_cab.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
 import 'package:ctp/models/tyres.dart';
+import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
@@ -59,31 +60,24 @@ class _VehiclesTabState extends State<VehiclesTab> {
     super.dispose();
   }
 
-  // Method to update vehicle status
   Future<bool> updateVehicleStatus(String vehicleId, String newStatus) async {
     try {
       await vehiclesCollection.doc(vehicleId).update({'status': newStatus});
-      print('Vehicle $vehicleId status updated to $newStatus');
       return true;
     } catch (e) {
-      print('Error updating vehicle status: $e');
       return false;
     }
   }
 
-  // Method to delete vehicle
   Future<bool> deleteVehicle(String vehicleId) async {
     try {
       await vehiclesCollection.doc(vehicleId).delete();
-      print('Vehicle $vehicleId deleted');
       return true;
     } catch (e) {
-      print('Error deleting vehicle: $e');
       return false;
     }
   }
 
-  // Helper method to filter vehicles based on search query
   bool _matchesSearch(Map<String, dynamic> vehicleData) {
     if (_searchQuery.isEmpty) return true;
 
@@ -130,221 +124,202 @@ class _VehiclesTabState extends State<VehiclesTab> {
     });
   }
 
-  // Helper method to create default AdminData
-  AdminData _getDefaultAdminData() {
-    return AdminData(
-      settlementAmount: '0',
-      natisRc1Url: '',
-      licenseDiskUrl: '',
-      settlementLetterUrl: '',
-    );
-  }
-
-  // Helper method to create default Maintenance
-  Maintenance _getDefaultMaintenance(String vehicleId) {
-    return Maintenance(
-        vehicleId: '',
-        oemInspectionType: '',
-        maintenanceDocUrl: '',
-        warrantyDocUrl: '',
-        maintenanceSelection: '',
-        warrantySelection: '',
-        lastUpdated: DateTime.now());
-  }
-
-  // Helper method to create default TruckConditions
-  TruckConditions _getDefaultTruckConditions() {
-    return TruckConditions(
-      externalCab: ExternalCab(
-        damages: [],
-        additionalFeatures: [],
-        condition: '',
-        damagesCondition: '',
-        additionalFeaturesCondition: '',
-        images: {},
-      ),
-      internalCab: InternalCab(
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          faultCodesCondition: '',
-          viewImages: {},
-          damages: [],
-          additionalFeatures: [],
-          faultCodes: []),
-      chassis: Chassis(
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          images: {},
-          damages: [],
-          additionalFeatures: []),
-      driveTrain: DriveTrain(
-        condition: '',
-        oilLeakConditionEngine: '',
-        waterLeakConditionEngine: '',
-        blowbyCondition: '',
-        oilLeakConditionGearbox: '',
-        retarderCondition: '',
-        lastUpdated: DateTime.now(),
-        images: {
-          'Right Brake': '',
-          'Left Brake': '',
-          'Front Axel': '',
-          'Suspension': '',
-          'Fuel Tank': '',
-          'Battery': '',
-          'Cat Walk': '',
-          'Electrical Cable Black': '',
-          'Air Cable Yellow': '',
-          'Air Cable Red': '',
-          'Tail Board': '',
-          '5th Wheel': '',
-          'Left Brake Rear Axel': '',
-          'Right Brake Rear Axel': '',
-        },
-        damages: [],
-        additionalFeatures: [],
-        faultCodes: [],
-      ),
-      tyres: {
-        'default': Tyres(
-          lastUpdated: DateTime.now(),
-          positions: {},
-        ),
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Apply filtering based on search query
     List<DocumentSnapshot> filteredVehicles = _vehicles.where((doc) {
       var data = doc.data() as Map<String, dynamic>;
       return _matchesSearch(data);
     }).toList();
 
-    return Column(
-      children: [
-        // Search Bar
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            controller: _searchController,
-            style: GoogleFonts.montserrat(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: 'Search Vehicles',
-              labelStyle: GoogleFonts.montserrat(color: Colors.white),
-              prefixIcon: Icon(Icons.search, color: Colors.white),
-              filled: true,
-              fillColor: Colors.transparent,
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide(color: Colors.white),
+    return Scaffold(
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              style: GoogleFonts.montserrat(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Search Vehicles',
+                labelStyle: GoogleFonts.montserrat(color: Colors.white),
+                prefixIcon: Icon(Icons.search, color: Colors.white),
+                filled: true,
+                fillColor: Colors.transparent,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                  borderSide: BorderSide(color: Color(0xFFFF4E00)),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide(color: Color(0xFFFF4E00)),
-              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                  _vehicles.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                });
+                _fetchVehicles();
+              },
             ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-                // Reset pagination and fetch again
-                _vehicles.clear();
-                _lastDocument = null;
-                _hasMore = true;
-              });
-              _fetchVehicles();
-            },
           ),
-        ),
-        // Expanded ListView
-        Expanded(
-          child: filteredVehicles.isEmpty
-              ? _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : Center(
-                      child: Text(
-                        'No vehicles found.',
-                        style: GoogleFonts.montserrat(color: Colors.white),
-                      ),
-                    )
-              : ListView.builder(
-                  controller: _scrollController,
-                  itemCount: filteredVehicles.length + (_hasMore ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == filteredVehicles.length) {
-                      // Show a loading indicator at the bottom
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: CircularProgressIndicator(),
+          // Expanded ListView
+          Expanded(
+            child: filteredVehicles.isEmpty
+                ? _isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : Center(
+                        child: Text(
+                          'No vehicles found.',
+                          style: GoogleFonts.montserrat(color: Colors.white),
+                        ),
+                      )
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: filteredVehicles.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == filteredVehicles.length) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      var vehicleData = filteredVehicles[index].data()
+                          as Map<String, dynamic>;
+                      String vehicleId = filteredVehicles[index].id;
+                      String make = vehicleData['makeModel'] ?? 'Unknown';
+
+                      Vehicle vehicle =
+                          Vehicle.fromFirestore(vehicleId, vehicleData);
+
+                      return Card(
+                        color: Colors.grey[900],
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        child: ListTile(
+                          leading: SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: (vehicle.mainImageUrl?.isNotEmpty ?? false)
+                                  ? Image.network(
+                                      vehicle.mainImageUrl!,
+                                      fit: BoxFit.cover,
+                                      width: 50,
+                                      height: 50,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Icon(Icons.directions_car,
+                                            color: Colors.blueAccent);
+                                      },
+                                    )
+                                  : Icon(Icons.directions_car,
+                                      color: Colors.blueAccent, size: 50),
+                            ),
+                          ),
+                          title: Text(
+                            make,
+                            style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white),
+                          ),
+                          subtitle: Text(
+                            'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}',
+                            style:
+                                GoogleFonts.montserrat(color: Colors.white70),
+                          ),
+                          isThreeLine: true,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => VehicleDetailsPage(
+                                  vehicle: vehicle,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       );
-                    }
+                    },
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showTransporterSelectionDialog(context),
+        label: Text(
+          'Add Vehicle',
+          style: GoogleFonts.montserrat(color: Colors.white),
+        ),
+        icon: Icon(Icons.add, color: Colors.white),
+        backgroundColor: Color(0xFF0E4CAF),
+      ),
+    );
+  }
 
-                    var vehicleData =
-                        filteredVehicles[index].data() as Map<String, dynamic>;
-                    String vehicleId = filteredVehicles[index].id;
-                    String make = vehicleData['makeModel'] ?? 'Unknown';
+  void _showTransporterSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text('Select Transporter',
+            style: GoogleFonts.montserrat(color: Colors.white)),
+        content: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'transporter')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const CircularProgressIndicator(color: Color(0xFFFF4E00));
+            }
 
-                    // Corrected constructor call with both docId and data
-                    Vehicle vehicle =
-                        Vehicle.fromFirestore(vehicleId, vehicleData);
-
-                    return Card(
-                      color: Colors.grey[900],
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      child: ListTile(
-                        leading: SizedBox(
-                          width: 60,
-                          height: 60,
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: (vehicle.mainImageUrl?.isNotEmpty ?? false)
-                                ? Image.network(
-                                    vehicle.mainImageUrl!,
-                                    fit: BoxFit.cover,
-                                    width: 50,
-                                    height: 50,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(Icons.directions_car,
-                                          color: Colors.blueAccent);
-                                    },
-                                  )
-                                : Icon(Icons.directions_car,
-                                    color: Colors.blueAccent, size: 50),
+            return SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  var transporter = snapshot.data!.docs[index];
+                  return ListTile(
+                    title: Text(
+                      transporter['companyName'] ??
+                          transporter['email'] ??
+                          'Unknown',
+                      style: GoogleFonts.montserrat(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      transporter['email'] ?? '',
+                      style: GoogleFonts.montserrat(color: Colors.grey),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VehicleUploadScreen(
+                            isNewUpload: true,
+                            transporterId: transporter.id,
+                            isAdminUpload: true,
                           ),
                         ),
-                        title: Text(
-                          make,
-                          style: GoogleFonts.montserrat(
-                              fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        subtitle: Text(
-                          'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}',
-                          style: GoogleFonts.montserrat(color: Colors.white70),
-                        ),
-                        isThreeLine: true,
-                        onTap: () {
-                          // Navigate to VehicleDetailsPageAdmin with full vehicle details
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => VehicleDetailsPage(
-                                vehicle: vehicle,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  );
+                },
+              ),
+            );
+          },
         ),
-      ],
+      ),
     );
   }
 }

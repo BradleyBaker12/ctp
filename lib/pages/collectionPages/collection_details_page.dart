@@ -6,7 +6,6 @@ import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart'; // Import for date parsing
 

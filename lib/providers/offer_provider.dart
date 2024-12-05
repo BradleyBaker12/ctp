@@ -41,6 +41,8 @@ class Offer extends ChangeNotifier {
 
   bool isVehicleDetailsLoading = false;
 
+  String? proofOfPayment;
+
   Offer({
     required this.offerId,
     required this.dealerId,
@@ -66,6 +68,7 @@ class Offer extends ChangeNotifier {
     this.inspectionLocations,
     this.collectionDates,
     this.collectionLocations,
+    this.proofOfPayment,
   });
 
   factory Offer.fromFirestore(DocumentSnapshot doc) {
@@ -103,6 +106,7 @@ class Offer extends ChangeNotifier {
       inspectionLocations: data['inspectionLocations'],
       collectionDates: data['collectionDates'],
       collectionLocations: data['collectionLocations'],
+      proofOfPayment: data['proofOfPayment'],
     );
   }
 
@@ -290,28 +294,14 @@ MainImage: ${offer.vehicleMainImage}
 
   /// Builds the Firestore query based on user role.
   Query _buildQuery(String userId, String userRole) {
-    print('''
-=== OFFER QUERY DEBUG ===
-UserID: $userId
-UserRole: $userRole
-''');
-
     var query = _firestore.collection('offers');
 
-    // Debug all offers first
-    query.get().then((snapshot) {
-      print('=== ALL OFFERS IN COLLECTION ===');
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        print('''
-Offer ID: ${doc.id}
-DealerId: ${data['dealerId']}
-TransporterId: ${data['transporterId']}
-Status: ${data['offerStatus']}
-''');
-      }
-    });
+    // Admin sees all offers
+    if (userRole == 'admin') {
+      return query.orderBy('createdAt', descending: true).limit(_limit);
+    }
 
+    // Existing logic for dealers and transporters
     return query
         .where(userRole == 'dealer' ? 'dealerId' : 'transporterId',
             isEqualTo: userId)
@@ -325,7 +315,7 @@ Status: ${data['offerStatus']}
       await _firestore
           .collection('offers')
           .doc(offerId)
-          .update({'status': newStatus});
+          .update({'offerStatus': newStatus});
       // print('Offer $offerId status updated to $newStatus');
 
       // Update local state

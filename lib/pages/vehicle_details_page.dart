@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
@@ -1762,9 +1761,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             tyres.positions[posKey]; // Access `positions` from `Tyres`
 
         if (tyreData?.chassisCondition != null &&
-            tyreData!.chassisCondition.isNotEmpty) completedSteps++;
+            tyreData!.chassisCondition.isNotEmpty) {
+          completedSteps++;
+        }
         if (tyreData?.virginOrRecap != null &&
-            tyreData!.virginOrRecap.isNotEmpty) completedSteps++;
+            tyreData!.virginOrRecap.isNotEmpty) {
+          completedSteps++;
+        }
         if (tyreData?.rimType != null && tyreData!.rimType.isNotEmpty) {
           completedSteps++;
         }

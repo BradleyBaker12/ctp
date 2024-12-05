@@ -1,6 +1,8 @@
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -534,6 +536,13 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Add UserProvider at the top
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     return GradientBackground(
       child: Stack(
         children: [
@@ -914,10 +923,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                         ),
                       ),
                     ),
-                    CustomBottomNavigation(
-                      selectedIndex: 1,
-                      onItemTapped: (int) {},
-                    ),
+                    if (!isAdmin)
+                      CustomBottomNavigation(
+                        selectedIndex: 1,
+                        onItemTapped: (int) {},
+                      ),
                   ],
                 ),
               ],

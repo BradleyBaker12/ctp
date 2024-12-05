@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:provider/provider.dart';

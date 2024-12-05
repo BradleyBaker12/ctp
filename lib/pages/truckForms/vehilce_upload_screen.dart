@@ -27,10 +27,14 @@ class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
   final Vehicle? vehicle;
   final bool isNewUpload;
+  final bool isAdminUpload;
+  final String? transporterId;
 
   const VehicleUploadScreen(
       {super.key,
       this.vehicle,
+      this.transporterId,
+      this.isAdminUpload = false,
       this.isDuplicating = false,
       this.isNewUpload = false});
 
@@ -1434,7 +1438,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'province': formData.province,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'userId': widget.isAdminUpload
+            ? widget.transporterId
+            : FirebaseAuth.instance.currentUser?.uid,
         'vehicleStatus': 'Draft', // Initial status for new vehicles
       };
 
