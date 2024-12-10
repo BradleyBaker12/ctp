@@ -1,6 +1,7 @@
 // lib/adminScreens/vehicle_tab.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/maintenance.dart';
@@ -132,126 +133,129 @@ class _VehiclesTabState extends State<VehiclesTab> {
     }).toList();
 
     return Scaffold(
-      body: Column(
-        children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              style: GoogleFonts.montserrat(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Search Vehicles',
-                labelStyle: GoogleFonts.montserrat(color: Colors.white),
-                prefixIcon: Icon(Icons.search, color: Colors.white),
-                filled: true,
-                fillColor: Colors.transparent,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: Colors.white),
+      body: GradientBackground(
+        child: Column(
+          children: [
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                controller: _searchController,
+                style: GoogleFonts.montserrat(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Search Vehicles',
+                  labelStyle: GoogleFonts.montserrat(color: Colors.white),
+                  prefixIcon: Icon(Icons.search, color: Colors.white),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(color: Color(0xFFFF4E00)),
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: Color(0xFFFF4E00)),
-                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                    _vehicles.clear();
+                    _lastDocument = null;
+                    _hasMore = true;
+                  });
+                  _fetchVehicles();
+                },
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                  _vehicles.clear();
-                  _lastDocument = null;
-                  _hasMore = true;
-                });
-                _fetchVehicles();
-              },
             ),
-          ),
-          // Expanded ListView
-          Expanded(
-            child: filteredVehicles.isEmpty
-                ? _isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : Center(
-                        child: Text(
-                          'No vehicles found.',
-                          style: GoogleFonts.montserrat(color: Colors.white),
-                        ),
-                      )
-                : ListView.builder(
-                    controller: _scrollController,
-                    itemCount: filteredVehicles.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == filteredVehicles.length) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: CircularProgressIndicator(),
+            // Expanded ListView
+            Expanded(
+              child: filteredVehicles.isEmpty
+                  ? _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : Center(
+                          child: Text(
+                            'No vehicles found.',
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
+                        )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      itemCount: filteredVehicles.length + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == filteredVehicles.length) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+
+                        var vehicleData = filteredVehicles[index].data()
+                            as Map<String, dynamic>;
+                        String vehicleId = filteredVehicles[index].id;
+                        String make = vehicleData['makeModel'] ?? 'Unknown';
+
+                        Vehicle vehicle =
+                            Vehicle.fromFirestore(vehicleId, vehicleData);
+
+                        return Card(
+                          color: Colors.grey[900],
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          child: ListTile(
+                            leading: SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: Align(
+                                alignment: Alignment.center,
+                                child:
+                                    (vehicle.mainImageUrl?.isNotEmpty ?? false)
+                                        ? Image.network(
+                                            vehicle.mainImageUrl!,
+                                            fit: BoxFit.cover,
+                                            width: 50,
+                                            height: 50,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Icon(Icons.directions_car,
+                                                  color: Colors.blueAccent);
+                                            },
+                                          )
+                                        : Icon(Icons.directions_car,
+                                            color: Colors.blueAccent, size: 50),
+                              ),
+                            ),
+                            title: Text(
+                              make,
+                              style: GoogleFonts.montserrat(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white70),
+                            ),
+                            isThreeLine: true,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => VehicleDetailsPage(
+                                    vehicle: vehicle,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         );
-                      }
-
-                      var vehicleData = filteredVehicles[index].data()
-                          as Map<String, dynamic>;
-                      String vehicleId = filteredVehicles[index].id;
-                      String make = vehicleData['makeModel'] ?? 'Unknown';
-
-                      Vehicle vehicle =
-                          Vehicle.fromFirestore(vehicleId, vehicleData);
-
-                      return Card(
-                        color: Colors.grey[900],
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        child: ListTile(
-                          leading: SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: Align(
-                              alignment: Alignment.center,
-                              child: (vehicle.mainImageUrl?.isNotEmpty ?? false)
-                                  ? Image.network(
-                                      vehicle.mainImageUrl!,
-                                      fit: BoxFit.cover,
-                                      width: 50,
-                                      height: 50,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Icon(Icons.directions_car,
-                                            color: Colors.blueAccent);
-                                      },
-                                    )
-                                  : Icon(Icons.directions_car,
-                                      color: Colors.blueAccent, size: 50),
-                            ),
-                          ),
-                          title: Text(
-                            make,
-                            style: GoogleFonts.montserrat(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white),
-                          ),
-                          subtitle: Text(
-                            'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}',
-                            style:
-                                GoogleFonts.montserrat(color: Colors.white70),
-                          ),
-                          isThreeLine: true,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => VehicleDetailsPage(
-                                  vehicle: vehicle,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showTransporterSelectionDialog(context),
@@ -275,7 +279,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
         content: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
-              .where('role', isEqualTo: 'transporter')
+              .where('userRole', isEqualTo: 'transporter')
               .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
@@ -284,36 +288,71 @@ class _VehiclesTabState extends State<VehiclesTab> {
 
             return SizedBox(
               width: double.maxFinite,
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: snapshot.data!.docs.length,
-                itemBuilder: (context, index) {
-                  var transporter = snapshot.data!.docs[index];
-                  return ListTile(
-                    title: Text(
-                      transporter['companyName'] ??
-                          transporter['email'] ??
-                          'Unknown',
-                      style: GoogleFonts.montserrat(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      transporter['email'] ?? '',
-                      style: GoogleFonts.montserrat(color: Colors.grey),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => VehicleUploadScreen(
-                            isNewUpload: true,
-                            transporterId: transporter.id,
-                            isAdminUpload: true,
+              height: MediaQuery.of(context).size.height * 0.4,
+              child: DropdownButtonFormField<String>(
+                dropdownColor: Colors.grey[900],
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.grey[800],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                hint: Text('Select a transporter',
+                    style: GoogleFonts.montserrat(color: Colors.white)),
+                items: snapshot.data!.docs.map((transporter) {
+                  var userData = transporter.data() as Map<String, dynamic>;
+                  String displayName = userData['tradingName'] ??
+                      userData['name'] ??
+                      userData['email'] ??
+                      'Unknown';
+
+                  return DropdownMenuItem<String>(
+                    value: transporter.id,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width *
+                            0.5, // Reduced from 0.6 to 0.5
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            displayName,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            maxLines: 1,
                           ),
-                        ),
-                      );
-                    },
+                          Text(
+                            userData['email'] ?? '',
+                            style: GoogleFonts.montserrat(
+                                color: Colors.grey, fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
+                }).toList(),
+                onChanged: (transporterId) {
+                  if (transporterId != null) {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => VehicleUploadScreen(
+                          isNewUpload: true,
+                          transporterId: transporterId,
+                          isAdminUpload: true,
+                        ),
+                      ),
+                    );
+                  }
                 },
               ),
             );

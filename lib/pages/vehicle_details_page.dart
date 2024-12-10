@@ -1163,6 +1163,52 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 _navigateToEditPage();
               },
             ),
+          if (isTransporter || isAdmin)
+            IconButton(
+              icon: const Icon(
+                Icons.delete,
+                color: Color(0xFFFF4E00),
+                size: 24,
+              ),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Delete Vehicle'),
+                      content: const Text(
+                          'Are you sure you want to delete this vehicle?'),
+                      actions: [
+                        TextButton(
+                          child: const Text('Cancel'),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        TextButton(
+                          child: const Text('Delete'),
+                          onPressed: () async {
+                            try {
+                              await FirebaseFirestore.instance
+                                  .collection('vehicles')
+                                  .doc(widget.vehicle.id)
+                                  .delete();
+                              Navigator.of(context).pop(); // Close dialog
+                              Navigator.of(context)
+                                  .pop(); // Return to previous screen
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content:
+                                        Text('Error deleting vehicle: $e')),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
           if (isTransporter)
             IconButton(
               icon: const Icon(

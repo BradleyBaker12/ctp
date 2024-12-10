@@ -30,14 +30,14 @@ class CustomDropdown extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.3),
+        color: Colors.grey.withAlpha(90),
         border: Border(
           left: BorderSide(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withAlpha(128),
             width: 1.0,
           ),
           right: BorderSide(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withAlpha(128),
             width: 1.0,
           ),
         ),
@@ -45,48 +45,51 @@ class CustomDropdown extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       height: 60.0,
-      child: DropdownButtonFormField<String>(
-        value: validValue,
-        onChanged: enabled ? onChanged : null,
-        validator: validator,
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(color: Colors.white70),
-          filled: false,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-          enabledBorder: InputBorder.none,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          canvasColor: Colors.grey.withAlpha(120),
+          hintColor: Colors.white,
         ),
-        style: const TextStyle(
-            color: Colors.white), // Text color for enabled state
-        dropdownColor: Colors.grey.withOpacity(0.8),
-        items: items
-            .map((item) => DropdownMenuItem<String>(
-                  value: item,
-                  child: itemBuilder?.call(context, item) ??
-                      Text(
-                        item,
-                        style: const TextStyle(
-                            color: Colors.white), // Enforce white text
-                      ),
-                ))
-            .toList(),
-        disabledHint: validValue != null
-            ? Text(
-                validValue,
-                style:
-                    const TextStyle(color: Colors.white), // Enforce white text
-              )
-            : null,
-        icon: isTransporter
-            ? const Icon(
-                Icons.arrow_drop_down,
-                color: Colors.white,
-              )
-            : Icon(
-                Icons.arrow_drop_down,
-                color: Colors.grey.withOpacity(0),
-              ),
+        child: DropdownButtonFormField<String>(
+          value: validValue,
+          onChanged: enabled ? onChanged : null,
+          validator: validator,
+          dropdownColor: Colors.grey.withAlpha(120),
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: const TextStyle(color: Colors.white),
+            filled: false,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            enabledBorder: InputBorder.none,
+          ),
+          items: items
+              .map((item) => DropdownMenuItem<String>(
+                    value: item,
+                    child: itemBuilder?.call(context, item) ??
+                        Text(
+                          item,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                  ))
+              .toList(),
+          disabledHint: validValue != null
+              ? Text(
+                  validValue,
+                  style: const TextStyle(color: Colors.white),
+                )
+              : null,
+          icon: isTransporter
+              ? const Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.white,
+                )
+              : Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.grey.withAlpha(0),
+                ),
+        ),
       ),
     );
   }
