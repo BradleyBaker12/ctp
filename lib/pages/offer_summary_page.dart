@@ -175,7 +175,7 @@ class OfferSummaryPage extends StatelessWidget {
                               pw.SizedBox(height: 10),
                               pw.Row(
                                 children: [
-                                  pw.Text('YEAR: ',
+                                  pw.Text('Year: ',
                                       style: pw.TextStyle(
                                           font: robotoBold,
                                           fontSize: 12,
@@ -190,7 +190,7 @@ class OfferSummaryPage extends StatelessWidget {
                               pw.SizedBox(height: 10),
                               pw.Row(
                                 children: [
-                                  pw.Text('MILEAGE: ',
+                                  pw.Text('Mileage: ',
                                       style: pw.TextStyle(
                                           font: robotoBold,
                                           fontSize: 12,
@@ -206,7 +206,7 @@ class OfferSummaryPage extends StatelessWidget {
                               pw.SizedBox(height: 10),
                               pw.Row(
                                 children: [
-                                  pw.Text('TRANSMISSION: ',
+                                  pw.Text('Transmission: ',
                                       style: pw.TextStyle(
                                           font: robotoBold,
                                           fontSize: 12,
@@ -222,7 +222,7 @@ class OfferSummaryPage extends StatelessWidget {
                               pw.SizedBox(height: 10),
                               pw.Row(
                                 children: [
-                                  pw.Text('CONFIG: ',
+                                  pw.Text('Config: ',
                                       style: pw.TextStyle(
                                           font: robotoBold,
                                           fontSize: 12,
@@ -252,7 +252,7 @@ class OfferSummaryPage extends StatelessWidget {
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
-                            pw.Text('OFFER DETAILS',
+                            pw.Text('Offer Details',
                                 style: pw.TextStyle(
                                     font: robotoBold,
                                     fontSize: 16,

@@ -56,7 +56,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
+        const SnackBar(content: Text('Passwords do not match.')),
       );
       return;
     }
@@ -156,7 +156,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                   SizedBox(
                                       height: constraints.maxHeight * 0.03),
                                   Text(
-                                    'WELCOME TO',
+                                    'Welcome to',
                                     style: GoogleFonts.montserrat(
                                       fontSize: constraints.maxHeight * 0.025,
                                       fontWeight: FontWeight.w900,
@@ -170,7 +170,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                   SizedBox(
                                       height: constraints.maxHeight * 0.06),
                                   Text(
-                                    'SIGN-UP',
+                                    'Sign Up',
                                     style: GoogleFonts.montserrat(
                                       fontSize: constraints.maxHeight * 0.028,
                                       fontWeight: FontWeight.bold,
@@ -180,13 +180,13 @@ class _SignUpPageState extends State<SignUpPage> {
                                   SizedBox(
                                       height: constraints.maxHeight * 0.07),
                                   CustomTextField(
-                                    hintText: 'USERNAME OR EMAIL',
+                                    hintText: 'Username or Email',
                                     controller: _emailController,
                                   ),
                                   SizedBox(
                                       height: constraints.maxHeight * 0.03),
                                   CustomTextField(
-                                    hintText: 'PASSWORD',
+                                    hintText: 'Password',
                                     obscureText: !_passwordVisible,
                                     controller: _passwordController,
                                     suffixIcon: IconButton(
@@ -206,7 +206,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                   SizedBox(
                                       height: constraints.maxHeight * 0.03),
                                   CustomTextField(
-                                    hintText: 'CONFIRM PASSWORD',
+                                    hintText: 'Confirm Password',
                                     obscureText: !_confirmPasswordVisible,
                                     controller: _confirmPasswordController,
                                     suffixIcon: IconButton(
@@ -228,13 +228,13 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                               SizedBox(height: constraints.maxHeight * 0.07),
                               CustomButton(
-                                text: 'SIGN-UP',
+                                text: 'Sign Up',
                                 borderColor: const Color(0xFF2F7FFF),
                                 onPressed: _signUp,
                               ),
                               SizedBox(height: constraints.maxHeight * 0.02),
                               CustomButton(
-                                text: 'CANCEL',
+                                text: 'Cancel',
                                 borderColor: const Color(0xFFFF4E00),
                                 onPressed: _signUp,
                               ),

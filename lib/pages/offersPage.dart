@@ -248,7 +248,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                       tabs: [
                         Tab(
                           child: Text(
-                            'ALL',
+                            'All',
                             style: TextStyle(
                               fontSize:
                                   MediaQuery.of(context).size.width * 0.04,
@@ -257,7 +257,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                         ),
                         Tab(
                           child: Text(
-                            'PENDING',
+                            'Pending',
                             style: TextStyle(
                               fontSize:
                                   MediaQuery.of(context).size.width * 0.04,
@@ -266,7 +266,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                         ),
                         Tab(
                           child: Text(
-                            'ACCEPTED',
+                            'Accepted',
                             style: TextStyle(
                               fontSize:
                                   MediaQuery.of(context).size.width * 0.04,
@@ -275,7 +275,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                         ),
                         Tab(
                           child: Text(
-                            'IN-PROGRESS',
+                            'In Progress',
                             style: TextStyle(
                               fontSize:
                                   MediaQuery.of(context).size.width * 0.04,
@@ -285,7 +285,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                         // New 'REJECTED' tab
                         Tab(
                           child: Text(
-                            'REJECTED',
+                            'Rejected',
                             style: TextStyle(
                               fontSize:
                                   MediaQuery.of(context).size.width * 0.04,

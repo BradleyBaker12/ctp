@@ -199,11 +199,10 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         body: Column(
           children: [
             if (isLoading) const Center(child: CircularProgressIndicator()),
-
             if (userVehicles.isEmpty)
               Center(
                 child: Text(
-                  'No vehicles found',
+                  'No Vehicles Found',
                   style: GoogleFonts.montserrat(color: Colors.white),
                 ),
               ),

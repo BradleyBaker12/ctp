@@ -1,6 +1,7 @@
 // transporter_offer_details_page.dart
 
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/truck_page.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -447,7 +448,7 @@ class _TransporterOfferDetailsPageState
                           ),
                           const SizedBox(height: 10),
                           _buildInfoRow('Make/Model',
-                              widget.vehicle.makeModel.toString()),
+                              widget.vehicle.makeModel.toString().capitalize()),
                           _buildInfoRow('Year', widget.vehicle.year.toString()),
                         ],
                       ),

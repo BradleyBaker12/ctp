@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:ctp/pages/sold_vehicles_list.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -10,6 +11,29 @@ import 'pdf_viewer_page.dart'; // Import the PDF Viewer Page
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  Widget _buildProfileAction(String title, IconData icon, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            Icon(icon, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +147,34 @@ class ProfilePage extends StatelessWidget {
                       '${userProvider.getCity ?? ''}\n'
                       '${userProvider.getState ?? ''}\n'
                       '${userProvider.getPostalCode ?? ''}'),
+              // Add this after the DOCUMENTS section
+              const SizedBox(height: 20),
+              const Padding(
+                padding: EdgeInsets.only(left: 16.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'VEHICLE HISTORY',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(color: Colors.white),
+              _buildProfileAction(
+                'VIEW SOLD VEHICLES',
+                Icons.history,
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const SoldVehiclesListPage()),
+                  );
+                },
+              ),
               const SizedBox(height: 20),
               const Padding(
                 padding: EdgeInsets.only(left: 16.0),

@@ -10,9 +10,7 @@ class ThankYouPage extends StatelessWidget {
     return Scaffold(
       body: GradientBackground(
         child: SizedBox(
-          height: MediaQuery.of(context)
-              .size
-              .height, // Ensure the gradient fills the screen height
+          height: MediaQuery.of(context).size.height,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -22,7 +20,7 @@ class ThankYouPage extends StatelessWidget {
               Image.asset('lib/assets/CTPLogo.png', height: 200),
               const SizedBox(height: 20),
               const Text(
-                'THANK YOU',
+                'Thank You',
                 style: TextStyle(
                   color: Color(0xFFFF4E00),
                   fontSize: 24,
@@ -31,7 +29,7 @@ class ThankYouPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'We value our customers experience.',
+                'We Value Our Customer Experience',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -60,33 +58,10 @@ class ThankYouPage extends StatelessWidget {
                       Navigator.pushNamed(context, '/home');
                     }),
               )
-              // ElevatedButton(
-              //   onPressed: () {
-              //     Navigator.pushNamed(context, '/home');
-              //   },
-              //   style: ElevatedButton.styleFrom(
-              //     backgroundColor: Colors.blue,
-              //     padding: const EdgeInsets.symmetric(
-              //         vertical: 15.0, horizontal: 40.0),
-              //     shape: RoundedRectangleBorder(
-              //       borderRadius: BorderRadius.circular(8),
-              //     ),
-              //   ),
-              //   child: const Center(
-              //     child: Text(
-              //       'DONE',
-              //       style: TextStyle(
-              //         fontSize: 18,
-              //         fontWeight: FontWeight.bold,
-              //         color: Colors.white,
-              //       ),
-              //     ),
-              //   ),
-              // ),
             ],
           ),
         ),
       ),
     );
   }
-}
+}             

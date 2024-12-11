@@ -56,7 +56,7 @@ class TradingCategoryPage extends StatelessWidget {
                           ), // Adjust the height as needed
                           SizedBox(height: screenSize.height * 0.15),
                           Text(
-                            'Welcome to CTP where trading trucks and trailers is made easy!',
+                            'Welcome to CTP Where Trading Trucks and Trailers is Made Easy!',
                             style: GoogleFonts.montserrat(
                               fontSize: screenSize.height * 0.02,
                               fontWeight: FontWeight.bold,
@@ -66,7 +66,7 @@ class TradingCategoryPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 20),
                           Text(
-                            'Please select your trading category:',
+                            'Please Select Your Trading Category:',
                             style: GoogleFonts.montserrat(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -88,13 +88,13 @@ class TradingCategoryPage extends StatelessWidget {
                           const SizedBox(
                               height: 50), // Adjust the spacing as needed
                           CustomButton(
-                            text: 'TRANSPORTER',
+                            text: 'Transporter',
                             borderColor: blue,
                             onPressed: () =>
                                 _updateUserRole(context, 'transporter'),
                           ),
                           CustomButton(
-                            text: 'DEALER',
+                            text: 'Dealer',
                             borderColor: orange,
                             onPressed: () => _updateUserRole(context, 'dealer'),
                           ),

@@ -210,7 +210,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                                 color: Colors.blue, size: 60),
                             SizedBox(height: 10),
                             Text(
-                              'UPLOAD PROOF OF PAYMENT',
+                              'Upload Proof of Payment',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -231,7 +231,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
               Column(
                 children: [
                   CustomButton(
-                    text: 'CANCEL',
+                    text: 'Cancel',
                     borderColor: const Color(0xFFFF4E00),
                     onPressed: () {
                       Navigator.of(context).pop();

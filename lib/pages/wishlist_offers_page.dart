@@ -121,7 +121,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
               const SizedBox(
                 width: 370,
                 child: Text(
-                  'View your wish listed trucks below or click on view more to see the trucks and trailer respectively.',
+                  'View your wishlisted trucks below or click on View More to see the trucks and trailers respectively.',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,

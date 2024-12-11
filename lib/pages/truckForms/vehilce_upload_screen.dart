@@ -991,7 +991,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 CustomTextField(
                   controller: _modelController,
                   hintText: 'Model',
-                  inputFormatter: [UpperCaseTextFormatter()],
+                  // inputFormatter: [UpperCaseTextFormatter()],
                   onChanged: (value) {
                     formData.setMakeModel(value);
                   },

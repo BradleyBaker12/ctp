@@ -228,7 +228,7 @@ class _TransporterRegistrationPageState
                           const SizedBox(height: 30),
                           Center(
                             child: Text(
-                              'CTP Offers a way for you to sell your vehicle to multiple dealers in SA',
+                              'CTP offers a way for you to sell your vehicle to multiple dealers in SA.',
                               style: GoogleFonts.montserrat(
                                 fontSize: 16,
                                 color: Colors.white,
@@ -239,7 +239,7 @@ class _TransporterRegistrationPageState
                           const SizedBox(height: 30),
                           Center(
                             child: Text(
-                              'CTP’s fees are R12500,00 flat fee',
+                              "CTP's fees are R12 500 flat fee.",
                               style: GoogleFonts.montserrat(
                                 fontSize: 16,
                                 color: Colors.white,
@@ -291,7 +291,7 @@ class _TransporterRegistrationPageState
                                     validator: _validateVATNumber),
                                 const SizedBox(height: 15),
                                 Text(
-                                  'Dealer personal details *'.toUpperCase(),
+                                  'Dealer Personal Details *'.toUpperCase(),
                                   style: GoogleFonts.montserrat(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w500),
@@ -305,7 +305,7 @@ class _TransporterRegistrationPageState
                                 _buildTextField(
                                     controller: _middleNameController,
                                     focusNode: _middleNameFocusNode,
-                                    hintText: 'Middle (Optional)',
+                                    hintText: 'Middle Name (Optional)',
                                     isOptional: true),
                                 const SizedBox(height: 15),
                                 _buildTextField(
@@ -357,7 +357,7 @@ class _TransporterRegistrationPageState
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
-                                  'BANK CONFIRMATION *',
+                                  'Bank Confirmation *',
                                   style: GoogleFonts.montserrat(
                                       color: Colors.white),
                                 ),
@@ -366,7 +366,7 @@ class _TransporterRegistrationPageState
                                     'bankConfirmation', _bankConfirmationFile),
                                 const SizedBox(height: 15),
                                 Text(
-                                  'PROXY *',
+                                  'Proxy *',
                                   style: GoogleFonts.montserrat(
                                       color: Colors.white),
                                 ),

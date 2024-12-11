@@ -1,3 +1,4 @@
+// If you're not using this model, you can remove this import
 import 'package:ctp/pages/collect_vehcile.dart';
 import 'package:ctp/pages/report_issue.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +6,7 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+import 'package:ctp/components/custom_bottom_navigation.dart';
 
 class PaymentApprovedPage extends StatefulWidget {
   final String offerId;
@@ -41,20 +42,9 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
     });
   }
 
-  Future<void> _updateOfferStatusToDone() async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offerId)
-          .update({'offerStatus': 'Done'});
-      print('Offer status updated to Done');
-    } catch (e) {
-      print('Error updating offer status: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Update the offer status here since we know widget.offerId is defined.
     FirebaseFirestore.instance
         .collection('offers')
         .doc(widget.offerId)
@@ -75,6 +65,12 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
 
             final offerData = offerSnapshot.data!;
             final vehicleId = offerData['vehicleId'] as String;
+
+            // Now that we have the vehicleId, we can update the vehicle status.
+            FirebaseFirestore.instance
+                .collection('vehicles')
+                .doc(vehicleId)
+                .update({'vehicleStatus': 'Sold'});
 
             return FutureBuilder<Map<String, dynamic>>(
               future: _fetchVehicleData(vehicleId),
@@ -124,7 +120,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             child: Image.asset('lib/assets/CTPLogo.png')),
                         const SizedBox(height: 32),
                         const Text(
-                          'PAYMENT APPROVED',
+                          'Payment Approved',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
@@ -214,12 +210,11 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 16), // Add some spacing
+                        const SizedBox(height: 16),
                         CustomButton(
                           text: 'VEHICLE COLLECTED',
                           borderColor: Colors.blue,
                           onPressed: () async {
-                            await _updateOfferStatusToDone();
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -229,7 +224,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             );
                           },
                         ),
-                        const SizedBox(height: 8), // Add some spacing
+                        const SizedBox(height: 8),
                         CustomButton(
                           text: 'REPORT AN ISSUE',
                           borderColor: const Color(0xFFFF4E00),

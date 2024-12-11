@@ -920,15 +920,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             return const Icon(Icons.image_outlined);
                         }
 
+                        // In _buildPreferredBrandsSection method, modify the brand logo rendering:
+
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Image.asset(
-                            logoPath,
-                            height: 50,
-                            width: 50,
-                            fit: BoxFit.contain,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => TruckPage(
+                                    vehicleType:
+                                        'all', // Show all vehicle types
+                                    selectedBrand:
+                                        brand, // Pass the selected brand
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Image.asset(
+                              logoPath,
+                              height: 50,
+                              width: 50,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         );
+
                       }).toList(),
                     ),
                   ),

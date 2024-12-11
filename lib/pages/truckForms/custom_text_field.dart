@@ -60,7 +60,7 @@ class CustomTextField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType ?? TextInputType.text,
           enabled: enabled,
-          textCapitalization: textCapitalization,
+          textCapitalization: TextCapitalization.sentences,
           cursorColor: AppColors.orange,
           decoration: InputDecoration(
             hintText: _capitalizeHintText(hintText),

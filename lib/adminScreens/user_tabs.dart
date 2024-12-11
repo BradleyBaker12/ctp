@@ -285,7 +285,7 @@ class _UsersTabState extends State<UsersTab> {
     final companyNameController = TextEditingController();
     final tradingAsController = TextEditingController();
 
-    String? _selectedRole = 'Admin';
+    String? selectedRole = 'Admin';
     final roles = ['Admin', 'Transporter', 'Dealer'];
 
     // Check if _secondaryAuth is initialized
@@ -339,7 +339,7 @@ class _UsersTabState extends State<UsersTab> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                value: selectedRole,
                 dropdownColor: Colors.grey[850],
                 style: GoogleFonts.montserrat(color: Colors.white),
                 decoration: InputDecoration(
@@ -362,7 +362,7 @@ class _UsersTabState extends State<UsersTab> {
                   );
                 }).toList(),
                 onChanged: (value) {
-                  _selectedRole = value;
+                  selectedRole = value;
                 },
               ),
             ],
@@ -403,7 +403,7 @@ class _UsersTabState extends State<UsersTab> {
                   'tradingAs': tradingAsController.text.trim(),
                   'email': userCredential.user!.email,
                   'createdAt': FieldValue.serverTimestamp(),
-                  'userRole': _selectedRole,
+                  'userRole': selectedRole,
                   'accountStatus': 'active',
                   'createdBy': 'admin',
                 });

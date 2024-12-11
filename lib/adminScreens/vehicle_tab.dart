@@ -3,14 +3,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/models/admin_data.dart';
-import 'package:ctp/models/maintenance.dart';
-import 'package:ctp/models/truck_conditions.dart';
-import 'package:ctp/models/external_cab.dart';
-import 'package:ctp/models/internal_cab.dart';
-import 'package:ctp/models/chassis.dart';
-import 'package:ctp/models/drive_train.dart';
-import 'package:ctp/models/tyres.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

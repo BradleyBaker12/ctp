@@ -31,9 +31,14 @@ class FilterCriterion {
 }
 
 class TruckPage extends StatefulWidget {
-  final String? vehicleType; // Optional vehicleType, null means show all
+  final String? vehicleType;
+  final String? selectedBrand; // Add this parameter
 
-  const TruckPage({super.key, this.vehicleType});
+  const TruckPage({
+    super.key,
+    this.vehicleType,
+    this.selectedBrand, // Add this
+  });
 
   @override
   _TruckPageState createState() => _TruckPageState();
@@ -84,48 +89,27 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
-  // **Modified Method: Load Initial Vehicles Using fetchAllVehicles**
   void _loadInitialVehicles() async {
     try {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-      // **Use the new fetchAllVehicles method to fetch all vehicles**
       await vehicleProvider.fetchAllVehicles();
 
-      // Debugging output to check fetched vehicles
-      print('Total vehicles fetched: ${vehicleProvider.vehicles.length}');
-      // Check if the fetched vehicles are empty
-      if (vehicleProvider.vehicles.isEmpty) {
-        print('No vehicles found in Firestore.');
-      }
-
-      print('User Preferred Brands: ${userProvider.getPreferredBrands}');
-      print('User Liked Vehicles: ${userProvider.getLikedVehicles}');
-      print('User Disliked Vehicles: ${userProvider.getDislikedVehicles}');
-
       setState(() {
-        // Filter to show only Live vehicles
-        displayedVehicles = vehicleProvider.vehicles
-            .where((vehicle) => vehicle.vehicleStatus == 'Live')
-            .toList();
+        // Filter to show only Live vehicles (not Sold)
+        var filteredVehicles = vehicleProvider.vehicles
+            .where((vehicle) => vehicle.vehicleStatus == 'Live');
 
-        // Initialize displayedVehicles with the first page of Live vehicles
-        displayedVehicles = displayedVehicles.take(_itemsPerPage).toList();
-        _currentPage = 1;
-        _isLoading = false;
-
-        // Debugging output to check displayed vehicles
-        print('Displayed Vehicles: ${displayedVehicles.length}');
-        if (displayedVehicles.isEmpty) {
-          print('No vehicles to display after filtering.');
+        // Add brand filter if selectedBrand is specified
+        if (widget.selectedBrand != null) {
+          filteredVehicles = filteredVehicles.where(
+              (vehicle) => vehicle.brands.contains(widget.selectedBrand));
         }
 
+        displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
+        _currentPage = 1;
+        _isLoading = false;
         loadedVehicleIndex = displayedVehicles.length;
-
-        print(
-            'Displayed Vehicle IDs: ${displayedVehicles.map((v) => v.id).toList()}');
 
         // Initialize filter options
         _initializeFilterOptions(vehicleProvider.vehicles);
@@ -149,15 +133,20 @@ class _TruckPageState extends State<TruckPage> {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
 
-      // Calculate the start and end indices for the next page
       int startIndex = _currentPage * _itemsPerPage;
       int endIndex = startIndex + _itemsPerPage;
-      // Fetch the next set of vehicles (Live only)
-      List<Vehicle> moreVehicles = vehicleProvider.vehicles
-          .where((vehicle) => vehicle.vehicleStatus == 'Live')
-          .skip(startIndex)
-          .take(_itemsPerPage)
-          .toList();
+
+      // Apply both Live status and brand filters
+      var filteredVehicles = vehicleProvider.vehicles
+          .where((vehicle) => vehicle.vehicleStatus == 'Live');
+
+      if (widget.selectedBrand != null) {
+        filteredVehicles = filteredVehicles
+            .where((vehicle) => vehicle.brands.contains(widget.selectedBrand));
+      }
+
+      List<Vehicle> moreVehicles =
+          filteredVehicles.skip(startIndex).take(_itemsPerPage).toList();
 
       if (moreVehicles.isNotEmpty) {
         setState(() {
@@ -173,11 +162,6 @@ class _TruckPageState extends State<TruckPage> {
       }
     } catch (e) {
       print('Error in _loadMoreVehicles: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load more vehicles. Please try again.'),
-        ),
-      );
       setState(() {
         _isLoadingMore = false;
       });
@@ -852,7 +836,7 @@ class _TruckPageState extends State<TruckPage> {
       child: Row(
         children: [
           Text(
-            '$title: ',
+            '${title.capitalize()}: ',
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
           ),
           Expanded(
@@ -889,7 +873,7 @@ class _TruckPageState extends State<TruckPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            "No vehicles available",
+            "No Vehicles Available",
             style: _customFont(16, FontWeight.normal, Colors.white),
           ),
           const SizedBox(height: 16),
@@ -915,5 +899,11 @@ class _TruckPageState extends State<TruckPage> {
         ],
       ),
     );
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

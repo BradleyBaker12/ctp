@@ -94,7 +94,7 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text(
-                              'COMMERCIAL TRADER PORTAL',
+                              'Commercial Trader Portal',
                               style: GoogleFonts.montserrat(
                                 fontSize: constraints.maxHeight * 0.024,
                                 fontWeight: FontWeight.w900,
@@ -113,28 +113,27 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                             ),
                             SizedBox(height: constraints.maxHeight * 0.05),
                             CustomButton(
-                              text: 'TRUCKS',
+                              text: 'Trucks',
                               borderColor: Colors.white,
                               onPressed: () =>
                                   _updateTradingInterest(context, 'trucks'),
                             ),
                             SizedBox(height: constraints.maxHeight * 0.01),
                             CustomButton(
-                              text: 'TRAILERS',
+                              text: 'Trailers',
                               borderColor: Colors.white,
                               onPressed: () =>
                                   _updateTradingInterest(context, 'trailers'),
                             ),
                             SizedBox(height: constraints.maxHeight * 0.01),
                             CustomButton(
-                              text: 'BOTH',
+                              text: 'Both',
                               borderColor: const Color(0xFFFF4E00),
                               onPressed: () =>
                                   _updateTradingInterest(context, 'both'),
                             ),
                             SizedBox(height: constraints.maxHeight * 0.03),
-                          ],
-                        ),
+                          ],                        ),
                       ),
                     ),
                   ),

@@ -174,7 +174,7 @@ class _SignInPageState extends State<SignInPage> {
   Future<void> _resetPassword() async {
     if (_emailController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email address')),
+        const SnackBar(content: Text('Please enter your Email address')),
       );
       return;
     }

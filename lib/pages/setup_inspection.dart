@@ -593,7 +593,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                     SizedBox(width: 5),
                                     SizedBox(
                                       child: Text(
-                                        'Provide details for the potential dealer',
+                                        'Provide Details For The Potential Dealer',
                                         style: TextStyle(
                                           fontSize: 18,
                                           color: Colors.white,
@@ -606,7 +606,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                 ),
                                 const SizedBox(height: 30),
                                 const Text(
-                                  'Now, let\'s set up a meeting with the potential seller to inspect the vehicle. Your careful selection ensures a smooth process ahead.',
+                                  'Now, Let\'s Set up a Meeting with the Potential Seller to Inspect the Vehicle. Your Careful Selection Ensures a Smooth Process Ahead.',
                                   style: TextStyle(
                                     fontSize: 15,
                                     color: Colors.white,

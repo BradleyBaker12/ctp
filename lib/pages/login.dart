@@ -68,15 +68,37 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         final bool shouldProceed = await _showSignInConfirmation();
-        if (!shouldProceed) return;
+        if (!shouldProceed) {
+          Navigator.pop(context); // Remove loading indicator
+          return;
+        }
 
         await _auth.signInWithCredential(credential);
       }
 
+      final User? user = _auth.currentUser;
       if (!mounted) return;
+
+      // Check if user is new by looking up their doc in Firestore
+      final userDocRef =
+          FirebaseFirestore.instance.collection('users').doc(user!.uid);
+      final docSnapshot = await userDocRef.get();
+
       Navigator.pop(context); // Remove loading indicator
-      // Change this line to navigate to phone number page instead of home
-      Navigator.pushReplacementNamed(context, '/home');
+
+      if (!docSnapshot.exists) {
+        // New user scenario
+        // Save initial user data (optional)
+        await saveUserData(user.uid, {
+          'email': user.email,
+          // Add additional fields if needed
+        });
+        // Navigate to the first name page
+        Navigator.pushReplacementNamed(context, '/firstNamePage');
+      } else {
+        // Existing user scenario
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // Remove loading indicator

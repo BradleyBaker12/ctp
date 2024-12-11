@@ -61,6 +61,8 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
               .doc(widget.offerId)
               .update({'offerStatus': 'paid'});
 
+           
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
