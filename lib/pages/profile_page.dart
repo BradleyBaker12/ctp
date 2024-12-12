@@ -149,32 +149,35 @@ class ProfilePage extends StatelessWidget {
                       '${userProvider.getPostalCode ?? ''}'),
               // Add this after the DOCUMENTS section
               const SizedBox(height: 20),
-              const Padding(
-                padding: EdgeInsets.only(left: 16.0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'VEHICLE HISTORY',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+              if (isTransporter)
+                const Padding(
+                  padding: EdgeInsets.only(left: 16.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'VEHICLE HISTORY',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const Divider(color: Colors.white),
-              _buildProfileAction(
-                'VIEW SOLD VEHICLES',
-                Icons.history,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const SoldVehiclesListPage()),
-                  );
-                },
-              ),
+              if (isTransporter) const Divider(color: Colors.white),
+
+              if (isTransporter)
+                _buildProfileAction(
+                  'VIEW SOLD VEHICLES',
+                  Icons.history,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SoldVehiclesListPage()),
+                    );
+                  },
+                ),
               const SizedBox(height: 20),
               const Padding(
                 padding: EdgeInsets.only(left: 16.0),
