@@ -44,13 +44,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: <String>['email', 'profile'],
-    clientId: kIsWeb
-        ? '656287296553-f4bt2394a16d7c36ckc0lp118jkirq3d.apps.googleusercontent.com'
-        : null,
-  );
-
   Future<void> _signInWithGoogle() async {
     try {
       if (!mounted) return;
