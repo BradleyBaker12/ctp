@@ -48,13 +48,17 @@ class _LoginPageState extends State<LoginPage> {
     try {
       if (!mounted) return;
       // Show loading indicator
-      await _showLoadingIndicator();
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         // User canceled the sign in
         if (!mounted) return;
-        _popDialogAfterFrame();
+        Navigator.pop(context); // Remove loading indicator
         return;
       }
 
@@ -65,10 +69,10 @@ class _LoginPageState extends State<LoginPage> {
         idToken: googleAuth.idToken,
       );
 
-      // Confirm the sign-in action if needed
+      // (Optional) Confirm the sign-in action if needed
       final bool shouldProceed = await _showSignInConfirmation();
       if (!shouldProceed) {
-        _popDialogAfterFrame();
+        Navigator.pop(context); // Remove loading indicator
         return;
       }
 
@@ -89,9 +93,7 @@ class _LoginPageState extends State<LoginPage> {
         await saveUserData(user.uid, {
           'email': user.email,
         });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacementNamed(context, '/firstNamePage');
-        });
+        Navigator.pushReplacementNamed(context, '/firstNamePage');
       } else {
         // Existing user scenario
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -165,7 +167,6 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> saveUserData(String uid, Map<String, dynamic> userData) async {
     try {
       userData['profileImageUrl'] = DEFAULT_PROFILE_IMAGE;
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -179,7 +180,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Just choose one layout based on platform
     return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
   }
 

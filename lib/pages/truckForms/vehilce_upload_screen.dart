@@ -135,7 +135,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   Future<void> _loadYearOptions() async {
     final String response =
-        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
     setState(() {
       _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
@@ -145,7 +145,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Future<void> _loadBrandsForYear(String year) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final String response =
-        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
     setState(() {
       _brandOptions = data[year]?.keys.toList() ?? [];
@@ -159,14 +159,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
     final String response =
-        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
 
     setState(() {
-      final models = (data[year][brand] as Map<String, dynamic>).keys.toList();
+      final models = data[year][brand] as List<dynamic>;
       _makeModelOptions = {brand: models.cast<String>()};
       formData.setMakeModel(null);
-      formData.setVariant(null);
     });
   }
 
@@ -175,7 +174,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final year = formData.year;
     final brand = formData.brands?.first;
     final String response =
-        await rootBundle.loadString('lib/assets/reorganized_truck_data.json');
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
     setState(() {
       // This will correctly get the variants for the selected model
@@ -867,131 +866,45 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                // CustomDropdown(
-                //   hintText: 'Year',
-                //   value: formData.year,
-                //   items: _yearOptions,
-                //   onChanged: (value) {
-                //     formData.setYear(value);
-                //     _loadBrandsForYear(
-                //         value!); // This will populate brands based on year
-                //   },
-                // ),
-                // const SizedBox(height: 15),
-                // // Manufacturer field
-                // CustomDropdown(
-                //   hintText: 'Manufacturer',
-                //   value: formData.brands?.isNotEmpty == true
-                //       ? formData.brands![0]
-                //       : null,
-                //   items: _brandOptions,
-                //   onChanged: (value) {
-                //     if (value != null) {
-                //       formData.setBrands([value]);
-                //       _loadModelsForBrand(value);
-                //     }
-                //   },
-                // ),
-                // const SizedBox(height: 20),
-                // // Year and Make/Model
-
-                // CustomDropdown(
-                //   hintText: 'Model',
-                //   value: formData.makeModel,
-                //   items: _makeModelOptions[formData.brands?.isNotEmpty == true
-                //           ? formData.brands![0]
-                //           : ''] ??
-                //       [],
-                //   onChanged: (value) {
-                //     formData.setMakeModel(value);
-                //     _loadVariantsForModel(value!);
-                //   },
-                // ),
-
-                // const SizedBox(height: 15),
-                // CustomDropdown(
-                //   hintText: 'Variant',
-                //   value: formData.variant,
-                //   items: _variantOptions,
-                //   onChanged: (value) {
-                //     formData.setVariant(value);
-                //   },
-                //   itemBuilder: (context, item) => SizedBox(
-                //     width: MediaQuery.of(context).size.width * 0.8,
-                //     child: Text(
-                //       item,
-                //       softWrap: true,
-                //       overflow: TextOverflow.visible,
-                //       style: TextStyle(color: Colors.white),
-                //     ),
-                //   ),
-                // ),
-
-                const SizedBox(height: 20),
 // Temporary Year Dropdown
                 CustomDropdown(
                   hintText: 'Year',
                   value: formData.year,
-                  items:
-                      List.generate(24, (index) => (2024 - index).toString()),
+                  items: _yearOptions, // This will be populated from JSON keys
                   onChanged: (value) {
                     formData.setYear(value);
+                    _loadBrandsForYear(
+                        value!); // This will populate brands based on year
                   },
                 ),
 
                 const SizedBox(height: 15),
 // Temporary Brand Dropdown
                 CustomDropdown(
-                  hintText: 'Brand',
+                  hintText: 'Manufacturer',
                   value: formData.brands?.isNotEmpty == true
                       ? formData.brands![0]
                       : null,
-                  items: const [
-                    'Ashok Leyland',
-                    'Dayun',
-                    'Eicher',
-                    'FAW',
-                    'Fiat',
-                    'Ford',
-                    'Foton',
-                    'Fuso',
-                    'Hino',
-                    'Hyundai',
-                    'Isuzu',
-                    'Iveco',
-                    'JAC',
-                    'Joylong',
-                    'MAN',
-                    'Mercedes-Benz',
-                    'Peugeot',
-                    'Powerstar',
-                    'Renault',
-                    'Scania',
-                    'Tata',
-                    'Toyota',
-                    'UD Trucks',
-                    'US Truck',
-                    'Volkswagen',
-                    'Volvo',
-                    'CNHTC',
-                    'DAF',
-                    'Freightliner',
-                    'Mack',
-                    'Powerland'
-                  ],
+                  items:
+                      _brandOptions, // This will be populated based on selected year
                   onChanged: (value) {
                     if (value != null) {
                       formData.setBrands([value]);
+                      _loadModelsForBrand(
+                          value); // This will populate models based on brand
                     }
                   },
                 ),
 
                 const SizedBox(height: 15),
 // Temporary Model Text Input
-                CustomTextField(
-                  controller: _modelController,
+                CustomDropdown(
                   hintText: 'Model',
-                  // inputFormatter: [UpperCaseTextFormatter()],
+                  value: formData.makeModel,
+                  items: _makeModelOptions[formData.brands?.isNotEmpty == true
+                          ? formData.brands![0]
+                          : ''] ??
+                      [],
                   onChanged: (value) {
                     formData.setMakeModel(value);
                   },

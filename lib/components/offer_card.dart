@@ -1,6 +1,7 @@
 // lib/components/offer_card.dart
 
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/payment_approved.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
@@ -172,6 +173,28 @@ class _OfferCardState extends State<OfferCard> {
             MaterialPageRoute(
               builder: (context) => PaymentPendingPage(
                 offerId: widget.offer.offerId,
+              ),
+            ),
+          );
+          return;
+        case 'Collection Location Confirmation': // Ensure this status matches
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CollectionConfirmationPage(
+                offerId: widget.offer.offerId,
+                location: widget.offer.dealerSelectedInspectionLocation ??
+                    'Unknown', // Replace with the correct location key
+                address: widget.offer.transporterDeliveryAddress ??
+                    'Unknown', // Replace with the correct address key
+                date: widget.offer.dealerSelectedInspectionDate!,
+                time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+                latLng: widget.offer.latLng != null
+                    ? LatLng(
+                        widget.offer.latLng!.latitude,
+                        widget.offer.latLng!.longitude,
+                      )
+                    : null,
               ),
             ),
           );

@@ -201,7 +201,7 @@ class _TransporterOfferDetailsPageState
             Row(
               children: [
                 Text(
-                  widget.vehicle.makeModel.toString().toUpperCase(),
+                  "${widget.vehicle.brands.join("")} ${widget.vehicle.makeModel.toString().toUpperCase()}",
                   style: GoogleFonts.montserrat(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

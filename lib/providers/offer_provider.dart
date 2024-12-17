@@ -27,6 +27,7 @@ class Offer extends ChangeNotifier {
   DateTime? dealerSelectedInspectionDate;
   String? dealerSelectedInspectionTime;
   String? dealerSelectedInspectionLocation;
+  String? transporterDeliveryAddress;
   GeoPoint? latLng;
 
   String? dealerSelectedCollectionLocation;
@@ -59,6 +60,7 @@ class Offer extends ChangeNotifier {
     this.dealerSelectedInspectionDate,
     this.dealerSelectedInspectionTime,
     this.dealerSelectedInspectionLocation,
+    this.transporterDeliveryAddress,
     this.latLng,
     this.dealerSelectedCollectionLocation,
     this.dealerSelectedCollectionAddress,
@@ -94,6 +96,7 @@ class Offer extends ChangeNotifier {
       dealerSelectedInspectionTime: data['dealerSelectedInspectionTime'],
       dealerSelectedInspectionLocation:
           data['dealerSelectedInspectionLocation'],
+      transporterDeliveryAddress: data['transporterDeliveryAddress'],
       latLng: data['latLng'] != null ? data['latLng'] as GeoPoint : null,
       dealerSelectedCollectionLocation:
           data['dealerSelectedCollectionLocation'],
@@ -132,12 +135,6 @@ class Offer extends ChangeNotifier {
         // Explicitly map the makeModel
         vehicleMakeModel = vehicleData['makeModel']?.toString();
         vehicleMainImage = vehicleData['mainImageUrl'];
-
-        print('''
-  === VEHICLE DETAILS FETCH ===
-  Brand: $vehicleBrand
-  MakeModel: $vehicleMakeModel
-        ''');
       }
     } finally {
       isVehicleDetailsLoading = false;
@@ -220,15 +217,7 @@ class OfferProvider extends ChangeNotifier {
         }
 
         // print('Number of offers fetched: ${_offers.length}');
-        for (var offer in _offers) {
-          print('''
-=== OFFER DEBUG ===
-OfferID: ${offer.offerId}
-Brand: ${offer.vehicleBrand}
-Model: ${offer.vehicleMakeModel}
-MainImage: ${offer.vehicleMainImage}
-    ''');
-        }
+        for (var offer in _offers) {}
       } else {
         // print('DEBUG: No documents found in query result');
         // _hasMore = false;

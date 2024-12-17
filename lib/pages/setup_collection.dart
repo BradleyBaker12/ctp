@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
-import 'package:intl/intl.dart'; // For date formatting
+import 'package:intl/intl.dart'; // For date/time formatting
 import 'package:table_calendar/table_calendar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -28,7 +28,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   // List of time dropdowns for the current day
   List<TimeOfDay?> _selectedTimes = [null];
 
-  // List of predefined time slots (e.g., every 30 minutes from 8 AM to 6 PM)
+  // Predefined time slots in 24-hour increments
+  // Adjust these slots to match any times you expect from Firestore.
   final List<TimeOfDay> _timeSlots = [
     TimeOfDay(hour: 8, minute: 0),
     TimeOfDay(hour: 8, minute: 30),
@@ -40,6 +41,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     TimeOfDay(hour: 11, minute: 30),
     TimeOfDay(hour: 12, minute: 0),
     TimeOfDay(hour: 12, minute: 30),
+    // Add a 13:00 slot since Firestore has times like "13:00"
     TimeOfDay(hour: 13, minute: 0),
     TimeOfDay(hour: 13, minute: 30),
     TimeOfDay(hour: 14, minute: 0),
@@ -51,10 +53,9 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     TimeOfDay(hour: 17, minute: 0),
     TimeOfDay(hour: 17, minute: 30),
   ];
-
   // Store information for multiple collection locations
   final List<Map<String, dynamic>> _locations = [];
-  int? _editIndex; // Store the index of the location being edited
+  int? _editIndex;
 
   // Controllers for address input fields
   final TextEditingController _addressLine1Controller = TextEditingController();
@@ -65,8 +66,9 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
   bool _isAddingLocation = true;
   bool _showBackToFormButton = false;
-  bool _isLoading = false; // Loading state variable
-
+  bool _isLoading = false;
+  bool _useInspectionDetails = false;
+  bool _offerDeliveryOption = false;
   @override
   void dispose() {
     _addressLine1Controller.dispose();
@@ -77,7 +79,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     super.dispose();
   }
 
-  // Handler for day selection on the calendar
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     setState(() {
       _focusedDay = focusedDay;
@@ -89,28 +90,28 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       }
 
       if (_selectedDays.any((day) => _isSameDay(day, selectedDay))) {
-        // If the day is already selected, allow editing or removal
         _showEditOrRemoveDialog(selectedDay);
       } else {
-        // Add the new day to selected days
         _selectedDays.add(selectedDay);
       }
 
-      // Update the currently selected day and its times
       _selectedDay = selectedDay;
       _selectedTimes =
           _dateTimeSlots[selectedDay]?.map((e) => e).toList() ?? [null];
+
+      // If no time selected, choose the first time slot by default
+      if (_selectedTimes.isEmpty || _selectedTimes.first == null) {
+        _selectedTimes[0] = _timeSlots.first;
+      }
     });
   }
 
-  // Helper method to check if two days are the same
   bool _isSameDay(DateTime day1, DateTime day2) {
     return day1.year == day2.year &&
         day1.month == day2.month &&
         day1.day == day2.day;
   }
 
-  // Show dialog to edit or remove a selected date
   void _showEditOrRemoveDialog(DateTime selectedDay) {
     showDialog(
       context: context,
@@ -142,6 +143,10 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                   _selectedTimes =
                       _dateTimeSlots[selectedDay]?.map((e) => e).toList() ??
                           [null];
+
+                  if (_selectedTimes.isEmpty || _selectedTimes.first == null) {
+                    _selectedTimes[0] = _timeSlots.first;
+                  }
                 });
                 Navigator.of(context).pop();
               },
@@ -152,21 +157,26 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     );
   }
 
-  // Add another time slot dropdown
   void _addSelectedTimeSlot() {
     setState(() {
-      _selectedTimes.add(null);
+      // Add another time slot with a default first slot selected
+      _selectedTimes.add(_timeSlots.first);
     });
   }
 
-  // Handler for time slot selection
   void _onTimeSlotSelected(TimeOfDay? selectedTime, int index) {
     setState(() {
       _selectedTimes[index] = selectedTime;
-
       if (_selectedDay != null && selectedTime != null) {
         _dateTimeSlots[_selectedDay!] ??= [];
-        _dateTimeSlots[_selectedDay!]?.add(selectedTime);
+        // Ensure we set the correct index if we're adding time slots dynamically
+        if (_dateTimeSlots[_selectedDay!]!.length <= index) {
+          // Extend the list if necessary
+          _dateTimeSlots[_selectedDay!]!.addAll(List.filled(
+              index - _dateTimeSlots[_selectedDay!]!.length + 1,
+              _timeSlots.first));
+        }
+        _dateTimeSlots[_selectedDay!]![index] = selectedTime;
       }
     });
   }
@@ -180,18 +190,17 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     return DateTime(year, month, day);
   }
 
-  // Edit an existing collection location
   Future<void> _editLocation(int index) async {
     setState(() {
       _editIndex = index;
-
       Map<String, dynamic> location = _locations[index];
       List<String> dates = List<String>.from(location['dates']);
       List<Map<String, dynamic>> timeSlots =
           List<Map<String, dynamic>>.from(location['timeSlots']);
 
       List<String> addressParts = location['address'].split(', ');
-      _addressLine1Controller.text = addressParts[0];
+      _addressLine1Controller.text =
+          addressParts.isNotEmpty ? addressParts[0] : '';
       _addressLine2Controller.text =
           addressParts.length > 1 ? addressParts[1] : '';
       _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
@@ -199,13 +208,10 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       _postalCodeController.text =
           addressParts.length > 4 ? addressParts[4] : '';
 
-      DateFormat dateFormat = DateFormat('d-M-yyyy');
       _selectedDays =
           dates.map((dateStr) => _parseDateString(dateStr)).toList();
 
-      // Clear previous time slots
       _dateTimeSlots.clear();
-
       for (var date in _selectedDays) {
         List<String> times = timeSlots
             .firstWhere((slot) => slot['date'] == date.toShortString())['times']
@@ -216,50 +222,54 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
             .toList();
       }
 
-      // Set the selected day to the first date for editing
       if (_selectedDays.isNotEmpty) {
         _selectedDay = _selectedDays.first;
         _selectedTimes =
             _dateTimeSlots[_selectedDay!]?.map((e) => e).toList() ?? [null];
+
+        // If no time selected, choose the first time slot by default
+        if (_selectedTimes.isEmpty || _selectedTimes.first == null) {
+          _selectedTimes[0] = _timeSlots.first;
+        }
       }
+
+      _isAddingLocation = true;
     });
   }
 
-  // Parse time from string
+  // Updated parser to handle 24-hour format like "13:00"
   TimeOfDay? _parseTimeOfDay(String timeStr) {
     try {
-      final format = DateFormat.jm(); // e.g., 08:00 AM
+      final format = DateFormat("HH:mm"); // 24-hour format
       final dateTime = format.parse(timeStr);
       return TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
     } catch (e) {
-      print('Error parsing time: $timeStr');
+      print('Error parsing time: $timeStr, $e');
       return null;
     }
   }
 
   Future<void> _saveCollectionDetails() async {
     if (_locations.isNotEmpty) {
-      // Prepare the data to save under 'collectionDetails' -> 'collectionLocations' -> 'locations'
       Map<String, dynamic> collectionDetails = {
         'collectionDetails': {
           'collectionLocations': {
             'locations': _locations,
           },
         },
+        'offerDeliveryService': _offerDeliveryOption,
       };
 
       setState(() {
-        _isLoading = true; // Start loading
+        _isLoading = true;
       });
 
       try {
-        // Save the collection details to the vehicle document in Firestore
         await FirebaseFirestore.instance
             .collection('vehicles')
             .doc(widget.vehicleId)
             .update(collectionDetails);
 
-        // Optionally, navigate back or show a confirmation
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Collection details saved successfully!'),
@@ -275,7 +285,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
         print('Error saving collection details: $e');
       } finally {
         setState(() {
-          _isLoading = false; // Stop loading
+          _isLoading = false;
         });
       }
     } else {
@@ -283,14 +293,13 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     }
   }
 
-  // Save the current location being added or edited
   Future<void> _saveLocation() async {
     if (_selectedDays.isEmpty) {
       _showErrorDialog('Please select at least one date for this location.');
       return;
     }
 
-    // Collect all dates that are missing time assignments
+    // Check if each selected day has at least one time slot
     List<DateTime> daysMissingTimes = [];
     for (var day in _selectedDays) {
       if (_dateTimeSlots[day] == null || _dateTimeSlots[day]!.isEmpty) {
@@ -299,9 +308,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     }
 
     if (daysMissingTimes.isNotEmpty) {
-      // Format the list of dates to a readable string
       String daysList = daysMissingTimes.map((day) {
-        // You can format the date as you prefer
         return DateFormat('dd MMM yyyy').format(day);
       }).join(', ');
 
@@ -329,7 +336,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       return;
     }
 
-    // Save the location
     String fullAddress = '${_addressLine1Controller.text}, '
         '${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}'
         '${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
@@ -355,14 +361,12 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
         _locations.add(locationData);
       }
 
-      // Clear the input fields and update the UI state
       _clearFields();
       _isAddingLocation = false;
       _showBackToFormButton = true;
     });
   }
 
-  // Clear all input fields and selections
   void _clearFields() {
     _selectedDays.clear();
     _dateTimeSlots.clear();
@@ -375,7 +379,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     _postalCodeController.clear();
   }
 
-  // Show an error dialog with a given message
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -396,7 +399,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     );
   }
 
-  // Allow the user to add another location
   void _addAnotherLocation() {
     setState(() {
       _isAddingLocation = true;
@@ -404,7 +406,103 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     });
   }
 
-  // Build the UI for the page
+  Future<void> _populateFromInspectionDetails() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+
+      if (!doc.exists) {
+        _showErrorDialog('No inspection details found for this vehicle.');
+        setState(() {
+          _useInspectionDetails = false;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      Map<String, dynamic>? inspectionData =
+          doc.data() as Map<String, dynamic>?;
+
+      if (inspectionData == null ||
+          inspectionData['inspectionDetails'] == null ||
+          inspectionData['inspectionDetails']['inspectionLocations'] == null ||
+          inspectionData['inspectionDetails']['inspectionLocations']
+                  ['locations'] ==
+              null ||
+          (inspectionData['inspectionDetails']['inspectionLocations']
+                  ['locations'] as List)
+              .isEmpty) {
+        _showErrorDialog('No inspection details available to copy.');
+        setState(() {
+          _useInspectionDetails = false;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      List locations = inspectionData['inspectionDetails']
+          ['inspectionLocations']['locations'];
+
+      Map<String, dynamic> inspectionLocation = locations.first;
+
+      _clearFields();
+      _locations.clear();
+
+      String address = inspectionLocation['address'];
+      List<String> addressParts = address.split(', ');
+      _addressLine1Controller.text =
+          addressParts.isNotEmpty ? addressParts[0] : '';
+      _addressLine2Controller.text =
+          addressParts.length > 1 ? addressParts[1] : '';
+      _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
+      _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
+      _postalCodeController.text =
+          addressParts.length > 4 ? addressParts[4] : '';
+
+      List dates = inspectionLocation['dates'];
+      _selectedDays =
+          dates.map((dateStr) => _parseDateString(dateStr)).toList();
+
+      _dateTimeSlots.clear();
+      for (var timeSlotData in inspectionLocation['timeSlots']) {
+        DateTime date = _parseDateString(timeSlotData['date']);
+        List times = timeSlotData['times'];
+        _dateTimeSlots[date] = times
+            .map((timeStr) => _parseTimeOfDay(timeStr))
+            .whereType<TimeOfDay>()
+            .toList();
+      }
+
+      if (_selectedDays.isNotEmpty) {
+        _selectedDay = _selectedDays.first;
+        _selectedTimes = _dateTimeSlots[_selectedDay!] ?? [null];
+        // If no time selected, choose the first time slot by default
+        if (_selectedTimes.isEmpty || _selectedTimes.first == null) {
+          _selectedTimes[0] = _timeSlots.first;
+        }
+      }
+
+      _isAddingLocation = true;
+      _showBackToFormButton = true;
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching inspection details: $e');
+      _showErrorDialog('Failed to fetch inspection details.');
+      setState(() {
+        _useInspectionDetails = false;
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -458,6 +556,43 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 30),
+                              CheckboxListTile(
+                                title: const Text(
+                                  "Use the same details as the inspection?",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                value: _useInspectionDetails,
+                                activeColor: Colors.blue,
+                                onChanged: (bool? value) async {
+                                  if (value == true) {
+                                    _useInspectionDetails = true;
+                                    await _populateFromInspectionDetails();
+                                  } else {
+                                    setState(() {
+                                      _useInspectionDetails = false;
+                                      _clearFields();
+                                      _locations.clear();
+                                      _isAddingLocation = true;
+                                      _showBackToFormButton = false;
+                                    });
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              CheckboxListTile(
+                                title: const Text(
+                                  "Offer delivery service to dealer's preferred address?",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                value: _offerDeliveryOption,
+                                activeColor: Colors.blue,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _offerDeliveryOption = value ?? false;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
                               const Text(
                                 'ENTER COLLECTION LOCATION',
                                 style: TextStyle(
@@ -558,7 +693,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                       outsideDaysVisible: false,
                                       disabledDecoration: const BoxDecoration(
                                         color: Colors.transparent,
-                                        shape: BoxShape.rectangle,
                                       ),
                                       markerDecoration: const BoxDecoration(
                                         color: Colors.transparent,
@@ -611,26 +745,41 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                         .map((entry) {
                                       int index = entry.key;
                                       TimeOfDay? selectedTime = entry.value;
-                                      return DropdownButton<TimeOfDay>(
-                                        value: selectedTime,
-                                        hint: const Text(
-                                          'Select Time Slot',
-                                          style: TextStyle(color: Colors.white),
-                                        ),
-                                        dropdownColor: Colors.black,
-                                        items: _timeSlots.map((TimeOfDay time) {
-                                          return DropdownMenuItem<TimeOfDay>(
-                                            value: time,
-                                            child: Text(
-                                              time.format(context),
-                                              style: const TextStyle(
-                                                  color: Colors.white),
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Colors.white,
+                                              width: 1,
                                             ),
-                                          );
-                                        }).toList(),
-                                        onChanged: (TimeOfDay? newValue) {
-                                          _onTimeSlotSelected(newValue, index);
-                                        },
+                                          ),
+                                        ),
+                                        child: DropdownButton<TimeOfDay>(
+                                          value: selectedTime,
+                                          hint: const Text(
+                                            'Select Time Slot',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                          dropdownColor: Colors.black,
+                                          underline: const SizedBox(),
+                                          iconEnabledColor: Colors.white,
+                                          items:
+                                              _timeSlots.map((TimeOfDay time) {
+                                            return DropdownMenuItem<TimeOfDay>(
+                                              value: time,
+                                              child: Text(
+                                                time.format(context),
+                                                style: const TextStyle(
+                                                    color: Colors.white),
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (TimeOfDay? newValue) {
+                                            _onTimeSlotSelected(
+                                                newValue, index);
+                                          },
+                                        ),
                                       );
                                     }).toList(),
                                   ),
@@ -745,7 +894,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                 width: 100,
                 height: 100,
                 child: Image.asset(
-                  'lib/assets/Loading_Logo_CTP.gif', // Replace with your loader GIF path
+                  'lib/assets/Loading_Logo_CTP.gif',
                   fit: BoxFit.cover,
                 ),
               ),
@@ -755,7 +904,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     );
   }
 
-  // Helper method to build text fields
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -792,18 +940,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   }
 }
 
-// Extension method to format DateTime to a short string
 extension DateTimeExtension on DateTime {
   String toShortString() {
     return '$day-$month-$year';
-  }
-
-  static DateTime parseShortString(String dateStr) {
-    final parts = dateStr.split('-');
-    if (parts.length != 3) throw FormatException("Invalid date format");
-    final day = int.parse(parts[0]);
-    final month = int.parse(parts[1]);
-    final year = int.parse(parts[2]);
-    return DateTime(year, month, day);
   }
 }
