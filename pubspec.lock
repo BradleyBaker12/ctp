@@ -185,6 +185,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.8"
+  device_info_plus:
+    dependency: transitive
+    description:
+      name: device_info_plus
+      sha256: a7fd703482b391a87d60b6061d04dfdeab07826b96f9abd8f5ed98068acc0074
+      url: "https://pub.dev"
+    source: hosted
+    version: "10.1.2"
+  device_info_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: device_info_plus_platform_interface
+      sha256: "0b04e02b30791224b31969eb1b50d723498f402971bff3630bca2ba839bd1ed2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.2"
   dropdown_search:
     dependency: "direct main"
     description:
@@ -193,6 +209,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.0.6"
+  extension:
+    dependency: transitive
+    description:
+      name: extension
+      sha256: be3a6b7f8adad2f6e2e8c63c895d19811fcf203e23466c6296267941d0ff4f24
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0"
   fake_async:
     dependency: transitive
     description:
@@ -482,10 +506,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_pdfview
-      sha256: "6b625b32a9102780236554dff42f2d798b4627704ab4a3153c07f2134a52b697"
+      sha256: "715085f9f2c1ad5129dfe0d31a5f0e5481e2e296ce4e6ce72662de28df5456a6"
       url: "https://pub.dev"
     source: hosted
-    version: "1.3.3"
+    version: "1.3.4"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -944,6 +968,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.11.1"
+  pdfx:
+    dependency: "direct main"
+    description:
+      name: pdfx
+      sha256: cbbd7bf54d6f37524df85d06a816fa095d124cd32d42909effddc0027f9db10b
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.8.0"
   permission_handler:
     dependency: "direct main"
     description:
@@ -1000,6 +1032,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.2"
+  photo_view:
+    dependency: transitive
+    description:
+      name: photo_view
+      sha256: "1fc3d970a91295fbd1364296575f854c9863f225505c28c46e0a03e48960c75e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.15.0"
   pinput:
     dependency: "direct main"
     description:
@@ -1405,6 +1445,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.5.4"
+  win32_registry:
+    dependency: transitive
+    description:
+      name: win32_registry
+      sha256: "21ec76dfc731550fd3e2ce7a33a9ea90b828fdf19a5c3bcf556fa992cfa99852"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.5"
   xdg_directories:
     dependency: transitive
     description:

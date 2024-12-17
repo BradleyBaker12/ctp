@@ -2261,7 +2261,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                           _calculateTotalCost(_offerAmount);
 
                                       String formattedValue =
-                                          "R ${_formatNumberWithSpaces(numericValue)}";
+                                          "R${_formatNumberWithSpaces(numericValue)}";
                                       _controller.value =
                                           _controller.value.copyWith(
                                         text: formattedValue,
@@ -2291,7 +2291,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text(
-                                  "R ${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}",
+                                  "R${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}",
                                   style: _customFont(
                                       18, FontWeight.bold, Colors.white),
                                 ),

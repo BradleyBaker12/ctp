@@ -235,7 +235,7 @@ class UserProvider extends ChangeNotifier {
   Future<void> saveFcmToken() async {
     if (_user != null) {
       String? token = await FirebaseMessaging.instance.getToken();
-      if (token != null && token != _fcmToken) {
+      if (token != _fcmToken) {
         _fcmToken = token;
         await FirebaseFirestore.instance
             .collection('users')

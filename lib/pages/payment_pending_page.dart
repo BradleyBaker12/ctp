@@ -91,7 +91,7 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
         String? proofOfPaymentUrl = offerSnapshot['proofOfPaymentUrl'];
         setState(() {
           _proofOfPaymentUploaded =
-              proofOfPaymentUrl != null && proofOfPaymentUrl.isNotEmpty;
+              proofOfPaymentUrl!.isNotEmpty;
         });
       }
     } catch (e) {
