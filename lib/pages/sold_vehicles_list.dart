@@ -2,9 +2,6 @@
 
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
-import 'package:ctp/pages/home_page.dart';
-import 'package:ctp/pages/offersPage.dart';
-import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,14 +12,6 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 
 // Import nested models
-import 'package:ctp/models/admin_data.dart';
-import 'package:ctp/models/maintenance.dart';
-import 'package:ctp/models/truck_conditions.dart';
-import 'package:ctp/models/external_cab.dart';
-import 'package:ctp/models/internal_cab.dart';
-import 'package:ctp/models/chassis.dart';
-import 'package:ctp/models/drive_train.dart';
-import 'package:ctp/models/tyres.dart';
 
 class SoldVehiclesListPage extends StatefulWidget {
   const SoldVehiclesListPage({super.key});

@@ -38,6 +38,10 @@ class _CollectionConfirmationPageState
     extends State<CollectionConfirmationPage> {
   bool _isLoading = false;
   LatLng? _latLng;
+  String _displayedAddress = '';
+  String _headerText = 'COLLECTION CONFIRMATION';
+  String _meetingInfoText = 'Meeting information:';
+  String _doneButtonText = 'DONE';
   int _selectedIndex =
       0; // Variable to keep track of the selected bottom nav item
 
@@ -60,15 +64,9 @@ class _CollectionConfirmationPageState
       await offerRef.update({
         'offerStatus': 'Collection Location Confirmation',
       });
-
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   const SnackBar(
-      //       content: Text(
-      //           'Offer status updated to Collection Location Confirmation')),
-      // );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An Unexpected error has ocured')),
+        SnackBar(content: Text('An unexpected error has occurred')),
       );
     } finally {
       setState(() {
@@ -83,20 +81,65 @@ class _CollectionConfirmationPageState
     });
 
     try {
-      // Check if LatLng is provided directly
-      if (widget.latLng != null) {
-        _latLng = widget.latLng;
-      } else {
-        // If not, attempt to get coordinates using the address (fallback)
-        List<Location> locations = await locationFromAddress(widget.address);
-        if (locations.isNotEmpty) {
-          final location = locations.first;
+      final DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .get();
+
+      if (offerSnapshot.exists) {
+        final data = offerSnapshot.data() as Map<String, dynamic>;
+        final bool dealerSelectedDelivery =
+            data['dealerSelectedDelivery'] ?? false;
+
+        String addressToUse = widget.address;
+        LatLng? latLngToUse = widget.latLng;
+
+        if (dealerSelectedDelivery) {
+          // Update text for delivery
           setState(() {
-            _latLng = LatLng(location.latitude, location.longitude);
+            _headerText = 'DELIVERY CONFIRMATION';
+            _meetingInfoText = 'Delivery information:';
+            _doneButtonText = 'CONFIRM DELIVERY';
           });
+
+          addressToUse = data['transporterDeliveryAddress'] ?? 'Unknown';
+          final deliveryLatLng = data['transporterDeliveryLatLng'];
+
+          if (deliveryLatLng != null) {
+            latLngToUse = LatLng(
+              deliveryLatLng['latitude'],
+              deliveryLatLng['longitude'],
+            );
+          } else {
+            // Fallback to geocoding the transporter delivery address
+            List<Location> locations = await locationFromAddress(addressToUse);
+            if (locations.isNotEmpty) {
+              final location = locations.first;
+              latLngToUse = LatLng(location.latitude, location.longitude);
+            } else {
+              throw 'No locations found for the provided transporter delivery address';
+            }
+          }
         } else {
-          throw 'No locations found for the provided address';
+          // Use default location if dealerSelectedDelivery is not true
+          if (widget.latLng == null) {
+            List<Location> locations =
+                await locationFromAddress(widget.address);
+            if (locations.isNotEmpty) {
+              final location = locations.first;
+              latLngToUse = LatLng(location.latitude, location.longitude);
+            } else {
+              throw 'No locations found for the provided collection address';
+            }
+          }
         }
+
+        setState(() {
+          _latLng = latLngToUse;
+          _displayedAddress = addressToUse;
+        });
+      } else {
+        throw 'Offer data not found';
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,9 +197,9 @@ class _CollectionConfirmationPageState
                         height: 100,
                         child: Image.asset('lib/assets/CTPLogo.png')),
                     const SizedBox(height: 32),
-                    const Text(
-                      'LOCATION CONFIRMATION',
-                      style: TextStyle(
+                    Text(
+                      _headerText,
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
@@ -164,9 +207,9 @@ class _CollectionConfirmationPageState
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    const Text(
-                      'Meeting information:',
-                      style: TextStyle(
+                    Text(
+                      _meetingInfoText,
+                      style: const TextStyle(
                         fontSize: 18,
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -175,29 +218,12 @@ class _CollectionConfirmationPageState
                     ),
                     const SizedBox(height: 32),
                     Text(
-                      widget.address,
+                      _displayedAddress.isNotEmpty
+                          ? _displayedAddress
+                          : 'Loading address...',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    Text(
-                      '${widget.date.day} ${_getMonthName(widget.date.month)} ${widget.date.year}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.time,
-                      style: const TextStyle(
-                        fontSize: 16,
                         color: Colors.white,
                       ),
                       textAlign: TextAlign.center,
@@ -216,7 +242,7 @@ class _CollectionConfirmationPageState
                             ),
                             markers: {
                               Marker(
-                                markerId: MarkerId(widget.location),
+                                markerId: MarkerId('Location'),
                                 position: _latLng!,
                               ),
                             },
@@ -235,7 +261,8 @@ class _CollectionConfirmationPageState
                       text: 'COPY ADDRESS',
                       borderColor: Colors.blue,
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: widget.address));
+                        Clipboard.setData(
+                            ClipboardData(text: _displayedAddress));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content: Text('Address copied to clipboard')),
@@ -248,7 +275,7 @@ class _CollectionConfirmationPageState
                       onPressed: _openInGoogleMaps,
                     ),
                     CustomButton(
-                      text: 'DONE',
+                      text: _doneButtonText,
                       borderColor: const Color(0xFFFF4E00),
                       onPressed: () {
                         Navigator.push(

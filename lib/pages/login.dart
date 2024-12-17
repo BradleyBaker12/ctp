@@ -18,7 +18,6 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
   static const String DEFAULT_PROFILE_IMAGE =
       'https://firebasestorage.googleapis.com/v0/b/your-bucket/default-profile.png';
 
@@ -39,6 +38,13 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: <String>['email', 'profile'],
+    clientId: kIsWeb
+        ? '656287296553-f4bt2394a16d7c36ckc0lp118jkirq3d.apps.googleusercontent.com'
+        : null,
+  );
+
   Future<void> _signInWithGoogle() async {
     try {
       if (!mounted) return;
@@ -49,32 +55,29 @@ class _LoginPageState extends State<LoginPage> {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      if (kIsWeb) {
-        GoogleAuthProvider googleProvider = GoogleAuthProvider();
-        await _auth.signInWithPopup(googleProvider);
-      } else {
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) {
-          if (!mounted) return;
-          Navigator.pop(context); // Remove loading indicator
-          return;
-        }
-
-        final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        final bool shouldProceed = await _showSignInConfirmation();
-        if (!shouldProceed) {
-          Navigator.pop(context); // Remove loading indicator
-          return;
-        }
-
-        await _auth.signInWithCredential(credential);
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled the sign in
+        if (!mounted) return;
+        Navigator.pop(context); // Remove loading indicator
+        return;
       }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // (Optional) Confirm the sign-in action if needed
+      final bool shouldProceed = await _showSignInConfirmation();
+      if (!shouldProceed) {
+        Navigator.pop(context); // Remove loading indicator
+        return;
+      }
+
+      await _auth.signInWithCredential(credential);
 
       final User? user = _auth.currentUser;
       if (!mounted) return;
@@ -88,12 +91,9 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!docSnapshot.exists) {
         // New user scenario
-        // Save initial user data (optional)
         await saveUserData(user.uid, {
           'email': user.email,
-          // Add additional fields if needed
         });
-        // Navigate to the first name page
         Navigator.pushReplacementNamed(context, '/firstNamePage');
       } else {
         // Existing user scenario
@@ -146,7 +146,6 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> saveUserData(String uid, Map<String, dynamic> userData) async {
     try {
       userData['profileImageUrl'] = DEFAULT_PROFILE_IMAGE;
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -160,11 +159,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Comment out this line
-    // return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
-
-    // Replace with just
-    return _buildMobileLoginPage();
+    return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
   }
 
   Widget _buildWebLoginPage() {
@@ -229,7 +224,7 @@ class _LoginPageState extends State<LoginPage> {
                         _buildMobileContent(constraints),
                       ],
                     ),
-                    Positioned(
+                    const Positioned(
                       child: BlurryAppBar(),
                     ),
                   ],

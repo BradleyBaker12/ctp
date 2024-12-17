@@ -112,7 +112,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // since the brand should always show all options regardless of year.
   // If you still need to load models/variants dynamically from JSON, you can adjust accordingly.
 
-  List<String> _variantOptions = [];
+  final List<String> _variantOptions = [];
 
   String? _initialVehicleStatus;
 

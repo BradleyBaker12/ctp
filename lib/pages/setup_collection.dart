@@ -53,7 +53,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     TimeOfDay(hour: 17, minute: 0),
     TimeOfDay(hour: 17, minute: 30),
   ];
-
   // Store information for multiple collection locations
   final List<Map<String, dynamic>> _locations = [];
   int? _editIndex;
@@ -69,7 +68,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   bool _showBackToFormButton = false;
   bool _isLoading = false;
   bool _useInspectionDetails = false;
-
+  bool _offerDeliveryOption = false;
   @override
   void dispose() {
     _addressLine1Controller.dispose();
@@ -258,6 +257,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
             'locations': _locations,
           },
         },
+        'offerDeliveryService': _offerDeliveryOption,
       };
 
       setState(() {
@@ -576,6 +576,20 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                       _showBackToFormButton = false;
                                     });
                                   }
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              CheckboxListTile(
+                                title: const Text(
+                                  "Offer delivery service to dealer's preferred address?",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                value: _offerDeliveryOption,
+                                activeColor: Colors.blue,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _offerDeliveryOption = value ?? false;
+                                  });
                                 },
                               ),
                               const SizedBox(height: 16),

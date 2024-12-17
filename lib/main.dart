@@ -95,7 +95,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/phoneNumber': (context) => const PhoneNumberPage(),
         '/otp': (context) => const OTPScreen(),
-        '/firstName': (context) => const FirstNamePage(),
+        '/firstNamePage': (context) => const FirstNamePage(),
         '/tradingCategory': (context) => const TradingCategoryPage(),
         '/addProfilePhoto': (context) => const AddProfilePhotoPage(),
         '/addProfilePhotoTransporter': (context) =>
@@ -116,22 +116,6 @@ class MyApp extends StatelessWidget {
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
-        // '/external-cab': (context) => ExternalCabForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
-        // '/internal-cab': (context) => InternalCabForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
-        // '/drive-train': (context) => DriveTrainForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
-        // '/chassis': (context) => ChassisForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
-        // '/tyres': (context) => TyresForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
-        // '/truck-condition': (context) => TruckConditionForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
-        // '/admin': (context) => AdminForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
-        // '/maintenance': (context) => MaintenanceForm(
-        //     formData: Provider.of<FormDataProvider>(context).formData ?? {}),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
@@ -151,42 +135,40 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch user data and complaints after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final complaintsProvider =
+          Provider.of<ComplaintsProvider>(context, listen: false);
+
+      userProvider.fetchUserData();
+      complaintsProvider.fetchAllComplaints();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final complaintsProvider = Provider.of<ComplaintsProvider>(context);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      userProvider.fetchUserData();
-      complaintsProvider.fetchAllComplaints();
-    });
     User? firebaseUser = FirebaseAuth.instance.currentUser;
-
-    // print('Firebase User: ${FirebaseAuth.instance.currentUser}');
-    // print('Account Status: ${userProvider.getAccountStatus}');
 
     if (firebaseUser != null && !firebaseUser.isAnonymous) {
       if (userProvider.getAccountStatus == 'suspended') {
         return const WaitingForApprovalPage();
       }
-      // All authenticated users including guests can proceed to HomePage
       return const HomePage();
     } else {
       return const LoginPage();
     }
-  }
-
-  Widget _navigateToHome(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-        (route) => false,
-      );
-    });
-    return Container();
   }
 }
