@@ -18,9 +18,15 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
   static const String DEFAULT_PROFILE_IMAGE =
       'https://firebasestorage.googleapis.com/v0/b/your-bucket/default-profile.png';
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: <String>['email', 'profile'],
+    clientId: kIsWeb
+        ? '656287296553-f4bt2394a16d7c36ckc0lp118jkirq3d.apps.googleusercontent.com'
+        : null,
+  );
 
   @override
   void initState() {
@@ -30,7 +36,6 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _initializeFirebase() async {
     try {
-      // Initialize Firebase provider installer if needed
       if (!kIsWeb) {
         await Firebase.initializeApp();
       }
@@ -43,104 +48,118 @@ class _LoginPageState extends State<LoginPage> {
     try {
       if (!mounted) return;
       // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
+      await _showLoadingIndicator();
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled the sign in
+        if (!mounted) return;
+        _popDialogAfterFrame();
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
 
-      if (kIsWeb) {
-        GoogleAuthProvider googleProvider = GoogleAuthProvider();
-        await _auth.signInWithPopup(googleProvider);
-      } else {
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) {
-          if (!mounted) return;
-          Navigator.pop(context); // Remove loading indicator
-          return;
-        }
-
-        final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        final bool shouldProceed = await _showSignInConfirmation();
-        if (!shouldProceed) {
-          Navigator.pop(context); // Remove loading indicator
-          return;
-        }
-
-        await _auth.signInWithCredential(credential);
+      // Confirm the sign-in action if needed
+      final bool shouldProceed = await _showSignInConfirmation();
+      if (!shouldProceed) {
+        _popDialogAfterFrame();
+        return;
       }
+
+      await _auth.signInWithCredential(credential);
 
       final User? user = _auth.currentUser;
       if (!mounted) return;
 
-      // Check if user is new by looking up their doc in Firestore
+      // Check if user is new
       final userDocRef =
           FirebaseFirestore.instance.collection('users').doc(user!.uid);
       final docSnapshot = await userDocRef.get();
 
-      Navigator.pop(context); // Remove loading indicator
+      _popDialogAfterFrame();
 
       if (!docSnapshot.exists) {
         // New user scenario
-        // Save initial user data (optional)
         await saveUserData(user.uid, {
           'email': user.email,
-          // Add additional fields if needed
         });
-        // Navigate to the first name page
-        Navigator.pushReplacementNamed(context, '/firstNamePage');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacementNamed(context, '/firstNamePage');
+        });
       } else {
         // Existing user scenario
-        Navigator.pushReplacementNamed(context, '/home');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacementNamed(context, '/home');
+        });
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // Remove loading indicator
+      _popDialogAfterFrame();
       _showErrorDialog('Failed to sign in with Google: ${e.toString()}');
     }
   }
 
-  Future<bool> _showSignInConfirmation() async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Confirm Sign In'),
-            content: const Text('Do you want to sign in with this account?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Confirm'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+  Future<void> _showLoadingIndicator() async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
+  void _popDialogAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    });
+  }
+
+  Future<bool> _showSignInConfirmation() async {
+    // Show a dialog confirming sign-in
+    final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
+        title: const Text('Confirm Sign In'),
+        content: const Text('Do you want to sign in with this account?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
           ),
         ],
       ),
     );
+    return result ?? false;
+  }
+
+  void _showErrorDialog(String message) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> saveUserData(String uid, Map<String, dynamic> userData) async {
@@ -160,11 +179,8 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Comment out this line
-    // return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
-
-    // Replace with just
-    return _buildMobileLoginPage();
+    // Just choose one layout based on platform
+    return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
   }
 
   Widget _buildWebLoginPage() {
@@ -229,7 +245,7 @@ class _LoginPageState extends State<LoginPage> {
                         _buildMobileContent(constraints),
                       ],
                     ),
-                    Positioned(
+                    const Positioned(
                       child: BlurryAppBar(),
                     ),
                   ],
@@ -279,7 +295,9 @@ class _LoginPageState extends State<LoginPage> {
             'Sign In with Google', const Color(0xFF2F7FFF), _signInWithGoogle),
         const SizedBox(height: 10),
         _buildAuthButton('Sign In with Email', orange, () {
-          Navigator.pushNamed(context, '/signin');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pushNamed(context, '/signin');
+          });
         }),
       ],
     );
@@ -312,7 +330,11 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/signup'),
+          onTap: () {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushNamed(context, '/signup');
+            });
+          },
           child: const Text(
             'Sign Up',
             style: TextStyle(
@@ -419,7 +441,11 @@ class _LoginPageState extends State<LoginPage> {
         ),
         SignInButton(
           text: 'Sign In with Email',
-          onPressed: () => Navigator.pushNamed(context, '/signin'),
+          onPressed: () {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushNamed(context, '/signin');
+            });
+          },
           borderColor: orange,
         ),
       ],
@@ -438,7 +464,11 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/signup'),
+          onTap: () {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushNamed(context, '/signup');
+            });
+          },
           child: Text(
             'Sign Up',
             style: GoogleFonts.montserrat(
