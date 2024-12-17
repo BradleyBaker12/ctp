@@ -268,7 +268,8 @@ class _TransporterRegistrationPageState
                                 _buildTextField(
                                     controller: _tradingNameController,
                                     focusNode: _tradingNameFocusNode,
-                                    hintText: 'Trading Name'),
+                                    hintText: 'Trading Name',
+                                    isOptional: true),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _fleetSizeController,
