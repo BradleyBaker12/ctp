@@ -259,8 +259,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         _makeModelOptions = {brand: modelsFromJson?.cast<String>() ?? []};
 
         // Check if we're editing an existing vehicle with a makeModel
-        if (widget.vehicle != null && widget.vehicle!.makeModel != null) {
-          final existingModel = widget.vehicle!.makeModel!;
+        if (widget.vehicle != null) {
+          final existingModel = widget.vehicle!.makeModel;
           if (!_makeModelOptions[brand]!.contains(existingModel)) {
             _makeModelOptions[brand]!.add(existingModel);
             debugPrint('Added existing model to model options: $existingModel');
