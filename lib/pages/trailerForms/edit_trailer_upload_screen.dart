@@ -7,8 +7,12 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/document_preview_screen.dart';
 import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/truckForms/custom_dropdown.dart';
+import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:ctp/providers/form_data_provider.dart';
+import 'package:ctp/providers/user_provider.dart'; // <--- for user role
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -17,8 +21,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-
-import '../truckForms/custom_text_field.dart';
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -145,9 +147,26 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   bool _isLoading = false;
   String? _vehicleId;
 
+  // Vehicle status
+  String _vehicleStatus = 'Draft'; // default: "Draft" or "Live"
+
+  // ---------- NEW: track user role ----------
+  bool _isDealer = false;
+  bool _isTransporter = false;
+  bool _isAdmin = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Read user role from UserProvider
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userRole =
+        userProvider.getUserRole; // e.g. "dealer", "admin", "transporter"
+    _isDealer = userRole == 'dealer';
+    _isTransporter = userRole == 'transporter';
+    _isAdmin = userRole == 'admin';
+
     _scrollController.addListener(() {
       final offset = _scrollController.offset.clamp(0, 150);
       setState(() {
@@ -157,7 +176,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (widget.isNewUpload) {
-        // If brand-new
         Provider.of<FormDataProvider>(context, listen: false).clearAllData();
       } else {
         // Editing or duplicating
@@ -189,13 +207,9 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     _lengthController.text = trailer.length ?? '';
     _warrantyDetailsController.text = trailer.warrantyDetails ?? '';
 
-    // ---- FIX #1: Use `trailer.make` if your doc has "make" instead of "makeModel"
     _makeController.text = trailer.makeModel ?? '';
-
-    // If your Vehicle model still calls it `expectedSellingPrice`, do this:
+    // If your doc calls it "sellingPrice" or "expectedSellingPrice":
     _sellingPriceController.text = trailer.expectedSellingPrice ?? '';
-    // or if it calls it `sellingPrice`, do:
-    // _sellingPriceController.text = trailer.sellingPrice ?? '';
 
     // NATIS doc
     if ((trailer.natisDocumentUrl?.isNotEmpty ?? false)) {
@@ -266,6 +280,9 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
       _featuresCondition = 'no';
     }
 
+    // Vehicle status
+    _vehicleStatus = trailer.vehicleStatus ?? 'Draft';
+
     setState(() {});
   }
 
@@ -325,8 +342,19 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   // MAIN IMAGE
   // -----------------------------------------------------------------------------
   Widget _buildMainImageSection() {
+    // If dealer => can only view/expand
     void onTapMainImage() {
-      // If there's already an existing or newly selected image, show options
+      if (_isDealer) {
+        // Just show a large preview
+        _showImagePreview(
+          file: _selectedMainImage,
+          url: _existingMainImageUrl,
+          title: 'Trailer Main Image',
+        );
+        return;
+      }
+
+      // Admin/Transporter => can edit
       if (_selectedMainImage != null ||
           (_existingMainImageUrl != null &&
               _existingMainImageUrl!.isNotEmpty)) {
@@ -375,18 +403,19 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
               borderRadius: BorderRadius.circular(10.0),
               child: imageWidget,
             ),
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                color: Colors.black54,
-                child: const Text(
-                  'Tap to modify image',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+            if (!_isDealer) // only show "Tap to modify" for Admin/Transporter
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  color: Colors.black54,
+                  child: const Text(
+                    'Tap to modify image',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -470,6 +499,18 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     );
   }
 
+  void _showImagePreview({File? file, String? url, required String title}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DocumentPreviewScreen(
+          file: file,
+          url: url,
+        ),
+      ),
+    );
+  }
+
   // -----------------------------------------------------------------------------
   // FORM SECTION
   // -----------------------------------------------------------------------------
@@ -496,106 +537,184 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           ),
           const SizedBox(height: 20),
 
+          // Vehicle Status
+          if (!_isDealer) ...[
+            // Only show vehicle status dropdown if not dealer
+            CustomDropdown(
+              hintText: 'Vehicle Status',
+              value: _vehicleStatus,
+              items: const ['Draft', 'Live'],
+              onChanged: (value) {
+                setState(() {
+                  _vehicleStatus = value ?? 'Draft';
+                });
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select the vehicle status';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 15),
+          ],
+
+          if (_isDealer)
+            const Text(
+              'Make',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
+            ),
+
           // Make
           CustomTextField(
             controller: _makeController,
             hintText: 'Make',
+            enabled: !_isDealer, // read-only if dealer
           ),
           const SizedBox(height: 15),
 
           // Reference Number
-          CustomTextField(
-            controller: _referenceNumberController,
-            hintText: 'Reference Number',
-            inputFormatter: [UpperCaseTextFormatter()],
-          ),
-          const SizedBox(height: 15),
+          if (_isAdmin || _isTransporter)
+            CustomTextField(
+              controller: _referenceNumberController,
+              hintText: 'Reference Number',
+              inputFormatter: [UpperCaseTextFormatter()],
+              enabled: !_isDealer,
+            ),
+          if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
+          if (_isDealer)
+            const Text(
+              'Year',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
+            ),
           // Year
           CustomTextField(
             controller: _yearController,
             hintText: 'Year',
             keyboardType: TextInputType.number,
+            enabled: !_isDealer,
           ),
           const SizedBox(height: 15),
 
           // NATIS Document
-          const Text(
-            'NATIS DOCUMENT',
-            style: TextStyle(
-                fontSize: 15, color: Colors.white, fontWeight: FontWeight.w900),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 15),
-          _buildNatisDocSection(),
-          const SizedBox(height: 15),
+          if (_isAdmin || _isTransporter)
+            const Text(
+              'NATIS DOCUMENT',
+              style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900),
+              textAlign: TextAlign.center,
+            ),
+          if (_isAdmin || _isTransporter) const SizedBox(height: 15),
+          if (_isAdmin || _isTransporter) _buildNatisDocSection(),
+          if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
+          if (_isDealer)
+            const Text(
+              'Trailer Type',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
+            ),
           // Trailer Type
           CustomTextField(
             controller: _trailerTypeController,
             hintText: 'Trailer Type',
+            enabled: !_isDealer,
           ),
           const SizedBox(height: 15),
 
+          if (_isDealer)
+            const Text(
+              'Number of Axels',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
+            ),
           // Axles
           CustomTextField(
             controller: _axlesController,
             hintText: 'Number of Axles',
             keyboardType: TextInputType.number,
+            enabled: !_isDealer,
           ),
           const SizedBox(height: 15),
 
+          if (_isDealer)
+            const Text(
+              'Length (m)',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
+            ),
           // Length
           CustomTextField(
             controller: _lengthController,
             hintText: 'Length (m)',
             keyboardType: TextInputType.number,
+            enabled: !_isDealer,
           ),
           const SizedBox(height: 15),
 
           // VIN Number
-          CustomTextField(
-            controller: _vinNumberController,
-            hintText: 'VIN Number',
-            inputFormatter: [UpperCaseTextFormatter()],
-          ),
-          const SizedBox(height: 15),
+          if (_isAdmin || _isTransporter)
+            CustomTextField(
+              controller: _vinNumberController,
+              hintText: 'VIN Number',
+              inputFormatter: [UpperCaseTextFormatter()],
+              enabled: !_isDealer,
+            ),
+          if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
           // Registration Number
-          CustomTextField(
-            controller: _registrationNumberController,
-            hintText: 'Registration Number',
-            inputFormatter: [UpperCaseTextFormatter()],
-          ),
-          const SizedBox(height: 15),
+          if (_isAdmin || _isTransporter)
+            CustomTextField(
+              controller: _registrationNumberController,
+              hintText: 'Registration Number',
+              inputFormatter: [UpperCaseTextFormatter()],
+              enabled: !_isDealer,
+            ),
+          if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
           // Mileage
+          if (_isDealer)
+            const Text(
+              'Mileage',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+              textAlign: TextAlign.start,
+            ),
           CustomTextField(
             controller: _mileageController,
             hintText: 'Mileage',
             keyboardType: TextInputType.number,
+            enabled: !_isDealer,
           ),
           const SizedBox(height: 15),
 
           // Engine Number
-          CustomTextField(
-            controller: _engineNumberController,
-            hintText: 'Engine Number',
-            inputFormatter: [UpperCaseTextFormatter()],
-          ),
-          const SizedBox(height: 15),
+          if (_isAdmin || _isTransporter)
+            CustomTextField(
+              controller: _engineNumberController,
+              hintText: 'Engine Number',
+              inputFormatter: [UpperCaseTextFormatter()],
+              enabled: !_isDealer,
+            ),
+          if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
           // Selling Price
-          CustomTextField(
-            controller: _sellingPriceController,
-            hintText: 'Selling Price',
-            keyboardType: TextInputType.number,
-            inputFormatter: [
-              FilteringTextInputFormatter.digitsOnly,
-              ThousandsSeparatorInputFormatter(),
-            ],
-          ),
-          const SizedBox(height: 15),
+          if (_isAdmin || _isTransporter)
+            CustomTextField(
+              controller: _sellingPriceController,
+              hintText: 'Selling Price',
+              keyboardType: TextInputType.number,
+              inputFormatter: [
+                FilteringTextInputFormatter.digitsOnly,
+                ThousandsSeparatorInputFormatter(),
+              ],
+              enabled: !_isDealer,
+            ),
+          if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
           // SERVICE HISTORY
           const Text(
@@ -697,45 +816,55 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
                 fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CustomRadioButton(
-                label: 'Yes',
-                value: 'yes',
-                groupValue: _damagesCondition,
-                onChanged: (val) {
-                  setState(() {
-                    _damagesCondition = val ?? 'no';
-                    if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                      _damageList.add({
-                        'description': '',
-                        'imageFile': null,
-                        'existingImageUrl': null,
-                      });
-                    } else if (_damagesCondition == 'no') {
-                      _damageList.clear();
-                    }
-                  });
-                },
-              ),
-              const SizedBox(width: 20),
-              CustomRadioButton(
-                label: 'No',
-                value: 'no',
-                groupValue: _damagesCondition,
-                onChanged: (val) {
-                  setState(() {
-                    _damagesCondition = val ?? 'no';
-                    if (_damagesCondition == 'no') {
-                      _damageList.clear();
-                    }
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
+          if (!_isDealer) ...[
+            // Only show radio if not dealer
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CustomRadioButton(
+                  label: 'Yes',
+                  value: 'yes',
+                  groupValue: _damagesCondition,
+                  onChanged: (val) {
+                    setState(() {
+                      _damagesCondition = val ?? 'no';
+                      if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                        _damageList.add({
+                          'description': '',
+                          'imageFile': null,
+                          'existingImageUrl': null,
+                        });
+                      } else if (_damagesCondition == 'no') {
+                        _damageList.clear();
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(width: 20),
+                CustomRadioButton(
+                  label: 'No',
+                  value: 'no',
+                  groupValue: _damagesCondition,
+                  onChanged: (val) {
+                    setState(() {
+                      _damagesCondition = val ?? 'no';
+                      if (_damagesCondition == 'no') {
+                        _damageList.clear();
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+          ] else ...[
+            // Dealer => read-only text
+            Text(
+              'Damages: ${_damagesCondition == 'yes' ? 'Yes' : 'No'}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 5),
+          ],
           if (_damagesCondition == 'yes') _buildDamageSection(),
 
           // Features
@@ -746,109 +875,128 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
                 fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CustomRadioButton(
-                label: 'Yes',
-                value: 'yes',
-                groupValue: _featuresCondition,
-                onChanged: (val) {
-                  setState(() {
-                    _featuresCondition = val ?? 'no';
-                    if (_featuresCondition == 'yes' && _featureList.isEmpty) {
-                      _featureList.add({
-                        'description': '',
-                        'imageFile': null,
-                        'existingImageUrl': null,
-                      });
-                    } else if (_featuresCondition == 'no') {
-                      _featureList.clear();
-                    }
-                  });
-                },
-              ),
-              const SizedBox(width: 20),
-              CustomRadioButton(
-                label: 'No',
-                value: 'no',
-                groupValue: _featuresCondition,
-                onChanged: (val) {
-                  setState(() {
-                    _featuresCondition = val ?? 'no';
-                    if (_featuresCondition == 'no') {
-                      _featureList.clear();
-                    }
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
+          if (!_isDealer) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CustomRadioButton(
+                  label: 'Yes',
+                  value: 'yes',
+                  groupValue: _featuresCondition,
+                  onChanged: (val) {
+                    setState(() {
+                      _featuresCondition = val ?? 'no';
+                      if (_featuresCondition == 'yes' && _featureList.isEmpty) {
+                        _featureList.add({
+                          'description': '',
+                          'imageFile': null,
+                          'existingImageUrl': null,
+                        });
+                      } else if (_featuresCondition == 'no') {
+                        _featureList.clear();
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(width: 20),
+                CustomRadioButton(
+                  label: 'No',
+                  value: 'no',
+                  groupValue: _featuresCondition,
+                  onChanged: (val) {
+                    setState(() {
+                      _featuresCondition = val ?? 'no';
+                      if (_featuresCondition == 'no') {
+                        _featureList.clear();
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+          ] else ...[
+            Text(
+              'Features: ${_featuresCondition == 'yes' ? 'Yes' : 'No'}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 5),
+          ],
           if (_featuresCondition == 'yes') _buildFeaturesSection(),
-          const SizedBox(height: 30),
 
-          _buildDoneButton(),
+          const SizedBox(height: 30),
+          if (!_isDealer) _buildDoneButton(), // only show button if not dealer
           const SizedBox(height: 30),
         ],
       ),
     );
   }
 
-  // -------------------------------
+  // -----------------------------------------------------------------------------
   // NATIS doc display
-  // -------------------------------
+  // -----------------------------------------------------------------------------
   Widget _buildNatisDocSection() {
-    return InkWell(
-      onTap: _handleNatisTap,
-      borderRadius: BorderRadius.circular(10.0),
-      child: _buildStyledContainer(
-        child: _natisDocumentFile == null
-            ? (_existingNatisDocumentUrl?.isNotEmpty ?? false)
-                ? Column(
-                    children: [
-                      const Icon(Icons.description,
-                          color: Colors.white, size: 50.0),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Existing NATIS Document',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  )
-                : const Column(
-                    children: [
-                      Icon(
-                        Icons.drive_folder_upload_outlined,
-                        color: Colors.white,
-                        size: 50.0,
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        'Upload NATIS Document',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  )
-            : Column(
-                children: [
-                  const Icon(Icons.description,
-                      color: Colors.white, size: 50.0),
-                  const SizedBox(height: 10),
-                  Text(
-                    _natisDocumentFile!.path.split('/').last,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+    // If dealer => they can only view
+    void onTap() {
+      if (_isDealer) {
+        _showDocumentPreview(
+          file: _natisDocumentFile,
+          url: _existingNatisDocumentUrl,
+          title: 'NATIS Document',
+        );
+        return;
+      }
+      // Admin/Transporter => normal logic
+      _handleNatisTap();
+    }
+
+    Widget child;
+    if (_natisDocumentFile == null) {
+      if ((_existingNatisDocumentUrl?.isNotEmpty ?? false)) {
+        child = const Column(
+          children: [
+            Icon(Icons.description, color: Colors.white, size: 50.0),
+            SizedBox(height: 10),
+            Text(
+              'Existing NATIS Document',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        );
+      } else {
+        child = const Column(
+          children: [
+            Icon(Icons.drive_folder_upload_outlined,
+                color: Colors.white, size: 50.0),
+            SizedBox(height: 10),
+            Text(
+              'Upload NATIS Document',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white70,
               ),
-      ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        );
+      }
+    } else {
+      child = Column(
+        children: [
+          const Icon(Icons.description, color: Colors.white, size: 50.0),
+          const SizedBox(height: 10),
+          Text(
+            _natisDocumentFile!.path.split('/').last,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
+      );
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10.0),
+      child: _buildStyledContainer(child: child),
     );
   }
 
@@ -865,7 +1013,12 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                // If you want to open or preview it, do it here
+                // View the document
+                _showDocumentPreview(
+                  file: _natisDocumentFile,
+                  url: _existingNatisDocumentUrl,
+                  title: 'NATIS Document',
+                );
               },
               child: const Text('View'),
             ),
@@ -906,7 +1059,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         ),
       );
     } else {
-      // pick new
       _showSourceDialog(
         title: 'Select NATIS Document',
         pickImageOnly: false,
@@ -919,57 +1071,66 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     }
   }
 
-  // -------------------------------
-  // Service History doc display
-  // -------------------------------
+  // -----------------------------------------------------------------------------
+  // SERVICE HISTORY
+  // -----------------------------------------------------------------------------
   Widget _buildServiceHistorySection() {
+    // If dealer => can only view
+    void onTap() {
+      if (_isDealer) {
+        _showDocumentPreview(
+          file: _serviceHistoryFile,
+          url: _existingServiceHistoryUrl,
+          title: 'Service History',
+        );
+        return;
+      }
+      // Admin/Transporter => normal logic
+      _handleServiceHistoryTap();
+    }
+
+    Widget child;
+    if (_serviceHistoryFile == null) {
+      if ((_existingServiceHistoryUrl?.isNotEmpty ?? false)) {
+        child = const Column(
+          children: [
+            Icon(Icons.description, color: Colors.white, size: 50.0),
+            SizedBox(height: 10),
+            Text('Existing Service History',
+                style: TextStyle(color: Colors.white70, fontSize: 14)),
+          ],
+        );
+      } else {
+        child = const Column(
+          children: [
+            Icon(Icons.drive_folder_upload_outlined,
+                color: Colors.white, size: 50.0),
+            SizedBox(height: 10),
+            Text(
+              'Upload Service History',
+              style: TextStyle(fontSize: 14, color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        );
+      }
+    } else {
+      child = Column(
+        children: [
+          const Icon(Icons.description, color: Colors.white, size: 50.0),
+          const SizedBox(height: 10),
+          Text(
+            _serviceHistoryFile!.path.split('/').last,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
+      );
+    }
+
     return InkWell(
-      onTap: _handleServiceHistoryTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(10.0),
-      child: _buildStyledContainer(
-        child: _serviceHistoryFile == null
-            ? (_existingServiceHistoryUrl?.isNotEmpty ?? false)
-                ? Column(
-                    children: [
-                      const Icon(Icons.description,
-                          color: Colors.white, size: 50.0),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Existing Service History',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                    ],
-                  )
-                : const Column(
-                    children: [
-                      Icon(Icons.drive_folder_upload_outlined,
-                          color: Colors.white, size: 50.0),
-                      SizedBox(height: 10),
-                      Text(
-                        'Upload Service History',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  )
-            : Column(
-                children: [
-                  const Icon(Icons.description,
-                      color: Colors.white, size: 50.0),
-                  const SizedBox(height: 10),
-                  Text(
-                    _serviceHistoryFile!.path.split('/').last,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-      ),
+      child: _buildStyledContainer(child: child),
     );
   }
 
@@ -986,7 +1147,12 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                // Possibly open doc
+                // View the document
+                _showDocumentPreview(
+                  file: _serviceHistoryFile,
+                  url: _existingServiceHistoryUrl,
+                  title: 'Service History',
+                );
               },
               child: const Text('View'),
             ),
@@ -1027,7 +1193,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         ),
       );
     } else {
-      // pick new
       _showSourceDialog(
         title: 'Select Service History',
         pickImageOnly: false,
@@ -1049,9 +1214,19 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     String? existingUrl,
     ValueChanged<File?> onFilePicked,
   ) {
+    // If dealer => tapping the image only shows a preview
     void onTap() {
+      if (_isDealer) {
+        _showImagePreview(
+          file: localFile,
+          url: existingUrl,
+          title: label,
+        );
+        return;
+      }
+
+      // if Transporter/Admin => can replace/remove
       if (localFile != null || (existingUrl?.isNotEmpty ?? false)) {
-        // show change/remove
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -1102,7 +1277,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
 
     Widget child;
     if (localFile != null) {
-      // new local file
       child = ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Image.file(
@@ -1113,7 +1287,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         ),
       );
     } else if (existingUrl?.isNotEmpty ?? false) {
-      // existing URL
       child = ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Image.network(
@@ -1121,11 +1294,10 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           fit: BoxFit.cover,
           height: 150,
           width: double.infinity,
-          errorBuilder: (ctx, error, stack) => Container(color: Colors.grey),
+          errorBuilder: (ctx, err, stack) => Container(color: Colors.grey),
         ),
       );
     } else {
-      // placeholder
       child = const Column(
         children: [
           Icon(Icons.camera_alt, color: Colors.white, size: 50.0),
@@ -1161,6 +1333,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   // ADDITIONAL IMAGES
   // -----------------------------------------------------------------------------
   Widget _buildAdditionalImagesSection() {
+    // If dealer => can't add or remove
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1178,94 +1351,120 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             for (int i = 0; i < _existingAdditionalImagesUrls.length; i++)
               Stack(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      _existingAdditionalImagesUrls[i],
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (ctx, err, st) =>
-                          Container(color: Colors.grey),
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _existingAdditionalImagesUrls.removeAt(i);
-                        });
-                      },
-                      child: Container(
-                        color: Colors.black54,
-                        child: const Icon(Icons.close, color: Colors.white),
+                  InkWell(
+                    onTap: () {
+                      if (_isDealer) {
+                        // Show large preview
+                        _showImagePreview(
+                          file: null,
+                          url: _existingAdditionalImagesUrls[i],
+                          title: 'Additional Image',
+                        );
+                      }
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.network(
+                        _existingAdditionalImagesUrls[i],
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, err, st) =>
+                            Container(color: Colors.grey),
                       ),
                     ),
                   ),
+                  if (!_isDealer) // remove button only if not dealer
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _existingAdditionalImagesUrls.removeAt(i);
+                          });
+                        },
+                        child: Container(
+                          color: Colors.black54,
+                          child: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             // local new images
             for (int i = 0; i < _localAdditionalImages.length; i++)
               Stack(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
-                      _localAdditionalImages[i],
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _localAdditionalImages.removeAt(i);
-                        });
-                      },
-                      child: Container(
-                        color: Colors.black54,
-                        child: const Icon(Icons.close, color: Colors.white),
+                  InkWell(
+                    onTap: () {
+                      if (_isDealer) {
+                        _showImagePreview(
+                          file: _localAdditionalImages[i],
+                          url: null,
+                          title: 'Additional Image',
+                        );
+                      }
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.file(
+                        _localAdditionalImages[i],
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
                       ),
                     ),
-                  )
+                  ),
+                  if (!_isDealer)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _localAdditionalImages.removeAt(i);
+                          });
+                        },
+                        child: Container(
+                          color: Colors.black54,
+                          child: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ),
+                    )
                 ],
               ),
 
-            // add image button
-            GestureDetector(
-              onTap: () {
-                _showSourceDialog(
-                  title: 'Additional Image',
-                  pickImageOnly: true,
-                  callback: (file) {
-                    if (file != null) {
-                      setState(() {
-                        _localAdditionalImages.add(file);
-                      });
-                    }
-                  },
-                );
-              },
-              child: _buildStyledContainer(
-                child: const Column(
-                  children: [
-                    Icon(Icons.add, color: Colors.white, size: 50),
-                    SizedBox(height: 10),
-                    Text(
-                      'Add Image',
-                      style: TextStyle(color: Colors.white70),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+            if (!_isDealer)
+              // add image button for admin/transporter
+              GestureDetector(
+                onTap: () {
+                  _showSourceDialog(
+                    title: 'Additional Image',
+                    pickImageOnly: true,
+                    callback: (file) {
+                      if (file != null) {
+                        setState(() {
+                          _localAdditionalImages.add(file);
+                        });
+                      }
+                    },
+                  );
+                },
+                child: _buildStyledContainer(
+                  child: const Column(
+                    children: [
+                      Icon(Icons.add, color: Colors.white, size: 50),
+                      SizedBox(height: 10),
+                      Text(
+                        'Add Image',
+                        style: TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ],
@@ -1318,6 +1517,20 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     final File? imageFile = item['imageFile'] as File?;
     final String? existingUrl = item['existingImageUrl'] as String?;
 
+    // If dealer => tapping only shows preview, can't remove
+    void onTapImage() {
+      if (_isDealer) {
+        _showImagePreview(
+          file: imageFile,
+          url: existingUrl,
+          title: 'Damage/Feature Image',
+        );
+        return;
+      }
+      // normal logic
+      showSourceDialogForItem(item);
+    }
+
     Widget child;
     if (imageFile != null) {
       child = Image.file(
@@ -1350,6 +1563,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         CustomTextField(
           controller: TextEditingController(text: description),
           hintText: 'Describe the item',
+          enabled: !_isDealer,
           onChanged: (val) {
             setState(() {
               item['description'] = val;
@@ -1358,22 +1572,23 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         ),
         const SizedBox(height: 8),
         InkWell(
-          onTap: () => showSourceDialogForItem(item),
+          onTap: onTapImage,
           child: _buildStyledContainer(child: child),
         ),
         const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: () {
-              setState(() {
-                itemList.removeAt(index);
-              });
-            },
-            icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-            label: const Text('Remove', style: TextStyle(color: Colors.red)),
+        if (!_isDealer)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  itemList.removeAt(index);
+                });
+              },
+              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              label: const Text('Remove', style: TextStyle(color: Colors.red)),
+            ),
           ),
-        ),
         const SizedBox(height: 16),
       ],
     );
@@ -1630,9 +1845,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         'mileage': _mileageController.text.trim(),
         'engineNumber': _engineNumberController.text.trim(),
         'sellingPrice': _sellingPriceController.text.trim(),
-        // If your doc expects "make", do "make":
         'makeModel': _makeController.text.trim(),
-        // or if your doc wants "makeModel", do "makeModel": ...
         'trailerType': _trailerTypeController.text.trim(),
         'axles': _axlesController.text.trim(),
         'length': _lengthController.text.trim(),
@@ -1663,6 +1876,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         'featuresCondition': _featuresCondition,
         'features': finalFeatures,
 
+        'vehicleStatus': _vehicleStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -1675,7 +1889,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           'userId': widget.isAdminUpload
               ? widget.transporterId
               : FirebaseAuth.instance.currentUser?.uid,
-          'vehicleStatus': 'Draft',
         });
         _vehicleId = docRef.id;
       } else {
@@ -1829,4 +2042,22 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
       ),
     );
   }
+
+  // -----------------------------------------------------------------------------
+  // SHOW DOCUMENT PREVIEW
+  // -----------------------------------------------------------------------------
+  void _showDocumentPreview({File? file, String? url, required String title}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DocumentPreviewScreen(
+          file: file,
+          url: url,
+        ),
+      ),
+    );
+  }
 }
+
+// The rest of your existing code remains unchanged, including other methods and widgets.
+// Make sure to include the new `DocumentPreviewScreen` import at the top of the file.
