@@ -11,8 +11,6 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 
-// Import nested models
-
 class SoldVehiclesListPage extends StatefulWidget {
   const SoldVehiclesListPage({super.key});
 
@@ -112,12 +110,11 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
                       itemCount: soldVehicles.length,
                       itemBuilder: (context, index) {
                         final vehicle = soldVehicles[index];
+
                         return ListingCard(
-                          vehicleMakeModel: vehicle.makeModel.toString(),
-                          vehicleImageUrl: vehicle.mainImageUrl,
-                          vehicleYear: vehicle.year.toString(),
-                          vehicleMileage: vehicle.mileage,
-                          vehicleTransmission: vehicle.transmissionType,
+                          vehicleId: vehicle.id,
+                          vehicleType:
+                              vehicle.vehicleType, // "truck" or "trailer"
                           onTap: () {
                             Navigator.push(
                               context,
@@ -128,9 +125,23 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
                               ),
                             );
                           },
-                          vehicleId: vehicle.id,
+                          vehicleImageUrl: vehicle.mainImageUrl,
                           referenceNumber: vehicle.referenceNumber,
-                          brands: vehicle.brands,
+                          vehicleTransmission: vehicle.transmissionType,
+                          vehicleMileage: vehicle.mileage,
+
+                          // If trailer => pass trailer fields
+                          trailerType: vehicle.trailerType,
+                          trailerMake: vehicle.brands.isNotEmpty
+                              ? vehicle.brands[0]
+                              : '', // <--- was "vehicle.make"
+                          trailerYear: vehicle.year,
+
+                          // If truck => pass truck fields
+                          truckBrand: vehicle.brands.isNotEmpty
+                              ? vehicle.brands[0]
+                              : '',
+                          truckModel: vehicle.makeModel,
                         );
                       },
                     ),
@@ -140,7 +151,7 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
         bottomNavigationBar: CustomBottomNavigation(
           selectedIndex: _selectedIndex,
           onItemTapped: (index) {
-            // Keep the same navigation logic...
+            // same nav logic
           },
         ),
       ),

@@ -1335,7 +1335,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'engineNumber': formData.engineNumber,
         'registrationNumber': formData.registrationNumber,
         'sellingPrice': formData.sellingPrice,
-        'vehicleType': formData.vehicleType,
+        'vehicleType': 'truck',
         'suspensionType': formData.suspension,
         'transmissionType': formData.transmissionType,
         'hydraulics': formData.hydraulics,

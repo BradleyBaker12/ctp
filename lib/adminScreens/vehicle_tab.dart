@@ -74,13 +74,24 @@ class _VehiclesTabState extends State<VehiclesTab> {
   bool _matchesSearch(Map<String, dynamic> vehicleData) {
     if (_searchQuery.isEmpty) return true;
 
-    String makeModel = vehicleData['makeModel']?.toString().toLowerCase() ?? '';
-    String yearStr = vehicleData['year']?.toString().toLowerCase() ?? '';
-    String status = vehicleData['status']?.toString().toLowerCase() ?? '';
+    // Lowercase search
+    String query = _searchQuery.toLowerCase();
 
-    return makeModel.contains(_searchQuery.toLowerCase()) ||
-        yearStr.contains(_searchQuery.toLowerCase()) ||
-        status.contains(_searchQuery.toLowerCase());
+    // We can search across brand(s), makeModel, variant, year, status, etc.
+    // Because `brands` is a List<String>, we join them into one string to match.
+    List<dynamic> brandList = vehicleData['brands'] ?? [];
+    String brandConcat = brandList.join(' ').toLowerCase();
+
+    String makeModel = (vehicleData['makeModel'] ?? '').toLowerCase();
+    String variant = (vehicleData['variant'] ?? '').toLowerCase();
+    String yearStr = (vehicleData['year'] ?? '').toLowerCase();
+    String statusStr = (vehicleData['vehicleStatus'] ?? '').toLowerCase();
+
+    return brandConcat.contains(query) ||
+        makeModel.contains(query) ||
+        variant.contains(query) ||
+        yearStr.contains(query) ||
+        statusStr.contains(query);
   }
 
   Future<void> _fetchVehicles() async {
@@ -119,6 +130,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter the local _vehicles list based on search
     List<DocumentSnapshot> filteredVehicles = _vehicles.where((doc) {
       var data = doc.data() as Map<String, dynamic>;
       return _matchesSearch(data);
@@ -128,7 +140,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
       body: GradientBackground(
         child: Column(
           children: [
-            // Search Bar
+            // SEARCH BAR
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: TextField(
@@ -137,21 +149,23 @@ class _VehiclesTabState extends State<VehiclesTab> {
                 decoration: InputDecoration(
                   labelText: 'Search Vehicles',
                   labelStyle: GoogleFonts.montserrat(color: Colors.white),
-                  prefixIcon: Icon(Icons.search, color: Colors.white),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white),
                   filled: true,
                   fillColor: Colors.transparent,
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(color: Colors.white),
+                    borderSide: const BorderSide(color: Colors.white),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(color: Color(0xFFFF4E00)),
+                    borderSide: const BorderSide(color: Color(0xFFFF4E00)),
                   ),
                 ),
                 onChanged: (value) {
                   setState(() {
                     _searchQuery = value;
+                    // Because we want to re-fetch from Firestore each time,
+                    // we clear everything and reset pagination:
                     _vehicles.clear();
                     _lastDocument = null;
                     _hasMore = true;
@@ -160,11 +174,12 @@ class _VehiclesTabState extends State<VehiclesTab> {
                 },
               ),
             ),
-            // Expanded ListView
+
+            // VEHICLE LIST
             Expanded(
               child: filteredVehicles.isEmpty
                   ? _isLoading
-                      ? Center(child: CircularProgressIndicator())
+                      ? const Center(child: CircularProgressIndicator())
                       : Center(
                           child: Text(
                             'No vehicles found.',
@@ -175,22 +190,34 @@ class _VehiclesTabState extends State<VehiclesTab> {
                       controller: _scrollController,
                       itemCount: filteredVehicles.length + (_hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        // Show a loading indicator at the bottom if there are more
                         if (index == filteredVehicles.length) {
-                          return Center(
+                          return const Center(
                             child: Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: EdgeInsets.all(8.0),
                               child: CircularProgressIndicator(),
                             ),
                           );
                         }
 
+                        // Build the Vehicle object
                         var vehicleData = filteredVehicles[index].data()
                             as Map<String, dynamic>;
                         String vehicleId = filteredVehicles[index].id;
-                        String make = vehicleData['makeModel'] ?? 'Unknown';
-
                         Vehicle vehicle =
                             Vehicle.fromFirestore(vehicleId, vehicleData);
+
+                        // Safely get the brand from the list of brands
+                        String brand = vehicle.brands.isNotEmpty
+                            ? vehicle.brands[0]
+                            : 'Unknown Brand';
+
+                        // We'll treat `vehicle.makeModel` as the "make".
+                        // For variant, fallback to "Unknown Variant" if null or empty
+                        String variant = (vehicle.variant == null ||
+                                vehicle.variant!.isEmpty)
+                            ? ''
+                            : vehicle.variant!;
 
                         return Card(
                           color: Colors.grey[900],
@@ -211,24 +238,30 @@ class _VehiclesTabState extends State<VehiclesTab> {
                                             height: 50,
                                             errorBuilder:
                                                 (context, error, stackTrace) {
-                                              return Icon(Icons.directions_car,
-                                                  color: Colors.blueAccent);
+                                              return const Icon(
+                                                Icons.directions_car,
+                                                color: Colors.blueAccent,
+                                              );
                                             },
                                           )
-                                        : Icon(Icons.directions_car,
+                                        : const Icon(Icons.directions_car,
                                             color: Colors.blueAccent, size: 50),
                               ),
                             ),
+                            // Display brand, make, variant:
                             title: Text(
-                              make,
+                              '$brand ${vehicle.makeModel} $variant',
                               style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
+                            // Keep year/status in the subtitle if you like
                             subtitle: Text(
                               'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white70),
+                              style: GoogleFonts.montserrat(
+                                color: Colors.white70,
+                              ),
                             ),
                             isThreeLine: true,
                             onTap: () {
@@ -255,8 +288,8 @@ class _VehiclesTabState extends State<VehiclesTab> {
           'Add Vehicle',
           style: GoogleFonts.montserrat(color: Colors.white),
         ),
-        icon: Icon(Icons.add, color: Colors.white),
-        backgroundColor: Color(0xFF0E4CAF),
+        icon: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: const Color(0xFF0E4CAF),
       ),
     );
   }
@@ -304,8 +337,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
                     value: transporter.id,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width *
-                            0.5, // Reduced from 0.6 to 0.5
+                        maxWidth: MediaQuery.of(context).size.width * 0.5,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

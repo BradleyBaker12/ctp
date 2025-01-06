@@ -2,7 +2,7 @@
 
 import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
-import 'dart:developer' as developer; // Optional for enhanced logging
+// Optional for enhanced logging
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/services.dart'; // Added for loading assets
 
@@ -30,11 +30,12 @@ class BasicInformationEdit extends StatefulWidget {
   final Vehicle? vehicle;
   final bool isNewUpload;
 
-  const BasicInformationEdit(
-      {super.key,
-      this.vehicle,
-      this.isDuplicating = false,
-      this.isNewUpload = false});
+  const BasicInformationEdit({
+    super.key,
+    this.vehicle,
+    this.isDuplicating = false,
+    this.isNewUpload = false,
+  });
 
   @override
   _BasicInformationEditState createState() => _BasicInformationEditState();
@@ -44,6 +45,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // Controllers and Variables
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0;
+
   final TextEditingController _sellingPriceController = TextEditingController();
   final TextEditingController _vinNumberController = TextEditingController();
   final TextEditingController _mileageController = TextEditingController();
@@ -58,10 +60,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   final TextEditingController _variantController = TextEditingController();
 
   final TextEditingController _brandsController = TextEditingController();
-  final TextEditingController _countryController =
-      TextEditingController(); // Added for country selection
+  final TextEditingController _countryController = TextEditingController();
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
+
   bool _isLoading = false;
   String? _vehicleId;
   DateTime? _availableDate;
@@ -105,23 +107,19 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     // Add any other configurations if needed
   ];
 
+  // We keep brand/model options loaded from JSON
   late Map<String, List<String>> _makeModelOptions = {};
   List<String> _brandOptions = [];
   List<String> _yearOptions = [];
 
-  // We no longer load make/model from a JSON file in this example,
-  // since the brand should always show all options regardless of year.
-  // If you still need to load models/variants dynamically from JSON, you can adjust accordingly.
-
+  // The final List for variants is user-entered or from DB. We won’t filter it out from JSON.
   final List<String> _variantOptions = [];
 
   String? _initialVehicleStatus;
 
   // Variable to hold selected RC1/NATIS file
   File? _natisRc1File;
-
   bool isNewUpload = false;
-
   String? _existingNatisRc1Url;
   String? _existingNatisRc1Name;
 
@@ -135,35 +133,40 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   @override
   void initState() {
     super.initState();
-    _loadCountryOptions(); // Load country options on initialization
+    _loadCountryOptions();
     _loadYearOptions();
     _checkUserRole();
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
 
+    // Use a post-frame callback to ensure the context is ready
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // If editing an existing vehicle
+      // Decide if we’re editing, duplicating, or new
       if (widget.vehicle != null && !widget.isDuplicating) {
+        // Editing existing vehicle
         _vehicleId = widget.vehicle!.id;
         debugPrint('Editing existing vehicle with ID: $_vehicleId');
         await _populateExistingVehicleData();
-      }
-      // If duplicating, clear the ID but keep the data
-      else if (widget.isDuplicating) {
+      } else if (widget.isDuplicating) {
+        // Duplicating an existing vehicle
         _vehicleId = null;
         debugPrint('Duplicating vehicle. Clearing vehicle ID.');
         await _populateExistingVehicleData();
-      }
-      // If new upload
-      else if (widget.isNewUpload) {
+      } else if (widget.isNewUpload) {
+        // Brand new
         debugPrint('New vehicle upload. Clearing all data.');
         _clearAllData(formData);
       }
 
-      _initializeTextControllers(formData);
+      // Initialize controllers *after* populating from DB (so we don't overwrite).
+      // If we already got variant from DB, skip reassigning it.
+      _initializeTextControllers(formData, skipVariantIfDB: false);
+
+      // Finally, add controller listeners
       _addControllerListeners(formData);
     });
 
+    // Adjust image height on scroll
     _scrollController.addListener(() {
       setState(() {
         double offset = _scrollController.offset;
@@ -229,16 +232,13 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           }
           // Retain the existing brand in formData
           formData.setBrands([existingBrand]);
-          debugPrint('FormData Brands Set to existing brand: $existingBrand');
+          debugPrint('FormData Brands set to existing brand: $existingBrand');
         } else {
-          // For new uploads or duplications
-          formData.setBrands(null);
-          debugPrint('FormData Brands Set to null.');
+          // For new uploads or duplications, we can clear or keep null
+          if (formData.brands == null) {
+            formData.setBrands(null);
+          }
         }
-
-        // Retain makeModel if already set
-        // Do not reset makeModel to null
-        // formData.setMakeModel(null); // Remove or comment out this line
       });
       debugPrint('Loaded Brand Options for Year $year: $_brandOptions');
     } catch (e) {
@@ -258,21 +258,21 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         final List<dynamic>? modelsFromJson = data[year]?[brand];
         _makeModelOptions = {brand: modelsFromJson?.cast<String>() ?? []};
 
-        // Check if we're editing an existing vehicle with a makeModel
+        // Check if we have an existing vehicle with a makeModel
         if (widget.vehicle != null) {
           final existingModel = widget.vehicle!.makeModel;
-          if (!_makeModelOptions[brand]!.contains(existingModel)) {
+          if (existingModel != null &&
+              !_makeModelOptions[brand]!.contains(existingModel)) {
             _makeModelOptions[brand]!.add(existingModel);
             debugPrint('Added existing model to model options: $existingModel');
           }
           // Set the existing model in formData
           formData.setMakeModel(existingModel);
-          debugPrint(
-              'FormData MakeModel Set to existing model: $existingModel');
         } else {
-          // For new uploads or duplications
-          formData.setMakeModel(null);
-          debugPrint('FormData MakeModel Set to null.');
+          // For new uploads/duplications, ensure formData is consistent
+          if (formData.makeModel == null) {
+            formData.setMakeModel(null);
+          }
         }
       });
 
@@ -319,7 +319,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     formData.setYear(null);
     formData.setMakeModel(null);
     formData.setVinNumber(null);
-    formData.setVariant(null);
+    formData.setVariant('');
     formData.setConfig(null);
     formData.setMileage(null);
     formData.setApplication(null);
@@ -352,64 +352,94 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     debugPrint('All form data cleared.');
   }
 
-  void _initializeTextControllers(FormDataProvider formData) {
+  /// Initialize controllers with FormDataProvider values,
+  /// but optionally skip reassigning the variant if we already
+  /// set it from the DB in `_populateExistingVehicleData`.
+  void _initializeTextControllers(
+    FormDataProvider formData, {
+    bool skipVariantIfDB = false,
+  }) {
     debugPrint('Initializing text controllers with form data.');
+
     _vinNumberController.text = formData.vinNumber ?? '';
     debugPrint(
         'VIN Number Controller initialized: ${_vinNumberController.text}');
+
     _mileageController.text = formData.mileage ?? '';
     debugPrint('Mileage Controller initialized: ${_mileageController.text}');
+
     _engineNumberController.text = formData.engineNumber ?? '';
     debugPrint(
         'Engine Number Controller initialized: ${_engineNumberController.text}');
+
     _registrationNumberController.text = formData.registrationNumber ?? '';
     debugPrint(
         'Registration Number Controller initialized: ${_registrationNumberController.text}');
+
     _sellingPriceController.text = formData.sellingPrice ?? '';
     debugPrint(
         'Selling Price Controller initialized: ${_sellingPriceController.text}');
+
     _warrantyDetailsController.text = formData.warrantyDetails ?? '';
     debugPrint(
         'Warranty Details Controller initialized: ${_warrantyDetailsController.text}');
+
     _referenceNumberController.text = formData.referenceNumber ?? '';
     debugPrint(
         'Reference Number Controller initialized: ${_referenceNumberController.text}');
+
     _brandsController.text =
         (formData.brands != null && formData.brands!.isNotEmpty)
             ? formData.brands![0]
             : '';
     debugPrint('Brands Controller initialized: ${_brandsController.text}');
+
     _countryController.text = formData.country ?? 'South Africa';
     debugPrint('Country Controller initialized: ${_countryController.text}');
+
     _modelController.text = formData.makeModel ?? '';
     debugPrint('Model Controller initialized: ${_modelController.text}');
-    _variantController.text = formData.variant ?? '';
+
+    // --- DEBUG for Variant ---
+    debugPrint(
+        'formData.variant before variant assignment: ${formData.variant}');
+
+    if (!skipVariantIfDB) {
+      _variantController.text = formData.variant ?? '';
+      debugPrint('Set _variantController.text to: ${_variantController.text}');
+    } else {
+      debugPrint(
+        'Skipping variant assignment from formData; '
+        'controller remains: ${_variantController.text}',
+      );
+    }
+
     debugPrint('Variant Controller initialized: ${_variantController.text}');
   }
 
   void _addControllerListeners(FormDataProvider formData) {
-    // VIN Number controller
+    // VIN Number
     _vinNumberController.addListener(() {
       formData.setVinNumber(_vinNumberController.text);
       formData.saveFormState();
       debugPrint('VIN Number updated: ${_vinNumberController.text}');
     });
 
-    // Mileage controller
+    // Mileage
     _mileageController.addListener(() {
       formData.setMileage(_mileageController.text);
       formData.saveFormState();
       debugPrint('Mileage updated: ${_mileageController.text}');
     });
 
-    // Engine Number controller
+    // Engine Number
     _engineNumberController.addListener(() {
       formData.setEngineNumber(_engineNumberController.text);
       formData.saveFormState();
       debugPrint('Engine Number updated: ${_engineNumberController.text}');
     });
 
-    // Registration Number controller
+    // Registration Number
     _registrationNumberController.addListener(() {
       formData.setRegistrationNumber(_registrationNumberController.text);
       formData.saveFormState();
@@ -417,14 +447,14 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           'Registration Number updated: ${_registrationNumberController.text}');
     });
 
-    // Selling Price controller
+    // Selling Price
     _sellingPriceController.addListener(() {
       formData.setSellingPrice(_sellingPriceController.text);
       formData.saveFormState();
       debugPrint('Selling Price updated: ${_sellingPriceController.text}');
     });
 
-    // Warranty Details controller
+    // Warranty Details
     _warrantyDetailsController.addListener(() {
       formData.setWarrantyDetails(_warrantyDetailsController.text);
       formData.saveFormState();
@@ -432,53 +462,58 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           'Warranty Details updated: ${_warrantyDetailsController.text}');
     });
 
-    // Reference Number controller
+    // Reference Number
     _referenceNumberController.addListener(() {
       final value = _referenceNumberController.text;
       formData.setReferenceNumber(value);
       formData.saveFormState();
-      debugPrint(
-          'Reference Number updated: ${_referenceNumberController.text}');
-      // Ensure the controller text matches the new value
+      debugPrint('Reference Number updated: $value');
+
+      // Re-sync text if needed
       if (_referenceNumberController.text != value) {
         setState(() {
           _referenceNumberController.text = value;
-          debugPrint('Reference Number Controller text synchronized: $value');
+          debugPrint('Reference Number text re-synced: $value');
         });
       }
     });
 
-    // Model controller
+    // Model
     _modelController.addListener(() {
-      formData.setMakeModel(_modelController.text.trim());
+      final modelValue = _modelController.text.trim();
+      formData.setMakeModel(modelValue);
       formData.saveFormState();
-      debugPrint('MakeModel updated: ${_modelController.text.trim()}');
+      debugPrint('MakeModel updated: $modelValue');
     });
 
-    // Variant controller
+    // Variant
     _variantController.addListener(() {
-      formData.setVariant(_variantController.text.trim());
+      final variantValue = _variantController.text.trim();
+      formData.setVariant(variantValue);
       formData.saveFormState();
-      debugPrint('Variant updated: ${_variantController.text.trim()}');
+
+      debugPrint('Variant updated in controller to: $variantValue');
+      debugPrint('formData.variant is now: ${formData.variant}');
     });
 
-    // Brands controller
+    // Brands
     _brandsController.addListener(() {
       if (_brandsController.text.isNotEmpty) {
-        formData.setBrands([_brandsController.text.trim()]);
+        final brandValue = _brandsController.text.trim();
+        formData.setBrands([brandValue]);
         formData.saveFormState();
-        debugPrint('Brands updated: ${_brandsController.text.trim()}');
+        debugPrint('Brands updated: $brandValue');
       }
     });
 
-    // Config controller
+    // Config
     _configController.addListener(() {
       formData.setConfig(_configController.text);
       formData.saveFormState();
       debugPrint('Config updated: ${_configController.text}');
     });
 
-    // Application controller
+    // Application
     _applicationController.addListener(() {
       formData.setApplication(_applicationController.text);
       formData.saveFormState();
@@ -491,123 +526,91 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
     try {
       debugPrint('Starting _populateExistingVehicleData');
-      debugPrint(
-          'Vehicle brands data type: ${widget.vehicle?.brands.runtimeType}');
-      debugPrint('Vehicle brands content: ${widget.vehicle?.brands}');
 
-      // Populate main image
+      // Main image
       if (widget.vehicle?.mainImageUrl != null) {
         formData.setMainImageUrl(widget.vehicle!.mainImageUrl);
         debugPrint('Main image URL set: ${widget.vehicle!.mainImageUrl}');
       }
 
-      // Populate NATIS/RC1 file
+      // NATIS/RC1 file
       setState(() {
         _existingNatisRc1Url = widget.vehicle?.rc1NatisFile;
         _existingNatisRc1Name = _getFileNameFromUrl(_existingNatisRc1Url);
         debugPrint('NATIS/RC1 file set: $_existingNatisRc1Url');
       });
 
+      // Vehicle status
       _initialVehicleStatus = widget.vehicle?.vehicleStatus ?? 'Draft';
       _vehicleStatus = _initialVehicleStatus;
       debugPrint('Initial Vehicle Status: $_initialVehicleStatus');
 
-      // Populate text controllers
-      _modelController.text = widget.vehicle?.makeModel ?? '';
-      debugPrint('Model Controller Text: ${_modelController.text}');
-      _variantController.text = widget.vehicle?.variant ?? '';
-      debugPrint('Variant Controller Text: ${_variantController.text}');
-      _vinNumberController.text = widget.vehicle?.vinNumber ?? '';
-      debugPrint('VIN Number Controller Text: ${_vinNumberController.text}');
-      _mileageController.text = widget.vehicle?.mileage ?? '';
-      debugPrint('Mileage Controller Text: ${_mileageController.text}');
-      _engineNumberController.text = widget.vehicle?.engineNumber ?? '';
+      // --- DEBUG for Variant ---
       debugPrint(
-          'Engine Number Controller Text: ${_engineNumberController.text}');
+          'Variant from vehicle before assignment: ${widget.vehicle?.variant ?? '(null)'}');
+
+      // Populate controllers directly from DB
+      _modelController.text = widget.vehicle?.makeModel ?? '';
+      _variantController.text = widget.vehicle?.variant ?? '';
+      _vinNumberController.text = widget.vehicle?.vinNumber ?? '';
+      _mileageController.text = widget.vehicle?.mileage ?? '';
+      _engineNumberController.text = widget.vehicle?.engineNumber ?? '';
       _registrationNumberController.text =
           widget.vehicle?.registrationNumber ?? '';
-      debugPrint(
-          'Registration Number Controller Text: ${_registrationNumberController.text}');
       _sellingPriceController.text =
           widget.vehicle?.adminData.settlementAmount ?? '';
-      debugPrint(
-          'Selling Price Controller Text: ${_sellingPriceController.text}');
       _warrantyDetailsController.text = widget.vehicle?.warrantyDetails ?? '';
-      debugPrint(
-          'Warranty Details Controller Text: ${_warrantyDetailsController.text}');
       _referenceNumberController.text = widget.vehicle?.referenceNumber ?? '';
-      debugPrint(
-          'Reference Number Controller Text: ${_referenceNumberController.text}');
 
+      // Populate FormDataProvider
       if (widget.vehicle?.brands != null && widget.vehicle!.brands.isNotEmpty) {
-        _brandsController.text = widget.vehicle!.brands[0].toString();
-        debugPrint('Brands Controller Text: ${_brandsController.text}');
+        _brandsController.text = widget.vehicle!.brands[0];
         formData.setBrands(List<String>.from(widget.vehicle!.brands));
-        debugPrint('FormData Brands Set: ${formData.brands}');
       }
 
       formData.setYear(widget.vehicle?.year);
-      debugPrint('FormData Year Set: ${formData.year}');
       formData.setMakeModel(widget.vehicle?.makeModel);
-      debugPrint('FormData MakeModel Set: ${formData.makeModel}');
-      formData.setVariant(widget.vehicle?.variant);
-      debugPrint('FormData Variant Set: ${formData.variant}');
-      formData.setVinNumber(widget.vehicle?.vinNumber);
-      debugPrint('FormData VIN Number Set: ${formData.vinNumber}');
-      formData.setConfig(widget.vehicle?.config);
-      debugPrint('FormData Config Set: ${formData.config}');
-      formData.setMileage(widget.vehicle?.mileage);
-      debugPrint('FormData Mileage Set: ${formData.mileage}');
-      formData.setApplication(widget.vehicle?.application.isNotEmpty == true
-          ? widget.vehicle?.application[0]
-          : null);
-      debugPrint('FormData Application Set: ${formData.application}');
-      formData.setEngineNumber(widget.vehicle?.engineNumber);
-      debugPrint('FormData Engine Number Set: ${formData.engineNumber}');
-      formData.setRegistrationNumber(widget.vehicle?.registrationNumber);
+
+      // --- DEBUG for Variant ---
       debugPrint(
-          'FormData Registration Number Set: ${formData.registrationNumber}');
+          'Setting formData variant to: ${widget.vehicle?.variant ?? '(null)'}');
+      formData.setVariant(widget.vehicle?.variant);
+      debugPrint('formData.variant is now: ${formData.variant}');
+
+      formData.setVinNumber(widget.vehicle?.vinNumber);
+      formData.setConfig(widget.vehicle?.config);
+      formData.setMileage(widget.vehicle?.mileage);
+      formData.setApplication(
+        widget.vehicle?.application.isNotEmpty == true
+            ? widget.vehicle?.application[0]
+            : null,
+      );
+      formData.setEngineNumber(widget.vehicle?.engineNumber);
+      formData.setRegistrationNumber(widget.vehicle?.registrationNumber);
       formData.setSellingPrice(widget.vehicle?.adminData.settlementAmount);
-      debugPrint('FormData Selling Price Set: ${formData.sellingPrice}');
       formData.setVehicleType(widget.vehicle?.vehicleType ?? 'truck');
-      debugPrint('FormData Vehicle Type Set: ${formData.vehicleType}');
       formData.setSuspension(widget.vehicle?.suspensionType ?? 'spring');
-      debugPrint('FormData Suspension Set: ${formData.suspension}');
       formData
           .setTransmissionType(widget.vehicle?.transmissionType ?? 'automatic');
-      debugPrint(
-          'FormData Transmission Type Set: ${formData.transmissionType}');
       formData.setHydraulics(widget.vehicle?.hydraluicType ?? 'no');
-      debugPrint('FormData Hydraulics Set: ${formData.hydraulics}');
       formData.setMaintenance(
           widget.vehicle?.maintenance.oemInspectionType ?? 'no');
-      debugPrint('FormData Maintenance Set: ${formData.maintenance}');
       formData.setWarranty(widget.vehicle?.warrentyType ?? 'no');
-      debugPrint('FormData Warranty Set: ${formData.warranty}');
       formData.setWarrantyDetails(widget.vehicle?.warrantyDetails);
-      debugPrint('FormData Warranty Details Set: ${formData.warrantyDetails}');
       formData
           .setRequireToSettleType(widget.vehicle?.requireToSettleType ?? 'no');
-      debugPrint(
-          'FormData Require To Settle Type Set: ${formData.requireToSettleType}');
       formData.setReferenceNumber(widget.vehicle?.referenceNumber);
-      debugPrint('FormData Reference Number Set: ${formData.referenceNumber}');
       formData.setCountry(widget.vehicle?.country ?? 'South Africa');
-      debugPrint('FormData Country Set: ${formData.country}');
+      formData.setMainImageUrl(widget.vehicle?.mainImageUrl);
 
-      // Ensure dropdowns include existing data
-      if (widget.vehicle != null) {
-        // Load brands for the existing year
-        if (formData.year != null) {
-          debugPrint('Loading brands for year: ${formData.year}');
-          await _loadBrandsForYear(formData.year!);
-        }
-
-        // Load models for the existing brand
-        if (formData.brands != null && formData.brands!.isNotEmpty) {
-          debugPrint('Loading models for brand: ${formData.brands![0]}');
-          await _loadModelsForBrand(formData.brands![0]);
-        }
+      // Ensure brand/model dropdown includes existing brand/model
+      if (formData.year != null) {
+        debugPrint('Loading brands for year: ${formData.year}');
+        await _loadBrandsForYear(formData.year!);
+      }
+      if (formData.brands != null && formData.brands!.isNotEmpty) {
+        debugPrint('Loading models for brand: ${formData.brands![0]}');
+        await _loadModelsForBrand(formData.brands![0]);
       }
 
       debugPrint('Completed _populateExistingVehicleData');
@@ -759,11 +762,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             appBar: AppBar(
               leading: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_left),
+                icon: const Icon(Icons.arrow_left),
                 color: Colors.white,
                 iconSize: 40,
               ),
-              backgroundColor: Color(0xFF0E4CAF),
+              backgroundColor: const Color(0xFF0E4CAF),
               elevation: 0.0,
               systemOverlayStyle: SystemUiOverlayStyle.light,
               centerTitle: true,
@@ -854,7 +857,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
 
     void handleImageTap() {
+      // If isDealer, disallow changing the image
       if (isDealer) return;
+
+      // If we already have an image (either local or from URL), ask user what to do
       if (formData.selectedMainImage != null ||
           (formData.mainImageUrl != null &&
               formData.mainImageUrl!.isNotEmpty)) {
@@ -895,6 +901,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           },
         );
       } else {
+        // No existing image, just pick a new one
         showImagePickerDialog();
       }
     }
@@ -948,7 +955,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   }
                 },
               ),
-            if (isTransporter)
+            if (isTransporter || isAdmin)
               Positioned(
                 bottom: 8,
                 right: 8,
@@ -980,6 +987,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final bool isDealer = userRole == 'dealer';
     final bool isTransporter = userRole == 'transporter';
     final formData = Provider.of<FormDataProvider>(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
@@ -998,7 +1006,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ),
           ),
           const SizedBox(height: 10),
-          if (isTransporter)
+          if (isTransporter || isAdmin)
             Center(
               child: Text(
                 'Please fill out the required details below.',
@@ -1017,7 +1025,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ),
           ),
           const SizedBox(height: 20),
-          if (isTransporter)
+          if (isTransporter || isAdmin)
             CustomDropdown(
               hintText: 'Vehicle Status',
               value: _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
@@ -1035,12 +1043,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 }
                 return null;
               },
-              isTransporter: isTransporter,
+              isTransporter: isTransporter || isAdmin,
             ),
           const SizedBox(height: 15),
-          if (isTransporter) _buildReferenceNumberField(),
+          if (isTransporter || isAdmin) _buildReferenceNumberField(),
           const SizedBox(height: 15),
-          if (isTransporter) _buildNatisRc1Section(),
+          if (isTransporter || isAdmin) _buildNatisRc1Section(),
           const SizedBox(height: 15),
           Form(
             key: _formKeys[0],
@@ -1048,13 +1056,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Year',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
@@ -1068,17 +1072,13 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     _loadBrandsForYear(value!);
                     formData.saveFormState();
                   },
-                  isTransporter: isTransporter,
+                  isTransporter: isTransporter || isAdmin,
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Manufacturer',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
@@ -1099,13 +1099,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Model',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
@@ -1124,13 +1120,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Variant',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomTextField(
@@ -1146,27 +1138,23 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Country',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Select Country',
                   enabled: !isDealer,
-                  value: formData.country?.isNotEmpty == true
+                  value: (formData.country?.isNotEmpty == true
                       ? formData.country
-                      : null,
+                      : null),
                   items: _countryOptions,
                   onChanged: (value) {
                     debugPrint('Country selected: $value');
                     formData.setCountry(value);
                   },
-                  isTransporter: isTransporter,
+                  isTransporter: isTransporter || isAdmin,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select a country';
@@ -1176,13 +1164,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Mileage',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomTextField(
@@ -1200,28 +1184,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Configuration',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Configuration',
                   enabled: !isDealer,
-                  value: formData.config?.isNotEmpty == true
+                  value: (formData.config?.isNotEmpty == true
                       ? formData.config
-                      : null,
+                      : null),
                   items: _configurationOptions,
                   onChanged: (value) {
                     debugPrint('Configuration selected: $value');
                     formData.setConfig(value);
                     formData.saveFormState();
                   },
-                  isTransporter: isTransporter,
+                  isTransporter: isTransporter || isAdmin,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select the configuration';
@@ -1231,21 +1211,17 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
-                  Text(
+                  const Text(
                     'Application of Use',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.start,
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Application of Use',
                   enabled: !isDealer,
-                  value: formData.application?.isNotEmpty == true
+                  value: (formData.application?.isNotEmpty == true
                       ? formData.application
-                      : null,
+                      : null),
                   items: _applicationOptions,
                   onChanged: (value) {
                     debugPrint('Application of Use selected: $value');
@@ -1258,10 +1234,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     }
                     return null;
                   },
-                  isTransporter: isTransporter,
+                  isTransporter: isTransporter || isAdmin,
                 ),
                 const SizedBox(height: 15),
-                if (isTransporter)
+                if (isTransporter || isAdmin)
                   CustomTextField(
                     controller: _vinNumberController,
                     hintText: 'VIN Number',
@@ -1273,24 +1249,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       return null;
                     },
                   ),
-                if (isTransporter) const SizedBox(height: 15),
-                if (isTransporter)
+                if (isTransporter || isAdmin) const SizedBox(height: 15),
+                if (isTransporter || isAdmin)
                   CustomTextField(
                     controller: _engineNumberController,
                     enabled: !isDealer,
                     hintText: 'Engine No.',
                     inputFormatter: [UpperCaseTextFormatter()],
                   ),
-                if (isTransporter) const SizedBox(height: 15),
-                if (isTransporter)
+                if (isTransporter || isAdmin) const SizedBox(height: 15),
+                if (isTransporter || isAdmin)
                   CustomTextField(
                     controller: _registrationNumberController,
                     enabled: !isDealer,
                     hintText: 'Registration No.',
                     inputFormatter: [UpperCaseTextFormatter()],
                   ),
-                if (isTransporter) const SizedBox(height: 15),
-                if (isTransporter)
+                if (isTransporter || isAdmin) const SizedBox(height: 15),
+                if (isTransporter || isAdmin)
                   CustomTextField(
                     controller: _sellingPriceController,
                     hintText: 'Selling Price',
@@ -1345,7 +1321,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   ],
                 ),
                 const SizedBox(height: 15),
-                Divider(),
+                const Divider(),
                 const SizedBox(height: 15),
                 Center(
                   child: Text(
@@ -1384,7 +1360,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   ],
                 ),
                 const SizedBox(height: 15),
-                Divider(),
+                const Divider(),
                 const SizedBox(height: 15),
                 Center(
                   child: Text(
@@ -1423,7 +1399,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   ],
                 ),
                 const SizedBox(height: 15),
-                Divider(),
+                const Divider(),
                 const SizedBox(height: 15),
                 Center(
                   child: Text(
@@ -1462,7 +1438,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   ],
                 ),
                 const SizedBox(height: 15),
-                Divider(),
+                const Divider(),
                 const SizedBox(height: 15),
                 Center(
                   child: Text(
@@ -1513,13 +1489,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     },
                     enabled: !isDealer,
                   ),
-                  // debugPrint(
-                  //     'Warranty Details field displayed with text: ${_warrantyDetailsController.text}'),
                 ],
                 const SizedBox(height: 15),
-                Divider(),
+                const Divider(),
                 const SizedBox(height: 15),
-                if (isTransporter)
+                if (isTransporter || isAdmin)
                   Center(
                     child: Text(
                       'Do you require the truck to be settled before selling'
@@ -1532,10 +1506,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   Center(
                     child: Text(
                       'Settlement Needed',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
                       textAlign: TextAlign.start,
                     ),
                   ),
@@ -1572,7 +1543,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             ),
           ),
           const SizedBox(height: 20),
-          if (isTransporter) _buildNextButton(),
+          if (isTransporter || isAdmin) _buildNextButton(),
           const SizedBox(height: 30),
         ],
       ),
@@ -1701,6 +1672,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       return false;
     }
 
+    // Add any other required checks as needed
+
     return true;
   }
 
@@ -1729,7 +1702,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   duration: Duration(seconds: 2),
                 ),
               );
-
               debugPrint('Navigating back after successful save.');
               Navigator.pop(context);
             }
@@ -1745,27 +1717,16 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   void _clearFormControllers() {
     debugPrint('Clearing all form controllers.');
     _sellingPriceController.clear();
-    debugPrint('Selling Price Controller cleared.');
     _vinNumberController.clear();
-    debugPrint('VIN Number Controller cleared.');
     _mileageController.clear();
-    debugPrint('Mileage Controller cleared.');
     _engineNumberController.clear();
-    debugPrint('Engine Number Controller cleared.');
     _warrantyDetailsController.clear();
-    debugPrint('Warranty Details Controller cleared.');
     _registrationNumberController.clear();
-    debugPrint('Registration Number Controller cleared.');
     _referenceNumberController.clear();
-    debugPrint('Reference Number Controller cleared.');
     _brandsController.clear();
-    debugPrint('Brands Controller cleared.');
     _countryController.clear();
-    debugPrint('Country Controller cleared.');
     _modelController.clear();
-    debugPrint('Model Controller cleared.');
     _variantController.clear();
-    debugPrint('Variant Controller cleared.');
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     formData.setSelectedMainImage(null);
@@ -1831,7 +1792,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           child: Text(
             'NATIS/RC1 Documentation'.toUpperCase(),
             style: const TextStyle(
-                fontSize: 15, color: Colors.white, fontWeight: FontWeight.w900),
+              fontSize: 15,
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
             textAlign: TextAlign.center,
           ),
         ),
@@ -1895,8 +1859,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Remove Document',
-                    style: TextStyle(color: Colors.red)),
+                title: const Text(
+                  'Remove Document',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _removeDocument();
@@ -1943,7 +1909,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     } else if (_natisRc1File != null) {
       // Handle viewing local file if needed
       debugPrint('Viewing local NATIS/RC1 file: ${_natisRc1File!.path}');
-      // Implement viewing logic here
+      // You could implement a local PDF viewer or image viewer here
     }
   }
 
@@ -1976,6 +1942,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   }
 }
 
+// Formatter for uppercase text fields
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -1989,6 +1956,7 @@ class UpperCaseTextFormatter extends TextInputFormatter {
   }
 }
 
+// Formatter for inserting thousands separators (e.g., 1234 -> 1,234)
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -2013,5 +1981,3 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
     );
   }
 }
-
-// The Brand, Model and variant only show with certain data. We need to display the data from the database regardless of what the JSON says. The JSON is only used when uploading a new vehicle

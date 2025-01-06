@@ -12,7 +12,7 @@ class UserProvider extends ChangeNotifier {
   User? _user;
   String _accountStatus = 'active'; // Default status
   List<String> _preferredBrands = [];
-  String _userRole = 'guest'; // Default role
+  String _userRole = 'dealer'; // Default role
   String? _profileImageUrl;
   bool _isLoading = true;
   bool _hasNotifications = false; // Add this field to track notifications
@@ -141,7 +141,7 @@ class UserProvider extends ChangeNotifier {
         print("DEBUG: User doc exists: ${userDoc.exists}");
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-          _userRole = data['userRole'] ?? 'guest';
+          _userRole = data['userRole'] ?? 'dealer';
           _adminApproval = data['adminApproval'] ?? false;
           _accountStatus =
               data['accountStatus'] ?? 'active'; // Fetch account status
@@ -281,7 +281,7 @@ class UserProvider extends ChangeNotifier {
 
   void _clearUserData() {
     _preferredBrands = [];
-    _userRole = 'guest';
+    _userRole = 'dealer';
     _profileImageUrl = null;
     _offers = [];
     _offersMade = [];

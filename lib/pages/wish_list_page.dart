@@ -321,7 +321,7 @@ class _WishlistPageState extends State<WishlistPage> {
                                 ),
                               },
                             ),
-                            vehicleStatus: '',
+                            vehicleStatus: '', length: '', vinTrailer: '', damagesDescription: '', additionalFeatures: '',
                           ),
                         );
 

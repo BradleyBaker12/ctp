@@ -70,8 +70,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  'No inspection locations available for this vehicle ${widget.vehicleId}.'),
+              content: Text('Waiting of transporter to setup inspection'),
             ),
           );
           return;
@@ -321,7 +320,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
             children: [
               Center(
                 child: Text(
-                  'No inspection locations available.',
+                  'Waiting on transporter to setup inspection.',
                   style: TextStyle(color: Colors.white, fontSize: 18),
                   textAlign: TextAlign.center,
                 ),

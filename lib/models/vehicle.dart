@@ -46,6 +46,10 @@ class Vehicle {
   final String trailerLength;
   String? natisRc1Url;
   final String referenceNumber;
+  final String length;
+  final String vinTrailer;
+  final String damagesDescription;
+  final String additionalFeatures;
   final List<String> brands;
 
   final String? requireToSettleType;
@@ -57,6 +61,23 @@ class Vehicle {
   final AdminData adminData;
   final Maintenance maintenance;
   final TruckConditions truckConditions;
+
+  // ------------------------------
+  // NEW FIELDS (all optional):
+  // ------------------------------
+  final String? natisDocumentUrl;
+  final String? serviceHistoryUrl;
+  final String? frontImageUrl;
+  final String? sideImageUrl;
+  final String? tyresImageUrl;
+  final String? chassisImageUrl;
+  final String? deckImageUrl;
+  final String? makersPlateImageUrl;
+  final List<String>? additionalImages;
+  final String? damagesCondition;
+  final List<Map<String, dynamic>>? damages;
+  final String? featuresCondition;
+  final List<Map<String, dynamic>>? features;
 
   Vehicle({
     required this.id,
@@ -102,8 +123,32 @@ class Vehicle {
     required this.country,
     required this.province,
     this.variant,
+    required this.length,
+    required this.vinTrailer,
+    required this.damagesDescription,
+    required this.additionalFeatures,
+
+    // NEW FIELDS in constructor (all optional)
+    this.natisDocumentUrl,
+    this.serviceHistoryUrl,
+    this.frontImageUrl,
+    this.sideImageUrl,
+    this.tyresImageUrl,
+    this.chassisImageUrl,
+    this.deckImageUrl,
+    this.makersPlateImageUrl,
+    this.additionalImages,
+    this.damagesCondition,
+    this.damages,
+    this.featuresCondition,
+    this.features,
   });
+
+  // ---------------------------------------------------------------------------
   // Factory constructor to create a Vehicle instance from Firestore data
+  // (docId + Map<String, dynamic> data). Existing code preserved; we only add
+  // the new fields with getString(...) / condition checks below.
+  // ---------------------------------------------------------------------------
   factory Vehicle.fromFirestore(String docId, Map<String, dynamic> data) {
     print('''
   === VEHICLE DEBUG ===
@@ -112,6 +157,7 @@ class Vehicle {
   MakeModel: ${data['makeModel']}
   MainImage: ${data['mainImageUrl']}
     ''');
+
     // Handle timestamp
     DateTime parsedCreatedAt = data['createdAt'] is Timestamp
         ? (data['createdAt'] as Timestamp).toDate()
@@ -127,7 +173,6 @@ class Vehicle {
     }
 
     // Handle brands list
-    // Handle brands list
     List<String> brands = [];
     if (data['brands'] is List) {
       brands = (data['brands'] as List).map((e) => e.toString()).toList();
@@ -135,7 +180,7 @@ class Vehicle {
       brands = [data['brands'] as String];
     }
 
-    // Helper function to safely get a String from data
+    // Helper function to safely get a String
     String getString(dynamic value, [String fieldName = '']) {
       if (value is String) {
         return value;
@@ -143,9 +188,27 @@ class Vehicle {
       return '';
     }
 
+    // ---- NEW HELPER for additionalImages (List<String>) ----
+    List<String>? parseAdditionalImages() {
+      if (data['additionalImages'] != null &&
+          data['additionalImages'] is List) {
+        return List<String>.from(data['additionalImages']);
+      }
+      return null;
+    }
+
+    // ---- NEW HELPER for damages/features arrays of maps ----
+    List<Map<String, dynamic>>? parseMapList(dynamic val) {
+      if (val != null && val is List) {
+        return List<Map<String, dynamic>>.from(val);
+      }
+      return null;
+    }
+
     return Vehicle(
       id: docId,
       application: applications,
+      length: getString(data['length']),
       damageDescription: getString(data['damageDescription']),
       damagePhotos: data['damagePhotos'] != null
           ? List<String?>.from(data['damagePhotos'])
@@ -273,8 +336,33 @@ class Vehicle {
       country: getString(data['country'] ?? ''),
       province: getString(data['province'] ?? ''),
       variant: getString(data['variant'] ?? ''),
+      vinTrailer: getString(data['vinTrailer'] ?? ''),
+      damagesDescription: getString(data['damagesDescription'] ?? ''),
+      additionalFeatures: getString(data['additionalFeatures'] ?? ''),
+
+      // ------------------------------
+      // ADDED NEW FIELDS
+      // ------------------------------
+      natisDocumentUrl: getString(data['natisDocumentUrl']),
+      serviceHistoryUrl: getString(data['serviceHistoryUrl']),
+      frontImageUrl: getString(data['frontImageUrl']),
+      sideImageUrl: getString(data['sideImageUrl']),
+      tyresImageUrl: getString(data['tyresImageUrl']),
+      chassisImageUrl: getString(data['chassisImageUrl']),
+      deckImageUrl: getString(data['deckImageUrl']),
+      makersPlateImageUrl: getString(data['makersPlateImageUrl']),
+      additionalImages: parseAdditionalImages(),
+      damagesCondition: getString(data['damagesCondition']),
+      damages: parseMapList(data['damages']),
+      featuresCondition: getString(data['featuresCondition']),
+      features: parseMapList(data['features']),
     );
-  } // Method to convert Vehicle instance to a Map (for Firestore updates)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Method to convert Vehicle instance to a Map (for Firestore updates)
+  // Original code preserved, plus we add the new fields at the bottom.
+  // ---------------------------------------------------------------------------
   Map<String, dynamic> toMap() {
     return {
       'application': application,
@@ -317,6 +405,27 @@ class Vehicle {
       'requireToSettleType': requireToSettleType,
       'country': country,
       'variant': variant,
+
+      // Existing line not to remove
+      'length': length,
+
+      // ----------------------------------------------------------------
+      // NEW FIELDS appended at the bottom (unchanged existing code above)
+      // ----------------------------------------------------------------
+      'natisDocumentUrl': natisDocumentUrl ?? '',
+      'serviceHistoryUrl': serviceHistoryUrl ?? '',
+      'frontImageUrl': frontImageUrl ?? '',
+      'sideImageUrl': sideImageUrl ?? '',
+      'tyresImageUrl': tyresImageUrl ?? '',
+      'chassisImageUrl': chassisImageUrl ?? '',
+      'deckImageUrl': deckImageUrl ?? '',
+      'makersPlateImageUrl': makersPlateImageUrl ?? '',
+      'additionalImages': additionalImages ?? [],
+      'damagesCondition': damagesCondition ?? '',
+      'damages': damages ?? [],
+      'featuresCondition': featuresCondition ?? '',
+      'features': features ?? [],
+      // done
     };
   }
 
@@ -353,12 +462,16 @@ class Vehicle {
       createdAt: parsedCreatedAt,
       application: applications,
       brands: brands,
+      vinTrailer: data['vinTrailer'] ?? '',
+      damagesDescription: data['damagesDescription'] ?? '',
+      additionalFeatures: data['additionalFeatures'] ?? '',
       warrantyDetails: data['warrantyDetails'] ?? 'N/A',
       damageDescription: data['damageDescription'] ?? '',
       damagePhotos: data['damagePhotos'] != null
           ? List<String?>.from(data['damagePhotos'])
           : [],
       dashboardPhoto: data['dashboardPhoto'] ?? '',
+      length: data['length'] ?? '',
       engineNumber: data['engineNumber'] ?? 'N/A',
       expectedSellingPrice: data['sellingPrice'] ?? 'N/A',
       faultCodesPhoto: data['faultCodesPhoto'] ?? '',
@@ -481,15 +594,43 @@ class Vehicle {
       requireToSettleType: data['requireToSettleType'] as String?,
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
-      variant: data['variant'] ?? 'N/A',
+      variant: data['variant'] ?? '',
+
+      // ------------------------------
+      // ADDED NEW FIELDS
+      // ------------------------------
+      natisDocumentUrl: data['natisDocumentUrl'],
+      serviceHistoryUrl: data['serviceHistoryUrl'],
+      frontImageUrl: data['frontImageUrl'],
+      sideImageUrl: data['sideImageUrl'],
+      tyresImageUrl: data['tyresImageUrl'],
+      chassisImageUrl: data['chassisImageUrl'],
+      deckImageUrl: data['deckImageUrl'],
+      makersPlateImageUrl: data['makersPlateImageUrl'],
+      additionalImages: data['additionalImages'] != null
+          ? List<String>.from(data['additionalImages'])
+          : null,
+      damagesCondition: data['damagesCondition'],
+      damages: data['damages'] != null
+          ? List<Map<String, dynamic>>.from(data['damages'])
+          : null,
+      featuresCondition: data['featuresCondition'],
+      features: data['features'] != null
+          ? List<Map<String, dynamic>>.from(data['features'])
+          : null,
     );
   }
+
   factory Vehicle.fromMap(Map<String, dynamic> data) {
     return Vehicle(
       id: data['id'] ?? '',
       referenceNumber: data['referenceNumber'] ?? '',
+      vinTrailer: data['vinTrailer'] ?? '',
+      damagesDescription: data['damagesDescription'] ?? '',
+      additionalFeatures: data['additionalFeatures'] ?? '',
       makeModel: data['makeModel'] ?? 'N/A',
       mainImageUrl: data['mainImageUrl'] ?? '',
+      length: data['length'] ?? '',
       application: data['application'] ?? 'N/A',
       damageDescription: data['damageDescription'] ?? '',
       damagePhotos: data['damagePhotos'] != null
@@ -619,7 +760,30 @@ class Vehicle {
       brands: data['brands'] ?? '',
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
-      variant: data['variant'] ?? 'N/A',
+      variant: data['variant'] ?? '',
+
+      // ------------------------------
+      // ADDED NEW FIELDS
+      // ------------------------------
+      natisDocumentUrl: data['natisDocumentUrl'],
+      serviceHistoryUrl: data['serviceHistoryUrl'],
+      frontImageUrl: data['frontImageUrl'],
+      sideImageUrl: data['sideImageUrl'],
+      tyresImageUrl: data['tyresImageUrl'],
+      chassisImageUrl: data['chassisImageUrl'],
+      deckImageUrl: data['deckImageUrl'],
+      makersPlateImageUrl: data['makersPlateImageUrl'],
+      additionalImages: data['additionalImages'] != null
+          ? List<String>.from(data['additionalImages'])
+          : null,
+      damagesCondition: data['damagesCondition'],
+      damages: data['damages'] != null
+          ? List<Map<String, dynamic>>.from(data['damages'])
+          : null,
+      featuresCondition: data['featuresCondition'],
+      features: data['features'] != null
+          ? List<Map<String, dynamic>>.from(data['features'])
+          : null,
     );
   }
 }
