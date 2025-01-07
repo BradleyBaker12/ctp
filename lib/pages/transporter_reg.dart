@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
@@ -64,6 +65,9 @@ class _TransporterRegistrationPageState
   String? _bankConfirmationFile;
   String? _proxyFile;
   String? _brncFile;
+  Uint8List? _bankConfirmationByte;
+  Uint8List? _proxyByte;
+  Uint8List? _brncByte;
   bool _isLoading = false;
 
   @override
@@ -86,12 +90,25 @@ class _TransporterRegistrationPageState
       FilePickerResult? result = await FilePicker.platform.pickFiles();
       if (result != null) {
         setState(() {
-          if (fieldName == 'bankConfirmation') {
-            _bankConfirmationFile = result.files.single.path;
-          } else if (fieldName == 'proxy') {
-            _proxyFile = result.files.single.path;
-          } else if (fieldName == 'brnc') {
-            _brncFile = result.files.single.path;
+          if (!kIsWeb) {
+            if (fieldName == 'bankConfirmation') {
+              _bankConfirmationFile = result.files.single.path;
+            } else if (fieldName == 'proxy') {
+              _proxyFile = result.files.single.path;
+            } else if (fieldName == 'brnc') {
+              _brncFile = result.files.single.path;
+            }
+          } else {
+            if (fieldName == 'bankConfirmation') {
+              _bankConfirmationByte = result.files.single.bytes;
+              print("Bank Confirmation has been selected");
+            } else if (fieldName == 'proxy') {
+              _proxyByte = result.files.single.bytes;
+              print("Proxy has been selected");
+            } else if (fieldName == 'brnc') {
+              _brncByte = result.files.single.bytes;
+              print("Brnc has been selected");
+            }
           }
         });
       }
@@ -109,9 +126,14 @@ class _TransporterRegistrationPageState
     }
 
     // Check if all required files are uploaded
-    if (_bankConfirmationFile == null ||
-        _proxyFile == null ||
-        _brncFile == null) {
+    if ((!kIsWeb &&
+            (_bankConfirmationFile == null ||
+                _proxyFile == null ||
+                _brncFile == null)) ||
+        (kIsWeb &&
+            (_bankConfirmationByte == null ||
+                _proxyByte == null ||
+                _brncByte == null))) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload all required documents.')),
       );
@@ -134,10 +156,22 @@ class _TransporterRegistrationPageState
         return await snapshot.ref.getDownloadURL();
       }
 
-      final bankConfirmationUrl =
-          await uploadFile(_bankConfirmationFile!, 'bank_confirmation.pdf');
-      final proxyUrl = await uploadFile(_proxyFile!, 'proxy.pdf');
-      final brncUrl = await uploadFile(_brncFile!, 'brnc.pdf');
+      Future<String> uploadByte(Uint8List fileByte, String fileName) async {
+        final ref = storage.ref().child('documents/$userId/$fileName');
+        final task = ref.putData(fileByte);
+        final snapshot = await task;
+        return await snapshot.ref.getDownloadURL();
+      }
+
+      final bankConfirmationUrl = !kIsWeb
+          ? await uploadFile(_bankConfirmationFile!, 'bank_confirmation.pdf')
+          : await uploadByte(_bankConfirmationByte!, 'bank_confirmation.pdf');
+      final proxyUrl = !kIsWeb
+          ? await uploadFile(_proxyFile!, 'proxy.pdf')
+          : await uploadByte(_proxyByte!, 'proxy.pdf');
+      final brncUrl = !kIsWeb
+          ? await uploadFile(_brncFile!, 'brnc.pdf')
+          : await uploadByte(_brncByte!, 'brnc.pdf');
 
       await firestore.collection('users').doc(userId).update({
         'companyName': _companyNameController.text,
