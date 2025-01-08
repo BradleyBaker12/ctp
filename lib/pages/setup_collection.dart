@@ -1,6 +1,8 @@
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
 import 'package:intl/intl.dart'; // For date/time formatting
+import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -28,9 +30,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   // List of time dropdowns for the current day
   List<TimeOfDay?> _selectedTimes = [null];
 
-  // Predefined time slots in 24-hour increments
-  // Adjust these slots to match any times you expect from Firestore.
-  final List<TimeOfDay> _timeSlots = [
+  // Made _timeSlots mutable to allow dynamic additions
+  List<TimeOfDay> _timeSlots = [
     TimeOfDay(hour: 8, minute: 0),
     TimeOfDay(hour: 8, minute: 30),
     TimeOfDay(hour: 9, minute: 0),
@@ -69,6 +70,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   bool _isLoading = false;
   bool _useInspectionDetails = false;
   bool _offerDeliveryOption = false;
+
   @override
   void dispose() {
     _addressLine1Controller.dispose();
@@ -216,10 +218,28 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
         List<String> times = timeSlots
             .firstWhere((slot) => slot['date'] == date.toShortString())['times']
             .cast<String>();
-        _dateTimeSlots[date] = times
+        List<TimeOfDay> parsedTimes = times
             .map((timeStr) => _parseTimeOfDay(timeStr))
             .whereType<TimeOfDay>()
             .toList();
+
+        // Dynamically add new times to _timeSlots if they don't exist
+        for (var time in parsedTimes) {
+          if (!_timeSlots.contains(time)) {
+            _timeSlots.add(time);
+          }
+        }
+
+        // Sort the _timeSlots list after adding new times
+        _timeSlots.sort((a, b) {
+          if (a.hour != b.hour) {
+            return a.hour.compareTo(b.hour);
+          } else {
+            return a.minute.compareTo(b.minute);
+          }
+        });
+
+        _dateTimeSlots[date] = parsedTimes;
       }
 
       if (_selectedDays.isNotEmpty) {
@@ -473,15 +493,35 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       for (var timeSlotData in inspectionLocation['timeSlots']) {
         DateTime date = _parseDateString(timeSlotData['date']);
         List times = timeSlotData['times'];
-        _dateTimeSlots[date] = times
+        List<TimeOfDay> parsedTimes = times
             .map((timeStr) => _parseTimeOfDay(timeStr))
             .whereType<TimeOfDay>()
             .toList();
+
+        // Dynamically add new times to _timeSlots if they don't exist
+        for (var time in parsedTimes) {
+          if (!_timeSlots.contains(time)) {
+            _timeSlots.add(time);
+          }
+        }
+
+        // Sort the _timeSlots list after adding new times
+        _timeSlots.sort((a, b) {
+          if (a.hour != b.hour) {
+            return a.hour.compareTo(b.hour);
+          } else {
+            return a.minute.compareTo(b.minute);
+          }
+        });
+
+        _dateTimeSlots[date] = parsedTimes;
       }
 
       if (_selectedDays.isNotEmpty) {
         _selectedDay = _selectedDays.first;
-        _selectedTimes = _dateTimeSlots[_selectedDay!] ?? [null];
+        _selectedTimes =
+            _dateTimeSlots[_selectedDay!]?.map((e) => e).toList() ?? [null];
+
         // If no time selected, choose the first time slot by default
         if (_selectedTimes.isEmpty || _selectedTimes.first == null) {
           _selectedTimes[0] = _timeSlots.first;
@@ -505,6 +545,12 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    final bool isTransporter =
+        userRole == 'transporter'; // Check if the user is a dealer
     return Stack(
       children: [
         GradientBackground(
@@ -755,7 +801,10 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                           ),
                                         ),
                                         child: DropdownButton<TimeOfDay>(
-                                          value: selectedTime,
+                                          value:
+                                              _timeSlots.contains(selectedTime)
+                                                  ? selectedTime
+                                                  : null,
                                           hint: const Text(
                                             'Select Time Slot',
                                             style:
@@ -876,10 +925,11 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                         ),
                       ),
                     ),
-                    CustomBottomNavigation(
-                      selectedIndex: 1,
-                      onItemTapped: (int) {},
-                    ),
+                    if (!isAdmin)
+                      CustomBottomNavigation(
+                        selectedIndex: 1,
+                        onItemTapped: (int) {},
+                      ),
                   ],
                 ),
               ],
@@ -942,6 +992,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
 extension DateTimeExtension on DateTime {
   String toShortString() {
-    return '$day-$month-$year';
+    return '$day-${month.toString().padLeft(2, '0')}-${year}';
   }
 }

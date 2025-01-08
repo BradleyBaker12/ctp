@@ -538,6 +538,7 @@ class _TransporterRegistrationPageState
       focusNode: focusNode,
       cursorColor: orange,
       decoration: InputDecoration(
+        errorMaxLines: 3,
         hintText: hintText,
         hintStyle: GoogleFonts.montserrat(color: Colors.white70),
         filled: true,

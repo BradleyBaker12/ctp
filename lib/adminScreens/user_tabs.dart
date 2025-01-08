@@ -35,6 +35,21 @@ class _UsersTabState extends State<UsersTab> {
   FirebaseAuth? _secondaryAuth;
   bool _isSecondaryAuthReady = false;
 
+  // Sorting variables
+  String _sortField = 'firstName'; // Default sort field
+  bool _sortAscending = true; // Default sort direction
+
+  // Filter-related variables
+  List<String> _selectedFilters = [];
+  final List<String> _filterOptions = [
+    'All Users',
+    'Dealers',
+    'Transporters',
+    'Active Users',
+    'Pending Users',
+    'Suspended Users'
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -73,7 +88,7 @@ class _UsersTabState extends State<UsersTab> {
   }
 
   bool _matchesSearch(Map<String, dynamic> userData) {
-    if (_searchQuery.isEmpty) return true;
+    if (_searchQuery.isEmpty && _selectedFilters.isEmpty) return true;
 
     String firstName = userData['firstName']?.toString().toLowerCase() ?? '';
     String lastName = userData['lastName']?.toString().toLowerCase() ?? '';
@@ -84,13 +99,29 @@ class _UsersTabState extends State<UsersTab> {
         userData['companyName']?.toString().toLowerCase() ?? '';
     String tradingAs = userData['tradingAs']?.toString().toLowerCase() ?? '';
 
-    return firstName.contains(_searchQuery.toLowerCase()) ||
-        lastName.contains(_searchQuery.toLowerCase()) ||
-        email.contains(_searchQuery.toLowerCase()) ||
-        role.contains(_searchQuery.toLowerCase()) ||
-        status.contains(_searchQuery.toLowerCase()) ||
-        companyName.contains(_searchQuery.toLowerCase()) ||
-        tradingAs.contains(_searchQuery.toLowerCase());
+    bool matchesSearch = _searchQuery.isEmpty
+        ? true
+        : firstName.contains(_searchQuery.toLowerCase()) ||
+            lastName.contains(_searchQuery.toLowerCase()) ||
+            email.contains(_searchQuery.toLowerCase()) ||
+            role.contains(_searchQuery.toLowerCase()) ||
+            status.contains(_searchQuery.toLowerCase()) ||
+            companyName.contains(_searchQuery.toLowerCase()) ||
+            tradingAs.contains(_searchQuery.toLowerCase());
+
+    bool matchesFilter = _selectedFilters.isEmpty
+        ? true
+        : _selectedFilters.contains('All Users') ||
+            (_selectedFilters.contains('Dealers') && role == 'dealer') ||
+            (_selectedFilters.contains('Transporters') &&
+                role == 'transporter') ||
+            (_selectedFilters.contains('Active Users') && status == 'active') ||
+            (_selectedFilters.contains('Pending Users') &&
+                status == 'pending') ||
+            (_selectedFilters.contains('Suspended Users') &&
+                status == 'suspended');
+
+    return matchesSearch && matchesFilter;
   }
 
   Future<void> _fetchUsers() async {
@@ -100,7 +131,9 @@ class _UsersTabState extends State<UsersTab> {
       _isLoading = true;
     });
 
-    Query query = usersCollection.orderBy('createdAt').limit(_limit);
+    Query query = usersCollection
+        .orderBy(_sortField, descending: !_sortAscending)
+        .limit(_limit);
 
     if (_lastDocument != null) {
       query = query.startAfterDocument(_lastDocument!);
@@ -127,6 +160,147 @@ class _UsersTabState extends State<UsersTab> {
     });
   }
 
+  // New method to show sort menu
+  Future<void> _showSortMenu() async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context)!.context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero),
+            ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    await showMenu(
+      context: context,
+      position: position,
+      color: Colors.grey[900],
+      items: [
+        PopupMenuItem(
+          value: 'firstName',
+          child:
+              Text('Name', style: GoogleFonts.montserrat(color: Colors.white)),
+        ),
+        PopupMenuItem(
+          value: 'email',
+          child:
+              Text('Email', style: GoogleFonts.montserrat(color: Colors.white)),
+        ),
+        PopupMenuItem(
+          value: 'userRole',
+          child:
+              Text('Role', style: GoogleFonts.montserrat(color: Colors.white)),
+        ),
+        PopupMenuItem(
+          value: 'accountStatus',
+          child: Text('Status',
+              style: GoogleFonts.montserrat(color: Colors.white)),
+        ),
+        PopupMenuItem(
+          value: 'companyName',
+          child: Text('Company',
+              style: GoogleFonts.montserrat(color: Colors.white)),
+        ),
+        PopupMenuItem(
+          value: 'tradingAs',
+          child: Text('Trading As',
+              style: GoogleFonts.montserrat(color: Colors.white)),
+        ),
+      ],
+    ).then((value) {
+      if (value != null) {
+        setState(() {
+          _sortField = value;
+          _users.clear();
+          _lastDocument = null;
+          _hasMore = true;
+          _fetchUsers();
+        });
+      }
+    });
+  }
+
+  // Remove the existing _buildSortDropdown method since it's no longer needed
+
+  // Remove the existing _sortUsers method if not needed
+  // However, since we are now sorting via Firestore queries, we can remove this method
+  // Alternatively, if you still want to sort the already fetched users, you can keep it
+  // For this update, we'll remove it and rely on Firestore's ordering
+
+  // Method to show filter dialog remains unchanged
+  Future<void> _showFilterDialog() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: Text('Filter Users',
+              style: GoogleFonts.montserrat(color: Colors.white)),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _filterOptions.map((filter) {
+                    return CheckboxListTile(
+                      title: Text(filter,
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      value: _selectedFilters.contains(filter),
+                      checkColor: Colors.black,
+                      activeColor: const Color(0xFFFF4E00),
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedFilters.add(filter);
+                          } else {
+                            _selectedFilters.remove(filter);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              child: Text('Clear All',
+                  style: GoogleFonts.montserrat(color: Colors.white)),
+              onPressed: () {
+                setState(() {
+                  _selectedFilters.clear();
+                  Navigator.pop(context);
+                  _users.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                  _fetchUsers();
+                });
+              },
+            ),
+            TextButton(
+              child: Text('Apply',
+                  style:
+                      GoogleFonts.montserrat(color: const Color(0xFFFF4E00))),
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  _users.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                  _fetchUsers();
+                });
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<DocumentSnapshot> filteredUsers = _users.where((doc) {
@@ -134,42 +308,89 @@ class _UsersTabState extends State<UsersTab> {
       return _matchesSearch(data);
     }).toList();
 
+    // Since we're fetching sorted data from Firestore, no need to sort here
+    // If you still want to sort the filtered list, you can uncomment the following line
+    // _sortUsers(filteredUsers);
+
     return Scaffold(
       body: GradientBackground(
         child: Column(
           children: [
-            // Search Bar
+            // Updated Search, Sort, and Filter Row
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _searchController,
-                style: GoogleFonts.montserrat(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Search Users',
-                  labelStyle: GoogleFonts.montserrat(color: Colors.white),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white),
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Colors.white),
+              child: Row(
+                children: [
+                  // Search Bar
+                  Expanded(
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Search users...',
+                          hintStyle:
+                              GoogleFonts.montserrat(color: Colors.white54),
+                          prefixIcon:
+                              const Icon(Icons.search, color: Colors.white54),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                            _users.clear();
+                            _lastDocument = null;
+                            _hasMore = true;
+                          });
+                          _fetchUsers();
+                        },
+                      ),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Color(0xFFFF4E00)),
+                  const SizedBox(width: 8),
+                  // Sort Button
+                  IconButton(
+                    icon: const Icon(Icons.sort, color: Colors.white),
+                    onPressed: _showSortMenu,
+                    tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
                   ),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                    _users.clear();
-                    _lastDocument = null;
-                    _hasMore = true;
-                  });
-                  _fetchUsers();
-                },
+                  // Sort Direction Button
+                  IconButton(
+                    icon: Icon(
+                      _sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _sortAscending = !_sortAscending;
+                        _users.clear();
+                        _lastDocument = null;
+                        _hasMore = true;
+                        _fetchUsers();
+                      });
+                    },
+                    tooltip:
+                        _sortAscending ? 'Sort Ascending' : 'Sort Descending',
+                  ),
+                  // Filter Button
+                  IconButton(
+                    icon: const Icon(Icons.filter_list, color: Colors.white),
+                    onPressed: _showFilterDialog,
+                    tooltip: 'Filter Users',
+                  ),
+                ],
               ),
             ),
+            // Remove the old sort dropdown
             // Expanded ListView
             Expanded(
               child: filteredUsers.isEmpty
@@ -362,7 +583,9 @@ class _UsersTabState extends State<UsersTab> {
                   );
                 }).toList(),
                 onChanged: (value) {
-                  selectedRole = value;
+                  setState(() {
+                    selectedRole = value;
+                  });
                 },
               ),
             ],
@@ -410,9 +633,11 @@ class _UsersTabState extends State<UsersTab> {
 
                 Navigator.pop(context);
                 // Refresh the list
-                _users.clear();
-                _lastDocument = null;
-                _hasMore = true;
+                setState(() {
+                  _users.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                });
                 _fetchUsers();
               } catch (e) {
                 Navigator.pop(context);

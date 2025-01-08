@@ -31,6 +31,18 @@ class _VehiclesTabState extends State<VehiclesTab> {
 
   final ScrollController _scrollController = ScrollController();
 
+  String _sortField = 'createdAt';
+  bool _sortAscending = false;
+  List<String> _selectedFilters = [];
+  final List<String> _filterOptions = ['All', 'Live', 'Sold', 'Draft'];
+
+  final List<Map<String, String>> _sortOptions = [
+    {'field': 'createdAt', 'label': 'Date'},
+    {'field': 'year', 'label': 'Year'},
+    {'field': 'vehicleStatus', 'label': 'Status'},
+    {'field': 'makeModel', 'label': 'Model'}
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -101,7 +113,15 @@ class _VehiclesTabState extends State<VehiclesTab> {
       _isLoading = true;
     });
 
-    Query query = vehiclesCollection.orderBy('createdAt').limit(_limit);
+    Query query =
+        vehiclesCollection.orderBy(_sortField, descending: !_sortAscending);
+
+    // Apply filters
+    if (_selectedFilters.isNotEmpty && !_selectedFilters.contains('All')) {
+      query = query.where('vehicleStatus', whereIn: _selectedFilters);
+    }
+
+    query = query.limit(_limit);
 
     if (_lastDocument != null) {
       query = query.startAfterDocument(_lastDocument!);
@@ -143,35 +163,77 @@ class _VehiclesTabState extends State<VehiclesTab> {
             // SEARCH BAR
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _searchController,
-                style: GoogleFonts.montserrat(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Search Vehicles',
-                  labelStyle: GoogleFonts.montserrat(color: Colors.white),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white),
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Colors.white),
+              child: Row(
+                children: [
+                  // Search Bar
+                  Expanded(
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Search vehicles...',
+                          hintStyle:
+                              GoogleFonts.montserrat(color: Colors.white54),
+                          prefixIcon:
+                              const Icon(Icons.search, color: Colors.white54),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                            _vehicles.clear();
+                            _lastDocument = null;
+                            _hasMore = true;
+                          });
+                          _fetchVehicles();
+                        },
+                      ),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Color(0xFFFF4E00)),
+                  const SizedBox(width: 8),
+                  // Sort Button
+                  IconButton(
+                    icon: const Icon(Icons.sort, color: Colors.white),
+                    onPressed: () => _showSortMenu(),
+                    tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
                   ),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                    // Because we want to re-fetch from Firestore each time,
-                    // we clear everything and reset pagination:
-                    _vehicles.clear();
-                    _lastDocument = null;
-                    _hasMore = true;
-                  });
-                  _fetchVehicles();
-                },
+                  // Sort Direction Button
+                  IconButton(
+                    icon: Icon(
+                      _sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _sortAscending = !_sortAscending;
+                        _vehicles.clear();
+                        _lastDocument = null;
+                        _hasMore = true;
+                        _fetchVehicles();
+                      });
+                    },
+                    tooltip:
+                        _sortAscending ? 'Sort Ascending' : 'Sort Descending',
+                  ),
+                  // Filter Button
+                  IconButton(
+                    icon: const Icon(Icons.filter_list, color: Colors.white),
+                    onPressed: _showFilterDialog,
+                    tooltip: 'Filter Vehicles',
+                  ),
+                ],
               ),
             ),
 
@@ -383,6 +445,122 @@ class _VehiclesTabState extends State<VehiclesTab> {
           },
         ),
       ),
+    );
+  }
+
+  void _showSortMenu() async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context)!.context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero),
+            ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    await showMenu(
+      context: context,
+      position: position,
+      color: Colors.grey[900],
+      items: _sortOptions.map((option) {
+        return PopupMenuItem<String>(
+          value: option['field'],
+          child: Row(
+            children: [
+              Text(
+                option['label']!,
+                style: GoogleFonts.montserrat(color: Colors.white),
+              ),
+              if (_sortField == option['field']) const SizedBox(width: 8),
+              if (_sortField == option['field'])
+                const Icon(Icons.check, size: 18, color: Colors.white),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((value) {
+      if (value != null) {
+        setState(() {
+          _sortField = value;
+          _vehicles.clear();
+          _lastDocument = null;
+          _hasMore = true;
+          _fetchVehicles();
+        });
+      }
+    });
+  }
+
+  Future<void> _showFilterDialog() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: Text('Filter Vehicles',
+              style: GoogleFonts.montserrat(color: Colors.white)),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _filterOptions.map((filter) {
+                    return CheckboxListTile(
+                      title: Text(filter,
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      value: _selectedFilters.contains(filter),
+                      checkColor: Colors.black,
+                      activeColor: const Color(0xFFFF4E00),
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedFilters.add(filter);
+                          } else {
+                            _selectedFilters.remove(filter);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              child: Text('Clear All',
+                  style: GoogleFonts.montserrat(color: Colors.white)),
+              onPressed: () {
+                setState(() {
+                  _selectedFilters.clear();
+                  _vehicles.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                  _fetchVehicles();
+                });
+                Navigator.pop(context);
+              },
+            ),
+            TextButton(
+              child: Text('Apply',
+                  style:
+                      GoogleFonts.montserrat(color: const Color(0xFFFF4E00))),
+              onPressed: () {
+                setState(() {
+                  _vehicles.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                  _fetchVehicles();
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

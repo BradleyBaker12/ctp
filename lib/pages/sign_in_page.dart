@@ -67,54 +67,32 @@ class _SignInPageState extends State<SignInPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      User? user = userCredential.user;
-      print('Signed in user UID: ${user?.uid}');
 
-      if (user != null) {
+      if (userCredential.user != null) {
+        // Fetch user data and check account status
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .doc(userCredential.user!.uid)
             .get();
-        print('User document exists: ${userDoc.exists}');
 
-        if (!userDoc.exists) {
-          // Determine the user role based on email
-          String role = 'guest';
-          if (user.email != null && adminEmails.contains(user.email)) {
-            role = 'admin';
+        String accountStatus = userDoc.get('accountStatus') ?? 'active';
+
+        if (accountStatus == 'suspended' || accountStatus == 'inactive') {
+          // Redirect to waiting page
+          Navigator.pushReplacementNamed(context, '/waiting-for-approval');
+        } else {
+          // Fetch user data via UserProvider
+          final userProvider =
+              Provider.of<UserProvider>(context, listen: false);
+          await userProvider.fetchUserData();
+
+          // Navigate based on role
+          String userRole = userProvider.getUserRole;
+          if (userRole == 'admin') {
+            Navigator.pushReplacementNamed(context, '/admin-home');
           } else {
-            // Assign default role or determine based on other criteria
-            role = 'dealer'; // Change as per your application logic
+            Navigator.pushReplacementNamed(context, '/home');
           }
-          print('Assigned role: $role');
-
-          // Create a new user document
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .set({
-            'userRole': role,
-            'email': user.email,
-            // Add other default fields as needed
-          });
-          print('User document created with role: $role');
-        } else {
-          print('User document already exists');
-        }
-
-        // Fetch user data via UserProvider
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        await userProvider.fetchUserData();
-
-        // Get user role
-        String userRole = userProvider.userRole;
-        print('Fetched user role: $userRole');
-
-        // Navigate based on user role
-        if (userRole == 'admin') {
-          Navigator.pushReplacementNamed(context, '/admin-home');
-        } else {
-          Navigator.pushReplacementNamed(context, '/home');
         }
       }
     } on FirebaseAuthException catch (e) {

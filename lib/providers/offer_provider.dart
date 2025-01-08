@@ -17,6 +17,8 @@ class Offer extends ChangeNotifier {
   String? reason;
   DateTime? createdAt;
   String? vehicleBrand;
+  String? externalInvoice;
+  bool? needsInvoice;
 
   List<String> vehicleImages = [];
   Map<String, String?> additionalInfo = {};
@@ -44,37 +46,38 @@ class Offer extends ChangeNotifier {
 
   String? proofOfPayment;
 
-  Offer({
-    required this.offerId,
-    required this.dealerId,
-    required this.vehicleId,
-    required this.transporterId,
-    this.offerAmount,
-    required this.offerStatus,
-    this.description,
-    this.vehicleMakeModel,
-    this.vehicleMainImage,
-    this.reason,
-    this.createdAt,
-    this.vehicleBrand,
-    this.dealerSelectedInspectionDate,
-    this.dealerSelectedInspectionTime,
-    this.dealerSelectedInspectionLocation,
-    this.transporterDeliveryAddress,
-    this.latLng,
-    this.dealerSelectedCollectionLocation,
-    this.dealerSelectedCollectionAddress,
-    this.dealerSelectedCollectionDate,
-    this.dealerSelectedCollectionTime,
-    this.inspectionDates,
-    this.inspectionLocations,
-    this.collectionDates,
-    this.collectionLocations,
-    this.proofOfPayment,
-    this.vehicleYear,
-    this.vehicleMileage,
-    this.vehicleTransmission,
-  });
+  Offer(
+      {required this.offerId,
+      required this.dealerId,
+      required this.vehicleId,
+      required this.transporterId,
+      this.offerAmount,
+      required this.offerStatus,
+      this.description,
+      this.vehicleMakeModel,
+      this.vehicleMainImage,
+      this.reason,
+      this.createdAt,
+      this.vehicleBrand,
+      this.dealerSelectedInspectionDate,
+      this.dealerSelectedInspectionTime,
+      this.dealerSelectedInspectionLocation,
+      this.transporterDeliveryAddress,
+      this.latLng,
+      this.dealerSelectedCollectionLocation,
+      this.dealerSelectedCollectionAddress,
+      this.dealerSelectedCollectionDate,
+      this.dealerSelectedCollectionTime,
+      this.inspectionDates,
+      this.inspectionLocations,
+      this.collectionDates,
+      this.collectionLocations,
+      this.proofOfPayment,
+      this.vehicleYear,
+      this.vehicleMileage,
+      this.vehicleTransmission,
+      this.externalInvoice,
+      this.needsInvoice});
 
   /// IMPORTANT: Ensure these keys match your Firestore fields.
   factory Offer.fromFirestore(DocumentSnapshot doc) {
@@ -89,6 +92,7 @@ class Offer extends ChangeNotifier {
       offerStatus: data['offerStatus'] ?? 'pending',
       description: data['description'] ?? 'No Description',
       vehicleMakeModel: data['makeModel'],
+      externalInvoice: data['externalInvoice'],
       vehicleMainImage: data['vehicleMainImage'],
       reason: data['reason'],
       createdAt: data['createdAt'] != null
@@ -121,6 +125,9 @@ class Offer extends ChangeNotifier {
       collectionDates: data['collectionDates'],
       collectionLocations: data['collectionLocations'],
       proofOfPayment: data['proofOfPayment'],
+      needsInvoice: data['needsInvoice'] is bool
+          ? data['needsInvoice'] as bool
+          : (data['needsInvoice'] == 'true' ? true : false),
     );
   }
 

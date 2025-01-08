@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../providers/user_provider.dart';
 
 class UserDetailPage extends StatefulWidget {
@@ -63,6 +65,73 @@ class _UserDetailPageState extends State<UserDetailPage> {
       setState(() {
         _profileImage = File(pickedFile.path);
       });
+    }
+  }
+
+  Future<String> _uploadProfileImage(File imageFile) async {
+    String fileName =
+        'profile_images/${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.png';
+    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+    UploadTask uploadTask = storageRef.putFile(imageFile);
+
+    TaskSnapshot snapshot = await uploadTask;
+    String downloadUrl = await snapshot.ref.getDownloadURL();
+    return downloadUrl;
+  }
+
+  Future<void> _saveChanges() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      try {
+        // Handle profile image upload if a new image is selected
+        String? profileImageUrl;
+        if (_profileImage != null) {
+          profileImageUrl = await _uploadProfileImage(_profileImage!);
+        }
+
+        // Update user information in Firestore
+        Map<String, dynamic> updateData = {
+          'firstName': _firstNameController.text,
+          'middleName': _middleNameController.text,
+          'lastName': _lastNameController.text,
+          'email': _emailController.text,
+          'phoneNumber': _phoneNumberController.text,
+          'companyName': _companyNameController.text,
+          'tradingName': _tradingNameController.text,
+          'addressLine1': _addressLine1Controller.text,
+          'addressLine2': _addressLine2Controller.text,
+          'city': _cityController.text,
+          'state': _stateController.text,
+          'postalCode': _postalCodeController.text,
+        };
+
+        if (profileImageUrl != null) {
+          updateData['profileImageUrl'] = profileImageUrl;
+        }
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .update(updateData);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'User details updated successfully.',
+              style: GoogleFonts.montserrat(),
+            ),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to update user details.',
+              style: GoogleFonts.montserrat(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -239,20 +308,28 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                 String newStatus;
                                                 String action;
 
-                                                if (accountStatus == 'active') {
-                                                  newStatus = 'suspended';
-                                                  action = 'Suspend';
-                                                } else if (accountStatus ==
-                                                    'suspended') {
-                                                  newStatus = 'active';
-                                                  action = 'Activate';
-                                                } else if (accountStatus ==
-                                                    'deactivated') {
-                                                  newStatus = 'active';
-                                                  action = 'Activate';
-                                                } else {
-                                                  newStatus = 'active';
-                                                  action = 'Activate';
+                                                switch (accountStatus
+                                                    .toLowerCase()) {
+                                                  case 'active':
+                                                    newStatus = 'suspended';
+                                                    action = 'Suspend';
+                                                    break;
+                                                  case 'suspended':
+                                                    newStatus = 'active';
+                                                    action = 'Activate';
+                                                    break;
+                                                  case 'deactivated':
+                                                    newStatus = 'active';
+                                                    action = 'Reactivate';
+                                                    break;
+                                                  case 'inactive':
+                                                    newStatus = 'active';
+                                                    action = 'Activate';
+                                                    break;
+                                                  default:
+                                                    newStatus = 'active';
+                                                    action = 'Activate';
+                                                    break;
                                                 }
 
                                                 bool? confirm =
@@ -392,73 +469,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 SizedBox(height: 20),
                                 CustomButton(
                                   text: 'Save Changes',
-                                  onPressed: () async {
-                                    if (_formKey.currentState?.validate() ??
-                                        false) {
-                                      try {
-                                        // Handle profile image upload if a new image is selected
-                                        String? profileImageUrl;
-                                        if (_profileImage != null) {
-                                          // TODO: Upload the image to Firebase Storage or another storage service
-                                          // and get the download URL. For example:
-                                          // profileImageUrl = await uploadProfileImage(_profileImage!);
-                                          // For demonstration purposes, we'll use a placeholder URL.
-                                          profileImageUrl =
-                                              'https://example.com/profile_image.png';
-                                        }
-
-                                        // Update user information in Firestore
-                                        await FirebaseFirestore.instance
-                                            .collection('users')
-                                            .doc(widget.userId)
-                                            .update({
-                                          'firstName':
-                                              _firstNameController.text,
-                                          'middleName':
-                                              _middleNameController.text,
-                                          'lastName': _lastNameController.text,
-                                          'email': _emailController.text,
-                                          'phoneNumber':
-                                              _phoneNumberController.text,
-                                          'companyName':
-                                              _companyNameController.text,
-                                          'tradingName':
-                                              _tradingNameController.text,
-                                          'addressLine1':
-                                              _addressLine1Controller.text,
-                                          'addressLine2':
-                                              _addressLine2Controller.text,
-                                          'city': _cityController.text,
-                                          'state': _stateController.text,
-                                          'postalCode':
-                                              _postalCodeController.text,
-                                          if (profileImageUrl != null)
-                                            'profileImageUrl': profileImageUrl,
-                                        });
-
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'User details updated successfully.',
-                                              style: GoogleFonts.montserrat(),
-                                            ),
-                                          ),
-                                        );
-                                      } catch (e) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Failed to update user details.',
-                                              style: GoogleFonts.montserrat(),
-                                            ),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
+                                  onPressed: _saveChanges,
                                   borderColor: Colors.deepOrange,
                                 ),
                               ],
@@ -526,7 +537,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
       case 'suspended':
         return 'Activate Account';
       case 'deactivated':
-        return 'Activate Account';
+        return 'Reactivate Account';
       case 'inactive':
         return 'Activate Account';
       default:
@@ -540,7 +551,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
       case 'active':
         return Colors.orange;
       case 'suspended':
+        return Colors.green;
       case 'deactivated':
+        return Colors.blue;
       case 'inactive':
         return Colors.green;
       default:

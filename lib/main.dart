@@ -115,7 +115,7 @@ class MyApp extends StatelessWidget {
         '/truckPage': (context) => const TruckPage(),
         '/offers': (context) => const OffersPage(),
         '/profile': (context) => const ProfilePage(),
-        '/waiting-for-approval': (context) => const WaitingForApprovalPage(),
+        '/waiting-for-approval': (context) => const AccountStatusPage(),
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
@@ -149,13 +149,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // Fetch user data and complaints after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final complaintsProvider =
           Provider.of<ComplaintsProvider>(context, listen: false);
 
       userProvider.fetchUserData();
+      userProvider.initializeStatusListener(); // Add this line
       complaintsProvider.fetchAllComplaints();
     });
   }
@@ -166,8 +166,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
     User? firebaseUser = FirebaseAuth.instance.currentUser;
 
     if (firebaseUser != null && !firebaseUser.isAnonymous) {
-      if (userProvider.getAccountStatus == 'suspended') {
-        return const WaitingForApprovalPage();
+      if (userProvider.getAccountStatus == 'suspended' ||
+          userProvider.getAccountStatus == 'inactive') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Force navigation to status page if user is in a different route
+          if (!(ModalRoute.of(context)?.settings.name == '/account-status')) {
+            Navigator.of(context).pushReplacementNamed('/account-status');
+          }
+        });
+        return const AccountStatusPage();
       }
       return const HomePage();
     } else {

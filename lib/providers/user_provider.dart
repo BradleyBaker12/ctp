@@ -1,8 +1,10 @@
 // lib/providers/user_provider.dart
 
 import 'dart:io';
+import 'dart:async'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists
+import 'package:ctp/models/user_details.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -69,6 +71,8 @@ class UserProvider extends ChangeNotifier {
   bool get hasNotifications => _hasNotifications;
   String? _fcmToken;
 
+  StreamSubscription? _statusSubscription;
+
   UserProvider() {
     _checkAuthState();
     FirebaseAuth.instance.authStateChanges().listen((User? newUser) async {
@@ -83,6 +87,23 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  Future<UserDetails> getUserDetailsById(String userId) async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (doc.exists) {
+        return UserDetails.fromFirestore(doc);
+      } else {
+        throw Exception('User not found');
+      }
+    } catch (e) {
+      print('Error fetching user details for userId $userId: $e');
+      throw e; // Propagate the error to be handled in the UI
+    }
   }
 
   // Method to check for notifications
@@ -737,6 +758,30 @@ class UserProvider extends ChangeNotifier {
 
   // Add this getter
   User? get user => _user;
+
+  Future<void> initializeStatusListener() async {
+    if (_statusSubscription != null) return;
+
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    _statusSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        _accountStatus = snapshot.data()?['accountStatus'] ?? 'active';
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _statusSubscription?.cancel();
+    super.dispose();
+  }
 }
 
 class Dealer {
