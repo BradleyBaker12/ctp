@@ -287,13 +287,13 @@ class _LoginPageState extends State<LoginPage> {
     const orange = Color(0xFFFF4E00);
     return Column(
       children: [
-        _buildAuthButton('Sign In with Apple', Colors.grey[850]!, () {}),
-        const SizedBox(height: 10),
-        _buildAuthButton('Sign In with Facebook', Colors.grey[850]!, () {}),
-        const SizedBox(height: 10),
-        _buildAuthButton(
-            'Sign In with Google', const Color(0xFF2F7FFF), _signInWithGoogle),
-        const SizedBox(height: 10),
+        // _buildAuthButton('Sign In with Apple', Colors.grey[850]!, () {}),
+        // const SizedBox(height: 10),
+        // _buildAuthButton('Sign In with Facebook', Colors.grey[850]!, () {}),
+        // const SizedBox(height: 10),
+        // _buildAuthButton(
+        //     'Sign In with Google', const Color(0xFF2F7FFF), _signInWithGoogle),
+        // const SizedBox(height: 10),
         _buildAuthButton('Sign In with Email', orange, () {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.pushNamed(context, '/signin');
@@ -377,7 +377,7 @@ class _LoginPageState extends State<LoginPage> {
               SizedBox(height: constraints.maxHeight * 0.025),
               _buildMobileSignInButtons(),
               SizedBox(height: constraints.maxHeight * 0.02),
-              _buildMobileBottomRow(orange),
+              // _buildMobileBottomRow(orange),
             ],
           ),
         ),
@@ -424,21 +424,21 @@ class _LoginPageState extends State<LoginPage> {
     const orange = Color(0xFFFF4E00);
     return Column(
       children: [
-        SignInButton(
-          text: 'Sign In with Apple',
-          onPressed: () {},
-          borderColor: Colors.white,
-        ),
-        SignInButton(
-          text: 'Sign In with Facebook',
-          onPressed: () {},
-          borderColor: Colors.white,
-        ),
-        SignInButton(
-          text: 'Sign In with Google',
-          onPressed: _signInWithGoogle,
-          borderColor: const Color(0xFF2F7FFF),
-        ),
+        // SignInButton(
+        //   text: 'Sign In with Apple',
+        //   onPressed: () {},
+        //   borderColor: Colors.white,
+        // ),
+        // SignInButton(
+        //   text: 'Sign In with Facebook',
+        //   onPressed: () {},
+        //   borderColor: Colors.white,
+        // ),
+        // SignInButton(
+        //   text: 'Sign In with Google',
+        //   onPressed: _signInWithGoogle,
+        //   borderColor: const Color(0xFF2F7FFF),
+        // ),
         SignInButton(
           text: 'Sign In with Email',
           onPressed: () {
@@ -448,6 +448,24 @@ class _LoginPageState extends State<LoginPage> {
           },
           borderColor: orange,
         ),
+        SizedBox(height: 10),
+        Text(
+          'Trouble Signing In?',
+          style: GoogleFonts.montserrat(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: 10),
+        SignInButton(
+          text: 'Sign Up',
+          onPressed: () {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushNamed(context, '/signup');
+            });
+          },
+          borderColor: Colors.white,
+        ),
       ],
     );
   }
@@ -456,13 +474,6 @@ class _LoginPageState extends State<LoginPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          'Trouble Signing In?',
-          style: GoogleFonts.montserrat(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
         GestureDetector(
           onTap: () {
             WidgetsBinding.instance.addPostFrameCallback((_) {

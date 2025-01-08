@@ -314,9 +314,10 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         'dealerSelectedDelivery': false,
       }, SetOptions(merge: true));
 
+      // Use PageRouteBuilder with zero transition durations for proper navigation
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => CollectionConfirmationPage(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => CollectionConfirmationPage(
             offerId: widget.offerId,
             location: _locations[_selectedLocation],
             address: _addresses[_selectedLocation],
@@ -324,6 +325,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             time: _availableTimes[_selectedTimeSlot],
             latLng: _latLngs[_selectedLocation],
           ),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
         ),
       );
     } catch (e) {
@@ -392,8 +395,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       }, SetOptions(merge: true));
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => CollectionConfirmationPage(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => CollectionConfirmationPage(
             offerId: widget.offerId,
             location: fullDeliveryAddress,
             address: fullDeliveryAddress,
@@ -401,6 +404,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             time: _availableTimes[_selectedTimeSlot],
             latLng: null,
           ),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
         ),
       );
     } catch (e) {

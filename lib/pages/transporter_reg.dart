@@ -302,7 +302,8 @@ class _TransporterRegistrationPageState
                                 _buildTextField(
                                     controller: _tradingNameController,
                                     focusNode: _tradingNameFocusNode,
-                                    hintText: 'Trading Name'),
+                                    hintText: 'Trading Name',
+                                    isOptional: true),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _fleetSizeController,
@@ -571,6 +572,7 @@ class _TransporterRegistrationPageState
       focusNode: focusNode,
       cursorColor: orange,
       decoration: InputDecoration(
+        errorMaxLines: 3,
         hintText: hintText,
         hintStyle: GoogleFonts.montserrat(color: Colors.white70),
         filled: true,

@@ -197,7 +197,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
   }
 
   void _skip() {
-    Navigator.pushNamed(context, "/firstName");
+    Navigator.pushNamed(context, "/firstNamePage");
   }
 
   @override

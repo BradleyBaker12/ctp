@@ -4,6 +4,7 @@ import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/admin_home_page.dart';
+import 'package:ctp/pages/trailerForms/trailer_upload_screen.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -70,12 +71,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
-
-      // if (userProvider.getUserRole == 'guest') {
-      //   await FirebaseAuth.instance.signOut();
-      //   Navigator.pushReplacementNamed(context, '/login');
-      //   return;
-      // }
 
       if (userProvider.getUserRole == 'admin') {
         Navigator.pushReplacement(
@@ -586,7 +581,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     children: recentOffers.map((offer) {
                       return OfferCard(
                         offer: offer,
-                        
                       );
                     }).toList(),
                   ),
@@ -658,7 +652,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => VehicleUploadScreen(),
+                          builder: (context) => TrailerUploadScreen(),
                         ),
                       );
                     } else {
@@ -946,7 +940,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ),
                         );
-
                       }).toList(),
                     ),
                   ),

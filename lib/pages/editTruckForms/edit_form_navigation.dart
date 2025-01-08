@@ -43,11 +43,17 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         throw Exception('Vehicle document not found');
       }
 
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      final docData = doc.data();
+      if (docData == null) {
+        throw Exception(
+            'No data found for document with ID: ${widget.vehicle.id}');
+      }
+
+      Map<String, dynamic> data = docData as Map<String, dynamic>;
 
       // Debug raw data
       print('Raw Firestore data: $data');
-      print('Application field type: ${data['application'].runtimeType}');
+      print('Application field type: ${data['application']?.runtimeType}');
       print('Brands field type: ${data['brands']?.runtimeType}');
       print('Photos field type: ${data['photos']?.runtimeType}');
 
@@ -57,7 +63,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
             'Converting application from String to List: ${data['application']}');
         data['application'] = [data['application']];
       } else if (data['application'] == null) {
-        print('Application field is null, defaulting to empty list');
+        print('Application field is null, defaulting to an empty list.');
         data['application'] = [];
       }
 
@@ -66,7 +72,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         print('Converting brands from String to List: ${data['brands']}');
         data['brands'] = [data['brands']];
       } else if (data['brands'] == null) {
-        print('Brands field is null, defaulting to empty list');
+        print('Brands field is null, defaulting to an empty list.');
         data['brands'] = [];
       }
 
@@ -74,18 +80,21 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
       print('Application: ${data['application']}');
       print('Brands: ${data['brands']}');
 
+      // Create or update the `vehicle` property from the Firestore document
       vehicle = Vehicle.fromDocument(doc);
       print('Vehicle object created successfully');
+
+      // Update the UI
       setState(() {});
-    } catch (e) {
+    } catch (e, s) {
       print('Error fetching vehicle data: $e');
-      print('Stack trace: ${StackTrace.current}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error fetching vehicle data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Stack trace: $s');
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(
+      //     content: Text('Error fetching vehicle data: $e'),
+      //     backgroundColor: Colors.red,
+      //   ),
+      // );
     }
   }
 

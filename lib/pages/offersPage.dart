@@ -32,118 +32,112 @@ class OffersPageState extends State<OffersPage> with RouteAware {
   void initState() {
     super.initState();
     print('[OffersPage] initState called');
-    // Note: Do not call _fetchOffers here as _offerProvider is not yet initialized
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     if (_isInit) {
-      // Initialize OfferProvider from Provider
       _offerProvider = Provider.of<OfferProvider>(context, listen: false);
-      print('[OffersPage] didChangeDependencies called');
-
-      // **Defer the fetchOffers call to after the build phase**
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _fetchOffers();
-      });
-
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fetchOffers());
       _isInit = false;
     }
 
-    // Subscribe to the global RouteObserver with proper type checking
-    ModalRoute<dynamic>? modalRoute = ModalRoute.of(context);
-    if (modalRoute is PageRoute<dynamic>) {
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute is PageRoute) {
       routeObserver.subscribe(this, modalRoute);
     }
   }
 
   @override
   void dispose() {
-    // Unsubscribe from the RouteObserver
     routeObserver.unsubscribe(this);
     print('[OffersPage] dispose called');
     super.dispose();
   }
 
   // RouteAware methods
-
-  // Called when the page is first pushed onto the navigation stack
   @override
   void didPush() {
     print('[OffersPage] didPush called');
-    // Re-fetch data
     _fetchOffers();
   }
 
-  // Called when the page is again visible after popping back from another page
   @override
   void didPopNext() {
     print('[OffersPage] didPopNext called');
-    // Re-fetch data
     _fetchOffers();
   }
 
   Future<void> _fetchOffers() async {
-    User? user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final userRole = userProvider.getUserRole.toLowerCase().trim();
 
       print('''
-  === FETCH OFFERS DEBUG ===
-  Current User ID: ${user.uid}
-  User Role: $userRole
-  User Email: ${user.email}
-  ''');
+      === FETCH OFFERS DEBUG ===
+      Current User ID: ${user.uid}
+      User Role: $userRole
+      User Email: ${user.email}
+      ''');
 
       await _offerProvider.fetchOffers(user.uid, userRole);
 
       print('''
-  === FETCHED OFFERS RESULT ===
-  Total Offers: ${_offerProvider.offers.length}
-  ''');
+      === FETCHED OFFERS RESULT ===
+      Total Offers: ${_offerProvider.offers.length}
+      ''');
 
       for (var offer in _offerProvider.offers) {
         print('''
-  Offer Details:
-    ID: ${offer.offerId}
-    DealerId: ${offer.dealerId}
-    TransporterId: ${offer.transporterId}
-    Status: ${offer.offerStatus}
-    Created: ${offer.createdAt}
-  ''');
+        Offer Details:
+          ID: ${offer.offerId}
+          DealerId: ${offer.dealerId}
+          TransporterId: ${offer.transporterId}
+          Status: ${offer.offerStatus}
+          Created: ${offer.createdAt}
+        ''');
       }
     }
   }
 
-  // Modify the filter to include all statuses except 'accepted', 'in-progress', and 'rejected'
+  ///
+  /// Filtering logic (4 tabs):
+  /// 1. ALL: Show everything.
+  /// 2. IN_PROGRESS: Show everything EXCEPT "rejected", "completed", "successful".
+  /// 3. SUCCESSFUL: Show only "completed" or "successful".
+  /// 4. REJECTED: Show only "rejected".
+  ///
   List<Offer> _filterOffers(String status) {
-    List<Offer> filtered;
-    if (status.toUpperCase() == "ALL") {
-      filtered = _offerProvider.offers;
-    } else if (status.toUpperCase() == "PENDING") {
-      // Include offers with statuses not 'accepted', 'in-progress', or 'rejected'
-      filtered = _offerProvider.offers
-          .where((offer) =>
-              offer.offerStatus != 'accepted' &&
-              offer.offerStatus != 'in-progress' &&
-              offer.offerStatus != 'rejected')
-          .toList();
-    } else {
-      // For 'accepted', 'in-progress', and 'rejected' statuses
-      filtered = _offerProvider.offers
-          .where((offer) =>
-              offer.offerStatus.toLowerCase() == status.toLowerCase())
-          .toList();
+    final offers = _offerProvider.offers;
+
+    switch (status.toUpperCase()) {
+      case 'ALL':
+        return offers; // Show everything
+      case 'IN_PROGRESS':
+        // Exclude "rejected", "successful", "completed"
+        return offers.where((offer) {
+          final lowerStatus = offer.offerStatus.toLowerCase();
+          return lowerStatus != 'rejected' &&
+              lowerStatus != 'successful' &&
+              lowerStatus != 'completed';
+        }).toList();
+      case 'SUCCESSFUL':
+        // Show "successful" or "completed"
+        return offers.where((offer) {
+          final lowerStatus = offer.offerStatus.toLowerCase();
+          return lowerStatus == 'successful' || lowerStatus == 'completed';
+        }).toList();
+      case 'REJECTED':
+        // Show only "rejected"
+        return offers
+            .where((offer) => offer.offerStatus.toLowerCase() == 'rejected')
+            .toList();
+      default:
+        // If unknown status passed, return empty or handle otherwise
+        return [];
     }
-
-    // Debug: Log the number of filtered offers
-    print(
-        '[_filterOffers] Status: $status, Filtered Offers Count: ${filtered.length}');
-
-    return filtered;
   }
 
   @override
@@ -153,25 +147,20 @@ class OffersPageState extends State<OffersPage> with RouteAware {
 
     print('[OffersPage] Current User Role: $userRole');
 
-    // Determine selectedIndex based on userRole
+    // Example navigation index handling
     int selectedIndex;
     if (userRole == 'dealer') {
-      selectedIndex = 2; // OffersPage index for dealer
+      selectedIndex = 2;
     } else if (userRole == 'transporter') {
-      selectedIndex = 2; // OffersPage index for transporter
+      selectedIndex = 2;
     } else {
-      selectedIndex = 0; // Default to Home if role is undefined
+      selectedIndex = 0;
     }
-
-    // Debug: Log the selectedIndex
-    print(
-        '[OffersPage] Determined selectedIndex: $selectedIndex for User Role: $userRole');
 
     return GradientBackground(
       child: Consumer<OfferProvider>(
         builder: (context, offerProvider, child) {
           if (offerProvider.isFetching) {
-            // Show a centralized loading indicator while fetching data
             return Scaffold(
               backgroundColor: Colors.transparent,
               appBar: CustomAppBar(),
@@ -184,7 +173,6 @@ class OffersPageState extends State<OffersPage> with RouteAware {
               ),
             );
           } else if (offerProvider.errorMessage != null) {
-            // Show an error message if fetching fails
             return Scaffold(
               backgroundColor: Colors.transparent,
               appBar: CustomAppBar(),
@@ -199,9 +187,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () {
-                        _fetchOffers();
-                      },
+                      onPressed: _fetchOffers,
                       child: const Text('Retry'),
                     ),
                   ],
@@ -209,12 +195,12 @@ class OffersPageState extends State<OffersPage> with RouteAware {
               ),
             );
           } else {
-            // Data has been fetched successfully, build the main UI
+            // Main UI: 4 tabs
             return DefaultTabController(
-              length: 5, // Number of tabs increased to 5
+              length: 4,
               child: Scaffold(
                 backgroundColor: Colors.transparent,
-                appBar: CustomAppBar(), // Use the custom app bar here
+                appBar: CustomAppBar(),
                 body: Column(
                   children: [
                     const SizedBox(height: 40),
@@ -222,12 +208,11 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Image.asset(
-                          'lib/assets/shaking_hands.png', // Path to the handshake image
+                          'lib/assets/shaking_hands.png',
                           width: 30,
                           height: 30,
                         ),
-                        const SizedBox(
-                            width: 8), // Space between image and text
+                        const SizedBox(width: 8),
                         const Text(
                           'OFFERS',
                           style: TextStyle(
@@ -245,53 +230,11 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                       labelColor: const Color(0xFFFF4E00),
                       unselectedLabelColor: Colors.white,
                       indicatorColor: const Color(0xFFFF4E00),
-                      tabs: [
-                        Tab(
-                          child: Text(
-                            'All',
-                            style: TextStyle(
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.04,
-                            ),
-                          ),
-                        ),
-                        Tab(
-                          child: Text(
-                            'Pending',
-                            style: TextStyle(
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.04,
-                            ),
-                          ),
-                        ),
-                        Tab(
-                          child: Text(
-                            'Accepted',
-                            style: TextStyle(
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.04,
-                            ),
-                          ),
-                        ),
-                        Tab(
-                          child: Text(
-                            'In Progress',
-                            style: TextStyle(
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.04,
-                            ),
-                          ),
-                        ),
-                        // New 'REJECTED' tab
-                        Tab(
-                          child: Text(
-                            'Rejected',
-                            style: TextStyle(
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.04,
-                            ),
-                          ),
-                        ),
+                      tabs: const [
+                        Tab(text: 'All'),
+                        Tab(text: 'In Progress'),
+                        Tab(text: 'Successful'),
+                        Tab(text: 'Rejected'),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -299,10 +242,8 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                       child: TabBarView(
                         children: [
                           _buildOffersSection('ALL'),
-                          _buildOffersSection('PENDING'),
-                          _buildOffersSection('ACCEPTED'),
-                          _buildOffersSection('IN-PROGRESS'),
-                          // New 'REJECTED' tab content
+                          _buildOffersSection('IN_PROGRESS'),
+                          _buildOffersSection('SUCCESSFUL'),
                           _buildOffersSection('REJECTED'),
                         ],
                       ),
@@ -312,86 +253,56 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                 bottomNavigationBar: CustomBottomNavigation(
                   selectedIndex: selectedIndex,
                   onItemTapped: (index) {
-                    final userRole =
-                        userProvider.getUserRole.toLowerCase().trim();
-
-                    // Debug: Log the navigation action
-                    print(
-                        '[OffersPage] User Role: $userRole, Tapped Index: $index');
-
                     if (userRole == 'dealer') {
-                      // Navigation items for dealers:
-                      // 0: Home, 1: Vehicles, 2: Offers
+                      // Dealer nav: 0 -> Home, 1 -> Vehicles, 2 -> Offers
                       if (index == 0) {
-                        print('[OffersPage] Navigating to HomePage...');
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const HomePage()),
                         );
                       } else if (index == 1) {
-                        print(
-                            '[OffersPage] Navigating to TruckPage (Dealer)...');
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const TruckPage()),
                         );
                       } else if (index == 2) {
-                        print(
-                            '[OffersPage] Navigating to OffersPage (Dealer)...');
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const OffersPage()),
                         );
-                      } else {
-                        // Dealers do not have a Profile icon, so handle gracefully
-                        print(
-                            '[OffersPage] Dealer tapped on an undefined navigation item.');
                       }
                     } else if (userRole == 'transporter') {
-                      // Navigation items for transporters:
-                      // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
+                      // Transporter nav: 0 -> Home, 1 -> Vehicles, 2 -> Offers, 3 -> Profile
                       if (index == 0) {
-                        print('[OffersPage] Navigating to HomePage...');
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const HomePage()),
                         );
                       } else if (index == 1) {
-                        print(
-                            '[OffersPage] Navigating to VehiclesListPage (Transporter)...');
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const VehiclesListPage()),
                         );
                       } else if (index == 2) {
-                        print(
-                            '[OffersPage] Navigating to OffersPage (Transporter)...');
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const OffersPage()),
                         );
                       } else if (index == 3) {
-                        print(
-                            '[OffersPage] Navigating to ProfilePage (Transporter)...');
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const ProfilePage()),
                         );
-                      } else {
-                        print(
-                            '[OffersPage] Transporter tapped on an undefined navigation item.');
                       }
                     } else {
-                      // Handle other roles or undefined roles if necessary
-                      print(
-                          '[OffersPage] Undefined role tapped on navigation index: $index');
+                      // Handle other roles or additional logic here
                     }
                   },
                 ),
@@ -406,17 +317,14 @@ class OffersPageState extends State<OffersPage> with RouteAware {
   Widget _buildOffersSection(String status) {
     final filteredOffers = _filterOffers(status);
 
-    // Sort the filtered offers by 'createdAt' in descending order
+    // Sort by 'createdAt' descending
     filteredOffers.sort((a, b) {
-      final DateTime? aCreatedAt = a.createdAt;
-      final DateTime? bCreatedAt = b.createdAt;
-
-      if (aCreatedAt == null && bCreatedAt == null) return 0;
-      if (bCreatedAt == null) {
-        return -1; // Place offers with null 'createdAt' at the end
-      }
-      if (aCreatedAt == null) return 1;
-      return bCreatedAt.compareTo(aCreatedAt);
+      final aDate = a.createdAt;
+      final bDate = b.createdAt;
+      if (aDate == null && bDate == null) return 0;
+      if (bDate == null) return -1;
+      if (aDate == null) return 1;
+      return bDate.compareTo(aDate);
     });
 
     if (filteredOffers.isEmpty) {
@@ -431,9 +339,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
     return ListView.builder(
       itemCount: filteredOffers.length,
       itemBuilder: (context, index) {
-        return OfferCard(
-          offer: filteredOffers[index],
-        );
+        return OfferCard(offer: filteredOffers[index]);
       },
     );
   }

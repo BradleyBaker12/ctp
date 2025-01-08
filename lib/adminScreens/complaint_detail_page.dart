@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/models/user_details.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +12,10 @@ import '../components/gradient_background.dart'; // Import your GradientBackgrou
 class ComplaintDetailPage extends StatelessWidget {
   final Complaint complaint; // Using the Complaint model
 
-  const ComplaintDetailPage({super.key, required this.complaint});
+  const ComplaintDetailPage({
+    super.key,
+    required this.complaint,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,18 +48,24 @@ class ComplaintDetailPage extends StatelessWidget {
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: FutureBuilder<String>(
-                future: userProvider.getUserNameById(userId),
+              child: FutureBuilder<UserDetails>(
+                future: userProvider.getUserDetailsById(userId),
                 builder: (context, userSnapshot) {
-                  String userName = 'Loading...';
-
                   if (userSnapshot.connectionState == ConnectionState.waiting) {
-                    userName = 'Loading...';
+                    return Center(child: CircularProgressIndicator());
                   } else if (userSnapshot.hasError) {
-                    userName = 'Unknown User';
-                  } else {
-                    userName = userSnapshot.data ?? 'Unknown User';
+                    return Text(
+                      'Error fetching user details',
+                      style: GoogleFonts.montserrat(color: Colors.red),
+                    );
+                  } else if (!userSnapshot.hasData) {
+                    return Text(
+                      'User details not available',
+                      style: GoogleFonts.montserrat(color: Colors.red),
+                    );
                   }
+
+                  UserDetails userDetails = userSnapshot.data!;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,7 +74,7 @@ class ComplaintDetailPage extends StatelessWidget {
                           height: 100), // Spacer to push content below appbar
                       // User Info
                       Text(
-                        'Complaint from $userName',
+                        'Complaint from ${userDetails.name}',
                         style: GoogleFonts.montserrat(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -72,6 +82,7 @@ class ComplaintDetailPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 10),
+                      // Issue
                       Text(
                         'Issue:',
                         style: GoogleFonts.montserrat(
@@ -87,6 +98,7 @@ class ComplaintDetailPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 10),
+                      // Message
                       Text(
                         'Message:',
                         style: GoogleFonts.montserrat(
@@ -102,6 +114,7 @@ class ComplaintDetailPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 10),
+                      // Status
                       Text(
                         'Status: $status',
                         style: GoogleFonts.montserrat(
@@ -110,6 +123,7 @@ class ComplaintDetailPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 20),
+                      // Time
                       Text(
                         'Time: $formattedDate',
                         style: GoogleFonts.montserrat(
@@ -118,6 +132,32 @@ class ComplaintDetailPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 20),
+                      // Additional User Details
+                      Text(
+                        'Name: ${userDetails.name}',
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      // Additional User Details
+                      Text(
+                        'Email: ${userDetails.email}',
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Phone: ${userDetails.phone}',
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 10),
                       // Action Buttons
                       Center(
                         child: Row(
@@ -128,10 +168,45 @@ class ComplaintDetailPage extends StatelessWidget {
                                 child: CustomButton(
                                   text: 'Resolve',
                                   borderColor: Colors.green,
-                                  onPressed: () {
-                                    complaintsProvider.updateComplaintStatus(
-                                        complaintId, 'resolved');
-                                    Navigator.pop(context);
+                                  onPressed: () async {
+                                    try {
+                                      String previousStep =
+                                          complaint.previousStep;
+
+                                      // 1. Update complaint status
+                                      await complaintsProvider
+                                          .updateComplaintStatus(
+                                              complaint.complaintId,
+                                              'resolved');
+
+                                      // 2. Update offer status
+                                      await FirebaseFirestore.instance
+                                          .collection('offers')
+                                          .doc(complaint.offerId)
+                                          .update({
+                                        'offerStatus': previousStep,
+                                      });
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Complaint resolved successfully'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+
+                                      Navigator.pop(context);
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Error resolving complaint: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   },
                                 ),
                               ),
@@ -141,10 +216,45 @@ class ComplaintDetailPage extends StatelessWidget {
                                 child: CustomButton(
                                   text: 'Dismiss',
                                   borderColor: Colors.red,
-                                  onPressed: () {
-                                    complaintsProvider.updateComplaintStatus(
-                                        complaintId, 'dismissed');
-                                    Navigator.pop(context);
+                                  onPressed: () async {
+                                    try {
+                                      String previousStep =
+                                          complaint.previousStep;
+
+                                      // Update complaint status
+                                      await complaintsProvider
+                                          .updateComplaintStatus(
+                                              complaint.complaintId,
+                                              'dismissed');
+
+                                      // Update offer status back to previous step
+                                      await FirebaseFirestore.instance
+                                          .collection('offers')
+                                          .doc(complaint.offerId)
+                                          .update({
+                                        'offerStatus': previousStep,
+                                      });
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Complaint dismissed successfully'),
+                                          backgroundColor: Colors.grey,
+                                        ),
+                                      );
+
+                                      Navigator.pop(context);
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Error dismissing complaint: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   },
                                 ),
                               ),

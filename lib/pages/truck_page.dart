@@ -786,7 +786,7 @@ class _TruckPageState extends State<TruckPage> {
                                 ),
                                 builder: (context, double value, child) {
                                   return Transform.scale(
-                                    scale: 0.8 + (value * 0.4),
+                                    scale: 1 + (value * 0.2),
                                     child: IconButton(
                                       icon: Icon(
                                         userProvider.getLikedVehicles

@@ -312,7 +312,13 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             licenceDiskUrl: '',
                             mileageImage: '',
                             rc1NatisFile: '',
-                            config: '', country: '', province: '',
+                            config: '',
+                            country: '',
+                            province: '',
+                            length: '',
+                            vinTrailer: '',
+                            damagesDescription: '',
+                            additionalFeatures: '',
                           ),
                         );
 
@@ -374,7 +380,8 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                               );
                             }
                           },
-                          vehicleId: vehicle.id, vehicle: vehicle,
+                          vehicleId: vehicle.id,
+                          vehicle: vehicle,
                         );
                       },
                     );

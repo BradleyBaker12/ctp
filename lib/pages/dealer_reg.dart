@@ -410,7 +410,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
                                 _buildTextField(
                                     controller: _tradingNameController,
                                     focusNode: _tradingNameFocusNode,
-                                    hintText: 'Trading Name'),
+                                    hintText: 'Trading Name',
+                                    isOptional: true),
                                 const SizedBox(height: 15),
                                 _buildTextField(
                                     controller: _registrationNumberController,
@@ -684,6 +685,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
       focusNode: focusNode,
       cursorColor: orange,
       decoration: InputDecoration(
+        errorMaxLines: 3,
         hintText: hintText,
         hintStyle: GoogleFonts.montserrat(color: Colors.white70),
         filled: true,

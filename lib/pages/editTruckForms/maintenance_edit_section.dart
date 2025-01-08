@@ -69,11 +69,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     _oemReasonController =
         TextEditingController(text: widget.oemInspectionExplanation);
 
-    // Initialize files with existing data if available
     _maintenanceDocFile = widget.maintenanceDocFile;
     _warrantyDocFile = widget.warrantyDocFile;
 
-    // Add listener for progress updates
     _oemReasonController.addListener(() {
       notifyProgress();
     });
@@ -94,25 +92,22 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     });
   }
 
-  // Update method to handle existing data
   void loadMaintenanceData(Map<String, dynamic>? maintenanceData) {
     if (maintenanceData != null) {
       setState(() {
         _oemInspectionType = maintenanceData['oemInspectionType'] ?? 'yes';
         _oemReasonController.text = maintenanceData['oemReason'] ?? '';
 
-        // Handle document URLs if they exist
         if (maintenanceData['maintenanceDocUrl'] != null) {
-          widget.onMaintenanceFileSelected(null); // Clear any existing file
+          widget.onMaintenanceFileSelected(null);
         }
         if (maintenanceData['warrantyDocUrl'] != null) {
-          widget.onWarrantyFileSelected(null); // Clear any existing file
+          widget.onWarrantyFileSelected(null);
         }
       });
     }
   }
 
-  // Method to save maintenance data
   Future<bool> saveMaintenanceData() async {
     String? oemReason =
         _oemInspectionType == 'no' ? _oemReasonController.text.trim() : null;
@@ -126,7 +121,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
       return false;
     }
 
-    // Prepare data to send
     Map<String, dynamic> maintenanceData = {
       'vehicleId': widget.vehicleId,
       'oemInspectionType': _oemInspectionType,
@@ -152,53 +146,32 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     }
   }
 
-  // Add this method to convert file to PDF
   Future<File?> convertToPdf(File file) async {
     try {
       final String extension = file.path.split('.').last.toLowerCase();
       final pdf = pw.Document();
 
       if (_isImageFile(file.path)) {
-        // Handle image files
         final image = img.decodeImage(await file.readAsBytes());
         if (image != null) {
           final pdfImage = pw.MemoryImage(
             img.encodeJpg(image),
           );
-
           pdf.addPage(
             pw.Page(
               build: (pw.Context context) {
-                return pw.Center(
-                  child: pw.Image(pdfImage),
-                );
+                return pw.Center(child: pw.Image(pdfImage));
               },
             ),
           );
         }
       } else if (extension == 'pdf') {
-        // If it's already a PDF, return the original file
         return file;
       } else {
-        // For other file types, create a PDF with a message
-        pdf.addPage(
-          pw.Page(
-            build: (pw.Context context) {
-              return pw.Center(
-                child: pw.Text(
-                  'Original file: ${file.path.split('/').last}\n'
-                  'File type: $extension\n'
-                  'Original file is preserved as-is',
-                ),
-              );
-            },
-          ),
-        );
-        // Return original file for non-convertible types
+        // Non-image, non-pdf files will just return the original file
         return file;
       }
 
-      // Save the PDF
       final output = await getTemporaryDirectory();
       final pdfFile = File(
           '${output.path}/converted_${DateTime.now().millisecondsSinceEpoch}.pdf');
@@ -206,7 +179,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
       return pdfFile;
     } catch (e) {
       print('Error converting to PDF: $e');
-      // Return original file if conversion fails
       return file;
     }
   }
@@ -237,19 +209,13 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   }
 
   bool _isImageFile(String path) {
-    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+    final imageExtensions = ['jpg', 'jpeg', 'png'];
     String extension = path.split('.').last.toLowerCase();
     return imageExtensions.contains(extension);
   }
 
-  String getFileNameFromUrl(String url) {
-    if (url.contains('maintenance_doc')) {
-      return 'Maintenance Doc';
-    } else if (url.contains('warranty_doc')) {
-      return 'Warranty Doc';
-    }
-    // Fallback to original filename if pattern doesn't match
-    return url.split('/').last.split('?').first;
+  bool isPdfFile(String path) {
+    return path.toLowerCase().endsWith('.pdf');
   }
 
   void updateMaintenanceFile(File? file) {
@@ -270,16 +236,14 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     int totalFields = 0;
     int filledFields = 0;
 
-    // Check for maintenance document
     if (widget.maintenanceSelection == 'yes') {
       totalFields += 1;
       if (_maintenanceDocFile != null || widget.maintenanceDocUrl != null) {
         filledFields += 1;
       }
 
-      // OEM Inspection fields
       totalFields += 1;
-      filledFields += 1; // Always filled since it has a default value
+      filledFields += 1;
 
       if (_oemInspectionType == 'no') {
         totalFields += 1;
@@ -289,7 +253,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
       }
     }
 
-    // Check for warranty document
     if (widget.warrantySelection == 'yes') {
       totalFields += 1;
       if (_warrantyDocFile != null || widget.warrantyDocUrl != null) {
@@ -297,7 +260,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
       }
     }
 
-    if (totalFields == 0) return 1.0; // If no fields are required
+    if (totalFields == 0) return 1.0;
     return filledFields / totalFields;
   }
 
@@ -305,10 +268,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     widget.onProgressUpdate();
   }
 
-  // Add this method to handle PDF viewing
   Future<void> _viewPdf(String url, String title) async {
     try {
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -320,17 +281,14 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
           );
         },
       );
-      // Download and cache the PDF
       final response = await http.get(Uri.parse(url));
       final bytes = response.bodyBytes;
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/temp.pdf');
       await file.writeAsBytes(bytes);
 
-      // Dismiss loading indicator
       if (mounted) Navigator.pop(context);
 
-      // Show PDF viewer
       if (mounted) {
         Navigator.push(
           context,
@@ -366,7 +324,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
         );
       }
     } catch (e) {
-      // Dismiss loading indicator if showing
       if (mounted) Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -375,7 +332,39 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     }
   }
 
-  // New method to directly view the document
+  Future<String?> _getContentType(String url) async {
+    try {
+      final response = await http.head(Uri.parse(url));
+      if (response.headers.containsKey('content-type')) {
+        return response.headers['content-type']!;
+      }
+    } catch (e) {
+      print('Error fetching content type: $e');
+    }
+    return null;
+  }
+
+  Future<String> _detectFileType(File file) async {
+    final String extension = file.path.split('.').last.toLowerCase();
+    if (isPdfFile(file.path)) return 'pdf';
+    if (_isImageFile(file.path)) return 'image';
+
+    try {
+      final bytes = await file.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded != null) return 'image';
+
+      if (bytes.length > 4) {
+        final header = String.fromCharCodes(bytes.sublist(0, 4));
+        if (header == '%PDF') return 'pdf';
+      }
+    } catch (e) {
+      print('Error detecting file type: $e');
+    }
+
+    return 'unsupported';
+  }
+
   Future<void> _viewDocument(bool isMaintenance) async {
     final String? url =
         isMaintenance ? widget.maintenanceDocUrl : widget.warrantyDocUrl;
@@ -383,11 +372,38 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final String title =
         isMaintenance ? 'Maintenance Document' : 'Warranty Document';
 
-    if (url != null || file != null) {
-      final String path = url ?? file!.path;
+    if (url != null) {
+      String path = url;
+      String? contentType = await _getContentType(url);
+      if (contentType != null) {
+        if (contentType.contains('pdf')) {
+          await _viewPdf(url, title);
+          return;
+        } else if (contentType.contains('image')) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                appBar: AppBar(
+                  title: Text(title),
+                  backgroundColor: const Color(0xFF0E4CAF),
+                ),
+                body: Center(
+                  child: InteractiveViewer(
+                    child: Image.network(url),
+                  ),
+                ),
+              ),
+            ),
+          );
+          return;
+        }
+      }
 
-      if (_isImageFile(path)) {
-        // Show image viewer
+      // Fallback to extension checks
+      if (isPdfFile(path)) {
+        await _viewPdf(url, title);
+      } else if (_isImageFile(path)) {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -398,39 +414,62 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
               ),
               body: Center(
                 child: InteractiveViewer(
-                  child: url != null ? Image.network(url) : Image.file(file!),
+                  child: Image.network(url),
                 ),
               ),
             ),
           ),
         );
       } else {
-        // Show PDF viewer
-        if (url != null) {
-          await _viewPdf(url, title);
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => Scaffold(
-                appBar: AppBar(
-                  title: Text(title),
-                  backgroundColor: const Color(0xFF0E4CAF),
-                ),
-                body: PDFView(
-                  filePath: file!.path,
-                  enableSwipe: true,
-                  swipeHorizontal: false,
-                  autoSpacing: true,
-                  pageFling: true,
-                  pageSnap: true,
-                  defaultPage: 0,
-                  fitPolicy: FitPolicy.BOTH,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unsupported file format.')),
+        );
+      }
+    } else if (file != null) {
+      String fileType = await _detectFileType(file);
+      if (fileType == 'pdf') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(
+                title: Text(title),
+                backgroundColor: const Color(0xFF0E4CAF),
+              ),
+              body: PDFView(
+                filePath: file.path,
+                enableSwipe: true,
+                swipeHorizontal: false,
+                autoSpacing: true,
+                pageFling: true,
+                pageSnap: true,
+                defaultPage: 0,
+                fitPolicy: FitPolicy.BOTH,
+              ),
+            ),
+          ),
+        );
+      } else if (fileType == 'image') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(
+                title: Text(title),
+                backgroundColor: const Color(0xFF0E4CAF),
+              ),
+              body: Center(
+                child: InteractiveViewer(
+                  child: Image.file(file),
                 ),
               ),
             ),
-          );
-        }
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unsupported file format.')),
+        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -439,20 +478,16 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     }
   }
 
-  // Update the document options dialog
   void _showDocumentOptions(bool isMaintenance) {
-    final String? url =
-        isMaintenance ? widget.maintenanceDocUrl : widget.warrantyDocUrl;
-    final File? file = isMaintenance ? _maintenanceDocFile : _warrantyDocFile;
-    final String title =
-        isMaintenance ? 'Maintenance Document' : 'Warranty Document';
-
     final bool isDealer =
         Provider.of<UserProvider>(context, listen: false).getUserRole ==
             'dealer';
     final bool isTransporter =
         Provider.of<UserProvider>(context, listen: false).getUserRole ==
             'transporter';
+
+    final String title =
+        isMaintenance ? 'Maintenance Document' : 'Warranty Document';
 
     showDialog(
       context: context,
@@ -468,48 +503,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                 title: const Text('View'),
                 onTap: () async {
                   Navigator.pop(context);
-                  if (url != null) {
-                    await _viewPdf(url, title);
-                  } else if (file != null) {
-                    // For local files
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => Scaffold(
-                          appBar: AppBar(
-                            title: Text(title),
-                            backgroundColor: const Color(0xFF0E4CAF),
-                          ),
-                          body: PDFView(
-                            filePath: file.path,
-                            enableSwipe: true,
-                            swipeHorizontal: false,
-                            autoSpacing: true,
-                            pageFling: true,
-                            pageSnap: true,
-                            defaultPage: 0,
-                            fitPolicy: FitPolicy.BOTH,
-                            preventLinkNavigation: false,
-                            onError: (error) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $error')),
-                              );
-                            },
-                            onPageError: (page, error) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content:
-                                        Text('Error on page $page: $error')),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    );
-                  }
+                  await _viewDocument(isMaintenance);
                 },
               ),
-              // Only show 'Change' option for transporters
               if (isTransporter)
                 ListTile(
                   leading: const Icon(Icons.edit),
@@ -535,12 +531,11 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     );
   }
 
-  // Restrict document picking methods to transporters
   Future<void> _pickMaintenanceDocument() async {
     final bool isTransporter =
         Provider.of<UserProvider>(context, listen: false).getUserRole ==
             'transporter';
-    if (!isTransporter) return; // Prevent dealers from accessing this method
+    if (!isTransporter) return;
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
@@ -549,7 +544,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
       if (result != null && result.files.single.path != null) {
         File selectedFile = File(result.files.single.path!);
 
-        // Show loading dialog during conversion
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -562,10 +556,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
           },
         );
 
-        // Convert file to PDF if possible
         File? processedFile = await convertToPdf(selectedFile);
 
-        // Dismiss loading dialog
         if (mounted) Navigator.pop(context);
 
         if (processedFile != null) {
@@ -577,7 +569,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
         }
       }
     } catch (e) {
-      // Dismiss loading dialog if showing
       if (mounted) Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -590,7 +581,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final bool isTransporter =
         Provider.of<UserProvider>(context, listen: false).getUserRole ==
             'transporter';
-    if (!isTransporter) return; // Prevent dealers from accessing this method
+    if (!isTransporter) return;
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
@@ -599,7 +590,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
       if (result != null && result.files.single.path != null) {
         File selectedFile = File(result.files.single.path!);
 
-        // Show loading dialog during conversion
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -612,10 +602,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
           },
         );
 
-        // Convert file to PDF if possible
         File? processedFile = await convertToPdf(selectedFile);
 
-        // Dismiss loading dialog
         if (mounted) Navigator.pop(context);
 
         if (processedFile != null) {
@@ -627,7 +615,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
         }
       }
     } catch (e) {
-      // Dismiss loading dialog if showing
       if (mounted) Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -641,10 +628,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     super.build(context);
     final userProvider = Provider.of<UserProvider>(context);
     final String userRole = userProvider.getUserRole;
-    final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
-    final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
-    final bool isTransporter =
-        userRole == 'transporter'; // Check if the user is a transporter
+    final bool isDealer = userRole == 'dealer';
+    final bool isTransporter = userRole == 'transporter';
 
     return GradientBackground(
       child: SizedBox(
@@ -679,42 +664,58 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                     ),
                   ),
                   const SizedBox(height: 15),
-                  InkWell(
-                    onTap: () {
-                      if (isTransporter) {
-                        _showDocumentOptions(true);
-                      } else if (isDealer) {
-                        _viewDocument(true); // Directly view the document
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                          color: const Color(0xFF0E4CAF),
-                          width: 2.0,
-                        ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10.0),
+                      border: Border.all(
+                        color: const Color(0xFF0E4CAF),
+                        width: 2.0,
                       ),
+                    ),
+                    child: InkWell(
+                      onTap: (isTransporter ||
+                              (isDealer &&
+                                  (widget.maintenanceDocUrl != null ||
+                                      _maintenanceDocFile != null)))
+                          ? () {
+                              if (isTransporter) {
+                                _showDocumentOptions(true);
+                              } else if (isDealer) {
+                                _viewDocument(true);
+                              }
+                            }
+                          : null,
+                      borderRadius: BorderRadius.circular(10.0),
                       child: Column(
                         children: [
                           if (_maintenanceDocFile == null &&
                               widget.maintenanceDocUrl == null)
-                            const Icon(
-                              Icons.drive_folder_upload_outlined,
-                              color: Colors.white,
-                              size: 50.0,
-                              semanticLabel: 'Upload Maintenance Document',
-                            ),
+                            if (isDealer)
+                              const Text(
+                                'No Maintenance Document Available',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                                textAlign: TextAlign.center,
+                              )
+                            else
+                              const Icon(
+                                Icons.drive_folder_upload_outlined,
+                                color: Colors.white,
+                                size: 50.0,
+                                semanticLabel: 'Upload Maintenance Document',
+                              ),
                           const SizedBox(height: 10),
                           if (_maintenanceDocFile != null ||
                               widget.maintenanceDocUrl != null)
                             Column(
                               children: [
-                                if (_maintenanceDocFile != null)
+                                // Always display "Maintenance Document" instead of file name
+                                if (_maintenanceDocFile != null) ...[
                                   if (_isImageFile(_maintenanceDocFile!.path))
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
@@ -726,37 +727,25 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       ),
                                     )
                                   else
-                                    Column(
-                                      children: [
-                                        Icon(
-                                          _getFileIcon(_maintenanceDocFile!.path
-                                              .split('.')
-                                              .last),
-                                          color: Colors.white,
-                                          size: 50.0,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16.0),
-                                          child: Text(
-                                            _maintenanceDocFile!.path
-                                                .split('/')
-                                                .last,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                else if (widget.maintenanceDocUrl != null)
+                                    Icon(
+                                      _getFileIcon(_maintenanceDocFile!.path
+                                          .split('.')
+                                          .last),
+                                      color: Colors.white,
+                                      size: 50.0,
+                                    ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Maintenance Document',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ] else if (widget.maintenanceDocUrl !=
+                                    null) ...[
                                   if (_isImageFile(widget.maintenanceDocUrl!))
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
@@ -768,35 +757,24 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       ),
                                     )
                                   else
-                                    Column(
-                                      children: [
-                                        Icon(
-                                          _getFileIcon(widget.maintenanceDocUrl!
-                                              .split('.')
-                                              .last),
-                                          color: Colors.white,
-                                          size: 50.0,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16.0),
-                                          child: Text(
-                                            getFileNameFromUrl(
-                                                widget.maintenanceDocUrl!),
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ],
+                                    Icon(
+                                      _getFileIcon(widget.maintenanceDocUrl!
+                                          .split('.')
+                                          .last),
+                                      color: Colors.white,
+                                      size: 50.0,
                                     ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Maintenance Document',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                                 const SizedBox(height: 8),
                                 if (widget.isUploading)
                                   Row(
@@ -812,9 +790,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                   ),
                               ],
                             )
-                          else if (!widget.isUploading)
+                          else if (!widget.isUploading && !isDealer)
                             const Text(
-                              'MAINTENANCE DOC UPLOAD',
+                              'MAINTENANCE DOCUMENT UPLOAD',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.white70,
@@ -852,14 +830,15 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                         value: 'yes',
                         groupValue: _oemInspectionType,
                         onChanged: (value) {
-                          setState(() {
-                            _oemInspectionType = value!;
-                            if (_oemInspectionType == 'yes') {
-                              _oemReasonController
-                                  .clear(); // Clear the explanation
-                            }
-                          });
-                          notifyProgress();
+                          if (isTransporter) {
+                            setState(() {
+                              _oemInspectionType = value!;
+                              if (_oemInspectionType == 'yes') {
+                                _oemReasonController.clear();
+                              }
+                            });
+                            notifyProgress();
+                          }
                         },
                         enabled: isTransporter,
                       ),
@@ -869,17 +848,18 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                         value: 'no',
                         groupValue: _oemInspectionType,
                         onChanged: (value) {
-                          setState(() {
-                            _oemInspectionType = value!;
-                          });
-                          notifyProgress();
+                          if (isTransporter) {
+                            setState(() {
+                              _oemInspectionType = value!;
+                            });
+                            notifyProgress();
+                          }
                         },
                         enabled: isTransporter,
                       ),
                     ],
                   ),
                   const SizedBox(height: 15),
-                  // Conditional Explanation Input Field
                   if (_oemInspectionType == 'no')
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -903,42 +883,58 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                     ),
                   ),
                   const SizedBox(height: 15),
-                  InkWell(
-                    onTap: () {
-                      if (isTransporter) {
-                        _showDocumentOptions(false);
-                      } else if (isDealer) {
-                        _viewDocument(false); // Directly view the document
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                          color: const Color(0xFF0E4CAF),
-                          width: 2.0,
-                        ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10.0),
+                      border: Border.all(
+                        color: const Color(0xFF0E4CAF),
+                        width: 2.0,
                       ),
+                    ),
+                    child: InkWell(
+                      onTap: (isTransporter ||
+                              (isDealer &&
+                                  (widget.warrantyDocUrl != null ||
+                                      _warrantyDocFile != null)))
+                          ? () {
+                              if (isTransporter) {
+                                _showDocumentOptions(false);
+                              } else if (isDealer) {
+                                _viewDocument(false);
+                              }
+                            }
+                          : null,
+                      borderRadius: BorderRadius.circular(10.0),
                       child: Column(
                         children: [
                           if (_warrantyDocFile == null &&
                               widget.warrantyDocUrl == null)
-                            const Icon(
-                              Icons.drive_folder_upload_outlined,
-                              color: Colors.white,
-                              size: 50.0,
-                              semanticLabel: 'Upload Warranty Document',
-                            ),
+                            if (isDealer)
+                              const Text(
+                                'No Warranty Document Available',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                                textAlign: TextAlign.center,
+                              )
+                            else
+                              const Icon(
+                                Icons.drive_folder_upload_outlined,
+                                color: Colors.white,
+                                size: 50.0,
+                                semanticLabel: 'Upload Warranty Document',
+                              ),
                           const SizedBox(height: 10),
                           if (_warrantyDocFile != null ||
                               widget.warrantyDocUrl != null)
                             Column(
                               children: [
-                                if (_warrantyDocFile != null)
+                                // Always display "Warranty Document" instead of file name
+                                if (_warrantyDocFile != null) ...[
                                   if (_isImageFile(_warrantyDocFile!.path))
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
@@ -950,37 +946,24 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       ),
                                     )
                                   else
-                                    Column(
-                                      children: [
-                                        Icon(
-                                          _getFileIcon(_warrantyDocFile!.path
-                                              .split('.')
-                                              .last),
-                                          color: Colors.white,
-                                          size: 50.0,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16.0),
-                                          child: Text(
-                                            _warrantyDocFile!.path
-                                                .split('/')
-                                                .last,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                else if (widget.warrantyDocUrl != null)
+                                    Icon(
+                                      _getFileIcon(_warrantyDocFile!.path
+                                          .split('.')
+                                          .last),
+                                      color: Colors.white,
+                                      size: 50.0,
+                                    ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Warranty Document',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ] else if (widget.warrantyDocUrl != null) ...[
                                   if (_isImageFile(widget.warrantyDocUrl!))
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
@@ -992,29 +975,24 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       ),
                                     )
                                   else
-                                    Column(
-                                      children: [
-                                        Icon(
-                                          _getFileIcon(widget.warrantyDocUrl!
-                                              .split('.')
-                                              .last),
-                                          color: Colors.white,
-                                          size: 50.0,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          getFileNameFromUrl(
-                                              widget.warrantyDocUrl!),
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
+                                    Icon(
+                                      _getFileIcon(widget.warrantyDocUrl!
+                                          .split('.')
+                                          .last),
+                                      color: Colors.white,
+                                      size: 50.0,
                                     ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Warranty Document',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                                 const SizedBox(height: 8),
                                 if (widget.isUploading)
                                   Row(
@@ -1030,9 +1008,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                   ),
                               ],
                             )
-                          else if (!widget.isUploading)
+                          else if (!widget.isUploading && !isDealer)
                             const Text(
-                              'WARRANTY DOC UPLOAD',
+                              'WARRANTY DOCUMENT UPLOAD',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.white70,
@@ -1043,12 +1021,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20), // Add spacing before the button
-
+                  const SizedBox(height: 20),
                   if (isTransporter)
                     CustomButton(
                       onPressed: () async {
-                        // Show loading indicator
                         showDialog(
                           context: context,
                           barrierDismissible: false,
@@ -1066,7 +1042,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           String? maintenanceDocUrl = widget.maintenanceDocUrl;
                           String? warrantyDocUrl = widget.warrantyDocUrl;
 
-                          // Upload maintenance file if new one is selected
                           if (_maintenanceDocFile != null) {
                             final storageRef = FirebaseStorage.instance
                                 .ref()
@@ -1080,7 +1055,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                 await storageRef.getDownloadURL();
                           }
 
-                          // Upload warranty file if new one is selected
                           if (_warrantyDocFile != null) {
                             final storageRef = FirebaseStorage.instance
                                 .ref()
@@ -1093,7 +1067,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             warrantyDocUrl = await storageRef.getDownloadURL();
                           }
 
-                          // Prepare the maintenance data
                           Map<String, dynamic> maintenanceData = {
                             'vehicleId': widget.vehicleId,
                             'oemInspectionType': _oemInspectionType,
@@ -1107,7 +1080,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             'lastUpdated': FieldValue.serverTimestamp(),
                           };
 
-                          // Update the vehicle document in Firestore
                           await FirebaseFirestore.instance
                               .collection('vehicles')
                               .doc(widget.vehicleId)
@@ -1115,21 +1087,17 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             'maintenanceData': maintenanceData,
                           }, SetOptions(merge: true));
 
-                          // Dismiss loading indicator and pop back
-                          Navigator.pop(context); // Dismiss loading indicator
-                          Navigator.pop(context); // Return to previous screen
+                          Navigator.pop(context);
+                          Navigator.pop(context);
 
-                          // Show success message
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content: Text(
                                     'Maintenance data saved successfully')),
                           );
                         } catch (error) {
-                          // Dismiss loading indicator
                           Navigator.pop(context);
 
-                          // Show error message
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(
@@ -1150,5 +1118,5 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   }
 
   @override
-  bool get wantKeepAlive => true; // Ensure the state is kept alive
+  bool get wantKeepAlive => true;
 }

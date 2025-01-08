@@ -14,7 +14,7 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 
-// Import nested models
+// Nested models (only if still needed)
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/maintenance.dart';
 import 'package:ctp/models/truck_conditions.dart';
@@ -36,14 +36,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
   int _selectedIndex = 1;
   final ScrollController _scrollController = ScrollController();
   late TabController _tabController;
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   bool isLoading = true;
+
   @override
   void initState() {
     super.initState();
@@ -55,8 +49,11 @@ class _VehiclesListPageState extends State<VehiclesListPage>
       final currentUserId = userProvider.userId;
 
       if (currentUserId != null) {
-        await vehicleProvider.fetchVehicles(userProvider,
-            userId: currentUserId, filterLikedDisliked: false);
+        await vehicleProvider.fetchVehicles(
+          userProvider,
+          userId: currentUserId,
+          filterLikedDisliked: false,
+        );
         setState(() {
           isLoading = false;
         });
@@ -67,93 +64,14 @@ class _VehiclesListPageState extends State<VehiclesListPage>
   @override
   void dispose() {
     _scrollController.dispose();
-    _tabController.dispose(); // Dispose of the TabController
+    _tabController.dispose();
     super.dispose();
   }
 
-  // Helper methods to create default nested instances
-  AdminData _getDefaultAdminData() {
-    return AdminData(
-      settlementAmount: '0',
-      natisRc1Url: '',
-      licenseDiskUrl: '',
-      settlementLetterUrl: '',
-    );
-  }
-
-  Maintenance _getDefaultMaintenance(String vehicleId) {
-    return Maintenance(
-      vehicleId: vehicleId,
-      oemInspectionType: '',
-      maintenanceDocUrl: '',
-      warrantyDocUrl: '',
-      maintenanceSelection: '',
-      warrantySelection: '',
-      lastUpdated: DateTime.now(),
-    );
-  }
-
-  TruckConditions _getDefaultTruckConditions() {
-    return TruckConditions(
-      externalCab: ExternalCab(
-        damages: [],
-        additionalFeatures: [],
-        condition: '',
-        damagesCondition: '',
-        additionalFeaturesCondition: '',
-        images: {},
-      ),
-      internalCab: InternalCab(
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          faultCodesCondition: '',
-          viewImages: {},
-          damages: [],
-          additionalFeatures: [],
-          faultCodes: []),
-      chassis: Chassis(
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          images: {},
-          damages: [],
-          additionalFeatures: []),
-      driveTrain: DriveTrain(
-        condition: '',
-        oilLeakConditionEngine: '',
-        waterLeakConditionEngine: '',
-        blowbyCondition: '',
-        oilLeakConditionGearbox: '',
-        retarderCondition: '',
-        lastUpdated: DateTime.now(),
-        images: {
-          'Right Brake': '',
-          'Left Brake': '',
-          'Front Axel': '',
-          'Suspension': '',
-          'Fuel Tank': '',
-          'Battery': '',
-          'Cat Walk': '',
-          'Electrical Cable Black': '',
-          'Air Cable Yellow': '',
-          'Air Cable Red': '',
-          'Tail Board': '',
-          '5th Wheel': '',
-          'Left Brake Rear Axel': '',
-          'Right Brake Rear Axel': '',
-        },
-        damages: [],
-        additionalFeatures: [],
-        faultCodes: [],
-      ),
-      tyres: {
-        'default': Tyres(
-          lastUpdated: DateTime.now(),
-          positions: {},
-        ),
-      },
-    );
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -172,26 +90,12 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     }
 
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
-    print('User Id: $currentUserId');
-    print('Fetched vehicles count: ${userVehicles.length}');
+    final drafts =
+        userVehicles.where((v) => v.vehicleStatus == 'Draft').toList();
+    final pending =
+        userVehicles.where((v) => v.vehicleStatus == 'Pending').toList();
+    final live = userVehicles.where((v) => v.vehicleStatus == 'Live').toList();
 
-    // Add print statements to verify the filtering logic
-    print('Total vehicles: ${userVehicles.length}');
-    final drafts = userVehicles
-        .where((vehicle) => vehicle.vehicleStatus == 'Draft')
-        .toList();
-    print('Drafts filtered: ${drafts.length}');
-
-    final pending = userVehicles
-        .where((vehicle) => vehicle.vehicleStatus == 'Pending')
-        .toList();
-
-    final live = userVehicles
-        .where((vehicle) => vehicle.vehicleStatus == 'Live')
-        .toList();
-
-    print('Pending: ${pending.length}');
-    print('Live: ${live.length}');
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -239,7 +143,6 @@ class _VehiclesListPageState extends State<VehiclesListPage>
               ),
             ),
             const SizedBox(height: 24),
-            // Add TabBar
             TabBar(
               controller: _tabController,
               labelColor: const Color(0xFFFF4E00),
@@ -256,106 +159,30 @@ class _VehiclesListPageState extends State<VehiclesListPage>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Drafts Tab
                   drafts.isEmpty
                       ? Center(
                           child: Text(
-                          'No Draft vehicles.',
-                          style: GoogleFonts.montserrat(color: Colors.white),
-                        ))
-                      : ListView.builder(
-                          controller: _scrollController,
-                          itemCount: drafts.length,
-                          itemBuilder: (context, index) {
-                            final vehicle = drafts[index];
-                            return ListingCard(
-                              vehicleMakeModel: vehicle.makeModel.toString(),
-                              vehicleImageUrl: vehicle.mainImageUrl,
-                              vehicleYear: vehicle.year.toString(),
-                              vehicleMileage: vehicle.mileage,
-                              vehicleTransmission: vehicle.transmissionType,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => VehicleDetailsPage(
-                                      vehicle: vehicle,
-                                    ),
-                                  ),
-                                );
-                              },
-                              vehicleId: vehicle.id,
-                              referenceNumber: vehicle.referenceNumber,
-                              brands: vehicle.brands,
-                            );
-                          },
-                        ),
-                  // Pending Tab
+                            'No Draft vehicles.',
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
+                        )
+                      : _buildVehiclesList(drafts),
                   pending.isEmpty
                       ? Center(
-                          child: Text('No Pending vehicles.',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)))
-                      : ListView.builder(
-                          controller: _scrollController,
-                          itemCount: pending.length,
-                          itemBuilder: (context, index) {
-                            final vehicle = pending[index];
-                            return ListingCard(
-                              brands: vehicle.brands,
-                              vehicleMakeModel: vehicle.makeModel.toString(),
-                              vehicleImageUrl: vehicle.mainImageUrl,
-                              vehicleYear: vehicle.year.toString(),
-                              vehicleMileage: vehicle.mileage,
-                              vehicleTransmission: vehicle.transmissionType,
-                              referenceNumber: vehicle.referenceNumber,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => VehicleDetailsPage(
-                                      vehicle: vehicle,
-                                    ),
-                                  ),
-                                );
-                              },
-                              vehicleId: vehicle.id,
-                            );
-                          },
-                        ),
-                  // Live Tab
+                          child: Text(
+                            'No Pending vehicles.',
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
+                        )
+                      : _buildVehiclesList(pending),
                   live.isEmpty
                       ? Center(
-                          child: Text('No Live vehicles.',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)))
-                      : ListView.builder(
-                          controller: _scrollController,
-                          itemCount: live.length,
-                          itemBuilder: (context, index) {
-                            final vehicle = live[index];
-                            return ListingCard(
-                              brands: vehicle.brands,
-                              vehicleMakeModel: vehicle.makeModel.toString(),
-                              vehicleImageUrl: vehicle.mainImageUrl,
-                              vehicleYear: vehicle.year.toString(),
-                              vehicleMileage: vehicle.mileage,
-                              vehicleTransmission: vehicle.transmissionType,
-                              referenceNumber: vehicle.referenceNumber,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => VehicleDetailsPage(
-                                      vehicle: vehicle,
-                                    ),
-                                  ),
-                                );
-                              },
-                              vehicleId: vehicle.id,
-                            );
-                          },
-                        ),
+                          child: Text(
+                            'No Live vehicles.',
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
+                        )
+                      : _buildVehiclesList(live),
                 ],
               ),
             ),
@@ -365,12 +192,10 @@ class _VehiclesListPageState extends State<VehiclesListPage>
           selectedIndex: _selectedIndex,
           onItemTapped: (index) {
             _onItemTapped(index);
-            // Handle navigation based on the selected index and user role
-            // Ensure that navigation is not triggered during the build phase
             final userRole = userProvider.getUserRole.toLowerCase().trim();
 
+            // Example: dealer logic
             if (userRole == 'dealer') {
-              // Navigation items for dealers:
               // 0: Home, 1: Vehicles, 2: Offers
               if (index == 0) {
                 Navigator.pushReplacement(
@@ -381,7 +206,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const VehiclesListPage()),
+                    builder: (context) => const VehiclesListPage(),
+                  ),
                 );
               } else if (index == 2) {
                 Navigator.pushReplacement(
@@ -389,8 +215,9 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                   MaterialPageRoute(builder: (context) => const OffersPage()),
                 );
               }
-            } else if (userRole == 'transporter') {
-              // Navigation items for transporters:
+            }
+            // Example: transporter logic
+            else if (userRole == 'transporter') {
               // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
               if (index == 0) {
                 Navigator.pushReplacement(
@@ -401,7 +228,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const VehiclesListPage()),
+                    builder: (context) => const VehiclesListPage(),
+                  ),
                 );
               } else if (index == 2) {
                 Navigator.pushReplacement(
@@ -415,7 +243,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                 );
               }
             } else {
-              // Handle other roles or undefined roles if necessary
+              // handle other roles or undefined roles
             }
           },
         ),
@@ -423,12 +251,45 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     );
   }
 
-  TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
-    return TextStyle(
-      fontSize: fontSize,
-      fontWeight: fontWeight,
-      color: color,
-      fontFamily: 'Montserrat',
+  Widget _buildVehiclesList(List vehicles) {
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: vehicles.length,
+      itemBuilder: (context, index) {
+        final vehicle = vehicles[index];
+
+        return ListingCard(
+          vehicleId: vehicle.id,
+          vehicleType: vehicle.vehicleType, // "truck" or "trailer"
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VehicleDetailsPage(vehicle: vehicle),
+              ),
+            );
+          },
+
+          // Common fields
+          vehicleImageUrl: vehicle.mainImageUrl,
+          referenceNumber: vehicle.referenceNumber,
+          vehicleTransmission: vehicle.transmissionType,
+          vehicleMileage: vehicle.mileage,
+
+          // For trailers
+          trailerType: vehicle.trailerType,
+          trailerMake: vehicle.brands.isNotEmpty
+              ? vehicle.brands.first
+              : '', // Instead of vehicle.make
+          trailerYear: vehicle.year, // e.g. "2023"
+
+          // For trucks
+          truckBrand: vehicle.brands.isNotEmpty
+              ? vehicle.brands.first
+              : '', // e.g. "Scania"
+          truckModel: vehicle.makeModel, // e.g. "G460"
+        );
+      },
     );
   }
 }

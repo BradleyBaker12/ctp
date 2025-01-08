@@ -4,7 +4,6 @@ import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/payment_approved.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/pages/transport_offer_details_page.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
@@ -263,8 +262,20 @@ class _OfferCardState extends State<OfferCard> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CollectionDetailsPage(
+            builder: (context) => CollectionConfirmationPage(
               offerId: widget.offer.offerId,
+              location: widget.offer.dealerSelectedInspectionLocation ??
+                  'Unknown', // Replace with the correct location key
+              address: widget.offer.transporterDeliveryAddress ??
+                  'Unknown', // Replace with the correct address key
+              date: widget.offer.dealerSelectedInspectionDate!,
+              time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
+              latLng: widget.offer.latLng != null
+                  ? LatLng(
+                      widget.offer.latLng!.latitude,
+                      widget.offer.latLng!.longitude,
+                    )
+                  : null,
             ),
           ),
         );
@@ -500,15 +511,25 @@ Rendering Offer:
                       Text(
                         "${widget.offer.vehicleBrand ?? 'Unknown'} ${widget.offer.vehicleMakeModel ?? 'Unknown'} ${widget.offer.vehicleYear ?? 'Unknown'}"
                             .toUpperCase(),
-                        style: customFont(screenSize.height * 0.016,
-                            FontWeight.w800, Colors.white),
+                        style: customFont(
+                          screenSize.width * 0.03,
+                          FontWeight.w800,
+                          Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                       const SizedBox(height: 1),
                       Text(
                         'Offer of ${formatOfferAmount(widget.offer.offerAmount)}'
                             .toUpperCase(),
-                        style: customFont(screenSize.height * 0.015,
-                            FontWeight.w800, Colors.white),
+                        style: customFont(
+                          screenSize.width * 0.028,
+                          FontWeight.w800,
+                          Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ],
                   ),
@@ -534,7 +555,7 @@ Rendering Offer:
                         const SizedBox(height: 5),
                         Text(
                           getDisplayStatus(widget.offer.offerStatus),
-                          style: customFont(screenSize.height * 0.016,
+                          style: customFont(screenSize.height * 0.012,
                               FontWeight.bold, Colors.white),
                           textAlign: TextAlign.center,
                         ),
@@ -551,12 +572,12 @@ Rendering Offer:
   }
 
   Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
-    print('''
-  === OFFER CARD DEBUG ===
-  Brand: ${widget.offer.vehicleBrand}
-  MakeModel: ${widget.offer.vehicleMakeModel}
-  MainImage: ${widget.offer.vehicleMainImage}
-    ''');
+    //   print('''
+    // === OFFER CARD DEBUG ===
+    // Brand: ${widget.offer.vehicleBrand}
+    // MakeModel: ${widget.offer.vehicleMakeModel}
+    // MainImage: ${widget.offer.vehicleMainImage}
+    //   ''');
 
     var screenSize = MediaQuery.of(context).size;
     double cardHeight = screenSize.height * 0.14;
@@ -639,7 +660,7 @@ Rendering Offer:
                         const SizedBox(height: 5),
                         Text(
                           getDisplayStatus(widget.offer.offerStatus),
-                          style: customFont(screenSize.height * 0.016,
+                          style: customFont(screenSize.height * 0.012,
                               FontWeight.bold, Colors.white),
                           textAlign: TextAlign.center,
                         ),

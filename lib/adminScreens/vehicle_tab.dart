@@ -31,6 +31,18 @@ class _VehiclesTabState extends State<VehiclesTab> {
 
   final ScrollController _scrollController = ScrollController();
 
+  String _sortField = 'createdAt';
+  bool _sortAscending = false;
+  List<String> _selectedFilters = [];
+  final List<String> _filterOptions = ['All', 'Live', 'Sold', 'Draft'];
+
+  final List<Map<String, String>> _sortOptions = [
+    {'field': 'createdAt', 'label': 'Date'},
+    {'field': 'year', 'label': 'Year'},
+    {'field': 'vehicleStatus', 'label': 'Status'},
+    {'field': 'makeModel', 'label': 'Model'}
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -74,13 +86,24 @@ class _VehiclesTabState extends State<VehiclesTab> {
   bool _matchesSearch(Map<String, dynamic> vehicleData) {
     if (_searchQuery.isEmpty) return true;
 
-    String makeModel = vehicleData['makeModel']?.toString().toLowerCase() ?? '';
-    String yearStr = vehicleData['year']?.toString().toLowerCase() ?? '';
-    String status = vehicleData['status']?.toString().toLowerCase() ?? '';
+    // Lowercase search
+    String query = _searchQuery.toLowerCase();
 
-    return makeModel.contains(_searchQuery.toLowerCase()) ||
-        yearStr.contains(_searchQuery.toLowerCase()) ||
-        status.contains(_searchQuery.toLowerCase());
+    // We can search across brand(s), makeModel, variant, year, status, etc.
+    // Because `brands` is a List<String>, we join them into one string to match.
+    List<dynamic> brandList = vehicleData['brands'] ?? [];
+    String brandConcat = brandList.join(' ').toLowerCase();
+
+    String makeModel = (vehicleData['makeModel'] ?? '').toLowerCase();
+    String variant = (vehicleData['variant'] ?? '').toLowerCase();
+    String yearStr = (vehicleData['year'] ?? '').toLowerCase();
+    String statusStr = (vehicleData['vehicleStatus'] ?? '').toLowerCase();
+
+    return brandConcat.contains(query) ||
+        makeModel.contains(query) ||
+        variant.contains(query) ||
+        yearStr.contains(query) ||
+        statusStr.contains(query);
   }
 
   Future<void> _fetchVehicles() async {
@@ -90,7 +113,15 @@ class _VehiclesTabState extends State<VehiclesTab> {
       _isLoading = true;
     });
 
-    Query query = vehiclesCollection.orderBy('createdAt').limit(_limit);
+    Query query =
+        vehiclesCollection.orderBy(_sortField, descending: !_sortAscending);
+
+    // Apply filters
+    if (_selectedFilters.isNotEmpty && !_selectedFilters.contains('All')) {
+      query = query.where('vehicleStatus', whereIn: _selectedFilters);
+    }
+
+    query = query.limit(_limit);
 
     if (_lastDocument != null) {
       query = query.startAfterDocument(_lastDocument!);
@@ -119,6 +150,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter the local _vehicles list based on search
     List<DocumentSnapshot> filteredVehicles = _vehicles.where((doc) {
       var data = doc.data() as Map<String, dynamic>;
       return _matchesSearch(data);
@@ -128,43 +160,88 @@ class _VehiclesTabState extends State<VehiclesTab> {
       body: GradientBackground(
         child: Column(
           children: [
-            // Search Bar
+            // SEARCH BAR
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _searchController,
-                style: GoogleFonts.montserrat(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Search Vehicles',
-                  labelStyle: GoogleFonts.montserrat(color: Colors.white),
-                  prefixIcon: Icon(Icons.search, color: Colors.white),
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(color: Colors.white),
+              child: Row(
+                children: [
+                  // Search Bar
+                  Expanded(
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Search vehicles...',
+                          hintStyle:
+                              GoogleFonts.montserrat(color: Colors.white54),
+                          prefixIcon:
+                              const Icon(Icons.search, color: Colors.white54),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                            _vehicles.clear();
+                            _lastDocument = null;
+                            _hasMore = true;
+                          });
+                          _fetchVehicles();
+                        },
+                      ),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(color: Color(0xFFFF4E00)),
+                  const SizedBox(width: 8),
+                  // Sort Button
+                  IconButton(
+                    icon: const Icon(Icons.sort, color: Colors.white),
+                    onPressed: () => _showSortMenu(),
+                    tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
                   ),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                    _vehicles.clear();
-                    _lastDocument = null;
-                    _hasMore = true;
-                  });
-                  _fetchVehicles();
-                },
+                  // Sort Direction Button
+                  IconButton(
+                    icon: Icon(
+                      _sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _sortAscending = !_sortAscending;
+                        _vehicles.clear();
+                        _lastDocument = null;
+                        _hasMore = true;
+                        _fetchVehicles();
+                      });
+                    },
+                    tooltip:
+                        _sortAscending ? 'Sort Ascending' : 'Sort Descending',
+                  ),
+                  // Filter Button
+                  IconButton(
+                    icon: const Icon(Icons.filter_list, color: Colors.white),
+                    onPressed: _showFilterDialog,
+                    tooltip: 'Filter Vehicles',
+                  ),
+                ],
               ),
             ),
-            // Expanded ListView
+
+            // VEHICLE LIST
             Expanded(
               child: filteredVehicles.isEmpty
                   ? _isLoading
-                      ? Center(child: CircularProgressIndicator())
+                      ? const Center(child: CircularProgressIndicator())
                       : Center(
                           child: Text(
                             'No vehicles found.',
@@ -175,22 +252,34 @@ class _VehiclesTabState extends State<VehiclesTab> {
                       controller: _scrollController,
                       itemCount: filteredVehicles.length + (_hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        // Show a loading indicator at the bottom if there are more
                         if (index == filteredVehicles.length) {
-                          return Center(
+                          return const Center(
                             child: Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: EdgeInsets.all(8.0),
                               child: CircularProgressIndicator(),
                             ),
                           );
                         }
 
+                        // Build the Vehicle object
                         var vehicleData = filteredVehicles[index].data()
                             as Map<String, dynamic>;
                         String vehicleId = filteredVehicles[index].id;
-                        String make = vehicleData['makeModel'] ?? 'Unknown';
-
                         Vehicle vehicle =
                             Vehicle.fromFirestore(vehicleId, vehicleData);
+
+                        // Safely get the brand from the list of brands
+                        String brand = vehicle.brands.isNotEmpty
+                            ? vehicle.brands[0]
+                            : 'Unknown Brand';
+
+                        // We'll treat `vehicle.makeModel` as the "make".
+                        // For variant, fallback to "Unknown Variant" if null or empty
+                        String variant = (vehicle.variant == null ||
+                                vehicle.variant!.isEmpty)
+                            ? ''
+                            : vehicle.variant!;
 
                         return Card(
                           color: Colors.grey[900],
@@ -211,24 +300,30 @@ class _VehiclesTabState extends State<VehiclesTab> {
                                             height: 50,
                                             errorBuilder:
                                                 (context, error, stackTrace) {
-                                              return Icon(Icons.directions_car,
-                                                  color: Colors.blueAccent);
+                                              return const Icon(
+                                                Icons.directions_car,
+                                                color: Colors.blueAccent,
+                                              );
                                             },
                                           )
-                                        : Icon(Icons.directions_car,
+                                        : const Icon(Icons.directions_car,
                                             color: Colors.blueAccent, size: 50),
                               ),
                             ),
+                            // Display brand, make, variant:
                             title: Text(
-                              make,
+                              '$brand ${vehicle.makeModel} $variant',
                               style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
+                            // Keep year/status in the subtitle if you like
                             subtitle: Text(
                               'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white70),
+                              style: GoogleFonts.montserrat(
+                                color: Colors.white70,
+                              ),
                             ),
                             isThreeLine: true,
                             onTap: () {
@@ -255,8 +350,8 @@ class _VehiclesTabState extends State<VehiclesTab> {
           'Add Vehicle',
           style: GoogleFonts.montserrat(color: Colors.white),
         ),
-        icon: Icon(Icons.add, color: Colors.white),
-        backgroundColor: Color(0xFF0E4CAF),
+        icon: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: const Color(0xFF0E4CAF),
       ),
     );
   }
@@ -304,8 +399,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
                     value: transporter.id,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width *
-                            0.5, // Reduced from 0.6 to 0.5
+                        maxWidth: MediaQuery.of(context).size.width * 0.5,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,6 +445,122 @@ class _VehiclesTabState extends State<VehiclesTab> {
           },
         ),
       ),
+    );
+  }
+
+  void _showSortMenu() async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context)!.context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero),
+            ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    await showMenu(
+      context: context,
+      position: position,
+      color: Colors.grey[900],
+      items: _sortOptions.map((option) {
+        return PopupMenuItem<String>(
+          value: option['field'],
+          child: Row(
+            children: [
+              Text(
+                option['label']!,
+                style: GoogleFonts.montserrat(color: Colors.white),
+              ),
+              if (_sortField == option['field']) const SizedBox(width: 8),
+              if (_sortField == option['field'])
+                const Icon(Icons.check, size: 18, color: Colors.white),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((value) {
+      if (value != null) {
+        setState(() {
+          _sortField = value;
+          _vehicles.clear();
+          _lastDocument = null;
+          _hasMore = true;
+          _fetchVehicles();
+        });
+      }
+    });
+  }
+
+  Future<void> _showFilterDialog() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: Text('Filter Vehicles',
+              style: GoogleFonts.montserrat(color: Colors.white)),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _filterOptions.map((filter) {
+                    return CheckboxListTile(
+                      title: Text(filter,
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      value: _selectedFilters.contains(filter),
+                      checkColor: Colors.black,
+                      activeColor: const Color(0xFFFF4E00),
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedFilters.add(filter);
+                          } else {
+                            _selectedFilters.remove(filter);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              child: Text('Clear All',
+                  style: GoogleFonts.montserrat(color: Colors.white)),
+              onPressed: () {
+                setState(() {
+                  _selectedFilters.clear();
+                  _vehicles.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                  _fetchVehicles();
+                });
+                Navigator.pop(context);
+              },
+            ),
+            TextButton(
+              child: Text('Apply',
+                  style:
+                      GoogleFonts.montserrat(color: const Color(0xFFFF4E00))),
+              onPressed: () {
+                setState(() {
+                  _vehicles.clear();
+                  _lastDocument = null;
+                  _hasMore = true;
+                  _fetchVehicles();
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

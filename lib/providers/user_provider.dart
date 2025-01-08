@@ -1,8 +1,10 @@
 // lib/providers/user_provider.dart
 
 import 'dart:io';
+import 'dart:async'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists
+import 'package:ctp/models/user_details.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -13,7 +15,7 @@ class UserProvider extends ChangeNotifier {
   User? _user;
   String _accountStatus = 'active'; // Default status
   List<String> _preferredBrands = [];
-  String _userRole = 'guest'; // Default role
+  String _userRole = 'dealer'; // Default role
   String? _profileImageUrl;
   bool _isLoading = true;
   bool _hasNotifications = false; // Add this field to track notifications
@@ -70,6 +72,8 @@ class UserProvider extends ChangeNotifier {
   bool get hasNotifications => _hasNotifications;
   String? _fcmToken;
 
+  StreamSubscription? _statusSubscription;
+
   UserProvider() {
     _checkAuthState();
     FirebaseAuth.instance.authStateChanges().listen((User? newUser) async {
@@ -84,6 +88,23 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  Future<UserDetails> getUserDetailsById(String userId) async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (doc.exists) {
+        return UserDetails.fromFirestore(doc);
+      } else {
+        throw Exception('User not found');
+      }
+    } catch (e) {
+      print('Error fetching user details for userId $userId: $e');
+      throw e; // Propagate the error to be handled in the UI
+    }
   }
 
   // Method to check for notifications
@@ -142,7 +163,7 @@ class UserProvider extends ChangeNotifier {
         print("DEBUG: User doc exists: ${userDoc.exists}");
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-          _userRole = data['userRole'] ?? 'guest';
+          _userRole = data['userRole'] ?? 'dealer';
           _adminApproval = data['adminApproval'] ?? false;
           _accountStatus =
               data['accountStatus'] ?? 'active'; // Fetch account status
@@ -291,7 +312,7 @@ class UserProvider extends ChangeNotifier {
 
   void _clearUserData() {
     _preferredBrands = [];
-    _userRole = 'guest';
+    _userRole = 'dealer';
     _profileImageUrl = null;
     _offers = [];
     _offersMade = [];
@@ -747,6 +768,30 @@ class UserProvider extends ChangeNotifier {
 
   // Add this getter
   User? get user => _user;
+
+  Future<void> initializeStatusListener() async {
+    if (_statusSubscription != null) return;
+
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    _statusSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        _accountStatus = snapshot.data()?['accountStatus'] ?? 'active';
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _statusSubscription?.cancel();
+    super.dispose();
+  }
 }
 
 class Dealer {

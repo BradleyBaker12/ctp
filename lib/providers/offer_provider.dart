@@ -17,6 +17,8 @@ class Offer extends ChangeNotifier {
   String? reason;
   DateTime? createdAt;
   String? vehicleBrand;
+  String? externalInvoice;
+  bool? needsInvoice;
 
   List<String> vehicleImages = [];
   Map<String, String?> additionalInfo = {};
@@ -44,37 +46,43 @@ class Offer extends ChangeNotifier {
 
   String? proofOfPayment;
 
-  Offer({
-    required this.offerId,
-    required this.dealerId,
-    required this.vehicleId,
-    required this.transporterId,
-    this.offerAmount,
-    required this.offerStatus,
-    this.description,
-    this.vehicleMakeModel,
-    this.vehicleMainImage,
-    this.reason,
-    this.createdAt,
-    this.vehicleBrand,
-    this.dealerSelectedInspectionDate,
-    this.dealerSelectedInspectionTime,
-    this.dealerSelectedInspectionLocation,
-    this.transporterDeliveryAddress,
-    this.latLng,
-    this.dealerSelectedCollectionLocation,
-    this.dealerSelectedCollectionAddress,
-    this.dealerSelectedCollectionDate,
-    this.dealerSelectedCollectionTime,
-    this.inspectionDates,
-    this.inspectionLocations,
-    this.collectionDates,
-    this.collectionLocations,
-    this.proofOfPayment,
-  });
+  Offer(
+      {required this.offerId,
+      required this.dealerId,
+      required this.vehicleId,
+      required this.transporterId,
+      this.offerAmount,
+      required this.offerStatus,
+      this.description,
+      this.vehicleMakeModel,
+      this.vehicleMainImage,
+      this.reason,
+      this.createdAt,
+      this.vehicleBrand,
+      this.dealerSelectedInspectionDate,
+      this.dealerSelectedInspectionTime,
+      this.dealerSelectedInspectionLocation,
+      this.transporterDeliveryAddress,
+      this.latLng,
+      this.dealerSelectedCollectionLocation,
+      this.dealerSelectedCollectionAddress,
+      this.dealerSelectedCollectionDate,
+      this.dealerSelectedCollectionTime,
+      this.inspectionDates,
+      this.inspectionLocations,
+      this.collectionDates,
+      this.collectionLocations,
+      this.proofOfPayment,
+      this.vehicleYear,
+      this.vehicleMileage,
+      this.vehicleTransmission,
+      this.externalInvoice,
+      this.needsInvoice});
 
+  /// IMPORTANT: Ensure these keys match your Firestore fields.
   factory Offer.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
     return Offer(
       offerId: doc.id,
       dealerId: data['dealerId'] ?? '',
@@ -84,12 +92,19 @@ class Offer extends ChangeNotifier {
       offerStatus: data['offerStatus'] ?? 'pending',
       description: data['description'] ?? 'No Description',
       vehicleMakeModel: data['makeModel'],
+      externalInvoice: data['externalInvoice'],
       vehicleMainImage: data['vehicleMainImage'],
       reason: data['reason'],
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
       vehicleBrand: data['brands'],
+
+      /// Add these mappings to pull fields from Firestore
+      vehicleYear: data['vehicleYear'],
+      vehicleMileage: data['vehicleMileage'],
+      vehicleTransmission: data['vehicleTransmission'],
+
       dealerSelectedInspectionDate: data['dealerSelectedInspectionDate'] != null
           ? (data['dealerSelectedInspectionDate'] as Timestamp).toDate()
           : null,
@@ -110,6 +125,9 @@ class Offer extends ChangeNotifier {
       collectionDates: data['collectionDates'],
       collectionLocations: data['collectionLocations'],
       proofOfPayment: data['proofOfPayment'],
+      needsInvoice: data['needsInvoice'] is bool
+          ? data['needsInvoice'] as bool
+          : (data['needsInvoice'] == 'true' ? true : false),
     );
   }
 
@@ -127,7 +145,7 @@ class Offer extends ChangeNotifier {
         Map<String, dynamic> vehicleData =
             vehicleSnapshot.data() as Map<String, dynamic>;
 
-        // Map the data directly from the vehicle document
+        // Map the data from the vehicle document
         vehicleBrand = vehicleData['brands'] is List
             ? (vehicleData['brands'] as List).first.toString()
             : vehicleData['brands']?.toString();
@@ -135,6 +153,11 @@ class Offer extends ChangeNotifier {
         // Explicitly map the makeModel
         vehicleMakeModel = vehicleData['makeModel']?.toString();
         vehicleMainImage = vehicleData['mainImageUrl'];
+
+        // If your 'vehicles' collection also has year/mileage/transmission fields:
+        // vehicleYear = vehicleData['vehicleYear'];
+        // vehicleMileage = vehicleData['vehicleMileage'];
+        // vehicleTransmission = vehicleData['vehicleTransmission'];
       }
     } finally {
       isVehicleDetailsLoading = false;
@@ -151,7 +174,7 @@ class Offer extends ChangeNotifier {
           .update({'offerAmount': newAmount});
       notifyListeners();
     } catch (e) {
-      // print('Error updating offer amount: $e');
+      // Handle error
     }
   }
 }
@@ -185,46 +208,31 @@ class OfferProvider extends ChangeNotifier {
 
   /// Fetches the initial batch of offers based on user ID and role.
   Future<void> fetchOffers(String userId, String userRole) async {
-    if (_isFetching) {
-      // print('DEBUG: Already fetching, returning early');
-      return;
-    }
+    if (_isFetching) return;
 
     _isFetching = true;
     notifyListeners();
 
     try {
       Query query = _buildQuery(userId, userRole);
-      // print('DEBUG: Query built, fetching documents');
 
       QuerySnapshot querySnapshot = await query.get();
-      // print(
-      // 'DEBUG: Query results - document count: ${querySnapshot.docs.length}');
 
       if (querySnapshot.docs.isNotEmpty) {
         _lastDocument = querySnapshot.docs.last;
         _offers = querySnapshot.docs.map((doc) {
-          // print('DEBUG: Processing document ID: ${doc.id}');
           return Offer.fromFirestore(doc);
         }).toList();
 
-        // print('DEBUG: Processed ${_offers.length} offers');
-
-        // Fetch vehicle details
+        // Fetch vehicle details for each offer
         for (Offer offer in _offers) {
-          // print('DEBUG: Fetching vehicle details for offer ${offer.offerId}');
           await offer.fetchVehicleDetails();
         }
-
-        // print('Number of offers fetched: ${_offers.length}');
-        for (var offer in _offers) {}
       } else {
-        // print('DEBUG: No documents found in query result');
-        // _hasMore = false;
+        // If no docs, you could set _hasMore = false;
       }
     } catch (e) {
-      // print('DEBUG: Error in fetchOffers: $e');
-      // _errorMessage = 'Failed to load offers. Please try again.';
+      _errorMessage = 'Failed to load offers. Please try again.';
     }
 
     _isFetching = false;
@@ -251,7 +259,7 @@ class OfferProvider extends ChangeNotifier {
         List<Offer> newOffers =
             querySnapshot.docs.map((doc) => Offer.fromFirestore(doc)).toList();
 
-        // Fetch related vehicle details for each new offer
+        // Fetch vehicle details for each new offer
         for (Offer offer in newOffers) {
           await offer.fetchVehicleDetails();
         }
@@ -265,7 +273,6 @@ class OfferProvider extends ChangeNotifier {
         _hasMore = false;
       }
     } catch (e) {
-      // print('Error fetching more offers: $e');
       _errorMessage = 'Failed to load more offers. Please try again.';
     }
 
@@ -290,7 +297,7 @@ class OfferProvider extends ChangeNotifier {
       return query.orderBy('createdAt', descending: true).limit(_limit);
     }
 
-    // Existing logic for dealers and transporters
+    // For dealers or transporters, filter by their respective IDs
     return query
         .where(userRole == 'dealer' ? 'dealerId' : 'transporterId',
             isEqualTo: userId)
@@ -298,14 +305,13 @@ class OfferProvider extends ChangeNotifier {
         .limit(_limit);
   }
 
-  /// Updates the status of an offer (e.g., Approve, Reject).
+  /// Updates the status of an offer.
   Future<void> updateOfferStatus(String offerId, String newStatus) async {
     try {
       await _firestore
           .collection('offers')
           .doc(offerId)
           .update({'offerStatus': newStatus});
-      // print('Offer $offerId status updated to $newStatus');
 
       // Update local state
       Offer? offer = getOfferById(offerId);
@@ -314,7 +320,6 @@ class OfferProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // print('Error updating offer status: $e');
       _errorMessage = 'Failed to update offer status. Please try again.';
       notifyListeners();
     }
@@ -324,13 +329,11 @@ class OfferProvider extends ChangeNotifier {
   Future<void> deleteOffer(String offerId) async {
     try {
       await _firestore.collection('offers').doc(offerId).delete();
-      // print('Offer $offerId deleted');
 
       // Update local state
       _offers.removeWhere((offer) => offer.offerId == offerId);
       notifyListeners();
     } catch (e) {
-      // print('Error deleting offer: $e');
       _errorMessage = 'Failed to delete offer. Please try again.';
       notifyListeners();
     }
@@ -352,12 +355,9 @@ class OfferProvider extends ChangeNotifier {
         await offer.fetchVehicleDetails();
         _offers.add(offer);
         notifyListeners();
-      } else {
-        // print('No offer found with ID $offerId');
       }
     } catch (e) {
-      // print('Error fetching offer: $e');
-      // _errorMessage = 'Failed to fetch offer details. Please try again.';
+      _errorMessage = 'Failed to fetch offer details. Please try again.';
       notifyListeners();
     }
   }
@@ -368,14 +368,12 @@ class OfferProvider extends ChangeNotifier {
       Offer? offer = getOfferById(offerId);
       if (offer != null) {
         await offer.updateOfferAmount(newAmount);
-        notifyListeners(); // Notify listeners after updating
+        notifyListeners();
       } else {
-        // print('Offer not found for update');
         _errorMessage = 'Offer not found.';
         notifyListeners();
       }
     } catch (e) {
-      // print('Error updating offer amount: $e');
       _errorMessage = 'Failed to update offer amount. Please try again.';
       notifyListeners();
     }
@@ -399,7 +397,6 @@ class OfferProvider extends ChangeNotifier {
 
       return vehicleOffers;
     } catch (e) {
-      // print('Error fetching offers for vehicle: $e');
       _errorMessage = 'Failed to fetch offers for vehicle. Please try again.';
       notifyListeners();
       return [];
