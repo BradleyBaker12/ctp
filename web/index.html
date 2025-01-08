@@ -16,6 +16,15 @@
   -->
   <base href="$FLUTTER_BASE_HREF">
 
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+  <script>
+    window.flutterWebRenderer = "html";
+    window.addEventListener('load', function() {
+      window.Cropper = Cropper;
+    });
+  </script>
+
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">

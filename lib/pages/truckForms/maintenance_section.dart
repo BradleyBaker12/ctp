@@ -121,8 +121,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     String? oemReason =
         _oemInspectionType == 'no' ? _oemReasonController.text.trim() : null;
 
-    if (_oemInspectionType == 'no' &&
-        (oemReason == null || oemReason.isEmpty)) {
+    if (_oemInspectionType == 'no' && (oemReason!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content:

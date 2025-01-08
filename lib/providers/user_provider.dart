@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -235,7 +236,7 @@ class UserProvider extends ChangeNotifier {
   Future<void> saveFcmToken() async {
     if (_user != null) {
       String? token = await FirebaseMessaging.instance.getToken();
-      if (token != null && token != _fcmToken) {
+      if (token != _fcmToken) {
         _fcmToken = token;
         await FirebaseFirestore.instance
             .collection('users')
@@ -270,6 +271,15 @@ class UserProvider extends ChangeNotifier {
         .ref()
         .child('profile_images/${_user!.uid}/${file.path.split('/').last}');
     final uploadTask = storageRef.putFile(file);
+    final snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
+  }
+
+  Future<String> uploadBytes(Uint8List bytes) async {
+    final storageRef = FirebaseStorage.instance
+        .ref()
+        .child('profile_images/${_user!.uid}/profile.jpg');
+    final uploadTask = storageRef.putData(bytes);
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }

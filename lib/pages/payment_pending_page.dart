@@ -61,8 +61,6 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
               .doc(widget.offerId)
               .update({'offerStatus': 'paid'});
 
-           
-
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -90,8 +88,7 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
       if (offerSnapshot.exists) {
         String? proofOfPaymentUrl = offerSnapshot['proofOfPaymentUrl'];
         setState(() {
-          _proofOfPaymentUploaded =
-              proofOfPaymentUrl != null && proofOfPaymentUrl.isNotEmpty;
+          _proofOfPaymentUploaded = proofOfPaymentUrl!.isNotEmpty;
         });
       }
     } catch (e) {
