@@ -11,20 +11,39 @@ class TradingCategoryPage extends StatelessWidget {
   const TradingCategoryPage({super.key});
 
   Future<void> _updateUserRole(BuildContext context, String role) async {
-    final String userId =
-        Provider.of<UserProvider>(context, listen: false).userId!;
-    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final String? userId = userProvider.userId;
+      
+      if (userId == null) {
+        throw Exception('User ID not found');
+      }
 
-    await firestore.collection('users').doc(userId).update({
-      'userRole': role,
-    });
+      // Update Firestore
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'userRole': role,
+        'isFirstLogin': false
+      });
 
-    if (role == 'dealer') {
-      Navigator.pushReplacementNamed(context, '/preferedBrands');
-    } else if (role == 'transporter') {
-      Navigator.pushReplacementNamed(context, '/addProfilePhotoTransporter');
+      // Update local UserProvider state
+      userProvider.updateUserRole(role);
+
+      // Navigate based on role
+      if (role == 'dealer') {
+        Navigator.pushReplacementNamed(context, '/preferedBrands');
+      } else if (role == 'transporter') {
+        Navigator.pushReplacementNamed(context, '/addProfilePhotoTransporter');
+      }
+    } catch (e) {
+      print('Error updating user role: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update user role. Please try again.')),
+      );
     }
   }
+
+  
 
   @override
   Widget build(BuildContext context) {

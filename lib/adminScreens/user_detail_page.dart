@@ -1,8 +1,10 @@
 // lib/adminScreens/user_detail_page.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/pages/document_preview_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +13,7 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../providers/user_provider.dart';
+import 'package:flutter/services.dart'; // For PlatformException
 
 class UserDetailPage extends StatefulWidget {
   final String userId;
@@ -40,6 +43,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
 
   File? _profileImage;
 
+  // Flag to check if controllers are initialized
+  bool _isControllersInitialized = false;
+
   @override
   void dispose() {
     // Dispose controllers when the widget is removed from the widget tree
@@ -59,32 +65,58 @@ class _UserDetailPageState extends State<UserDetailPage> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _profileImage = File(pickedFile.path);
-      });
+    print('Debug: Starting image picker.');
+    try {
+      final pickedFile =
+          await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        print('Debug: Image selected - ${pickedFile.path}');
+        setState(() {
+          _profileImage = File(pickedFile.path);
+        });
+      } else {
+        print('Debug: No image selected.');
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error picking image: $e',
+            style: GoogleFonts.montserrat(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<String> _uploadProfileImage(File imageFile) async {
+    print('Debug: Starting image upload for user ${widget.userId}.');
     String fileName =
         'profile_images/${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.png';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
     UploadTask uploadTask = storageRef.putFile(imageFile);
 
-    TaskSnapshot snapshot = await uploadTask;
-    String downloadUrl = await snapshot.ref.getDownloadURL();
-    return downloadUrl;
+    try {
+      TaskSnapshot snapshot = await uploadTask;
+      String downloadUrl = await snapshot.ref.getDownloadURL();
+      print('Debug: Image uploaded successfully. Download URL: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading image: $e');
+      throw Exception('Image upload failed');
+    }
   }
 
   Future<void> _saveChanges() async {
+    print('Debug: Save changes initiated.');
     if (_formKey.currentState?.validate() ?? false) {
       try {
         // Handle profile image upload if a new image is selected
         String? profileImageUrl;
         if (_profileImage != null) {
+          print('Debug: New profile image detected.');
           profileImageUrl = await _uploadProfileImage(_profileImage!);
         }
 
@@ -108,10 +140,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
           updateData['profileImageUrl'] = profileImageUrl;
         }
 
+        print('Debug: Updating Firestore with data: $updateData');
+
         await FirebaseFirestore.instance
             .collection('users')
             .doc(widget.userId)
             .update(updateData);
+
+        print('Debug: User details updated successfully.');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -122,6 +158,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
           ),
         );
       } catch (e) {
+        print('Error saving changes: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -132,11 +169,25 @@ class _UserDetailPageState extends State<UserDetailPage> {
           ),
         );
       }
+    } else {
+      print('Debug: Form validation failed.');
     }
+  }
+
+  // New method to handle document viewing using DocumentPreviewScreen
+  Future<void> _viewDocument(String url, String title) async {
+    print('Debug: Attempting to view document at URL: $url');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DocumentPreviewScreen(url: url),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    print('Debug: Building UserDetailPage for user ${widget.userId}.');
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     return GradientBackground(
@@ -150,14 +201,16 @@ class _UserDetailPageState extends State<UserDetailPage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
-        body: FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
+        body: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
               .collection('users')
               .doc(widget.userId)
-              .get(),
+              .snapshots(),
           builder:
               (BuildContext context, AsyncSnapshot<DocumentSnapshot> snapshot) {
+            print('Debug: StreamBuilder state: ${snapshot.connectionState}');
             if (snapshot.hasError) {
+              print('Error fetching user details: ${snapshot.error}');
               return Center(
                 child: Text(
                   'Error fetching user details.',
@@ -167,10 +220,12 @@ class _UserDetailPageState extends State<UserDetailPage> {
             }
 
             if (snapshot.connectionState == ConnectionState.waiting) {
+              print('Debug: Waiting for user details...');
               return Center(child: CircularProgressIndicator());
             }
 
             if (!snapshot.hasData || !snapshot.data!.exists) {
+              print('Debug: User not found.');
               return Center(
                 child: Text(
                   'User not found.',
@@ -181,6 +236,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
 
             Map<String, dynamic> data =
                 snapshot.data!.data() as Map<String, dynamic>;
+            print('Debug: User data fetched: $data');
 
             // **Handling accountStatus which might be a bool or a String**
             var accountStatusField = data['accountStatus'];
@@ -196,19 +252,24 @@ class _UserDetailPageState extends State<UserDetailPage> {
               accountStatus = 'active'; // Default status
             }
 
-            // Populate controllers with the fetched data
-            _firstNameController.text = data['firstName'] ?? '';
-            _middleNameController.text = data['middleName'] ?? '';
-            _lastNameController.text = data['lastName'] ?? '';
-            _emailController.text = data['email'] ?? '';
-            _phoneNumberController.text = data['phoneNumber'] ?? '';
-            _companyNameController.text = data['companyName'] ?? '';
-            _tradingNameController.text = data['tradingName'] ?? '';
-            _addressLine1Controller.text = data['addressLine1'] ?? '';
-            _addressLine2Controller.text = data['addressLine2'] ?? '';
-            _cityController.text = data['city'] ?? '';
-            _stateController.text = data['state'] ?? '';
-            _postalCodeController.text = data['postalCode'] ?? '';
+            print('Debug: Account status: $accountStatus');
+
+            // Initialize controllers only once
+            if (!_isControllersInitialized) {
+              _firstNameController.text = data['firstName'] ?? '';
+              _middleNameController.text = data['middleName'] ?? '';
+              _lastNameController.text = data['lastName'] ?? '';
+              _emailController.text = data['email'] ?? '';
+              _phoneNumberController.text = data['phoneNumber'] ?? '';
+              _companyNameController.text = data['companyName'] ?? '';
+              _tradingNameController.text = data['tradingName'] ?? '';
+              _addressLine1Controller.text = data['addressLine1'] ?? '';
+              _addressLine2Controller.text = data['addressLine2'] ?? '';
+              _cityController.text = data['city'] ?? '';
+              _stateController.text = data['state'] ?? '';
+              _postalCodeController.text = data['postalCode'] ?? '';
+              _isControllersInitialized = true;
+            }
 
             return Padding(
               padding: const EdgeInsets.all(16.0),
@@ -231,24 +292,44 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 // Profile Image
                                 Stack(
                                   children: [
-                                    CircleAvatar(
-                                      radius: 50,
-                                      backgroundImage: _profileImage != null
-                                          ? FileImage(_profileImage!)
-                                          : data['profileImageUrl'] != null
-                                              ? NetworkImage(
-                                                      data['profileImageUrl'])
-                                                  as ImageProvider
-                                              : null,
-                                      backgroundColor: Colors.grey,
-                                      child: _profileImage == null &&
-                                              data['profileImageUrl'] == null
-                                          ? Icon(
-                                              Icons.person,
-                                              size: 50,
-                                              color: Colors.white,
+                                    // Using FadeInImage with a placeholder and error handling
+                                    ClipOval(
+                                      child: _profileImage != null
+                                          ? Image.file(
+                                              _profileImage!,
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
                                             )
-                                          : null,
+                                          : (data['profileImageUrl'] != null &&
+                                                  data['profileImageUrl']
+                                                      .isNotEmpty
+                                              ? FadeInImage.assetNetwork(
+                                                  placeholder:
+                                                      'assets/images/default-profile-photo.jpg', // Ensure this asset exists
+                                                  image:
+                                                      data['profileImageUrl'],
+                                                  width: 100,
+                                                  height: 100,
+                                                  fit: BoxFit.cover,
+                                                  imageErrorBuilder: (context,
+                                                      error, stackTrace) {
+                                                    print(
+                                                        'Error loading profile image: $error');
+                                                    return Image.asset(
+                                                      'assets/images/default-profile-photo.jpg',
+                                                      width: 100,
+                                                      height: 100,
+                                                      fit: BoxFit.cover,
+                                                    );
+                                                  },
+                                                )
+                                              : Image.asset(
+                                                  'assets/images/default-profile-photo.jpg',
+                                                  width: 100,
+                                                  height: 100,
+                                                  fit: BoxFit.cover,
+                                                )),
                                     ),
                                     Positioned(
                                       bottom: 0,
@@ -332,6 +413,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                     break;
                                                 }
 
+                                                print(
+                                                    'Debug: Account action - $action (New Status: $newStatus)');
+
                                                 bool? confirm =
                                                     await showDialog<bool>(
                                                   context: context,
@@ -381,11 +465,17 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                 );
 
                                                 if (confirm == true) {
+                                                  print(
+                                                      'Debug: User confirmed $action.');
+
                                                   try {
                                                     await userProvider
                                                         .updateUserAccountStatus(
                                                             widget.userId,
                                                             newStatus);
+
+                                                    print(
+                                                        'Debug: Account status updated to $newStatus.');
 
                                                     ScaffoldMessenger.of(
                                                             context)
@@ -399,9 +489,10 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                       ),
                                                     );
 
-                                                    // Refresh to reflect changes
-                                                    setState(() {});
+                                                    // No need to call setState here as StreamBuilder will handle the UI update
                                                   } catch (e) {
+                                                    print(
+                                                        'Error updating account status: $e');
                                                     ScaffoldMessenger.of(
                                                             context)
                                                         .showSnackBar(
@@ -416,9 +507,72 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                       ),
                                                     );
                                                   }
+                                                } else {
+                                                  print(
+                                                      'Debug: User cancelled $action.');
                                                 }
                                               },
                                             ),
+                                          ),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Verification Status:',
+                                            style: GoogleFonts.montserrat(
+                                              fontSize: 16,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Switch(
+                                            activeColor: AppColors
+                                                .orange, // Thumb color when ON
+                                            activeTrackColor: AppColors.orange
+                                                .withAlpha(
+                                                    150), // Track color when ON
+                                            inactiveThumbColor: Colors
+                                                .grey, // Thumb color when OFF
+                                            inactiveTrackColor: Colors.grey
+                                                .shade400, // Track color when OFF
+                                            value: data['isVerified'] ?? false,
+                                            onChanged: (bool newValue) async {
+                                              try {
+                                                await Provider.of<UserProvider>(
+                                                        context,
+                                                        listen: false)
+                                                    .updateUserVerificationStatus(
+                                                        widget.userId,
+                                                        newValue);
+
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      newValue
+                                                          ? 'User verified successfully'
+                                                          : 'User verification removed',
+                                                      style: GoogleFonts
+                                                          .montserrat(),
+                                                    ),
+                                                  ),
+                                                );
+                                                // No need to call setState here as StreamBuilder will handle the UI update
+                                              } catch (e) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Error updating verification status: $e',
+                                                      style: GoogleFonts
+                                                          .montserrat(),
+                                                    ),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            },
                                           ),
                                         ],
                                       ),
@@ -474,6 +628,30 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 ),
                               ],
                             ),
+
+                            SizedBox(height: 30),
+
+                            // Documents Section
+                            Text(
+                              'Documents',
+                              style: GoogleFonts.montserrat(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                            SizedBox(height: 10),
+
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildDocumentTile('Bank Confirmation',
+                                    data['bankConfirmationUrl']),
+                                _buildDocumentTile('Proxy', data['proxyUrl']),
+                                _buildDocumentTile('BRNC', data['brncUrl']),
+                                _buildDocumentTile('CIPC Certificate',
+                                    data['cipcCertificateUrl']),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -509,6 +687,36 @@ class _UserDetailPageState extends State<UserDetailPage> {
           }
           return null;
         },
+      ),
+    );
+  }
+
+  // Helper to build document tiles
+  Widget _buildDocumentTile(String documentName, String? url) {
+    print('Debug: Building document tile for $documentName with URL: $url');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: ListTile(
+        title: Text(
+          documentName,
+          style: GoogleFonts.montserrat(color: Colors.white),
+        ),
+        trailing: url != null && url.isNotEmpty
+            ? IconButton(
+                icon: Icon(
+                  Icons.visibility,
+                  color: Colors.blue,
+                ),
+                onPressed: () {
+                  print('$documentName visibility icon tapped.');
+                  // Navigate to DocumentPreviewScreen
+                  _viewDocument(url, documentName);
+                },
+              )
+            : Text(
+                'Not uploaded',
+                style: GoogleFonts.montserrat(color: Colors.redAccent),
+              ),
       ),
     );
   }

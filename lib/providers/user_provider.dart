@@ -20,6 +20,12 @@ class UserProvider extends ChangeNotifier {
   bool _isLoading = true;
   bool _hasNotifications = false; // Add this field to track notifications
 
+  // Add verification field
+  bool _isVerified = false;
+
+  // Add getter
+  bool get isVerified => _isVerified;
+
   // User details
   String? _companyName;
   String? _tradingName;
@@ -88,6 +94,61 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  // Add this method inside the UserProvider class
+  Future<void> updateUserRole(String role) async {
+    if (_user != null) {
+      try {
+        // Update Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({'userRole': role, 'isFirstLogin': false});
+
+        // Update local state
+        _userRole = role;
+        notifyListeners();
+      } catch (e) {
+        print('Error updating user role: $e');
+        throw e;
+      }
+    } else {
+      throw Exception('No user logged in');
+    }
+  }
+  
+  Future<bool> hasDealerUploadedRequiredDocuments(String dealerId) async {
+    try {
+      DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(dealerId)
+          .get();
+
+      if (!dealerDoc.exists) return false;
+
+      Map<String, dynamic> data = dealerDoc.data() as Map<String, dynamic>;
+      Map<String, dynamic>? documents =
+          data['documents'] as Map<String, dynamic>?;
+
+      if (documents == null) return false;
+
+      // Check for all required documents
+      bool hasAllDocuments = documents['cipcCertificateUrl'] != null &&
+          documents['brncUrl'] != null &&
+          documents['bankConfirmationUrl'] != null &&
+          documents['proxyUrl'] != null;
+
+      // Check account status
+      String accountStatus =
+          data['accountStatus']?.toString().toLowerCase() ?? '';
+      bool isApproved = accountStatus == 'active';
+
+      return hasAllDocuments && isApproved;
+    } catch (e) {
+      print('Error checking dealer documents: $e');
+      return false;
+    }
   }
 
   Future<UserDetails> getUserDetailsById(String userId) async {
@@ -219,6 +280,8 @@ class UserProvider extends ChangeNotifier {
                     InspectionDetail.fromMap(Map<String, dynamic>.from(item)))
                 .toList();
           }
+
+          _isVerified = data['isVerified'] ?? false;
 
           _isLoading = false;
           await checkForNotifications();
@@ -674,6 +737,24 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       print('Error updating user account status: $e');
       rethrow; // Rethrow to handle in UI
+    }
+  }
+
+  // Add method to update verification status (admin only)
+  Future<void> updateUserVerificationStatus(String userId, bool isVerified) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'isVerified': isVerified});
+          
+      if (_user?.uid == userId) {
+        _isVerified = isVerified;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating verification status: $e');
+      rethrow;
     }
   }
 
