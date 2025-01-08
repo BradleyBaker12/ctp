@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -62,6 +63,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
   String? _cipcCertificateFile;
   String? _proxyFile;
   String? _brncFile;
+  Uint8List? _bankConfirmationByte;
+  Uint8List? _cipcCertificateByte;
+  Uint8List? _proxyByte;
+  Uint8List? _brncByte;
   bool _isLoading = false;
 
   @override
@@ -88,14 +93,26 @@ class _DealerRegPageState extends State<DealerRegPage> {
       FilePickerResult? result = await FilePicker.platform.pickFiles();
       if (result != null) {
         setState(() {
-          if (fieldName == 'bankConfirmation') {
-            _bankConfirmationFile = result.files.single.path;
-          } else if (fieldName == 'cipcCertificate') {
-            _cipcCertificateFile = result.files.single.path;
-          } else if (fieldName == 'proxy') {
-            _proxyFile = result.files.single.path;
-          } else if (fieldName == 'brnc') {
-            _brncFile = result.files.single.path;
+          if (!kIsWeb) {
+            if (fieldName == 'bankConfirmation') {
+              _bankConfirmationFile = result.files.single.path;
+            } else if (fieldName == 'cipcCertificate') {
+              _cipcCertificateFile = result.files.single.path;
+            } else if (fieldName == 'proxy') {
+              _proxyFile = result.files.single.path;
+            } else if (fieldName == 'brnc') {
+              _brncFile = result.files.single.path;
+            }
+          } else {
+            if (fieldName == 'bankConfirmation') {
+              _bankConfirmationByte = result.files.single.bytes;
+            } else if (fieldName == 'cipcCertificate') {
+              _cipcCertificateByte = result.files.single.bytes;
+            } else if (fieldName == 'proxy') {
+              _proxyByte = result.files.single.bytes;
+            } else if (fieldName == 'brnc') {
+              _brncByte = result.files.single.bytes;
+            }
           }
         });
       }
@@ -158,6 +175,19 @@ class _DealerRegPageState extends State<DealerRegPage> {
         }
       }
 
+      Future<String?> uploadData(Uint8List? fileByte, String fileName) async {
+        try {
+          if (fileByte == null) return null;
+          final ref = storage.ref().child('documents/$userId/$fileName');
+          final task = ref.putData(fileByte);
+          final snapshot = await task;
+          return await snapshot.ref.getDownloadURL();
+        } catch (e) {
+          print('Error uploading $fileName: $e');
+          return null;
+        }
+      }
+
       Map<String, dynamic> dealerData = {
         'companyDetails': {
           'companyName': _companyNameController.text,
@@ -181,40 +211,94 @@ class _DealerRegPageState extends State<DealerRegPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (_bankConfirmationFile != null) {
-        final url =
-            await uploadFile(_bankConfirmationFile, 'bank_confirmation.pdf');
-        if (url != null) dealerData['documents'] = {'bankConfirmationUrl': url};
-      }
-
-      if (_cipcCertificateFile != null) {
-        final url =
-            await uploadFile(_cipcCertificateFile, 'cipc_certificate.pdf');
-        if (url != null) {
-          dealerData['documents'] = {
-            ...?dealerData['documents'],
-            'cipcCertificateUrl': url
-          };
+      if (!kIsWeb) {
+        if (_bankConfirmationFile != null) {
+          final url =
+              await uploadFile(_bankConfirmationFile, 'bank_confirmation.pdf');
+          if (url != null) {
+            dealerData['documents'] = {'bankConfirmationUrl': url};
+          }
+        }
+      } else {
+        if (_bankConfirmationByte != null) {
+          final url =
+              await uploadData(_bankConfirmationByte, 'bank_confirmation.pdf');
+          if (url != null) {
+            dealerData['documents'] = {'bankConfirmationUrl': url};
+          }
         }
       }
 
-      if (_proxyFile != null) {
-        final url = await uploadFile(_proxyFile, 'proxy.pdf');
-        if (url != null) {
-          dealerData['documents'] = {
-            ...?dealerData['documents'],
-            'proxyUrl': url
-          };
+      if (!kIsWeb) {
+        if (_cipcCertificateFile != null) {
+          final url =
+              await uploadFile(_cipcCertificateFile, 'cipc_certificate.pdf');
+          if (url != null) {
+            dealerData['documents'] = {
+              ...?dealerData['documents'],
+              'cipcCertificateUrl': url
+            };
+          }
+        }
+      } else {
+        if (_cipcCertificateByte != null) {
+          final url =
+              await uploadData(_cipcCertificateByte, 'cipc_certificate.pdf');
+          if (url != null) {
+            dealerData['documents'] = {
+              ...?dealerData['documents'],
+              'cipcCertificateUrl': url
+            };
+          }
         }
       }
 
-      if (_brncFile != null) {
-        final url = await uploadFile(_brncFile, 'brnc.pdf');
-        if (url != null) {
-          dealerData['documents'] = {
-            ...?dealerData['documents'],
-            'brncUrl': url
-          };
+      if (!kIsWeb) {
+        if (_proxyFile != null) {
+          if (!kIsWeb) {
+            final url = await uploadFile(_proxyFile, 'proxy.pdf');
+            if (url != null) {
+              dealerData['documents'] = {
+                ...?dealerData['documents'],
+                'proxyUrl': url
+              };
+            }
+          }
+        }
+      } else {
+        if (_proxyByte != null) {
+          print('Web file chosen');
+          final url = await uploadData(_proxyByte, 'proxy.pdf');
+          if (url != null) {
+            dealerData['documents'] = {
+              ...?dealerData['documents'],
+              'proxyUrl': url
+            };
+          }
+        }
+      }
+
+      if (!kIsWeb) {
+        if (_brncFile != null) {
+          if (!kIsWeb) {
+            final url = await uploadFile(_brncFile, 'brnc.pdf');
+            if (url != null) {
+              dealerData['documents'] = {
+                ...?dealerData['documents'],
+                'brncUrl': url
+              };
+            }
+          }
+        }
+      } else {
+        if (_brncByte != null) {
+          final url = await uploadData(_brncByte, 'brnc.pdf');
+          if (url != null) {
+            dealerData['documents'] = {
+              ...?dealerData['documents'],
+              'brncUrl': url
+            };
+          }
         }
       }
 

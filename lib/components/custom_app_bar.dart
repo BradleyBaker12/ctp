@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Required for the AppBar's blur effect
 import 'package:provider/provider.dart';
@@ -14,7 +15,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     return PreferredSize(
       preferredSize: Size.fromHeight(height), // Set desired height
       child: AppBar(
-        automaticallyImplyLeading: false, // This removes the back button
+        automaticallyImplyLeading: false, // Removes the default back button
         backgroundColor: Colors.transparent,
         elevation: 0,
         flexibleSpace: ClipRect(
@@ -44,6 +45,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   final hasNotifications = userProvider
                       .hasNotifications; // Assuming you have a boolean flag for notifications
 
+                  // Debugging: Print the profileImageUrl
+                  print('AppBar Profile Image URL: $profileImageUrl');
+
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -57,11 +61,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       children: [
                         CircleAvatar(
                           radius: 26,
-                          backgroundImage: profileImageUrl.isNotEmpty
-                              ? NetworkImage(profileImageUrl)
+                          backgroundColor: Colors.grey[200],
+                          backgroundImage: kIsWeb
+                              ? profileImageUrl.isNotEmpty
+                                  ? MemoryImage(Uint8List.fromList(
+                                      profileImageUrl.codeUnits))
+                                  : NetworkImage(profileImageUrl)
                               : const AssetImage(
                                       'lib/assets/default-profile-photo.jpg')
                                   as ImageProvider,
+                          onBackgroundImageError: (exception, stackTrace) {
+                            // Log the error
+                            print('Error loading profile image: $exception');
+                          },
+                          child: profileImageUrl.isEmpty
+                              ? const Icon(Icons.person,
+                                  size: 26, color: Colors.grey)
+                              : null,
                         ),
                         // Conditionally show the red dot if there are notifications
                         if (hasNotifications)

@@ -10,6 +10,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,20 +32,31 @@ class CropPhotoPage extends StatefulWidget {
 
 class _CropPhotoPageState extends State<CropPhotoPage> {
   File? _croppedFile;
-  bool _isLoading = true;
+  Uint8List? _croppedBytes;
+  bool _isLoading = false;
+  bool _cropInitiated = false;
 
   @override
   void initState() {
     super.initState();
-    _cropImage();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_cropInitiated) {
+        _cropInitiated = true;
+        _cropImage();
+      }
+    });
   }
 
   Future<void> _cropImage() async {
-    try {
-      final File imageFile = File(widget.imageFile.path);
+    if (!mounted) return;
 
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
       final croppedFile = await ImageCropper().cropImage(
-        sourcePath: imageFile.path,
+        sourcePath: widget.imageFile.path,
         aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
         uiSettings: [
           AndroidUiSettings(
@@ -57,65 +69,106 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
           IOSUiSettings(
             title: 'Crop and Fit',
           ),
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.dialog,
+            size: CropperSize(width: 520, height: 520),
+            background: true,
+            movable: true,
+            scalable: true,
+            zoomable: true,
+          ),
         ],
       );
 
-      if (croppedFile != null) {
+      if (mounted && croppedFile != null) {
+        if (kIsWeb) {
+          final bytes = await croppedFile.readAsBytes();
+          setState(() {
+            _croppedBytes = bytes;
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _croppedFile = File(croppedFile.path);
+            _isLoading = false;
+          });
+        }
+      } else {
         setState(() {
-          _croppedFile = File(croppedFile.path);
           _isLoading = false;
         });
-      } else {
-        // User canceled cropping, go back to previous screen
-        Navigator.pop(context);
       }
     } catch (e) {
-      print("Error cropping image: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error cropping image: $e')),
-      );
-      Navigator.pop(context); // Go back on error
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cropping image: $e')),
+        );
+      }
     }
   }
 
   Future<void> _uploadProfileImage() async {
+    // Validate before upload
+    if (kIsWeb && _croppedBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select and crop an image first')),
+      );
+      return;
+    }
+    if (!kIsWeb && _croppedFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select and crop an image first')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final userRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(userProvider.user?.uid);
-
-      // Upload image
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images/${userProvider.user?.uid}');
-      await storageRef.putFile(_croppedFile!);
-      final imageUrl = await storageRef.getDownloadURL();
 
-      // Merge all user data with profile image URL
-      final Map<String, dynamic> finalUserData = {
-        ...widget.userData,
-        'profileImageUrl': imageUrl,
-        'userRole': widget.userData['userType'],
-      };
-      
-      // Remove userType from final data
-      finalUserData.remove('userType');
-
-      // Save all user data
-      await userRef.set(finalUserData);
-
-      if (mounted) {
-        // Navigate based on user role
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => finalUserData['userRole'] == 'dealer'
-                ? const DealerRegPage()
-                : const TransporterRegistrationPage(),
-          ),
+      String imageUrl;
+      if (kIsWeb) {
+        final uploadTask = await storageRef.putData(
+          _croppedBytes!,
+          SettableMetadata(contentType: 'image/jpeg'),
         );
+        imageUrl = await uploadTask.ref.getDownloadURL();
+      } else {
+        final uploadTask = await storageRef.putFile(File(_croppedFile!.path));
+        imageUrl = await uploadTask.ref.getDownloadURL();
+      }
+
+      // Only proceed if image was uploaded successfully
+      if (imageUrl.isNotEmpty) {
+        final Map<String, dynamic> finalUserData = {
+          ...widget.userData,
+          'profileImageUrl': imageUrl,
+          'userRole': widget.userData['userType'],
+        };
+        finalUserData.remove('userType');
+
+        final userRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(userProvider.user?.uid);
+        await userRef.set(finalUserData);
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => finalUserData['userRole'] == 'dealer'
+                  ? const DealerRegPage()
+                  : const TransporterRegistrationPage(),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -177,12 +230,19 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
                               if (!_isLoading)
                                 CircleAvatar(
                                   radius: 60,
-                                  backgroundImage: _croppedFile != null
-                                      ? FileImage(_croppedFile!)
-                                      : const AssetImage(
-                                              'lib/assets/placeholder_image.png')
-                                          as ImageProvider,
-                                  child: _croppedFile == null
+                                  backgroundImage: kIsWeb
+                                      ? (_croppedBytes != null
+                                          ? MemoryImage(_croppedBytes!)
+                                          : const AssetImage(
+                                                  'lib/assets/default-profile-photo.jpg')
+                                              as ImageProvider)
+                                      : (_croppedFile != null
+                                          ? FileImage(_croppedFile!)
+                                          : const AssetImage(
+                                                  'lib/assets/default-profile-photo.jpg')
+                                              as ImageProvider),
+                                  child: (kIsWeb && _croppedBytes == null) ||
+                                          (!kIsWeb && _croppedFile == null)
                                       ? const Icon(Icons.person,
                                           size: 80, color: Colors.grey)
                                       : null,

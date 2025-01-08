@@ -33,7 +33,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
       print(
           'OTPScreen: User verified and linked with UID: $userId'); // Debugging
-      Navigator.pushReplacementNamed(context, '/firstName');
+      Navigator.pushReplacementNamed(context, '/firstNamePage');
     } catch (e) {
       print("OTPScreen Error: ${e.toString()}");
       ScaffoldMessenger.of(context).showSnackBar(

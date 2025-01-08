@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ctp/pages/sold_vehicles_list.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -73,12 +74,21 @@ class ProfilePage extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundImage:
-                          userProvider.getProfileImageUrl.isNotEmpty
+                      backgroundImage: kIsWeb
+                          ? (userProvider.getProfileImageUrl.isNotEmpty
                               ? NetworkImage(userProvider.getProfileImageUrl)
                               : const AssetImage(
-                                      'lib/assets/default_profile_photo.jpg')
-                                  as ImageProvider,
+                                      'lib/assets/default-profile-photo.jpg')
+                                  as ImageProvider)
+                          : (userProvider.getProfileImageUrl.isNotEmpty
+                              ? NetworkImage(userProvider.getProfileImageUrl)
+                              : const AssetImage(
+                                      'lib/assets/default-profile-photo.jpg')
+                                  as ImageProvider),
+                      onBackgroundImageError: (exception, stackTrace) {
+                        const AssetImage(
+                            'lib/assets/default-profile-photo.jpg');
+                      },
                     ),
                     const SizedBox(width: 20),
                     Expanded(

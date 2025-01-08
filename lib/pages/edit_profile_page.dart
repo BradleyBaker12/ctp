@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -39,6 +41,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _proxyUrl;
   String? _brncUrl;
   File? _profileImageFile;
+  Uint8List? _profileImageBytes;
   bool _isLoading = false;
 
   @override
@@ -123,14 +126,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
           await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        File? croppedFile = await _cropImage(File(pickedFile.path));
+        CroppedFile? croppedFile = await _cropImage(File(pickedFile.path));
         if (croppedFile != null) {
-          final compressedFile = await _compressImageFile(croppedFile);
-          setState(() {
-            _profileImageFile = compressedFile;
-          });
+          if (kIsWeb) {
+            // On Web: Read bytes
+            final bytes = await croppedFile.readAsBytes();
+            final compressedBytes = await _compressImageBytes(bytes);
+            setState(() {
+              _profileImageBytes = compressedBytes;
+              _profileImageFile = null; // Ensure FileImage is not used on web
+            });
+          } else {
+            // On Mobile: Handle File
+            File? compressedFile =
+                await _compressImageFile(File(croppedFile.path));
+            setState(() {
+              _profileImageFile = compressedFile;
+              _profileImageBytes =
+                  null; // Ensure MemoryImage is not used on mobile
+            });
+          }
         }
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error selecting image: $e')),
+      );
     } finally {
       setState(() {
         _isLoading = false;
@@ -138,7 +159,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  Future<File?> _cropImage(File imageFile) async {
+  Future<CroppedFile?> _cropImage(File imageFile) async {
     CroppedFile? croppedFile = await ImageCropper().cropImage(
       sourcePath: imageFile.path,
       aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
@@ -153,13 +174,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
         IOSUiSettings(
           title: 'Crop and Fit',
         ),
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: CropperSize(width: 520, height: 520),
+          background: true,
+          movable: true,
+          scalable: true,
+          zoomable: true,
+        ),
       ],
     );
 
     if (croppedFile != null) {
-      return File(croppedFile.path);
+      return croppedFile;
     }
     return null;
+  }
+
+  Future<Uint8List> _compressImageBytes(Uint8List bytes) async {
+    final result = await FlutterImageCompress.compressWithList(
+      bytes,
+      quality: 70,
+    );
+    return result;
   }
 
   Future<File> _compressImageFile(File file) async {
@@ -220,13 +258,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   onTap: _pickProfileImage,
                                   child: CircleAvatar(
                                     radius: 60,
-                                    backgroundImage: _profileImageFile != null
-                                        ? FileImage(_profileImageFile!)
-                                        : (_profileImageUrl != null
-                                            ? NetworkImage(_profileImageUrl!)
-                                            : null),
-                                    child: _profileImageFile == null &&
-                                            _profileImageUrl == null
+                                    backgroundImage: kIsWeb
+                                        ? (_profileImageBytes != null
+                                            ? MemoryImage(_profileImageBytes!)
+                                                as ImageProvider
+                                            : (_profileImageUrl != null &&
+                                                    _profileImageUrl!.isNotEmpty
+                                                ? NetworkImage(
+                                                    _profileImageUrl!)
+                                                : null))
+                                        : (_profileImageFile != null
+                                            ? FileImage(_profileImageFile!)
+                                            : (_profileImageUrl != null &&
+                                                    _profileImageUrl!.isNotEmpty
+                                                ? NetworkImage(
+                                                    _profileImageUrl!)
+                                                : null)),
+                                    backgroundColor: Colors.transparent,
+                                    child: (kIsWeb
+                                            ? (_profileImageBytes == null &&
+                                                (_profileImageUrl == null ||
+                                                    _profileImageUrl!.isEmpty))
+                                            : (_profileImageFile == null &&
+                                                (_profileImageUrl == null ||
+                                                    _profileImageUrl!.isEmpty)))
                                         ? const Icon(Icons.camera_alt,
                                             size: 60, color: Colors.white)
                                         : null,
@@ -463,11 +518,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       String? profileImageUrl;
 
-      if (_profileImageFile != null) {
-        profileImageUrl = await userProvider.uploadFile(_profileImageFile!);
-      }
-
       try {
+        if (kIsWeb) {
+          if (_profileImageBytes != null) {
+            profileImageUrl =
+                await userProvider.uploadBytes(_profileImageBytes!);
+          }
+        } else {
+          if (_profileImageFile != null) {
+            profileImageUrl = await userProvider.uploadFile(_profileImageFile!);
+          }
+        }
+
         await userProvider.updateUserProfile(
           firstName: _firstNameController.text,
           middleName: _middleNameController.text,
@@ -487,6 +549,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
           proxyUrl: _proxyUrl,
           brncUrl: _brncUrl,
         );
+
+        // Optionally update local state to reflect the new image
+        if (profileImageUrl != null) {
+          setState(() {
+            _profileImageUrl = profileImageUrl;
+            _profileImageFile = null;
+            _profileImageBytes = null;
+          });
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );
