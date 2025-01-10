@@ -1218,30 +1218,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             if (snapshot.hasData && !isAdmin && isDealer) {
                               Map<String, dynamic> userData =
                                   snapshot.data!.data() as Map<String, dynamic>;
-                              Map<String, dynamic>? documents =
-                                  userData['documents']
-                                      as Map<String, dynamic>?;
+
 
                               // Detailed debug logging
                               print('Raw userData: $userData');
 
                               // Debug prints
-                              print('Documents: $documents');
                               print('isVerified: ${userData['isVerified']}');
 
-                              // Check URLs directly from root level
                               bool hasDocuments = userData['cipcCertificateUrl']
-                                          ?.toString()
-                                          .isNotEmpty ==
+                                          ?.isNotEmpty ==
                                       true &&
-                                  userData['brncUrl']?.toString().isNotEmpty ==
+                                  userData['brncUrl']?.isNotEmpty == true &&
+                                  userData['bankConfirmationUrl']?.isNotEmpty ==
                                       true &&
-                                  userData['bankConfirmationUrl']
-                                          ?.toString()
-                                          .isNotEmpty ==
-                                      true &&
-                                  userData['proxyUrl']?.toString().isNotEmpty ==
-                                      true;
+                                  userData['proxyUrl']?.isNotEmpty == true;
 
                               bool isVerified = userData['isVerified'] ?? false;
                               bool isApproved = isVerified;

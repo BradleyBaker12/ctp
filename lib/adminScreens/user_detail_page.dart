@@ -306,7 +306,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                       .isNotEmpty
                                               ? FadeInImage.assetNetwork(
                                                   placeholder:
-                                                      'assets/images/default-profile-photo.jpg', // Ensure this asset exists
+                                                      'lib/assets/default-profile-photo.jpg', // Ensure this asset exists
                                                   image:
                                                       data['profileImageUrl'],
                                                   width: 100,
@@ -317,7 +317,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                     print(
                                                         'Error loading profile image: $error');
                                                     return Image.asset(
-                                                      'assets/images/default-profile-photo.jpg',
+                                                      'lib/assets/default-profile-photo.jpg',
                                                       width: 100,
                                                       height: 100,
                                                       fit: BoxFit.cover,
@@ -325,7 +325,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                   },
                                                 )
                                               : Image.asset(
-                                                  'assets/images/default-profile-photo.jpg',
+                                                  'lib/assets/default-profile-photo.jpg',
                                                   width: 100,
                                                   height: 100,
                                                   fit: BoxFit.cover,

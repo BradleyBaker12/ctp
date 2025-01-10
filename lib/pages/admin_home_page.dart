@@ -3,6 +3,7 @@
 import 'package:ctp/adminScreens/user_tabs.dart';
 import 'package:ctp/adminScreens/vehicle_tab.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/providers/offer_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/adminScreens/complaints_tab.dart';
 import 'package:ctp/adminScreens/offers_tab.dart';
@@ -21,6 +22,7 @@ class AdminHomePage extends StatefulWidget {
 class _AdminHomePageState extends State<AdminHomePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  Key _offersTabKey = UniqueKey(); // Add this line
 
   final List<Tab> myTabs = <Tab>[
     const Tab(text: 'Users'),
@@ -33,6 +35,20 @@ class _AdminHomePageState extends State<AdminHomePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: myTabs.length, vsync: this);
+
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      offerProvider.initialize(
+          userProvider.userId ?? 'unknown', userProvider.userRole);
+    });
+
+    _tabController.addListener(() {
+      if (_tabController.index == 1) {
+        Provider.of<OfferProvider>(context, listen: false).refreshOffers();
+      }
+    });
   }
 
   @override
@@ -151,6 +167,7 @@ class _AdminHomePageState extends State<AdminHomePage>
             controller: _tabController,
             tabs: myTabs,
             indicatorColor: Colors.white,
+            indicatorWeight: 3,
             labelStyle: GoogleFonts.montserrat(
               fontWeight: FontWeight.w600,
             ),
@@ -159,6 +176,9 @@ class _AdminHomePageState extends State<AdminHomePage>
             ),
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
+            labelPadding:
+                const EdgeInsets.symmetric(horizontal: 16.0), // Add padding
+            isScrollable: false, // Force tabs to fill width
           ),
           // Optional: Adjust the AppBar height if needed
           // toolbarHeight: 60.0,
@@ -167,11 +187,10 @@ class _AdminHomePageState extends State<AdminHomePage>
           controller: _tabController,
           children: [
             UsersTab(),
-            // Pass userId and userRole to OffersTab
             OffersTab(
               userId: userProvider.userRole == 'admin'
-                  ? 'admin' // Default userId for admin
-                  : userProvider.userId ?? 'unknown', // Handle other roles
+                  ? 'admin'
+                  : userProvider.userId ?? 'unknown',
               userRole: userProvider.userRole,
             ),
             ComplaintsTab(),

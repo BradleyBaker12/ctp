@@ -282,19 +282,90 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
                                     );
 
                                     if (confirm == true) {
+                                      // Replace the switch case in the PopupMenuButton onSelected handler:
+
                                       switch (value) {
                                         case 'Resolve':
-                                          await complaintsProvider
-                                              .updateComplaintStatus(
-                                                  complaintId, 'resolved');
+                                          try {
+                                            complaintsProvider
+                                                .updateComplaintStatus(
+                                                    complaintId, 'resolved')
+                                                .then((success) {
+                                              if (!success) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                        'Failed to resolve complaint'),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    backgroundColor:
+                                                        Colors.black87,
+                                                    content: Text(
+                                                      'Complaint resolved successfully.',
+                                                      style: GoogleFonts
+                                                          .montserrat(),
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            });
+                                          } catch (e) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text('Error: $e'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                           break;
                                         case 'Dismiss':
-                                          await complaintsProvider
-                                              .updateComplaintStatus(
-                                                  complaintId, 'dismissed');
+                                          try {
+                                            complaintsProvider
+                                                .updateComplaintStatus(
+                                                    complaintId, 'dismissed')
+                                                .then((success) {
+                                              if (!success) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                        'Failed to dismiss complaint'),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    backgroundColor:
+                                                        Colors.black87,
+                                                    content: Text(
+                                                      'Complaint dismissed successfully.',
+                                                      style: GoogleFonts
+                                                          .montserrat(),
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            });
+                                          } catch (e) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text('Error: $e'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                           break;
                                       }
-
                                       // **Show Feedback**
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(

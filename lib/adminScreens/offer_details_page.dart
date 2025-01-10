@@ -1,7 +1,8 @@
 // lib/adminScreens/offer_details_page.dart
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/adminScreens/invoice_viewer_page.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/pages/setup_inspection.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   late TextEditingController _vehicleYearController;
   late TextEditingController _vehicleMileageController;
   late TextEditingController _vehicleTransmissionController;
+  bool _isLoadingVehicleDetails = false;
 
   @override
   void initState() {
@@ -46,6 +48,24 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         TextEditingController(text: widget.offer.vehicleMileage);
     _vehicleTransmissionController =
         TextEditingController(text: widget.offer.vehicleTransmission);
+
+    _fetchVehicleDetails();
+  }
+
+  Future<void> _fetchVehicleDetails() async {
+    if (mounted) {
+      setState(() => _isLoadingVehicleDetails = true);
+    }
+
+    try {
+      await widget.offer.fetchVehicleDetails();
+    } catch (e) {
+      debugPrint('ERROR: Failed to fetch vehicle details: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingVehicleDetails = false);
+      }
+    }
   }
 
   @override
@@ -75,114 +95,65 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           iconTheme: const IconThemeData(color: Colors.white),
         ),
         backgroundColor: Colors.transparent,
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /// Vehicle main image
-                if (widget.offer.vehicleMainImage != null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: Image.network(
-                      widget.offer.vehicleMainImage!,
-                      height: 200,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(child: Text('Error loading image'));
-                      },
-                    ),
-                  ),
-                const SizedBox(height: 20),
-
-                /// Editable fields
-                _buildEditableDetailRow(
-                  'Vehicle:',
-                  _vehicleMakeModelController,
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await _refreshOfferDetails();
+            },
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height,
                 ),
-                _buildEditableDetailRow(
-                  'Offer Amount:',
-                  _offerAmountController,
-                ),
-
-                /// Non-editable fields
-                _buildDetailRow('Status:', widget.offer.offerStatus),
-                _buildDealerEmailRow(userProvider, widget.offer.dealerId),
-                const SizedBox(height: 20),
-
-                /// Conditional Buttons and Information Based on Offer Status
-                _buildConditionalWidgets(offerProvider),
-
-                const SizedBox(height: 20),
-
-                /// Upload External Invoice for 'payment options' status
-                if (widget.offer.offerStatus.toLowerCase() == 'payment options')
-                  Column(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      /// Vehicle main image
+                      _buildVehicleImage(),
                       const SizedBox(height: 20),
-                      Text(
-                        'Upload External Invoice',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+
+                      /// Editable fields
+                      _buildEditableDetailRow(
+                        'Vehicle:',
+                        _vehicleMakeModelController,
+                      ),
+                      _buildEditableDetailRow(
+                        'Offer Amount:',
+                        _offerAmountController,
+                      ),
+
+                      /// Non-editable fields
+                      _buildDetailRow('Status:', widget.offer.offerStatus),
+                      _buildDealerEmailRow(userProvider, widget.offer.dealerId),
+                      const SizedBox(height: 20),
+
+                      /// Conditional widgets
+                      _buildConditionalWidgets(offerProvider),
+                      const SizedBox(height: 20),
+
+                      /// Invoice section
+                      _buildInvoiceSection(),
+                      const SizedBox(height: 20),
+
+                      /// Save changes
+                      Center(
+                        child: SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.6,
+                          child: CustomButton(
+                            text: 'Save Changes',
+                            borderColor: Colors.deepOrange,
+                            onPressed: () {
+                              _saveChanges(offerProvider);
+                            },
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      widget.offer.externalInvoice != null
-                          ? Column(
-                              children: [
-                                // Display the uploaded invoice
-                                _buildUploadedInvoice(
-                                    widget.offer.externalInvoice!),
-                                const SizedBox(height: 10),
-                                CustomButton(
-                                  text: 'Replace Invoice',
-                                  borderColor: Colors.orange,
-                                  onPressed: _uploadExternalInvoice,
-                                ),
-                              ],
-                            )
-                          : CustomButton(
-                              text: 'Upload Invoice',
-                              borderColor: Colors.green,
-                              onPressed: _uploadExternalInvoice,
-                            ),
                     ],
                   ),
-
-                /// Save changes
-                Center(
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.5,
-                    child: CustomButton(
-                      text: 'Save Changes',
-                      borderColor: Colors.deepOrange,
-                      onPressed: () {
-                        double parsedAmount =
-                            double.tryParse(_offerAmountController.text) ?? 0.0;
-                        if (parsedAmount <= 0.0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content:
-                                  Text('Please enter a valid offer amount.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
-                        offerProvider.updateOfferAmount(
-                          widget.offer.offerId,
-                          parsedAmount,
-                        );
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -190,25 +161,114 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
-  /// Builds widgets that are conditionally displayed based on the offer status
+  /// Refresh offer details from Firestore
+  Future<void> _refreshOfferDetails() async {
+    try {
+      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .get();
+
+      if (offerSnapshot.exists) {
+        setState(() {
+          final updatedOffer = Offer.fromFirestore(offerSnapshot);
+          widget.offer.offerStatus = updatedOffer.offerStatus;
+          widget.offer.offerAmount = updatedOffer.offerAmount;
+          widget.offer.vehicleMakeModel = updatedOffer.vehicleMakeModel;
+          widget.offer.vehicleYear = updatedOffer.vehicleYear;
+          widget.offer.vehicleMileage = updatedOffer.vehicleMileage;
+          widget.offer.vehicleTransmission = updatedOffer.vehicleTransmission;
+          widget.offer.vehicleMainImage = updatedOffer.vehicleMainImage;
+          widget.offer.externalInvoice = updatedOffer.externalInvoice;
+          widget.offer.needsInvoice = updatedOffer.needsInvoice;
+          widget.offer.proofOfPayment = updatedOffer.proofOfPayment;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offer details refreshed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offer not found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh offer: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Save changes (offer amount, etc.)
+  void _saveChanges(OfferProvider offerProvider) {
+    final parsedAmount = double.tryParse(_offerAmountController.text) ?? 0.0;
+    if (parsedAmount <= 0.0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid offer amount.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    offerProvider.updateOfferAmount(widget.offer.offerId, parsedAmount);
+    Navigator.pop(context);
+  }
+
+  /// Conditional widgets based on offer status
   Widget _buildConditionalWidgets(OfferProvider offerProvider) {
     switch (widget.offer.offerStatus.toLowerCase()) {
+      case 'pending':
       case 'in-progress':
-        return _buildInProgressButtons(offerProvider);
+        return _buildApproveRejectRow(offerProvider);
       case 'payment pending':
         return _buildPaymentPendingSection(offerProvider);
+      case 'paid':
+        return Center(
+          child: Text(
+            'Payment verified. Offer is paid.',
+            style: GoogleFonts.montserrat(
+              color: Colors.green,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
       case 'accepted':
         return _buildAcceptedSection();
+      case 'rejected':
+        return Center(
+          child: Text(
+            'This offer has been rejected',
+            style: GoogleFonts.montserrat(
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
+      case 'payment_rejected':
+        return Center(
+          child: Text(
+            'Payment was rejected by admin',
+            style: GoogleFonts.montserrat(
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
       default:
         return Center(
           child: Text(
-            widget.offer.offerStatus.toLowerCase() == 'rejected'
-                ? 'This offer has been rejected'
-                : 'Offer Status: ${widget.offer.offerStatus}',
+            'Offer Status: ${widget.offer.offerStatus}',
             style: GoogleFonts.montserrat(
-              color: widget.offer.offerStatus.toLowerCase() == 'rejected'
-                  ? Colors.red
-                  : Colors.green,
+              color: Colors.green,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -216,120 +276,45 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     }
   }
 
-  /// Builds Approve and Reject buttons for 'in-progress' status
-  Widget _buildInProgressButtons(OfferProvider offerProvider) {
-    return Column(
-      children: [
-        // Approve/Reject Row
-        _buildApproveRejectRow(offerProvider),
-      ],
-    );
-  }
-
-  /// Reusable Approve/Reject button row
+  /// APPROVE/REJECT BUTTONS - changed from Row to Column
   Widget _buildApproveRejectRow(OfferProvider offerProvider) {
-    return Center(
-      child: Container(
-        width: MediaQuery.of(context).size.width,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            CustomButton(
-              text: 'Approve',
-              borderColor: Colors.blue,
-              onPressed: () async {
-                await _updateOfferStatus(offerProvider, 'accepted', 'approve');
-              },
-            ),
-            const SizedBox(width: 16),
-            CustomButton(
-              text: 'Reject',
-              borderColor: const Color(0xFFFF4E00),
-              onPressed: () async {
-                await _updateOfferStatus(offerProvider, 'rejected', 'reject');
-              },
-            ),
-          ],
-        ),
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CustomButton(
+            text: 'Approve',
+            borderColor: Colors.blue,
+            onPressed: () async {
+              await _updateOfferStatus(offerProvider, 'accepted', 'approve');
+            },
+          ),
+          const SizedBox(height: 16),
+          CustomButton(
+            text: 'Reject',
+            borderColor: const Color(0xFFFF4E00),
+            onPressed: () async {
+              await _updateOfferStatus(offerProvider, 'rejected', 'reject');
+            },
+          ),
+        ],
       ),
     );
   }
 
-  /// Updates the offer status with error handling
-  Future<void> _updateOfferStatus(
-      OfferProvider offerProvider, String status, String action) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offer.offerId)
-          .update({'offerStatus': status});
-
-      // Optionally, you can also update 'needsInvoice' based on status
-      if (status.toLowerCase() == 'accepted') {
-        await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(widget.offer.offerId)
-            .update({'needsInvoice': true});
-        setState(() {
-          widget.offer.offerStatus = status;
-          widget.offer.needsInvoice = true;
-        });
-      } else {
-        setState(() {
-          widget.offer.offerStatus = status;
-        });
-      }
-
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Exception in $action: $e');
-      debugPrint('Stack trace: $stackTrace');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Failed to $action the offer. Please try again.\nError: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  /// Builds the payment pending section with proof of payment
+  /// PAYMENT PENDING BUTTONS - changed from Row to Column
   Widget _buildPaymentPendingSection(OfferProvider offerProvider) {
+    final popUrl = widget.offer.proofOfPayment;
     return Column(
       children: [
-        if (widget.offer.proofOfPayment != null)
-          Container(
-            height: 200,
-            margin: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                widget.offer.proofOfPayment!,
-                fit: BoxFit.contain,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(child: CircularProgressIndicator());
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(child: Text('Error loading image'));
-                },
-              ),
-            ),
-          ),
+        if (popUrl != null && popUrl.isNotEmpty)
+          _buildProofOfPaymentPreview(popUrl),
         const SizedBox(height: 20),
-
-        /// Payment Verification Buttons
-        Container(
-          width: MediaQuery.of(context).size.width,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               CustomButton(
                 text: 'Verify Payment',
@@ -343,19 +328,33 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                     widget.offer.offerStatus = 'paid';
                   });
                   Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Payment verified successfully.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                 },
               ),
-              const SizedBox(width: 16),
+              const SizedBox(height: 16),
               CustomButton(
                 text: 'Reject Payment',
                 borderColor: Colors.red,
                 onPressed: () async {
                   await offerProvider.updateOfferStatus(
-                      widget.offer.offerId, 'payment_rejected');
+                    widget.offer.offerId,
+                    'payment_rejected',
+                  );
                   setState(() {
                     widget.offer.offerStatus = 'payment_rejected';
                   });
                   Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Payment has been rejected.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 },
               ),
             ],
@@ -365,7 +364,108 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
-  /// Builds the accepted section with inspection and collection setup
+  /// Proof-of-Payment preview
+  Widget _buildProofOfPaymentPreview(String url) {
+    final lowerUrl = url.toLowerCase();
+    final isImage = lowerUrl.endsWith('.png') ||
+        lowerUrl.endsWith('.jpg') ||
+        lowerUrl.endsWith('.jpeg') ||
+        lowerUrl.endsWith('.gif');
+    final isPDF = lowerUrl.endsWith('.pdf');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isImage)
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ViewerPage(url: url),
+              ),
+            ),
+            child: Container(
+              height: 200,
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: Text('Error loading image'));
+                  },
+                ),
+              ),
+            ),
+          )
+        else if (isPDF)
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ViewerPage(url: url),
+              ),
+            ),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.picture_as_pdf, color: Colors.red, size: 40),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'View Uploaded PDF Proof of Payment',
+                      style: GoogleFonts.montserrat(
+                        color: Colors.white,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          const Text(
+            'Unsupported file type',
+            style: TextStyle(color: Colors.red),
+          ),
+        if (isImage || isPDF)
+          Align(
+            alignment: Alignment.centerRight,
+            child: CustomButton(
+              text: 'View Proof',
+              borderColor: Colors.blueAccent,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ViewerPage(url: url),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// ACCEPTED SECTION: Setup Inspection/Collection
   Widget _buildAcceptedSection() {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -377,21 +477,20 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           return const CircularProgressIndicator();
         }
 
-        Map<String, dynamic> vehicleData =
-            vehicleSnapshot.data!.data() as Map<String, dynamic>;
+        final vehicleData =
+            vehicleSnapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-        List<Map<String, dynamic>> inspectionLocations = _parseLocations(
+        final inspectionLocations = _parseLocations(
           vehicleData['inspectionDetails']?['inspectionLocations']?['locations']
               as List<dynamic>?,
         );
-
-        List<Map<String, dynamic>> collectionLocations = _parseLocations(
+        final collectionLocations = _parseLocations(
           vehicleData['collectionDetails']?['collectionLocations']?['locations']
               as List<dynamic>?,
         );
 
-        bool isInspectionComplete = inspectionLocations.isNotEmpty;
-        bool isCollectionComplete = collectionLocations.isNotEmpty;
+        final isInspectionComplete = inspectionLocations.isNotEmpty;
+        final isCollectionComplete = collectionLocations.isNotEmpty;
 
         return Column(
           children: [
@@ -443,7 +542,6 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
-  /// Helper to parse location arrays safely
   List<Map<String, dynamic>> _parseLocations(List<dynamic>? rawList) {
     if (rawList == null || rawList.isEmpty) {
       return [];
@@ -460,7 +558,56 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     }
   }
 
-  /// Displays a non-editable row with a label and value
+  /// Update offer status (approve/reject, etc.)
+  Future<void> _updateOfferStatus(
+    OfferProvider offerProvider,
+    String status,
+    String action,
+  ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .update({'offerStatus': status});
+
+      if (status.toLowerCase() == 'accepted') {
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offer.offerId)
+            .update({'needsInvoice': false});
+        setState(() {
+          widget.offer.offerStatus = status;
+          widget.offer.needsInvoice = false;
+        });
+      } else {
+        setState(() {
+          widget.offer.offerStatus = status;
+        });
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Offer has been $action successfully.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Exception in $action: $e');
+      debugPrint('Stack trace: $stackTrace');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Failed to $action the offer. Please try again.\nError: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Non-editable row
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -481,9 +628,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             flex: 3,
             child: Text(
               value,
-              style: GoogleFonts.montserrat(
-                color: Colors.white70,
-              ),
+              style: GoogleFonts.montserrat(color: Colors.white70),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -492,7 +637,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
-  /// Displays an editable row with a label and a TextField
+  /// Editable row
   Widget _buildEditableDetailRow(
     String label,
     TextEditingController controller,
@@ -532,7 +677,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
-  /// Asynchronously fetches the Dealer's email and displays it
+  /// Displays the dealer's email
   Widget _buildDealerEmailRow(UserProvider userProvider, String dealerId) {
     return FutureBuilder<String?>(
       future: userProvider.getUserEmailById(dealerId),
@@ -548,15 +693,65 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
-  /// Displays the uploaded invoice based on file type
-  Widget _buildUploadedInvoice(String url) {
-    // Determine the file type based on the URL extension
-    final isImage = url.toLowerCase().endsWith('.png') ||
-        url.toLowerCase().endsWith('.jpg') ||
-        url.toLowerCase().endsWith('.jpeg') ||
-        url.toLowerCase().endsWith('.gif');
+  /// Invoice section (external invoice)
+  Widget _buildInvoiceSection() {
+    if (widget.offer.externalInvoice != null &&
+        widget.offer.externalInvoice!.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Invoice',
+            style: GoogleFonts.montserrat(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _buildUploadedInvoice(widget.offer.externalInvoice!),
+          const SizedBox(height: 10),
+          CustomButton(
+            text: 'Replace Invoice',
+            borderColor: Colors.orange,
+            onPressed: _uploadExternalInvoice,
+          ),
+        ],
+      );
+    } else if (widget.offer.needsInvoice ?? false) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Text(
+            'Upload External Invoice',
+            style: GoogleFonts.montserrat(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          CustomButton(
+            text: 'Upload Invoice',
+            borderColor: Colors.green,
+            onPressed: _uploadExternalInvoice,
+          ),
+        ],
+      );
+    } else {
+      return Container();
+    }
+  }
 
-    final isPDF = url.toLowerCase().endsWith('.pdf');
+  /// Displays the uploaded invoice
+  Widget _buildUploadedInvoice(String url) {
+    final lowerUrl = url.toLowerCase();
+    final isImage = lowerUrl.endsWith('.png') ||
+        lowerUrl.endsWith('.jpg') ||
+        lowerUrl.endsWith('.jpeg') ||
+        lowerUrl.endsWith('.gif');
+    final isPDF = lowerUrl.endsWith('.pdf');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,7 +761,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => InvoiceViewerPage(url: url),
+                builder: (context) => ViewerPage(url: url),
               ),
             ),
             child: SizedBox(
@@ -586,7 +781,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => InvoiceViewerPage(url: url),
+                builder: (context) => ViewerPage(url: url),
               ),
             ),
             child: Container(
@@ -612,14 +807,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                 ],
               ),
             ),
-          )
-        else
-          const Text(
-            '',
-            style: TextStyle(color: Colors.red),
           ),
         const SizedBox(height: 10),
-        // Replace ElevatedButton with CustomButton
         Align(
           alignment: Alignment.centerRight,
           child: CustomButton(
@@ -629,7 +818,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => InvoiceViewerPage(url: url),
+                  builder: (context) => ViewerPage(url: url),
                 ),
               );
             },
@@ -639,118 +828,65 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
-  /// Handles the uploading of the external invoice
+  /// Upload/replace the external invoice
   Future<void> _uploadExternalInvoice() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
     try {
-      // Pick a file
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif'],
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
       );
 
       if (result != null && result.files.single.path != null) {
         File file = File(result.files.single.path!);
-        String fileName = path.basename(file.path);
-        String fileExt = path.extension(fileName).toLowerCase();
+        String fileName = result.files.single.name;
 
-        // Debug: Print the selected file name and extension
-        debugPrint('Selected file name: $fileName');
-        debugPrint('Selected file extension: $fileExt');
-
-        // Remove the dot before checking
-        String fileExtWithoutDot =
-            fileExt.startsWith('.') ? fileExt.substring(1) : fileExt;
-
-        // Validate file type by extension
-        if (!(['pdf', 'png', 'jpg', 'jpeg', 'gif']
-            .contains(fileExtWithoutDot))) {
-          debugPrint('File extension not supported.');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unsupported file type selected.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-
-        // Validate file type by MIME type
+        // Validate MIME type
         final mimeType = lookupMimeType(file.path);
-        debugPrint('MIME type: $mimeType');
-
         if (mimeType == null ||
             (!mimeType.startsWith('image/') && mimeType != 'application/pdf')) {
-          debugPrint('MIME type not supported.');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('Unsupported file type selected based on MIME type.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
+          throw Exception('Unsupported file type.');
         }
 
-        // Optionally, validate file size (e.g., limit to 10MB)
-        final int fileSize = await file.length();
-        if (fileSize > 10 * 1024 * 1024) {
-          // 10MB
-          debugPrint('File size exceeds 10MB limit.');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('File size exceeds 10MB limit.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-
-        // Show a loading indicator
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) =>
-              const Center(child: CircularProgressIndicator()),
-        );
-
-        // Define storage path with timestamp to prevent naming conflicts
+        // Upload path with timestamp
         String storagePath =
             'invoices/${widget.offer.offerId}/${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
-        // Upload to Firebase Storage
-        UploadTask uploadTask =
-            FirebaseStorage.instance.ref(storagePath).putFile(file);
+        final storageRef = FirebaseStorage.instance.ref(storagePath);
+        final uploadTask = storageRef.putFile(file);
 
-        // Await completion
-        TaskSnapshot snapshot = await uploadTask;
+        // Wait for upload
+        final snapshot = await uploadTask;
+        final downloadUrl = await snapshot.ref.getDownloadURL();
 
-        // Get download URL
-        String downloadUrl = await snapshot.ref.getDownloadURL();
-
-        // Update Firestore with the invoice URL and set needsInvoice to false
+        // Update Firestore
         await FirebaseFirestore.instance
             .collection('offers')
             .doc(widget.offer.offerId)
             .update({
           'externalInvoice': downloadUrl,
-          'needsInvoice': false, // Set needsInvoice to false
+          'needsInvoice': false,
+          'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        // Update the local state
         setState(() {
           widget.offer.externalInvoice = downloadUrl;
-          widget.offer.needsInvoice = false; // Reflect the change locally
+          widget.offer.needsInvoice = false;
         });
 
-        // Optionally, notify the OfferProvider about the change
-        // This depends on your OfferProvider implementation
-        // For example:
-        // offerProvider.refreshOffers(); // To fetch updated data
+        // Refresh offers
+        if (context.mounted) {
+          Provider.of<OfferProvider>(context, listen: false).refreshOffers();
+        }
 
-        // Dismiss the loading indicator
-        Navigator.pop(context);
-
-        // Show success message
+        Navigator.pop(context); // Dismiss loading
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Invoice uploaded successfully'),
@@ -758,15 +894,11 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           ),
         );
       } else {
-        // User canceled the picker
-        debugPrint('File picking was canceled by the user.');
+        Navigator.pop(context); // user canceled
       }
-    } catch (e, stackTrace) {
-      debugPrint('Error uploading invoice: $e');
-      debugPrint('Stack trace: $stackTrace');
-      // Dismiss the loading indicator if it's open
+    } catch (e) {
+      debugPrint('ERROR: Failed to upload invoice: $e');
       Navigator.pop(context);
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to upload invoice: $e'),
@@ -774,5 +906,55 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         ),
       );
     }
+  }
+
+  /// Vehicle image at top
+  Widget _buildVehicleImage() {
+    debugPrint(
+      'DEBUG: Building vehicle image, URL: ${widget.offer.vehicleMainImage}',
+    );
+
+    if (_isLoadingVehicleDetails) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
+        ),
+      );
+    }
+
+    if (widget.offer.vehicleMainImage == null ||
+        widget.offer.vehicleMainImage!.isEmpty) {
+      return Container(
+        height: 200,
+        color: Colors.grey[800],
+        child: const Center(
+          child: Icon(Icons.directions_car, size: 50, color: Colors.white54),
+        ),
+      );
+    }
+
+    return Image.network(
+      widget.offer.vehicleMainImage!,
+      height: 200,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('DEBUG: Error loading image: $error');
+        return Container(
+          height: 200,
+          color: Colors.grey[800],
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.error_outline, color: Colors.red, size: 40),
+                Text('Failed to load image',
+                    style: TextStyle(color: Colors.white54)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

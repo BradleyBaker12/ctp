@@ -8,16 +8,16 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
-class InvoiceViewerPage extends StatefulWidget {
+class ViewerPage extends StatefulWidget {
   final String url;
 
-  const InvoiceViewerPage({Key? key, required this.url}) : super(key: key);
+  const ViewerPage({Key? key, required this.url}) : super(key: key);
 
   @override
-  _InvoiceViewerPageState createState() => _InvoiceViewerPageState();
+  _ViewerPageState createState() => _ViewerPageState();
 }
 
-class _InvoiceViewerPageState extends State<InvoiceViewerPage> {
+class _ViewerPageState extends State<ViewerPage> {
   bool _isLoading = true;
   String? _localPath;
 

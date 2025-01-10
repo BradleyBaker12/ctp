@@ -117,35 +117,52 @@ class UserProvider extends ChangeNotifier {
       throw Exception('No user logged in');
     }
   }
-  
+
   Future<bool> hasDealerUploadedRequiredDocuments(String dealerId) async {
     try {
+      // Fetch the dealer's document from Firestore
       DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(dealerId)
           .get();
 
-      if (!dealerDoc.exists) return false;
+      // If the document doesn't exist, return false
+      if (!dealerDoc.exists) {
+        print('Dealer document does not exist.');
+        return false;
+      }
 
+      // Extract data from the document
       Map<String, dynamic> data = dealerDoc.data() as Map<String, dynamic>;
-      Map<String, dynamic>? documents =
-          data['documents'] as Map<String, dynamic>?;
 
-      if (documents == null) return false;
+      // Directly access the required document URLs from the top-level fields
+      String? cipcCertificateUrl = data['cipcCertificateUrl'] as String?;
+      String? brncUrl = data['brncUrl'] as String?;
+      String? bankConfirmationUrl = data['bankConfirmationUrl'] as String?;
+      String? proxyUrl = data['proxyUrl'] as String?;
 
-      // Check for all required documents
-      bool hasAllDocuments = documents['cipcCertificateUrl'] != null &&
-          documents['brncUrl'] != null &&
-          documents['bankConfirmationUrl'] != null &&
-          documents['proxyUrl'] != null;
+      // Check if all required documents are present and non-empty
+      bool hasAllDocuments = (cipcCertificateUrl?.isNotEmpty ?? false) &&
+          (brncUrl?.isNotEmpty ?? false) &&
+          (bankConfirmationUrl?.isNotEmpty ?? false) &&
+          (proxyUrl?.isNotEmpty ?? false);
 
-      // Check account status
-      String accountStatus =
-          data['accountStatus']?.toString().toLowerCase() ?? '';
-      bool isApproved = accountStatus == 'active';
+      // Check the account's verification status
+      bool isVerified = data['isVerified'] == true;
 
-      return hasAllDocuments && isApproved;
+      // Debugging Statements
+      print('Dealer ID: $dealerId');
+      print('CIPC Certificate URL: $cipcCertificateUrl');
+      print('BRNC URL: $brncUrl');
+      print('Bank Confirmation URL: $bankConfirmationUrl');
+      print('Proxy URL: $proxyUrl');
+      print('Has All Documents: $hasAllDocuments');
+      print('Is Verified: $isVerified');
+
+      // Return true only if all documents are present and the account is verified
+      return hasAllDocuments && isVerified;
     } catch (e) {
+      // Log any errors encountered during the process
       print('Error checking dealer documents: $e');
       return false;
     }
@@ -741,13 +758,14 @@ class UserProvider extends ChangeNotifier {
   }
 
   // Add method to update verification status (admin only)
-  Future<void> updateUserVerificationStatus(String userId, bool isVerified) async {
+  Future<void> updateUserVerificationStatus(
+      String userId, bool isVerified) async {
     try {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
           .update({'isVerified': isVerified});
-          
+
       if (_user?.uid == userId) {
         _isVerified = isVerified;
         notifyListeners();
