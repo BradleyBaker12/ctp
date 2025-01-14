@@ -1,5 +1,3 @@
-// lib/adminScreens/offers_tab.dart
-
 import 'dart:async';
 import 'package:ctp/adminScreens/offer_details_page.dart';
 import 'package:flutter/material.dart';
@@ -42,13 +40,29 @@ class _OffersTabState extends State<OffersTab> {
     {'field': 'offerStatus', 'label': 'Status'}
   ];
 
+  // Add stream subscription
+  StreamSubscription? _offerSubscription;
+
   @override
   void initState() {
     super.initState();
-    // Fetch initial offers after the first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<OfferProvider>(context, listen: false)
-          .fetchOffers(widget.userId, widget.userRole);
+    print('DEBUG: OffersTab initState');
+    print('DEBUG: userId: ${widget.userId}, userRole: ${widget.userRole}');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      print('DEBUG: Post frame callback executing');
+      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+      offerProvider.initialize(widget.userId, widget.userRole);
+      print('DEBUG: Provider initialized, fetching offers');
+      await offerProvider.refreshOffers();
+      print('DEBUG: Initial fetch completed');
+    });
+
+    _offerSubscription = Provider.of<OfferProvider>(context, listen: false)
+        .offersStream
+        .listen((offers) {
+      print('DEBUG: Stream update - offers count: ${offers.length}');
+      if (mounted) setState(() {});
     });
 
     // Add scroll listener for pagination
@@ -65,6 +79,12 @@ class _OffersTabState extends State<OffersTab> {
     _searchController.addListener(_onSearchChanged);
   }
 
+  Future<void> _initializeData() async {
+    if (mounted) {
+      await Provider.of<OfferProvider>(context, listen: false).refreshOffers();
+    }
+  }
+
   // Debounce search input
   void _onSearchChanged() {
     if (_debounce?.isActive ?? false) _debounce?.cancel();
@@ -77,6 +97,7 @@ class _OffersTabState extends State<OffersTab> {
 
   @override
   void dispose() {
+    _offerSubscription?.cancel();
     _debounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
@@ -240,6 +261,78 @@ class _OffersTabState extends State<OffersTab> {
     return filteredOffers;
   }
 
+  Widget _buildOfferImage(Offer offer) {
+    print('DEBUG: Building image for offer: ${offer.offerId}');
+    print('DEBUG: Vehicle main image URL: ${offer.vehicleMainImage}');
+    
+    if (offer.isVehicleDetailsLoading) {
+      return SizedBox(
+        width: 50,
+        height: 50,
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
+          ),
+        ),
+      );
+    }
+    
+    if (offer.vehicleMainImage == null || offer.vehicleMainImage!.isEmpty) {
+      print('DEBUG: No main image available for offer: ${offer.offerId}');
+      return Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(Icons.directions_car, color: Colors.blueAccent),
+      );
+    }
+  
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        offer.vehicleMainImage!,
+        width: 50,
+        height: 50,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('DEBUG: Error loading image: $error');
+          return Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.error_outline, color: Colors.red),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -352,133 +445,104 @@ class _OffersTabState extends State<OffersTab> {
                 );
               }
 
-              return RefreshIndicator(
-                onRefresh: () async {
-                  await Provider.of<OfferProvider>(context, listen: false)
-                      .refreshOffers();
-                },
-                child: ListView.builder(
-                  controller: _scrollController,
-                  itemCount: filteredAndSortedOffers.length +
-                      (offerProvider.hasMore ? 1 : 0), // Extra item for loading
-                  itemBuilder: (context, index) {
-                    if (index == filteredAndSortedOffers.length) {
-                      // Loading indicator at the bottom
-                      if (offerProvider.isFetching) {
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFFFF4E00)),
+              return ListView.builder(
+                controller: _scrollController,
+                itemCount: filteredAndSortedOffers.length +
+                    (offerProvider.hasMore ? 1 : 0), // Extra item for loading
+                itemBuilder: (context, index) {
+                  if (index == filteredAndSortedOffers.length) {
+                    // Loading indicator at the bottom
+                    if (offerProvider.isFetching) {
+                      return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFFFF4E00)),
+                          ),
+                        ),
+                      );
+                    } else {
+                      return SizedBox.shrink();
+                    }
+                  }
+
+                  Offer offer = filteredAndSortedOffers[index];
+
+                  // **Determine if the offer needs attention based solely on 'needsInvoice'**
+                  bool needsAttention = offer.needsInvoice == true;
+
+                  return Card(
+                    color: needsAttention
+                        ? Colors.red[800]
+                        : Colors.grey[900], // Updated
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    child: ListTile(
+                      leading: Stack(
+                        children: [
+                          _buildOfferImage(offer),
+                          if (needsAttention)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: Colors.yellow,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.warning,
+                                  size: 12,
+                                  color: Colors.red[800],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      title: Text(
+                        "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status: ${offer.offerStatus}',
+                            style:
+                                GoogleFonts.montserrat(color: Colors.white70),
+                          ),
+                          if (needsAttention)
+                            Text(
+                              'Needs Invoice',
+                              style: GoogleFonts.montserrat(
+                                color: Colors.yellowAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                        ],
+                      ),
+                      isThreeLine:
+                          needsAttention, // Adjust based on whether needsInvoice is true
+                      trailing:
+                          Icon(Icons.arrow_forward_ios, color: Colors.white),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => OfferDetailPage(
+                              offer: offer,
                             ),
                           ),
                         );
-                      } else {
-                        return SizedBox.shrink();
-                      }
-                    }
-
-                    Offer offer = filteredAndSortedOffers[index];
-
-                    // **Determine if the offer needs attention based solely on 'needsInvoice'**
-                    bool needsAttention = offer.needsInvoice == true;
-
-                    return Card(
-                      color: needsAttention
-                          ? Colors.red[800]
-                          : Colors.grey[900], // Updated
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      child: ListTile(
-                        leading: Stack(
-                          children: [
-                            // Vehicle Image
-                            offer.vehicleMainImage != null
-                                ? Image.network(
-                                    offer.vehicleMainImage!,
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(Icons.directions_car,
-                                          color: Colors.blueAccent);
-                                    },
-                                    loadingBuilder:
-                                        (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return CircularProgressIndicator(
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                                Color(0xFFFF4E00)),
-                                      );
-                                    },
-                                  )
-                                : Icon(Icons.directions_car,
-                                    color: Colors.blueAccent),
-                            // Attention Badge
-                            if (needsAttention)
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.yellow,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.warning,
-                                    size: 12,
-                                    color: Colors.red[800],
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        title: Text(
-                          "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
-                          style: GoogleFonts.montserrat(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Status: ${offer.offerStatus}',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white70),
-                            ),
-                            if (needsAttention)
-                              Text(
-                                'Needs Invoice',
-                                style: GoogleFonts.montserrat(
-                                  color: Colors.yellowAccent,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                          ],
-                        ),
-                        isThreeLine:
-                            needsAttention, // Adjust based on whether needsInvoice is true
-                        trailing:
-                            Icon(Icons.arrow_forward_ios, color: Colors.white),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OfferDetailPage(
-                                offer: offer,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
+                      },
+                    ),
+                  );
+                },
               );
             },
           ),

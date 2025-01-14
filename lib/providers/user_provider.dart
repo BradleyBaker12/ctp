@@ -20,6 +20,12 @@ class UserProvider extends ChangeNotifier {
   bool _isLoading = true;
   bool _hasNotifications = false; // Add this field to track notifications
 
+  // Add verification field
+  bool _isVerified = false;
+
+  // Add getter
+  bool get isVerified => _isVerified;
+
   // User details
   String? _companyName;
   String? _tradingName;
@@ -88,6 +94,78 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  // Add this method inside the UserProvider class
+  Future<void> updateUserRole(String role) async {
+    if (_user != null) {
+      try {
+        // Update Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({'userRole': role, 'isFirstLogin': false});
+
+        // Update local state
+        _userRole = role;
+        notifyListeners();
+      } catch (e) {
+        print('Error updating user role: $e');
+        throw e;
+      }
+    } else {
+      throw Exception('No user logged in');
+    }
+  }
+
+  Future<bool> hasDealerUploadedRequiredDocuments(String dealerId) async {
+    try {
+      // Fetch the dealer's document from Firestore
+      DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(dealerId)
+          .get();
+
+      // If the document doesn't exist, return false
+      if (!dealerDoc.exists) {
+        print('Dealer document does not exist.');
+        return false;
+      }
+
+      // Extract data from the document
+      Map<String, dynamic> data = dealerDoc.data() as Map<String, dynamic>;
+
+      // Directly access the required document URLs from the top-level fields
+      String? cipcCertificateUrl = data['cipcCertificateUrl'] as String?;
+      String? brncUrl = data['brncUrl'] as String?;
+      String? bankConfirmationUrl = data['bankConfirmationUrl'] as String?;
+      String? proxyUrl = data['proxyUrl'] as String?;
+
+      // Check if all required documents are present and non-empty
+      bool hasAllDocuments = (cipcCertificateUrl?.isNotEmpty ?? false) &&
+          (brncUrl?.isNotEmpty ?? false) &&
+          (bankConfirmationUrl?.isNotEmpty ?? false) &&
+          (proxyUrl?.isNotEmpty ?? false);
+
+      // Check the account's verification status
+      bool isVerified = data['isVerified'] == true;
+
+      // Debugging Statements
+      print('Dealer ID: $dealerId');
+      print('CIPC Certificate URL: $cipcCertificateUrl');
+      print('BRNC URL: $brncUrl');
+      print('Bank Confirmation URL: $bankConfirmationUrl');
+      print('Proxy URL: $proxyUrl');
+      print('Has All Documents: $hasAllDocuments');
+      print('Is Verified: $isVerified');
+
+      // Return true only if all documents are present and the account is verified
+      return hasAllDocuments && isVerified;
+    } catch (e) {
+      // Log any errors encountered during the process
+      print('Error checking dealer documents: $e');
+      return false;
+    }
   }
 
   Future<UserDetails> getUserDetailsById(String userId) async {
@@ -219,6 +297,8 @@ class UserProvider extends ChangeNotifier {
                     InspectionDetail.fromMap(Map<String, dynamic>.from(item)))
                 .toList();
           }
+
+          _isVerified = data['isVerified'] ?? false;
 
           _isLoading = false;
           await checkForNotifications();
@@ -674,6 +754,25 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       print('Error updating user account status: $e');
       rethrow; // Rethrow to handle in UI
+    }
+  }
+
+  // Add method to update verification status (admin only)
+  Future<void> updateUserVerificationStatus(
+      String userId, bool isVerified) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'isVerified': isVerified});
+
+      if (_user?.uid == userId) {
+        _isVerified = isVerified;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating verification status: $e');
+      rethrow;
     }
   }
 

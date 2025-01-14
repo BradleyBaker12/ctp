@@ -213,26 +213,39 @@ class ComplaintsProvider extends ChangeNotifier {
   }
 
   /// Update complaint status
-  Future<void> updateComplaintStatus(
+  Future<bool> updateComplaintStatus(
       String complaintId, String newStatus) async {
+    var complaint =
+        _complaints.firstWhereOrNull((c) => c.complaintId == complaintId);
+    var previousStatus = complaint?.complaintStatus;
+
     try {
+      //Optimistically update the local state
+      optimisticallyUpdateComplaint(complaintId, newStatus);
+
       await _firestore
           .collection('complaints')
           .doc(complaintId)
           .update({'complaintStatus': newStatus});
-
-      // Update the local list to reflect changes
-      int index = _complaints
-          .indexWhere((complaint) => complaint.complaintId == complaintId);
-      if (index != -1) {
-        _complaints[index].complaintStatus = newStatus;
-        notifyListeners();
-      }
-
-      print('Complaint $complaintId status updated to $newStatus');
+      return true;
     } catch (e) {
       print('Error updating complaint status: $e');
-      _errorMessage = 'Failed to update complaint status. Please try again.';
+      return false;
+    }
+  }
+
+  void optimisticallyUpdateComplaint(String complaintId, String newStatus) {
+    int index = _complaints.indexWhere((c) => c.complaintId == complaintId);
+    if (index != -1) {
+      _complaints[index].complaintStatus = newStatus;
+      notifyListeners();
+    }
+  }
+
+  void rollbackComplaintStatus(String complaintId, String previousStatus) {
+    int index = _complaints.indexWhere((c) => c.complaintId == complaintId);
+    if (index != -1) {
+      _complaints[index].complaintStatus = previousStatus;
       notifyListeners();
     }
   }

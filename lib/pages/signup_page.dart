@@ -90,7 +90,7 @@ class _SignUpPageState extends State<SignUpPage> {
         await _firestore.collection('users').doc(user.uid).set({
           'email': user.email,
           'createdAt': FieldValue.serverTimestamp(),
-          'userRole': 'guest',
+          'userRole': 'pending',
           'accountStatus': 'active'
         });
         print("DEBUG: Firestore document created");

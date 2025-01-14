@@ -425,7 +425,7 @@ class _UsersTabState extends State<UsersTab> {
                         String companyName =
                             userData['companyName'] ?? 'No Company';
                         String tradingAs =
-                            userData['tradingAs'] ?? 'No Trading As';
+                            userData['tradingName'] ?? 'No Trading As';
 
                         var accountStatus = userData['accountStatus'];
                         String status;
@@ -506,8 +506,8 @@ class _UsersTabState extends State<UsersTab> {
     final companyNameController = TextEditingController();
     final tradingAsController = TextEditingController();
 
-    String? selectedRole = 'Admin';
-    final roles = ['Admin', 'Transporter', 'Dealer'];
+    String? selectedRole = 'dealer';
+    final roles = ['admin', 'transporter', 'dealer'];
 
     // Check if _secondaryAuth is initialized
     if (_secondaryAuth == null) {

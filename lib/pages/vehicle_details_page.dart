@@ -182,7 +182,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       setState(() {
         if (offersSnapshot.docs.isNotEmpty) {
           _hasMadeOffer = true;
-          _offerStatus = offersSnapshot.docs.first['offerStatus'] ?? 'pending';
+          _offerStatus =
+              offersSnapshot.docs.first['offerStatus'] ?? 'in-progress';
         }
       });
     } catch (e) {
@@ -490,6 +491,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
 
+    // Validate offer amount
     if (_offerAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -500,7 +502,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       return;
     }
 
-    // If admin, ensure a dealer is selected
+    // Ensure dealer is selected if the user is admin
     if (isAdmin && _selectedDealer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -510,6 +512,38 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         ),
       );
       return;
+    }
+
+    // Check dealer verification and document status at the start
+    if (isDealer) {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (!dealerDoc.exists) return;
+
+        bool isVerified = dealerDoc.get('isVerified') ?? false;
+        bool hasDocuments =
+            await userProvider.hasDealerUploadedRequiredDocuments(user.uid);
+        String accountStatus =
+            dealerDoc.get('accountStatus')?.toString().toLowerCase() ?? '';
+
+        if (!isVerified || !hasDocuments || accountStatus != 'active') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Please upload all required documents and wait for account approval.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          Navigator.pushNamed(
+              context, '/profile'); // Redirect to profile for document upload
+          return;
+        }
+      }
     }
 
     setState(() {
@@ -522,6 +556,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         throw Exception('User not authenticated');
       }
 
+      // Prepare offer details
       String dealerId = isAdmin
           ? _selectedDealer!.id
           : isDealer
@@ -531,6 +566,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       String transporterId = widget.vehicle.userId;
       DateTime createdAt = DateTime.now();
 
+      // Add offer to Firestore
       DocumentReference docRef =
           FirebaseFirestore.instance.collection('offers').doc();
       String offerId = docRef.id;
@@ -554,6 +590,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         'transporterInspectionComplete': false,
       });
 
+      // Reset offer state and notify user
       _controller.clear();
       setState(() {
         _totalCost = 0.0;
@@ -628,18 +665,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // Basic Info progress (example placeholders)
   int _calculateBasicInfoProgress() {
     int completedSteps = 0;
-    if (vehicle.mainImageUrl != null) completedSteps++;
-    completedSteps++;
-    completedSteps++;
-    // ... etc.
+    if (vehicle.mainImageUrl != null && vehicle.mainImageUrl!.isNotEmpty)
+      completedSteps++;
+    // Assuming there are 11 steps; adjust accordingly
+    completedSteps += 3; // Placeholder for additional steps
     return completedSteps;
   }
 
   // Maintenance progress (example placeholders)
   int _calculateMaintenanceProgress() {
     int completedSteps = 0;
-    if (vehicle.maintenance.maintenanceDocUrl != null) completedSteps++;
-    // ... etc.
+    if (vehicle.maintenance.maintenanceDocUrl != null &&
+        vehicle.maintenance.maintenanceDocUrl!.isNotEmpty) completedSteps++;
+    // Assuming there are 4 steps; adjust accordingly
     return completedSteps;
   }
 
@@ -1068,8 +1106,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             setState(() {
                               if (value.isNotEmpty) {
                                 try {
-                                  String numericValue =
-                                      value.replaceAll(' ', '');
+                                  String numericValue = value
+                                      .replaceAll(' ', '')
+                                      .replaceAll('R', '');
                                   _offerAmount = double.parse(numericValue);
                                   _totalCost =
                                       _calculateTotalCost(_offerAmount);
@@ -1161,6 +1200,60 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ),
 
                         const SizedBox(height: 16),
+
+                        // === Integrated StreamBuilder ===
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(userProvider.userId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData && !isAdmin && isDealer) {
+                              Map<String, dynamic> userData =
+                                  snapshot.data!.data() as Map<String, dynamic>;
+
+
+                              // Detailed debug logging
+                              print('Raw userData: $userData');
+
+                              // Debug prints
+                              print('isVerified: ${userData['isVerified']}');
+
+                              bool hasDocuments = userData['cipcCertificateUrl']
+                                          ?.isNotEmpty ==
+                                      true &&
+                                  userData['brncUrl']?.isNotEmpty == true &&
+                                  userData['bankConfirmationUrl']?.isNotEmpty ==
+                                      true &&
+                                  userData['proxyUrl']?.isNotEmpty == true;
+
+                              bool isVerified = userData['isVerified'] ?? false;
+                              bool isApproved = isVerified;
+
+                              print('hasDocuments: $hasDocuments');
+                              print('isApproved: $isApproved');
+
+                              // Only show warning if documents are missing OR not approved
+                              if (!hasDocuments || !isApproved) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    'Please upload all required documents (CIPC, BRNC, Bank Confirmation, Proxy) and wait for account approval before making offers.',
+                                    style: _customFont(
+                                        16, FontWeight.normal, Colors.red),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                );
+                              }
+                              // Return empty container if documents are uploaded and approved
+                              return Container();
+                            }
+                            // Return empty container for non-dealers or admins
+                            return Container();
+                          },
+                        ),
+                        // === End of Integrated StreamBuilder ===
+
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
