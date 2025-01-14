@@ -40,7 +40,7 @@ class _UsersTabState extends State<UsersTab> {
   bool _sortAscending = true; // Default sort direction
 
   // Filter-related variables
-  List<String> _selectedFilters = [];
+  final List<String> _selectedFilters = [];
   final List<String> _filterOptions = [
     'All Users',
     'Dealers',
@@ -164,7 +164,7 @@ class _UsersTabState extends State<UsersTab> {
   Future<void> _showSortMenu() async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RenderBox overlay =
-        Overlay.of(context)!.context.findRenderObject() as RenderBox;
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(Offset.zero, ancestor: overlay),

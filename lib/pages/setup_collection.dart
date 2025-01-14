@@ -31,7 +31,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   List<TimeOfDay?> _selectedTimes = [null];
 
   // Made _timeSlots mutable to allow dynamic additions
-  List<TimeOfDay> _timeSlots = [
+  final List<TimeOfDay> _timeSlots = [
     TimeOfDay(hour: 8, minute: 0),
     TimeOfDay(hour: 8, minute: 30),
     TimeOfDay(hour: 9, minute: 0),
@@ -992,6 +992,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
 extension DateTimeExtension on DateTime {
   String toShortString() {
-    return '$day-${month.toString().padLeft(2, '0')}-${year}';
+    return '$day-${month.toString().padLeft(2, '0')}-$year';
   }
 }

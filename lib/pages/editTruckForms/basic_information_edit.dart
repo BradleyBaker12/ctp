@@ -261,8 +261,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         // Check if we have an existing vehicle with a makeModel
         if (widget.vehicle != null) {
           final existingModel = widget.vehicle!.makeModel;
-          if (existingModel != null &&
-              !_makeModelOptions[brand]!.contains(existingModel)) {
+          if (!_makeModelOptions[brand]!.contains(existingModel)) {
             _makeModelOptions[brand]!.add(existingModel);
             debugPrint('Added existing model to model options: $existingModel');
           }

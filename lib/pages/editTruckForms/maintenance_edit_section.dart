@@ -345,7 +345,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   }
 
   Future<String> _detectFileType(File file) async {
-    final String extension = file.path.split('.').last.toLowerCase();
+    //final String extension = file.path.split('.').last.toLowerCase();
     if (isPdfFile(file.path)) return 'pdf';
     if (_isImageFile(file.path)) return 'image';
 

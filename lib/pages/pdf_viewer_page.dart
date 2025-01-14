@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:path_provider/path_provider.dart'; // Import this package
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PdfViewerPage extends StatelessWidget {
   final String pdfUrl;
@@ -12,14 +14,35 @@ class PdfViewerPage extends StatelessWidget {
     final response = await HttpClient().getUrl(Uri.parse(url));
     final bytes = await response.close().then((response) =>
         response.fold<List<int>>([], (buffer, data) => buffer..addAll(data)));
-    final directory = await getTemporaryDirectory(); // Now this will work
+    final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$fileName');
     await file.writeAsBytes(bytes);
     return file;
   }
 
+  void _openInNewTab(String url) async {
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    } else {
+      throw 'Could not launch $url';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      // For web, open the URL in a new browser tab
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openInNewTab(pdfUrl);
+        Navigator.pop(context); // Close the current page after opening new tab
+      });
+
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // For iOS/Android
     return Scaffold(
       appBar: AppBar(),
       body: FutureBuilder<File>(

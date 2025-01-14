@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:ctp/pages/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -124,8 +123,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   // Damages & Additional Features
   String _damagesCondition = 'no';
   String _featuresCondition = 'no';
-  List<Map<String, dynamic>> _damageList = [];
-  List<Map<String, dynamic>> _featureList = [];
+  final List<Map<String, dynamic>> _damageList = [];
+  final List<Map<String, dynamic>> _featureList = [];
 
   bool _isLoading = false;
   String? _vehicleId;
@@ -270,7 +269,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   //                             MAIN IMAGE SECTION
   // -----------------------------------------------------------------------------
   Widget _buildMainImageSection(FormDataProvider formData) {
-    void _onTapMainImage() {
+    void onTapMainImage() {
       if (_selectedMainImage != null) {
         // If there's already an image, let the user change/remove
         showDialog(
@@ -329,7 +328,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     }
 
     return GestureDetector(
-      onTap: _onTapMainImage,
+      onTap: onTapMainImage,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 0),
         height: _imageHeight,

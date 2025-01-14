@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Required for the AppBar's blur effect
 import 'package:provider/provider.dart';
@@ -62,11 +61,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         CircleAvatar(
                           radius: 26,
                           backgroundColor: Colors.grey[200],
-                          backgroundImage: kIsWeb
-                              ? profileImageUrl.isNotEmpty
-                                  ? MemoryImage(Uint8List.fromList(
-                                      profileImageUrl.codeUnits))
-                                  : NetworkImage(profileImageUrl)
+                          backgroundImage: profileImageUrl.isNotEmpty
+                              ? NetworkImage(profileImageUrl)
                               : const AssetImage(
                                       'lib/assets/default-profile-photo.jpg')
                                   as ImageProvider,
@@ -74,7 +70,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             // Log the error
                             print('Error loading profile image: $exception');
                           },
-                          child: profileImageUrl.isEmpty
+                          child: (profileImageUrl.isEmpty)
                               ? const Icon(Icons.person,
                                   size: 26, color: Colors.grey)
                               : null,

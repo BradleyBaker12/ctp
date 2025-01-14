@@ -1,14 +1,10 @@
-import 'dart:io';
-
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
 import 'package:ctp/models/external_cab.dart';
 import 'package:ctp/models/internal_cab.dart';
 import 'package:ctp/models/truck_conditions.dart';
-import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
@@ -25,13 +21,10 @@ import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -78,14 +71,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   bool _isDealersLoading = false;
 
   // Maintenance & Admin expansions
-  bool _isMaintenanceInfoExpanded = false;
-  bool _isAdminDataExpanded = false;
-  bool _isTruckConditionsExpanded = false;
-  bool _isExternalCabExpanded = false;
-  bool _isInternalCabExpanded = false;
-  bool _isChassisExpanded = false;
-  bool _isDriveTrainExpanded = false;
-  bool _isTyresExpanded = false;
+  final bool _isMaintenanceInfoExpanded = false;
+  final bool _isAdminDataExpanded = false;
+  final bool _isTruckConditionsExpanded = false;
+  final bool _isExternalCabExpanded = false;
+  final bool _isInternalCabExpanded = false;
+  final bool _isChassisExpanded = false;
+  final bool _isDriveTrainExpanded = false;
+  final bool _isTyresExpanded = false;
 
   @override
   void initState() {

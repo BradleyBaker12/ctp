@@ -103,7 +103,7 @@ class UserProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error fetching user details for userId $userId: $e');
-      throw e; // Propagate the error to be handled in the UI
+      rethrow; // Propagate the error to be handled in the UI
     }
   }
 

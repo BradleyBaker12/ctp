@@ -150,16 +150,24 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
         final Map<String, dynamic> finalUserData = {
           ...widget.userData,
           'profileImageUrl': imageUrl,
-          'userRole': widget.userData['userType'],
         };
         finalUserData.remove('userType');
 
         final userRef = FirebaseFirestore.instance
             .collection('users')
             .doc(userProvider.user?.uid);
-        await userRef.set(finalUserData);
+        await userRef.set(
+            finalUserData, SetOptions(merge: true)); // Updated line
+
+        // Add debug print before navigation
+        print('User Role: ${finalUserData['userRole']}'); // Debug print
 
         if (mounted) {
+          // Ensure string comparison is exact
+          final userRole =
+              finalUserData['userRole']?.toString().trim().toLowerCase();
+          print('Processed User Role: $userRole'); // Debug print
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

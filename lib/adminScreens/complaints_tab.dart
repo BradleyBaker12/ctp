@@ -23,7 +23,7 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
   bool _sortAscending = false; // Default sort direction
 
   // **Filter Variables**
-  List<String> _selectedFilters = [];
+  final List<String> _selectedFilters = [];
   final List<String> _filterOptions = [
     'All Complaints',
     'Open',
@@ -347,7 +347,7 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
   Future<void> _showSortMenu() async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RenderBox overlay =
-        Overlay.of(context)!.context.findRenderObject() as RenderBox;
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(Offset.zero, ancestor: overlay),

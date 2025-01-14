@@ -66,13 +66,13 @@ class EditTrailerUploadScreen extends StatefulWidget {
   final String? transporterId;
 
   const EditTrailerUploadScreen({
-    Key? key,
+    super.key,
     this.vehicle,
     this.transporterId,
     this.isAdminUpload = false,
     this.isDuplicating = false,
     this.isNewUpload = false,
-  }) : super(key: key);
+  });
 
   @override
   _EditTrailerUploadScreenState createState() =>

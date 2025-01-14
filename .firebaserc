@@ -3,6 +3,14 @@
     "default": "ctp-central-database",
     "staging": "ctp-central-database"
   },
-  "targets": {},
+  "targets": {
+    "ctp-central-database": {
+      "hosting": {
+        "ctp-app-b": [
+          "ctp-app-b"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

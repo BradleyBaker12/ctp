@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as path;
 import 'package:mime/mime.dart'; // Added for MIME type checks
 import '../providers/offer_provider.dart';
@@ -20,7 +19,7 @@ import 'package:ctp/components/gradient_background.dart';
 class OfferDetailPage extends StatefulWidget {
   final Offer offer;
 
-  const OfferDetailPage({Key? key, required this.offer}) : super(key: key);
+  const OfferDetailPage({super.key, required this.offer});
 
   @override
   _OfferDetailPageState createState() => _OfferDetailPageState();
@@ -155,7 +154,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
                 /// Save changes
                 Center(
-                  child: Container(
+                  child: SizedBox(
                     width: MediaQuery.of(context).size.width * 0.5,
                     child: CustomButton(
                       text: 'Save Changes',
@@ -229,7 +228,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   /// Reusable Approve/Reject button row
   Widget _buildApproveRejectRow(OfferProvider offerProvider) {
     return Center(
-      child: Container(
+      child: SizedBox(
         width: MediaQuery.of(context).size.width,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -326,7 +325,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         const SizedBox(height: 20),
 
         /// Payment Verification Buttons
-        Container(
+        SizedBox(
           width: MediaQuery.of(context).size.width,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

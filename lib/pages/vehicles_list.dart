@@ -15,14 +15,6 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 
 // Nested models (only if still needed)
-import 'package:ctp/models/admin_data.dart';
-import 'package:ctp/models/maintenance.dart';
-import 'package:ctp/models/truck_conditions.dart';
-import 'package:ctp/models/external_cab.dart';
-import 'package:ctp/models/internal_cab.dart';
-import 'package:ctp/models/chassis.dart';
-import 'package:ctp/models/drive_train.dart';
-import 'package:ctp/models/tyres.dart';
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});

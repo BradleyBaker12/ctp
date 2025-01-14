@@ -34,7 +34,7 @@ class _OffersTabState extends State<OffersTab> {
     'Rejected',
     'Expired'
   ];
-  List<String> _selectedFilters = [];
+  final List<String> _selectedFilters = [];
 
   final List<Map<String, String>> _sortOptions = [
     {'field': 'createdAt', 'label': 'Date'},
@@ -86,7 +86,7 @@ class _OffersTabState extends State<OffersTab> {
   void _showSortMenu() async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RenderBox overlay =
-        Overlay.of(context)!.context.findRenderObject() as RenderBox;
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(Offset.zero, ancestor: overlay),

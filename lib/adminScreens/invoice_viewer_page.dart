@@ -11,7 +11,7 @@ import 'package:path/path.dart' as path;
 class InvoiceViewerPage extends StatefulWidget {
   final String url;
 
-  const InvoiceViewerPage({Key? key, required this.url}) : super(key: key);
+  const InvoiceViewerPage({super.key, required this.url});
 
   @override
   _InvoiceViewerPageState createState() => _InvoiceViewerPageState();

@@ -144,165 +144,106 @@ class _DealerRegPageState extends State<DealerRegPage> {
     }
   }
 
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  Future<String?> _uploadDocument(String documentType) async {
+    try {
+      final userId = Provider.of<UserProvider>(context, listen: false).userId;
+      if (userId == null) throw Exception('User ID is not available');
 
-    setState(() {
-      _isLoading = true;
-    });
+      final storage = FirebaseStorage.instance;
+      final fileName = '${documentType.toLowerCase()}.pdf';
+      final ref = storage.ref().child('documents/$userId/$fileName');
+
+      if (kIsWeb) {
+        // Web upload
+        final Uint8List? bytes = documentType == 'bankConfirmation'
+            ? _bankConfirmationByte
+            : documentType == 'cipcCertificate'
+                ? _cipcCertificateByte
+                : documentType == 'proxy'
+                    ? _proxyByte
+                    : documentType == 'brnc'
+                        ? _brncByte
+                        : null;
+
+        if (bytes == null) return null;
+
+        final task = ref.putData(bytes);
+        final snapshot = await task;
+        return await snapshot.ref.getDownloadURL();
+      } else {
+        // Mobile upload
+        final String? filePath = documentType == 'bankConfirmation'
+            ? _bankConfirmationFile
+            : documentType == 'cipcCertificate'
+                ? _cipcCertificateFile
+                : documentType == 'proxy'
+                    ? _proxyFile
+                    : documentType == 'brnc'
+                        ? _brncFile
+                        : null;
+
+        if (filePath == null) return null;
+
+        final task = ref.putFile(File(filePath));
+        final snapshot = await task;
+        return await snapshot.ref.getDownloadURL();
+      }
+    } catch (e) {
+      print('Error uploading $documentType: $e');
+      throw Exception('Failed to upload $documentType: $e');
+    }
+  }
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
 
     try {
       final userId = Provider.of<UserProvider>(context, listen: false).userId;
-      if (userId == null) {
-        throw Exception('User ID is not available');
-      }
+      if (userId == null) throw Exception('User ID is not available');
 
-      final FirebaseStorage storage = FirebaseStorage.instance;
-      final FirebaseFirestore firestore = FirebaseFirestore.instance;
-
-      Future<String?> uploadFile(String? filePath, String fileName) async {
-        try {
-          if (filePath == null) return null;
-          final ref = storage.ref().child('documents/$userId/$fileName');
-          final task = ref.putFile(File(filePath));
-          final snapshot = await task;
-          return await snapshot.ref.getDownloadURL();
-        } catch (e) {
-          print('Error uploading $fileName: $e');
-          return null;
-        }
-      }
-
-      Future<String?> uploadData(Uint8List? fileByte, String fileName) async {
-        try {
-          if (fileByte == null) return null;
-          final ref = storage.ref().child('documents/$userId/$fileName');
-          final task = ref.putData(fileByte);
-          final snapshot = await task;
-          return await snapshot.ref.getDownloadURL();
-        } catch (e) {
-          print('Error uploading $fileName: $e');
-          return null;
-        }
-      }
-
+      // Flatten data structure to match transporter
       Map<String, dynamic> dealerData = {
-        'companyDetails': {
-          'companyName': _companyNameController.text,
-          'tradingName': _tradingNameController.text,
-          'registrationNumber': _registrationNumberController.text,
-          'vatNumber': _vatNumberController.text,
-        },
-        'personalDetails': {
-          'firstName': _firstNameController.text,
-          'middleName': _middleNameController.text,
-          'lastName': _lastNameController.text,
-        },
-        'address': {
-          'addressLine1': _addressLine1Controller.text,
-          'addressLine2': _addressLine2Controller.text,
-          'city': _cityController.text,
-          'state': _stateController.text,
-          'postalCode': _postalCodeController.text,
-          'country': _selectedCountry,
-        },
+        'userType': 'dealer',
+        'companyName': _companyNameController.text,
+        'tradingName': _tradingNameController.text,
+        'registrationNumber': _registrationNumberController.text,
+        'vatNumber': _vatNumberController.text,
+        'firstName': _firstNameController.text,
+        'middleName': _middleNameController.text,
+        'lastName': _lastNameController.text,
+        'addressLine1': _addressLine1Controller.text,
+        'addressLine2': _addressLine2Controller.text,
+        'city': _cityController.text,
+        'state': _stateController.text,
+        'postalCode': _postalCodeController.text,
+        'country': _selectedCountry,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (!kIsWeb) {
-        if (_bankConfirmationFile != null) {
-          final url =
-              await uploadFile(_bankConfirmationFile, 'bank_confirmation.pdf');
+      // Upload documents
+      final documents = {
+        'bankConfirmation': _bankConfirmationByte ?? _bankConfirmationFile,
+        'cipcCertificate': _cipcCertificateByte ?? _cipcCertificateFile,
+        'proxy': _proxyByte ?? _proxyFile,
+        'brnc': _brncByte ?? _brncFile
+      };
+
+      // Add document URLs to dealer data
+      for (var entry in documents.entries) {
+        if (entry.value != null) {
+          final url = await _uploadDocument(entry.key);
           if (url != null) {
-            dealerData['documents'] = {'bankConfirmationUrl': url};
-          }
-        }
-      } else {
-        if (_bankConfirmationByte != null) {
-          final url =
-              await uploadData(_bankConfirmationByte, 'bank_confirmation.pdf');
-          if (url != null) {
-            dealerData['documents'] = {'bankConfirmationUrl': url};
+            dealerData['${entry.key}Url'] = url;
           }
         }
       }
 
-      if (!kIsWeb) {
-        if (_cipcCertificateFile != null) {
-          final url =
-              await uploadFile(_cipcCertificateFile, 'cipc_certificate.pdf');
-          if (url != null) {
-            dealerData['documents'] = {
-              ...?dealerData['documents'],
-              'cipcCertificateUrl': url
-            };
-          }
-        }
-      } else {
-        if (_cipcCertificateByte != null) {
-          final url =
-              await uploadData(_cipcCertificateByte, 'cipc_certificate.pdf');
-          if (url != null) {
-            dealerData['documents'] = {
-              ...?dealerData['documents'],
-              'cipcCertificateUrl': url
-            };
-          }
-        }
-      }
-
-      if (!kIsWeb) {
-        if (_proxyFile != null) {
-          if (!kIsWeb) {
-            final url = await uploadFile(_proxyFile, 'proxy.pdf');
-            if (url != null) {
-              dealerData['documents'] = {
-                ...?dealerData['documents'],
-                'proxyUrl': url
-              };
-            }
-          }
-        }
-      } else {
-        if (_proxyByte != null) {
-          print('Web file chosen');
-          final url = await uploadData(_proxyByte, 'proxy.pdf');
-          if (url != null) {
-            dealerData['documents'] = {
-              ...?dealerData['documents'],
-              'proxyUrl': url
-            };
-          }
-        }
-      }
-
-      if (!kIsWeb) {
-        if (_brncFile != null) {
-          if (!kIsWeb) {
-            final url = await uploadFile(_brncFile, 'brnc.pdf');
-            if (url != null) {
-              dealerData['documents'] = {
-                ...?dealerData['documents'],
-                'brncUrl': url
-              };
-            }
-          }
-        }
-      } else {
-        if (_brncByte != null) {
-          final url = await uploadData(_brncByte, 'brnc.pdf');
-          if (url != null) {
-            dealerData['documents'] = {
-              ...?dealerData['documents'],
-              'brncUrl': url
-            };
-          }
-        }
-      }
-
-      await firestore.collection('users').doc(userId).update(dealerData);
+      // Update Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update(dealerData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -318,11 +259,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

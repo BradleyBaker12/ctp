@@ -10,8 +10,7 @@ class DocumentPreviewScreen extends StatefulWidget {
   final String? url; // URL of the document
   final File? file; // Local file
 
-  const DocumentPreviewScreen({Key? key, this.url, this.file})
-      : super(key: key);
+  const DocumentPreviewScreen({super.key, this.url, this.file});
 
   @override
   _DocumentPreviewScreenState createState() => _DocumentPreviewScreenState();
