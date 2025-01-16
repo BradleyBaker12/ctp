@@ -203,8 +203,8 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
           swipeHorizontal: true,
           autoSpacing: false,
           pageFling: false,
-          onRender: (_pages) {
-            debugPrint('PDF rendered with $_pages pages');
+          onRender: (pages) {
+            debugPrint('PDF rendered with $pages pages');
           },
           onError: (error) {
             debugPrint('Error in PDF Viewer: $error');

@@ -1,3 +1,5 @@
+// lib/adminScreens/user_tabs.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -6,6 +8,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'user_detail_page.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
 
 class UsersTab extends StatefulWidget {
   const UsersTab({super.key});
@@ -45,9 +49,12 @@ class _UsersTabState extends State<UsersTab> {
     'All Users',
     'Dealers',
     'Transporters',
+    'Admin',
     'Active Users',
     'Pending Users',
-    'Suspended Users'
+    'Suspended Users',
+    'Has Company Name',
+    'Has Trading As',
   ];
 
   @override
@@ -87,53 +94,80 @@ class _UsersTabState extends State<UsersTab> {
     super.dispose();
   }
 
+  /// Determines if a user document matches the search text and filters.
   bool _matchesSearch(Map<String, dynamic> userData) {
-    if (_searchQuery.isEmpty && _selectedFilters.isEmpty) return true;
+    String firstName = (userData['firstName'] ?? '').toLowerCase();
+    String lastName = (userData['lastName'] ?? '').toLowerCase();
+    String email = (userData['email'] ?? '').toLowerCase();
+    String role = (userData['userRole'] ?? '').toLowerCase();
+    String status = (userData['accountStatus'] ?? '').toLowerCase();
+    String companyName = (userData['companyName'] ?? '').toLowerCase();
+    String tradingAs = (userData['tradingAs'] ?? '').toLowerCase();
 
-    String firstName = userData['firstName']?.toString().toLowerCase() ?? '';
-    String lastName = userData['lastName']?.toString().toLowerCase() ?? '';
-    String email = userData['email']?.toString().toLowerCase() ?? '';
-    String role = userData['userRole']?.toString().toLowerCase() ?? '';
-    String status = userData['accountStatus']?.toString().toLowerCase() ?? '';
-    String companyName =
-        userData['companyName']?.toString().toLowerCase() ?? '';
-    String tradingAs = userData['tradingAs']?.toString().toLowerCase() ?? '';
-
-    bool matchesSearch = _searchQuery.isEmpty
+    bool matchesSearchText = _searchQuery.isEmpty
         ? true
-        : firstName.contains(_searchQuery.toLowerCase()) ||
+        : (firstName.contains(_searchQuery.toLowerCase()) ||
             lastName.contains(_searchQuery.toLowerCase()) ||
             email.contains(_searchQuery.toLowerCase()) ||
             role.contains(_searchQuery.toLowerCase()) ||
             status.contains(_searchQuery.toLowerCase()) ||
             companyName.contains(_searchQuery.toLowerCase()) ||
-            tradingAs.contains(_searchQuery.toLowerCase());
+            tradingAs.contains(_searchQuery.toLowerCase()));
 
-    bool matchesFilter = _selectedFilters.isEmpty
-        ? true
-        : _selectedFilters.contains('All Users') ||
-            (_selectedFilters.contains('Dealers') && role == 'dealer') ||
-            (_selectedFilters.contains('Transporters') &&
-                role == 'transporter') ||
-            (_selectedFilters.contains('Active Users') && status == 'active') ||
-            (_selectedFilters.contains('Pending Users') &&
-                status == 'pending') ||
-            (_selectedFilters.contains('Suspended Users') &&
-                status == 'suspended');
-
-    return matchesSearch && matchesFilter;
+    if (_selectedFilters.isEmpty || _selectedFilters.contains('All Users')) {
+      return matchesSearchText;
+    } else {
+      bool matchesFilter = false;
+      if (_selectedFilters.contains('Dealers') && role == 'dealer') {
+        matchesFilter = true;
+      }
+      if (_selectedFilters.contains('Transporters') && role == 'transporter') {
+        matchesFilter = true;
+      }
+      if (_selectedFilters.contains('Admin') && role == 'admin') {
+        matchesFilter = true;
+      }
+      if (_selectedFilters.contains('Active Users') && status == 'active') {
+        matchesFilter = true;
+      }
+      if (_selectedFilters.contains('Pending Users') && status == 'pending') {
+        matchesFilter = true;
+      }
+      if (_selectedFilters.contains('Suspended Users') &&
+          status == 'suspended') {
+        matchesFilter = true;
+      }
+      if (_selectedFilters.contains('Has Company Name') &&
+          companyName.isNotEmpty) {
+        matchesFilter = true;
+      }
+      if (_selectedFilters.contains('Has Trading As') && tradingAs.isNotEmpty) {
+        matchesFilter = true;
+      }
+      return matchesSearchText && matchesFilter;
+    }
   }
 
   Future<void> _fetchUsers() async {
     if (_isLoading || !_hasMore) return;
-
     setState(() {
       _isLoading = true;
     });
 
+    // Get current user details from provider.
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String currentUserRole = userProvider.getUserRole;
+    final bool isAdmin = currentUserRole == 'admin';
+    final String? currentUserId = userProvider.userId; // Updated getter
+
     Query query = usersCollection
         .orderBy(_sortField, descending: !_sortAscending)
         .limit(_limit);
+
+    // If current user is a sales rep, only fetch users assigned to them.
+    if (!isAdmin) {
+      query = query.where('assignedSalesRep', isEqualTo: currentUserId);
+    }
 
     if (_lastDocument != null) {
       query = query.startAfterDocument(_lastDocument!);
@@ -141,6 +175,12 @@ class _UsersTabState extends State<UsersTab> {
 
     try {
       QuerySnapshot querySnapshot = await query.get();
+
+      // Debug: print how many documents were fetched.
+      print("Fetched ${querySnapshot.docs.length} users.");
+      querySnapshot.docs.forEach((doc) {
+        print("User ID: ${doc.id}");
+      });
 
       if (querySnapshot.docs.isNotEmpty) {
         _lastDocument = querySnapshot.docs.last;
@@ -160,7 +200,6 @@ class _UsersTabState extends State<UsersTab> {
     });
   }
 
-  // New method to show sort menu
   Future<void> _showSortMenu() async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RenderBox overlay =
@@ -223,14 +262,7 @@ class _UsersTabState extends State<UsersTab> {
     });
   }
 
-  // Remove the existing _buildSortDropdown method since it's no longer needed
-
-  // Remove the existing _sortUsers method if not needed
-  // However, since we are now sorting via Firestore queries, we can remove this method
-  // Alternatively, if you still want to sort the already fetched users, you can keep it
-  // For this update, we'll remove it and rely on Firestore's ordering
-
-  // Method to show filter dialog remains unchanged
+  /// Filter dialog.
   Future<void> _showFilterDialog() async {
     await showDialog(
       context: context,
@@ -240,7 +272,7 @@ class _UsersTabState extends State<UsersTab> {
           title: Text('Filter Users',
               style: GoogleFonts.montserrat(color: Colors.white)),
           content: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
+            builder: (BuildContext context, StateSetter setDialogState) {
               return SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -252,7 +284,7 @@ class _UsersTabState extends State<UsersTab> {
                       checkColor: Colors.black,
                       activeColor: const Color(0xFFFF4E00),
                       onChanged: (bool? value) {
-                        setState(() {
+                        setDialogState(() {
                           if (value == true) {
                             _selectedFilters.add(filter);
                           } else {
@@ -269,16 +301,16 @@ class _UsersTabState extends State<UsersTab> {
           actions: [
             TextButton(
               child: Text('Clear All',
-                  style: GoogleFonts.montserrat(color: Colors.white)),
+                  style: GoogleFonts.montserrat(color: Colors.white70)),
               onPressed: () {
                 setState(() {
                   _selectedFilters.clear();
-                  Navigator.pop(context);
                   _users.clear();
                   _lastDocument = null;
                   _hasMore = true;
-                  _fetchUsers();
                 });
+                Navigator.pop(context);
+                _fetchUsers();
               },
             ),
             TextButton(
@@ -291,8 +323,8 @@ class _UsersTabState extends State<UsersTab> {
                   _users.clear();
                   _lastDocument = null;
                   _hasMore = true;
-                  _fetchUsers();
                 });
+                _fetchUsers();
               },
             ),
           ],
@@ -308,20 +340,21 @@ class _UsersTabState extends State<UsersTab> {
       return _matchesSearch(data);
     }).toList();
 
-    // Since we're fetching sorted data from Firestore, no need to sort here
-    // If you still want to sort the filtered list, you can uncomment the following line
-    // _sortUsers(filteredUsers);
+    // Get current user role and id.
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String currentUserRole = userProvider.getUserRole;
+    final bool isAdmin = currentUserRole == 'admin';
+    final String? currentUserId = userProvider.userId;
 
     return Scaffold(
       body: GradientBackground(
         child: Column(
           children: [
-            // Updated Search, Sort, and Filter Row
+            // Search, Sort, and Filter Row.
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
                 children: [
-                  // Search Bar
                   Expanded(
                     child: Container(
                       height: 40,
@@ -333,7 +366,7 @@ class _UsersTabState extends State<UsersTab> {
                         controller: _searchController,
                         style: GoogleFonts.montserrat(color: Colors.white),
                         decoration: InputDecoration(
-                          hintText: 'Search users...',
+                          hintText: 'Search any field...',
                           hintStyle:
                               GoogleFonts.montserrat(color: Colors.white54),
                           prefixIcon:
@@ -355,13 +388,11 @@ class _UsersTabState extends State<UsersTab> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Sort Button
                   IconButton(
                     icon: const Icon(Icons.sort, color: Colors.white),
                     onPressed: _showSortMenu,
                     tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
                   ),
-                  // Sort Direction Button
                   IconButton(
                     icon: Icon(
                       _sortAscending
@@ -375,13 +406,12 @@ class _UsersTabState extends State<UsersTab> {
                         _users.clear();
                         _lastDocument = null;
                         _hasMore = true;
-                        _fetchUsers();
                       });
+                      _fetchUsers();
                     },
                     tooltip:
                         _sortAscending ? 'Sort Ascending' : 'Sort Descending',
                   ),
-                  // Filter Button
                   IconButton(
                     icon: const Icon(Icons.filter_list, color: Colors.white),
                     onPressed: _showFilterDialog,
@@ -390,8 +420,7 @@ class _UsersTabState extends State<UsersTab> {
                 ],
               ),
             ),
-            // Remove the old sort dropdown
-            // Expanded ListView
+            // Users List.
             Expanded(
               child: filteredUsers.isEmpty
                   ? _isLoading
@@ -407,7 +436,6 @@ class _UsersTabState extends State<UsersTab> {
                       itemCount: filteredUsers.length + (_hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index == filteredUsers.length) {
-                          // Show a loading indicator at the bottom
                           return const Center(
                             child: Padding(
                               padding: EdgeInsets.all(8.0),
@@ -415,18 +443,17 @@ class _UsersTabState extends State<UsersTab> {
                             ),
                           );
                         }
-
                         var userData =
                             filteredUsers[index].data() as Map<String, dynamic>;
                         String userId = filteredUsers[index].id;
                         String firstName = userData['firstName'] ?? 'No Name';
+                        String lastName = userData['lastName'] ?? '';
                         String email = userData['email'] ?? 'No Email';
                         String role = userData['userRole'] ?? 'user';
                         String companyName =
                             userData['companyName'] ?? 'No Company';
                         String tradingAs =
-                            userData['tradingName'] ?? 'No Trading As';
-
+                            userData['tradingAs'] ?? 'No Trading As';
                         var accountStatus = userData['accountStatus'];
                         String status;
                         if (accountStatus is String) {
@@ -436,7 +463,6 @@ class _UsersTabState extends State<UsersTab> {
                         } else {
                           status = 'active';
                         }
-
                         return Card(
                           color: Colors.grey[900],
                           margin: const EdgeInsets.symmetric(
@@ -452,25 +478,27 @@ class _UsersTabState extends State<UsersTab> {
                                     GoogleFonts.montserrat(color: Colors.white),
                               ),
                             ),
-                            title: Text(firstName,
-                                style: GoogleFonts.montserrat(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white)),
+                            title: Text(
+                              '$firstName $lastName',
+                              style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                             subtitle: Text(
-                                '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
-                                style: GoogleFonts.montserrat(
-                                    color: Colors.white70)),
+                              '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white70),
+                            ),
                             isThreeLine: false,
                             trailing: const Icon(Icons.arrow_forward_ios,
                                 color: Colors.white),
                             onTap: () {
-                              // Navigate to UserDetailPage
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => UserDetailPage(
-                                    userId: userId,
-                                  ),
+                                  builder: (context) =>
+                                      UserDetailPage(userId: userId),
                                 ),
                               );
                             },
@@ -485,20 +513,23 @@ class _UsersTabState extends State<UsersTab> {
       floatingActionButton: _isSecondaryAuthReady
           ? FloatingActionButton.extended(
               backgroundColor: const Color(0xFF0E4CAF),
-              icon: const Icon(
-                Icons.add,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.add, color: Colors.white),
               label: Text(
                 'Add User',
                 style: GoogleFonts.montserrat(color: Colors.white),
               ),
-              onPressed: () => _showCreateUserDialog(),
+              onPressed: _showCreateUserDialog,
             )
           : null,
     );
   }
 
+  /// Displays a dialog to create a new user.
+  ///
+  /// - **Admins:** Can create users of any role. If creating a transporter or dealer,
+  ///   they can assign a Sales Representative.
+  /// - **Sales Representatives:** Can only create transporter or dealer users.
+  ///   The Sales Representative is automatically assigned to themselves.
   Future<void> _showCreateUserDialog() async {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
@@ -506,10 +537,25 @@ class _UsersTabState extends State<UsersTab> {
     final companyNameController = TextEditingController();
     final tradingAsController = TextEditingController();
 
-    String? selectedRole = 'dealer';
-    final roles = ['admin', 'transporter', 'dealer'];
+    // Get current user's role and ID.
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String currentUserRole = userProvider.getUserRole;
+    final bool isAdmin = currentUserRole == 'admin';
+    final String? currentUserId = userProvider.userId;
 
-    // Check if _secondaryAuth is initialized
+    // Set default role based on current user's role.
+    String? selectedRole = isAdmin ? 'dealer' : 'transporter';
+    // This will hold the selected Sales Representative if needed.
+    String? selectedSalesRep;
+
+    // Define available roles based on current user's role.
+    List<String> roles = [];
+    if (isAdmin) {
+      roles = ['admin', 'transporter', 'dealer', 'sales representative'];
+    } else if (currentUserRole == 'sales representative') {
+      roles = ['transporter', 'dealer'];
+    }
+
     if (_secondaryAuth == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -520,135 +566,279 @@ class _UsersTabState extends State<UsersTab> {
       return;
     }
 
-    showDialog(
+    final GlobalKey<FormState> _createUserFormKey = GlobalKey<FormState>();
+
+    await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(
-          'Create New User',
-          style: GoogleFonts.montserrat(
-              color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CustomTextField(
-                hintText: 'FIRST NAME',
-                controller: firstNameController,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              backgroundColor: Colors.grey[900],
+              title: Text(
+                'Create New User',
+                style: GoogleFonts.montserrat(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                hintText: 'COMPANY NAME',
-                controller: companyNameController,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                hintText: 'TRADING AS',
-                controller: tradingAsController,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                hintText: 'EMAIL',
-                controller: emailController,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                hintText: 'PASSWORD',
-                controller: passwordController,
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedRole,
-                dropdownColor: Colors.grey[850],
-                style: GoogleFonts.montserrat(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'User Role',
-                  labelStyle: GoogleFonts.montserrat(color: Colors.white),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFFF4E00)),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: _createUserFormKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CustomTextField(
+                        hintText: 'FIRST NAME',
+                        controller: firstNameController,
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        hintText: 'COMPANY NAME',
+                        controller: companyNameController,
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        hintText: 'TRADING AS',
+                        controller: tradingAsController,
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        hintText: 'EMAIL',
+                        controller: emailController,
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        hintText: 'PASSWORD',
+                        controller: passwordController,
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedRole,
+                        dropdownColor: Colors.grey[850],
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'User Role',
+                          labelStyle:
+                              GoogleFonts.montserrat(color: Colors.white),
+                          enabledBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white70),
+                          ),
+                          focusedBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Color(0xFFFF4E00)),
+                          ),
+                        ),
+                        items: roles.map((role) {
+                          return DropdownMenuItem<String>(
+                            value: role,
+                            child: Text(
+                              role.replaceAll('_', ' ').toUpperCase(),
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setStateDialog(() {
+                            selectedRole = value;
+                            if (!(selectedRole == 'transporter' ||
+                                selectedRole == 'dealer')) {
+                              selectedSalesRep = null;
+                            }
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select a user role';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      if (isAdmin &&
+                          (selectedRole == 'transporter' ||
+                              selectedRole == 'dealer'))
+                        FutureBuilder<QuerySnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .where('userRole',
+                                  isEqualTo: 'sales representative')
+                              .get(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircularProgressIndicator();
+                            }
+                            if (!snapshot.hasData ||
+                                snapshot.data!.docs.isEmpty) {
+                              return Text(
+                                'No Sales Representatives available.',
+                                style:
+                                    GoogleFonts.montserrat(color: Colors.white),
+                              );
+                            }
+                            List<DropdownMenuItem<String>> salesRepItems =
+                                snapshot.data!.docs.map((doc) {
+                              Map<String, dynamic> repData =
+                                  doc.data() as Map<String, dynamic>;
+                              String repName =
+                                  repData['firstName'] ?? 'No Name';
+                              if (repData['lastName'] != null) {
+                                repName += ' ${repData['lastName']}';
+                              }
+                              return DropdownMenuItem<String>(
+                                value: doc.id,
+                                child: Text(
+                                  repName,
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                ),
+                              );
+                            }).toList();
+                            return DropdownButtonFormField<String>(
+                              value: selectedSalesRep,
+                              dropdownColor: Colors.grey[850],
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Assign Sales Rep',
+                                labelStyle:
+                                    GoogleFonts.montserrat(color: Colors.white),
+                                enabledBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white70),
+                                ),
+                                focusedBorder: const UnderlineInputBorder(
+                                  borderSide:
+                                      BorderSide(color: Color(0xFFFF4E00)),
+                                ),
+                              ),
+                              items: salesRepItems,
+                              onChanged: (value) {
+                                setStateDialog(() {
+                                  selectedSalesRep = value;
+                                });
+                              },
+                              validator: (value) {
+                                if ((selectedRole == 'transporter' ||
+                                        selectedRole == 'dealer') &&
+                                    (value == null || value.isEmpty)) {
+                                  return 'Please select a sales representative';
+                                }
+                                return null;
+                              },
+                            );
+                          },
+                        ),
+                    ],
                   ),
                 ),
-                items: roles.map((role) {
-                  return DropdownMenuItem<String>(
-                    value: role,
-                    child: Text(
-                      role,
-                      style: GoogleFonts.montserrat(color: Colors.white),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedRole = value;
-                  });
-                },
               ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.montserrat(
-                color: Colors.white70,
-              ),
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-          TextButton(
-            child: Text(
-              'Create',
-              style: GoogleFonts.montserrat(
-                color: const Color(0xFFFF4E00),
-              ),
-            ),
-            onPressed: () async {
-              try {
-                final secondaryAuth = _secondaryAuth!;
-                UserCredential userCredential =
-                    await secondaryAuth.createUserWithEmailAndPassword(
-                  email: emailController.text.trim(),
-                  password: passwordController.text.trim(),
-                );
+              actions: [
+                TextButton(
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.montserrat(color: Colors.white70),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                TextButton(
+                  child: Text(
+                    'Create',
+                    style:
+                        GoogleFonts.montserrat(color: const Color(0xFFFF4E00)),
+                  ),
+                  onPressed: () async {
+                    if (!_createUserFormKey.currentState!.validate()) {
+                      return;
+                    }
+                    if (isAdmin &&
+                        (selectedRole == 'transporter' ||
+                            selectedRole == 'dealer') &&
+                        (selectedSalesRep == null ||
+                            selectedSalesRep!.isEmpty)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Please select a Sales Representative for the account.',
+                            style: GoogleFonts.montserrat(),
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    if (!isAdmin &&
+                        !(selectedRole == 'transporter' ||
+                            selectedRole == 'dealer')) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Sales Representatives can only create Transporters or Dealers.',
+                            style: GoogleFonts.montserrat(),
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    try {
+                      final secondaryAuth = _secondaryAuth!;
+                      UserCredential userCredential =
+                          await secondaryAuth.createUserWithEmailAndPassword(
+                        email: emailController.text.trim(),
+                        password: passwordController.text.trim(),
+                      );
 
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userCredential.user!.uid)
-                    .set({
-                  'firstName': firstNameController.text.trim(),
-                  'companyName': companyNameController.text.trim(),
-                  'tradingAs': tradingAsController.text.trim(),
-                  'email': userCredential.user!.email,
-                  'createdAt': FieldValue.serverTimestamp(),
-                  'userRole': selectedRole,
-                  'accountStatus': 'active',
-                  'createdBy': 'admin',
-                });
+                      Map<String, dynamic> newUserData = {
+                        'firstName': firstNameController.text.trim(),
+                        'companyName': companyNameController.text.trim(),
+                        'tradingAs': tradingAsController.text.trim(),
+                        'email': userCredential.user!.email,
+                        'createdAt': FieldValue.serverTimestamp(),
+                        'userRole': selectedRole,
+                        'accountStatus': 'active',
+                        'createdBy': isAdmin ? 'admin' : 'sales representative',
+                      };
 
-                Navigator.pop(context);
-                // Refresh the list
-                setState(() {
-                  _users.clear();
-                  _lastDocument = null;
-                  _hasMore = true;
-                });
-                _fetchUsers();
-              } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error creating user: $e')),
-                );
-              }
-            },
-          ),
-        ],
-      ),
+                      if (selectedRole == 'transporter' ||
+                          selectedRole == 'dealer') {
+                        if (isAdmin) {
+                          newUserData['assignedSalesRep'] = selectedSalesRep;
+                        } else if (currentUserRole == 'sales representative') {
+                          newUserData['assignedSalesRep'] = currentUserId;
+                        }
+                      }
+
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(userCredential.user!.uid)
+                          .set(newUserData);
+
+                      Navigator.pop(context);
+                      setState(() {
+                        _users.clear();
+                        _lastDocument = null;
+                        _hasMore = true;
+                      });
+                      _fetchUsers();
+                    } catch (e) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Error creating user: $e',
+                            style: GoogleFonts.montserrat(),
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

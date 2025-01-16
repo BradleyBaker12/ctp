@@ -136,7 +136,6 @@ flutter:
     - lib/assets/Freightliner-logo-6000x2000.png
     - lib/assets/countries.json
     - lib/assets/updated_truck_data.json
-    - lib/assets/reorganized_truck_data.json
     - lib/assets/version.json
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

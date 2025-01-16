@@ -111,7 +111,7 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
       } catch (e) {
         print('Error updating user role: $e');
-        throw e;
+        rethrow;
       }
     } else {
       throw Exception('No user logged in');
@@ -183,6 +183,13 @@ class UserProvider extends ChangeNotifier {
       print('Error fetching user details for userId $userId: $e');
       rethrow; // Propagate the error to be handled in the UI
     }
+  }
+
+  // New Convenience Method to get the assigned sales rep's account details.
+  Future<UserDetails> getAssignedSalesRepAccount(
+      String assignedSalesRepId) async {
+    // This uses your existing getUserDetailsById method.
+    return await getUserDetailsById(assignedSalesRepId);
   }
 
   // Method to check for notifications
@@ -331,6 +338,23 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       print('Error fetching dealers: $e');
       // Optionally handle errors (e.g., set an error state, show a message)
+    }
+  }
+
+  Future<void> fetchAdmins() async {
+    try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userRole', whereIn: ['admin', 'sales representative']).get();
+
+      _dealers = querySnapshot.docs.map((doc) {
+        return Dealer.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching Admins and Sales Reps: $e');
+      // Optionally, handle errors (e.g., set an error state or show a message)
     }
   }
 

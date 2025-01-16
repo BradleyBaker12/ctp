@@ -72,12 +72,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      if (userProvider.getUserRole == 'admin') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const AdminHomePage()),
-        );
-        return;
+      String userRole = userProvider.getUserRole;
+      if (userRole == 'admin' || userRole == 'sales representative') {
+        Navigator.pushReplacementNamed(context, '/admin-home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
       }
 
       // Fetch vehicles with proper error handling

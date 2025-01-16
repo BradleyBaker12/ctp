@@ -10,7 +10,6 @@ import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 // ^^^ Make sure the import path is correct for your EditTrailerUploadScreen.
-
 import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/pages/setup_inspection.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
@@ -135,7 +134,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // Fetching dealers (if admin)
+  // Fetching dealers (if admin or sales representative)
   Future<void> _fetchAllDealers() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     setState(() {
@@ -264,9 +263,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
+  // Updated navigation: sales representatives are treated like admins.
   void _navigateToEditPage() {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isAdmin = (userProvider.getUserRole == 'admin');
+    final bool isSalesRep =
+        (userProvider.getUserRole == 'sales representative');
+    final bool isAdminOrSalesRep = isAdmin || isSalesRep;
 
     // Check if the vehicle is a trailer
     if (widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
@@ -277,7 +280,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           builder: (context) => EditTrailerUploadScreen(
             isDuplicating: false,
             isNewUpload: false,
-            isAdminUpload: isAdmin,
+            isAdminUpload: isAdminOrSalesRep,
             vehicle: widget.vehicle,
           ),
         ),
@@ -489,6 +492,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
+    final bool isSalesRep =
+        (userProvider.getUserRole == 'sales representative');
     final bool isDealer = userRole == 'dealer';
 
     // Validate offer amount
@@ -502,8 +507,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       return;
     }
 
-    // Ensure dealer is selected if the user is admin
-    if (isAdmin && _selectedDealer == null) {
+    // Ensure dealer is selected if the user is admin or a sales representative
+    if ((isAdmin || isSalesRep) && _selectedDealer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:
@@ -514,7 +519,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       return;
     }
 
-    // Check dealer verification and document status at the start
+    // Check dealer verification and document status at the start for dealers
     if (isDealer) {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -557,7 +562,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       }
 
       // Prepare offer details
-      String dealerId = isAdmin
+      String dealerId = (isAdmin || isSalesRep)
           ? _selectedDealer!.id
           : isDealer
               ? user.uid
@@ -597,7 +602,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         _offerAmount = 0.0;
         _hasMadeOffer = true;
         _offerStatus = 'in-progress';
-        if (isAdmin) {
+        if (isAdmin || isSalesRep) {
           final dealers = userProvider.dealers;
           _selectedDealer = dealers.isNotEmpty ? dealers.first : null;
         }
@@ -665,8 +670,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // Basic Info progress (example placeholders)
   int _calculateBasicInfoProgress() {
     int completedSteps = 0;
-    if (vehicle.mainImageUrl != null && vehicle.mainImageUrl!.isNotEmpty)
+    if (vehicle.mainImageUrl != null && vehicle.mainImageUrl!.isNotEmpty) {
       completedSteps++;
+    }
     // Assuming there are 11 steps; adjust accordingly
     completedSteps += 3; // Placeholder for additional steps
     return completedSteps;
@@ -676,7 +682,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   int _calculateMaintenanceProgress() {
     int completedSteps = 0;
     if (vehicle.maintenance.maintenanceDocUrl != null &&
-        vehicle.maintenance.maintenanceDocUrl!.isNotEmpty) completedSteps++;
+        vehicle.maintenance.maintenanceDocUrl!.isNotEmpty) {
+      completedSteps++;
+    }
     // Assuming there are 4 steps; adjust accordingly
     return completedSteps;
   }
@@ -734,7 +742,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   //=============================================
   Widget _buildTrailerSection(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isAdmin = (userProvider.getUserRole == 'admin');
+    // For trailer section, sales representatives are treated like admins.
+    final bool isAdminOrSalesRep = (userProvider.getUserRole == 'admin' ||
+        userProvider.getUserRole == 'sales representative');
 
     return GestureDetector(
       onTap: () async {
@@ -745,7 +755,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             builder: (context) => EditTrailerUploadScreen(
               isDuplicating: false,
               isNewUpload: false,
-              isAdminUpload: isAdmin,
+              isAdminUpload: isAdminOrSalesRep,
               vehicle: widget.vehicle,
             ),
           ),
@@ -785,6 +795,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final userProvider = Provider.of<UserProvider>(context);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
+    final bool isSalesRep = userRole == 'sales representative';
+    final bool isAdminOrSalesRep = isAdmin || isSalesRep;
     final bool isDealer = userRole == 'dealer';
     final bool isTransporter = userRole == 'transporter';
 
@@ -831,7 +843,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ],
         ),
         actions: [
-          if (isTransporter || isAdmin)
+          // Updated: include sales representatives as admin-level users
+          if (isTransporter || isAdminOrSalesRep)
             IconButton(
               icon: const Icon(
                 Icons.edit,
@@ -842,7 +855,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 _navigateToEditPage();
               },
             ),
-          if (isTransporter || isAdmin)
+          if (isTransporter || isAdminOrSalesRep)
             IconButton(
               icon: const Icon(
                 Icons.delete,
@@ -854,28 +867,31 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   context: context,
                   builder: (BuildContext context) {
                     return AlertDialog(
-                      title: const Text('Delete Vehicle'),
+                      title: const Text('DeleteVehicle'),
                       content: const Text(
-                          'Are you sure you want to delete this vehicle?'),
+                        'Are you sure you want to delete this vehicle? ',
+                      ),
                       actions: [
                         TextButton(
                           child: const Text('Cancel'),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                         TextButton(
-                          child: const Text('Delete'),
+                          child: const Text('Archive'),
                           onPressed: () async {
                             try {
                               await FirebaseFirestore.instance
                                   .collection('vehicles')
                                   .doc(widget.vehicle.id)
-                                  .delete();
+                                  .update({
+                                'vehicleStatus': 'Archived',
+                              });
                               Navigator.of(context).pop();
                               Navigator.of(context).pop();
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Error deleting vehicle: $e'),
+                                  content: Text('Error archiving vehicle: $e'),
                                 ),
                               );
                             }
@@ -994,7 +1010,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       const SizedBox(height: 16),
 
                       // (Optional) "Make an Offer" or "Offer Status" -- if you want for dealers
-                      if ((isAdmin || isDealer) &&
+                      if ((isAdminOrSalesRep || isDealer) &&
                           (!_hasMadeOffer || _offerStatus == 'rejected')) ...[
                         // The row with X and favorite
                         Row(
@@ -1016,7 +1032,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        if (isAdmin) ...[
+                        if (isAdminOrSalesRep) ...[
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
@@ -1208,10 +1224,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               .doc(userProvider.userId)
                               .snapshots(),
                           builder: (context, snapshot) {
-                            if (snapshot.hasData && !isAdmin && isDealer) {
+                            if (snapshot.hasData &&
+                                !isAdminOrSalesRep &&
+                                isDealer) {
                               Map<String, dynamic> userData =
                                   snapshot.data!.data() as Map<String, dynamic>;
-
 
                               // Detailed debug logging
                               print('Raw userData: $userData');
@@ -1248,7 +1265,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               // Return empty container if documents are uploaded and approved
                               return Container();
                             }
-                            // Return empty container for non-dealers or admins
+                            // Return empty container for non-dealers or admin-level users
                             return Container();
                           },
                         ),
@@ -1273,7 +1290,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             ),
                           ),
                         ),
-                      ] else if ((isAdmin || isDealer) &&
+                      ] else if ((isAdminOrSalesRep || isDealer) &&
                           _hasMadeOffer &&
                           _offerStatus != 'rejected')
                         Center(
@@ -1310,19 +1327,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         // If not trailer => the usual truck blocks
                         Column(
                           children: [
-                            if (isDealer || isAdmin)
+                            if (isDealer || isAdminOrSalesRep)
                               _buildSection(
                                 context,
                                 'BASIC INFORMATION',
                                 '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED',
                               ),
-                            if (isDealer || isAdmin)
+                            if (isDealer || isAdminOrSalesRep)
                               _buildSection(
                                 context,
                                 'TRUCK CONDITIONS',
                                 '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED',
                               ),
-                            if (isDealer || isAdmin)
+                            if (isDealer || isAdminOrSalesRep)
                               _buildSection(
                                 context,
                                 'MAINTENANCE AND WARRANTY',
@@ -1362,7 +1379,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             ),
         ],
       ),
-      bottomNavigationBar: isAdmin
+      // Updated: sales representatives have the same bottom navigation rules as admins
+      bottomNavigationBar: (isAdminOrSalesRep)
           ? null
           : isDealer
               ? CustomBottomNavigation(

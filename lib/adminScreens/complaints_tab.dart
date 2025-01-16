@@ -27,15 +27,14 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
   final List<String> _filterOptions = [
     'All Complaints',
     'Open',
-    'In Progress',
     'Resolved',
-    'Closed'
+    'Dismissed',
   ];
 
   @override
   void initState() {
     super.initState();
-    // Fetch complaints when the widget is first built
+    // Fetch complaints when the widget is first built.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ComplaintsProvider>(context, listen: false)
           .fetchAllComplaints();
@@ -49,21 +48,43 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
   }
 
   /// **Helper Method: Filter and Search Matching**
+  /// This method checks if a given complaint matches the search query and filter options.
   bool _matchesFiltersAndSearch(Complaint complaint) {
-    // String userNameLower = complaint.userName.toLowerCase();
-    String message = complaint.description.toLowerCase();
+    // Convert relevant fields to lowercase for case-insensitive searching.
+    String description = complaint.description.toLowerCase();
     String status = complaint.complaintStatus.toLowerCase();
 
+    // 1) Does it match the search query?
     bool matchesSearch = _searchQuery.isEmpty ||
-        // userNameLower.contains(_searchQuery.toLowerCase()) ||
-        message.contains(_searchQuery.toLowerCase()) ||
+        description.contains(_searchQuery.toLowerCase()) ||
         status.contains(_searchQuery.toLowerCase());
 
-    bool matchesFilter = _selectedFilters.isEmpty ||
-        _selectedFilters.contains('All Complaints') ||
-        _selectedFilters.contains(_capitalize(status));
+    // 2) Does it match the selected filters?
+    // If no filters are selected OR "All Complaints" is selected, show everything.
+    if (_selectedFilters.isEmpty ||
+        _selectedFilters.contains('All Complaints')) {
+      return matchesSearch;
+    } else {
+      bool matchesFilter = false;
 
-    return matchesSearch && matchesFilter;
+      // "Open" = not resolved, not dismissed.
+      if (_selectedFilters.contains('Open') &&
+          (status != 'resolved' && status != 'dismissed')) {
+        matchesFilter = true;
+      }
+
+      // "Resolved" = exactly resolved.
+      if (_selectedFilters.contains('Resolved') && status == 'resolved') {
+        matchesFilter = true;
+      }
+
+      // "Dismissed" = exactly dismissed.
+      if (_selectedFilters.contains('Dismissed') && status == 'dismissed') {
+        matchesFilter = true;
+      }
+
+      return matchesSearch && matchesFilter;
+    }
   }
 
   /// **Helper Method: Capitalize First Letter**
@@ -74,7 +95,7 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Access the UserProvider and ComplaintsProvider
+    // Access the UserProvider and ComplaintsProvider.
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final complaintsProvider = Provider.of<ComplaintsProvider>(context);
 
@@ -89,20 +110,34 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
         case 'status':
           comparison = a.complaintStatus.compareTo(b.complaintStatus);
           break;
+        // If needed, you can add additional sort fields (e.g., userName).
         default:
           comparison = 0;
       }
       return _sortAscending ? comparison : -comparison;
     });
 
-    // **Apply Filtering and Search**
+    // **Apply Additional Filtering for Sales Representatives**
+    // If the current user is a sales rep, only display complaints related to
+    // their vehicles or accounts. In this example, we assume that each complaint
+    // has an 'assignedSalesRepId' field that can be matched with the current user ID.
+    final String currentUserRole = userProvider.getUserRole;
+    final String? currentUserId = userProvider.userId;
+
     List<Complaint> filteredComplaints = sortedComplaints.where((complaint) {
+      // If the user is a sales representative, filter complaints based on the related sales rep.
+      if (currentUserRole.toLowerCase() == 'sales representative') {
+        // NOTE: Adjust 'assignedSalesRepId' if your complaint model uses a different field.
+        if (complaint.assignedSalesRepId != currentUserId) {
+          return false;
+        }
+      }
       return _matchesFiltersAndSearch(complaint);
     }).toList();
 
     return Scaffold(
       body: GradientBackground(
-        // Ensure you have a GradientBackground widget
+        // Ensure you have a GradientBackground widget.
         child: Column(
           children: [
             // **Search, Sort, and Filter Row**
@@ -236,13 +271,13 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
                                     MaterialPageRoute(
                                       builder: (context) => ComplaintDetailPage(
                                         complaint:
-                                            complaint, // Pass the complaint data
+                                            complaint, // Pass the complaint data.
                                       ),
                                     ),
                                   );
                                 },
                                 trailing: PopupMenuButton<String>(
-                                  icon: Icon(Icons.more_vert,
+                                  icon: const Icon(Icons.more_vert,
                                       color: Colors.white),
                                   onSelected: (value) async {
                                     bool? confirm = await showDialog<bool>(
@@ -282,8 +317,6 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
                                     );
 
                                     if (confirm == true) {
-                                      // Replace the switch case in the PopupMenuButton onSelected handler:
-
                                       switch (value) {
                                         case 'Resolve':
                                           try {
@@ -501,8 +534,8 @@ class _ComplaintsTabState extends State<ComplaintsTab> {
               onPressed: () {
                 setState(() {
                   _selectedFilters.clear();
-                  Navigator.pop(context);
                 });
+                Navigator.pop(context);
               },
             ),
             TextButton(

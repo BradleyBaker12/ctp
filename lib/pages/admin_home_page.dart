@@ -22,7 +22,7 @@ class AdminHomePage extends StatefulWidget {
 class _AdminHomePageState extends State<AdminHomePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  Key _offersTabKey = UniqueKey(); // Add this line
+  final Key _offersTabKey = UniqueKey(); // Add this line
 
   final List<Tab> myTabs = <Tab>[
     const Tab(text: 'Users'),
@@ -125,7 +125,8 @@ class _AdminHomePageState extends State<AdminHomePage>
     final userProvider = Provider.of<UserProvider>(context);
 
     // Ensure only admins can access this page
-    if (userProvider.userRole != 'admin') {
+    if (userProvider.userRole != 'admin' &&
+        userProvider.userRole != 'sales representative') {
       // Redirect to an error page or unauthorized access page
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacementNamed(context, '/error');

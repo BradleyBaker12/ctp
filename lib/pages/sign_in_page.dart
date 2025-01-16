@@ -26,7 +26,7 @@ class _SignInPageState extends State<SignInPage> {
   bool _isLoading = false;
   bool _passwordVisible = false;
 
-  // List of admin emails
+  // List of admin emails (if needed later)
   final List<String> adminEmails = [
     'admin1@example.com',
     'admin2@example.com',
@@ -47,7 +47,8 @@ class _SignInPageState extends State<SignInPage> {
     }
 
     // Check for valid email format
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}');
+    final emailRegex = RegExp(
+        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$'); // Added '$' at the end for exact matching
     if (!emailRegex.hasMatch(_emailController.text.trim())) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -69,13 +70,19 @@ class _SignInPageState extends State<SignInPage> {
       );
 
       if (userCredential.user != null) {
-        // Fetch user data and check account status
+        // Safely fetch user data and check account status
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
             .get();
 
-        String accountStatus = userDoc.get('accountStatus') ?? 'active';
+        Map<String, dynamic>? userData =
+            userDoc.data() as Map<String, dynamic>?;
+        // Use 'active' as the default status if the field is missing
+        String accountStatus =
+            (userData != null && userData.containsKey('accountStatus'))
+                ? userData['accountStatus'] as String
+                : 'active';
 
         if (accountStatus == 'suspended' || accountStatus == 'inactive') {
           // Redirect to waiting page
@@ -88,7 +95,7 @@ class _SignInPageState extends State<SignInPage> {
 
           // Navigate based on role
           String userRole = userProvider.getUserRole;
-          if (userRole == 'admin') {
+          if (userRole == 'admin' || userRole == 'sales representative') {
             Navigator.pushReplacementNamed(context, '/admin-home');
           } else {
             Navigator.pushReplacementNamed(context, '/home');
@@ -185,6 +192,14 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   @override
+  void dispose() {
+    // Dispose the controllers to prevent memory leaks.
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     var orange = const Color(0xFFFF4E00);
@@ -225,8 +240,10 @@ class _SignInPageState extends State<SignInPage> {
                                 ),
                               ),
                               SizedBox(height: screenSize.height * 0.08),
-                              Image.asset('lib/assets/CTPLogo.png',
-                                  height: screenSize.height * 0.15),
+                              Image.asset(
+                                'lib/assets/CTPLogo.png',
+                                height: screenSize.height * 0.15,
+                              ),
                               SizedBox(height: screenSize.height * 0.08),
                               Text(
                                 'SIGN IN',

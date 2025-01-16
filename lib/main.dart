@@ -4,6 +4,7 @@ import 'package:ctp/pages/add_profile_photo_admin_page.dart';
 import 'package:ctp/pages/add_profile_photo_transporter.dart';
 import 'package:ctp/pages/admin_home_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
+import 'package:ctp/pages/error_page.dart';
 import 'package:ctp/pages/first_name_page.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/house_rules_page.dart';
@@ -119,6 +120,7 @@ class MyApp extends StatelessWidget {
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
+        '/error': (context) => ErrorPage(), // Create a basic error page
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
@@ -133,6 +135,15 @@ class MyApp extends StatelessWidget {
           );
         }
         return null;
+      },
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: Text('Route ${settings.name} not found'),
+            ),
+          ),
+        );
       },
     );
   }

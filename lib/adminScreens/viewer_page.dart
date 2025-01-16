@@ -1,17 +1,15 @@
-// lib/adminScreens/invoice_viewer_page.dart
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
+import 'package:path/path.dart' as p;
 
 class ViewerPage extends StatefulWidget {
   final String url;
 
-  const ViewerPage({Key? key, required this.url}) : super(key: key);
+  const ViewerPage({super.key, required this.url});
 
   @override
   _ViewerPageState createState() => _ViewerPageState();
@@ -19,75 +17,139 @@ class ViewerPage extends StatefulWidget {
 
 class _ViewerPageState extends State<ViewerPage> {
   bool _isLoading = true;
-  String? _localPath;
+  String? _localPDFPath; // For storing the local path of the downloaded PDF
 
   @override
   void initState() {
     super.initState();
+    debugPrint('DEBUG: initState -> Widget URL: ${widget.url}');
     _prepareFile();
   }
 
+  /// If the file is a PDF, download it to a local temp directory; otherwise skip.
   Future<void> _prepareFile() async {
     try {
-      // Check if the file is a PDF
-      if (widget.url.toLowerCase().endsWith('.pdf')) {
-        // Download the PDF file to a temporary directory
-        final response = await http.get(Uri.parse(widget.url));
-        final bytes = response.bodyBytes;
-        final dir = await getTemporaryDirectory();
-        final filePath = path.join(dir.path, path.basename(widget.url));
-        final file = File(filePath);
-        await file.writeAsBytes(bytes, flush: true);
-        setState(() {
-          _localPath = filePath;
-          _isLoading = false;
-        });
-      } else {
-        // For images, no need to download; use the URL directly
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error preparing file: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load the invoice.'),
-          backgroundColor: Colors.red,
-        ),
+      // Strip query parameters, then check if it ends with .pdf
+      final sanitizedUrl = widget.url.split('?').first.toLowerCase();
+      final isPDF = sanitizedUrl.endsWith('.pdf');
+      debugPrint(
+        'DEBUG: _prepareFile -> isPDF: $isPDF (sanitizedUrl=$sanitizedUrl)',
       );
-      Navigator.pop(context);
+
+      if (isPDF) {
+        debugPrint('DEBUG: Attempting to download PDF from: ${widget.url}');
+        final response = await http.get(Uri.parse(widget.url));
+        debugPrint('DEBUG: HTTP GET -> status code: ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          final bytes = response.bodyBytes;
+          final tempDir = await getTemporaryDirectory();
+          final fileName = p.basename(sanitizedUrl);
+          // Or just p.basename(widget.url); either is fine
+
+          final filePath = p.join(tempDir.path, fileName);
+          final file = File(filePath);
+
+          await file.writeAsBytes(bytes, flush: true);
+          debugPrint('DEBUG: PDF downloaded to local path: $filePath');
+
+          setState(() {
+            _localPDFPath = filePath;
+            _isLoading = false;
+          });
+        } else {
+          throw Exception(
+            'HTTP Error: ${response.statusCode} for ${widget.url}',
+          );
+        }
+      } else {
+        // If not a PDF, just mark as finished loading
+        debugPrint('DEBUG: File is not PDF, skipping download...');
+        setState(() => _isLoading = false);
+      }
+    } catch (e, stackTrace) {
+      debugPrint('ERROR: _prepareFile -> $e');
+      debugPrint('STACK TRACE:\n$stackTrace');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pop(context);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isPDF = widget.url.toLowerCase().endsWith('.pdf');
+    // Again, strip query params in case .pdf is at the end
+    final sanitizedUrl = widget.url.split('?').first.toLowerCase();
+    final isPDF = sanitizedUrl.endsWith('.pdf');
+
+    debugPrint(
+      'DEBUG: build -> isPDF: $isPDF, _isLoading: $_isLoading',
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('View Invoice'),
+        title: const Text('View File'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : isPDF
-              ? _localPath != null
-                  ? PDFView(
-                      filePath: _localPath,
-                      enableSwipe: true,
-                      swipeHorizontal: true,
-                      autoSpacing: false,
-                      pageFling: false,
-                    )
+              // ---- PDF Mode ----
+              ? (_localPDFPath != null)
+                  ? _buildPDFView()
                   : const Center(child: Text('Failed to load PDF.'))
-              : PhotoView(
-                  imageProvider: NetworkImage(widget.url),
-                  loadingBuilder: (context, event) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Center(child: Text('Error loading image')),
-                ),
+              // ---- Image Mode ----
+              : _buildImageView(),
+    );
+  }
+
+  /// Builds the PDF viewer widget.
+  Widget _buildPDFView() {
+    debugPrint('DEBUG: _buildPDFView -> using PDFView with $_localPDFPath');
+    return PDFView(
+      filePath: _localPDFPath!,
+      enableSwipe: true,
+      swipeHorizontal: true,
+      autoSpacing: false,
+      pageFling: false,
+      onError: (error) {
+        debugPrint('ERROR: PDFView -> onError: $error');
+      },
+      onRender: (pages) {
+        debugPrint('DEBUG: PDFView -> onRender, pages: $pages');
+      },
+      onViewCreated: (controller) {
+        debugPrint('DEBUG: PDFView -> onViewCreated');
+      },
+    );
+  }
+
+  /// Builds the image viewer widget.
+  Widget _buildImageView() {
+    debugPrint(
+      'DEBUG: _buildImageView -> using PhotoView with URL: ${widget.url}',
+    );
+    return PhotoView(
+      imageProvider: NetworkImage(widget.url),
+      loadingBuilder: (context, event) {
+        debugPrint('DEBUG: _buildImageView -> Loading image...');
+        return const Center(child: CircularProgressIndicator());
+      },
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('ERROR: PhotoView -> errorBuilder: $error');
+        return const Center(
+          child: Text(
+            'Error loading image',
+            style: TextStyle(color: Colors.red),
+          ),
+        );
+      },
     );
   }
 }
