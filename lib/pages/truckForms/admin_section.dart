@@ -7,7 +7,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-
 class AdminSection extends StatefulWidget {
   final String vehicleId; // Required vehicleId
   final bool isUploading;
@@ -157,8 +156,10 @@ class AdminSectionState extends State<AdminSection>
     return url.split('/').last.split('?').first;
   }
 
-  // Helper method to display uploaded files
-  Widget _buildUploadedFile(File? file, String? fileUrl, bool isUploading) {
+  // Updated helper method to display uploaded files with a DELETE ("X") button
+  Widget _buildUploadedFile(
+      File? file, String? fileUrl, bool isUploading, int docNumber) {
+    // If no file or URL, show placeholder text
     if (file == null && fileUrl == null) {
       return const Text(
         'No file selected',
@@ -177,95 +178,145 @@ class AdminSectionState extends State<AdminSection>
         fileName = 'Unknown';
         extension = '';
       }
-      return Column(
+
+      // Wrap the file preview in a Stack to overlay the "X" button
+      return Stack(
+        alignment: Alignment.center,
         children: [
-          if (file != null)
-            if (_isImageFile(file.path))
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  file,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              )
-            else
-              Column(
-                children: [
-                  Icon(
-                    _getFileIcon(extension),
-                    color: Colors.white,
-                    size: 50.0,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      fileName,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
+          // The file preview (image or icon + filename)
+          Column(
+            children: [
+              if (file != null)
+                if (_isImageFile(file.path))
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.file(
+                      file,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
                     ),
-                  ),
-                ],
-              )
-          else if (fileUrl != null)
-            if (_isImageUrl(fileUrl))
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  fileUrl,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              )
-            else
-              Column(
-                children: [
-                  Icon(
-                    _getFileIcon(extension),
-                    color: Colors.white,
-                    size: 50.0,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      fileName,
-                      style: const TextStyle(
-                        fontSize: 14,
+                  )
+                else
+                  Column(
+                    children: [
+                      Icon(
+                        _getFileIcon(extension),
                         color: Colors.white,
-                        fontWeight: FontWeight.w500,
+                        size: 50.0,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text(
+                          fileName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  )
+              else if (fileUrl != null)
+                if (_isImageUrl(fileUrl))
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      fileUrl,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
                     ),
+                  )
+                else
+                  Column(
+                    children: [
+                      Icon(
+                        _getFileIcon(extension),
+                        color: Colors.white,
+                        size: 50.0,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text(
+                          fileName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+              const SizedBox(height: 8),
+              if (isUploading)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    CircularProgressIndicator(),
+                    SizedBox(width: 10),
+                    Text(
+                      'Uploading...',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+
+          // ADDED: The DELETE (X) button
+          Positioned(
+            top: 0,
+            right: 0,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  // Clear both the file and the URL for the matching docNumber
+                  switch (docNumber) {
+                    case 1:
+                      _natisRc1File = null;
+                      _natisRc1Url = null;
+                      widget.onAdminDoc1Selected(null);
+                      break;
+                    case 2:
+                      _licenseDiskFile = null;
+                      _licenseDiskUrl = null;
+                      widget.onAdminDoc2Selected(null);
+                      break;
+                    case 3:
+                      _settlementLetterFile = null;
+                      _settlementLetterUrl = null;
+                      widget.onAdminDoc3Selected(null);
+                      break;
+                  }
+                });
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(4.0),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
-          const SizedBox(height: 8),
-          if (isUploading)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                CircularProgressIndicator(),
-                SizedBox(width: 10),
-                Text(
-                  'Uploading...',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
             ),
+          ),
         ],
       );
     }
@@ -472,6 +523,7 @@ class AdminSectionState extends State<AdminSection>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     return SingleChildScrollView(
       // Added to handle overflow
       child: Column(
@@ -517,7 +569,7 @@ class AdminSectionState extends State<AdminSection>
               child: Column(
                 children: [
                   if (_natisRc1File == null && _natisRc1Url == null)
-                    Icon(
+                    const Icon(
                       Icons.drive_folder_upload_outlined,
                       color: Colors.white,
                       size: 50.0,
@@ -526,7 +578,7 @@ class AdminSectionState extends State<AdminSection>
                   const SizedBox(height: 10),
                   if (_natisRc1File != null || _natisRc1Url != null)
                     _buildUploadedFile(
-                        _natisRc1File, _natisRc1Url, _isUploading)
+                        _natisRc1File, _natisRc1Url, _isUploading, 1)
                   else
                     const Text(
                       'NATIS/RC1 Upload',
@@ -541,6 +593,7 @@ class AdminSectionState extends State<AdminSection>
             ),
           ),
           const SizedBox(height: 15),
+
           // Upload License Disk
           Center(
             child: Text(
@@ -570,7 +623,7 @@ class AdminSectionState extends State<AdminSection>
               child: Column(
                 children: [
                   if (_licenseDiskFile == null && _licenseDiskUrl == null)
-                    Icon(
+                    const Icon(
                       Icons.drive_folder_upload_outlined,
                       color: Colors.white,
                       size: 50.0,
@@ -579,7 +632,7 @@ class AdminSectionState extends State<AdminSection>
                   const SizedBox(height: 10),
                   if (_licenseDiskFile != null || _licenseDiskUrl != null)
                     _buildUploadedFile(
-                        _licenseDiskFile, _licenseDiskUrl, _isUploading)
+                        _licenseDiskFile, _licenseDiskUrl, _isUploading, 2)
                   else
                     const Text(
                       'License Disk Upload',
@@ -594,6 +647,7 @@ class AdminSectionState extends State<AdminSection>
             ),
           ),
           const SizedBox(height: 15),
+
           // Conditionally display Settlement Letter upload and Settlement Amount field
           if (widget.requireToSettleType == 'yes') ...[
             // Upload Settlement Letter
@@ -626,7 +680,7 @@ class AdminSectionState extends State<AdminSection>
                   children: [
                     if (_settlementLetterFile == null &&
                         _settlementLetterUrl == null)
-                      Icon(
+                      const Icon(
                         Icons.drive_folder_upload_outlined,
                         color: Colors.white,
                         size: 50.0,
@@ -636,7 +690,7 @@ class AdminSectionState extends State<AdminSection>
                     if (_settlementLetterFile != null ||
                         _settlementLetterUrl != null)
                       _buildUploadedFile(_settlementLetterFile,
-                          _settlementLetterUrl, _isUploading)
+                          _settlementLetterUrl, _isUploading, 3)
                     else
                       const Text(
                         'Settlement Letter Upload',

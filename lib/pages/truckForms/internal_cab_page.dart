@@ -28,8 +28,7 @@ class InternalCabPageState extends State<InternalCabPage>
     with AutomaticKeepAliveClientMixin {
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage =
-      FirebaseStorage.instance; // Firebase Storage instance
+  final FirebaseStorage _storage = FirebaseStorage.instance; // Firebase Storage
 
   String _selectedCondition = 'good'; // Default selected value
   String _damagesCondition = 'no';
@@ -63,7 +62,7 @@ class InternalCabPageState extends State<InternalCabPage>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
+    super.build(context); // Needed by AutomaticKeepAliveClientMixin
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -90,6 +89,7 @@ class InternalCabPageState extends State<InternalCabPage>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
+            // Condition Radio Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -134,6 +134,7 @@ class InternalCabPageState extends State<InternalCabPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
+
             // Front Side of Cab
             Text(
               'Front Side of Cab'.toUpperCase(),
@@ -165,6 +166,7 @@ class InternalCabPageState extends State<InternalCabPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
+
             // Left Side of Cab
             Text(
               'Left Side of Cab'.toUpperCase(),
@@ -190,6 +192,7 @@ class InternalCabPageState extends State<InternalCabPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
+
             // Rear Side of Cab
             Text(
               'Rear Side of Cab'.toUpperCase(),
@@ -217,6 +220,7 @@ class InternalCabPageState extends State<InternalCabPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
+
             // Right Side of Cab
             Text(
               'Right Side of Cab'.toUpperCase(),
@@ -242,6 +246,7 @@ class InternalCabPageState extends State<InternalCabPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
+
             // Damages Section
             _buildAdditionalSection(
               title: 'Are there any damages?',
@@ -261,6 +266,7 @@ class InternalCabPageState extends State<InternalCabPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
+
             // Additional Features Section
             _buildAdditionalSection(
               title: 'Are there any additional features?',
@@ -282,6 +288,7 @@ class InternalCabPageState extends State<InternalCabPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
+
             // Fault Codes Section
             _buildAdditionalSection(
               title: 'Are there any fault codes?',
@@ -305,7 +312,7 @@ class InternalCabPageState extends State<InternalCabPage>
     );
   }
 
-  // Helper method to create a photo block
+  // Helper method to create a photo block with an 'X' button to remove the image
   Widget _buildPhotoBlock(String title) {
     return GestureDetector(
       onTap: () => _showImageSourceDialog(title),
@@ -325,21 +332,51 @@ class InternalCabPageState extends State<InternalCabPage>
                   Text(
                     title,
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600),
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
               )
-            : ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  _selectedImages[title]!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
+            : Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.file(
+                      _selectedImages[title]!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  ),
+                  // 'X' button to remove the image
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () {
+                        // Stop event propagation so tapping 'X' doesn't open the picker
+                        setState(() {
+                          _selectedImages[title] = null;
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(4.0),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -390,7 +427,7 @@ class InternalCabPageState extends State<InternalCabPage>
     );
   }
 
-  // Helper method to build the additional section (Damages, Additional Features, Fault Codes)
+  // Helper method to build the additional sections (Damages, Additional Features, Fault Codes)
   Widget _buildAdditionalSection({
     required String title,
     required String anyItemsType,
@@ -472,7 +509,7 @@ class InternalCabPageState extends State<InternalCabPage>
     );
   }
 
-  // Helper method to build the item section (Damages, Additional Features, Fault Codes)
+  // Helper method to build an item section (Damages, Additional Features, Fault Codes)
   Widget _buildItemSection({
     required List<Map<String, dynamic>> items,
     required VoidCallback addItem,
@@ -480,8 +517,13 @@ class InternalCabPageState extends State<InternalCabPage>
   }) {
     return Column(
       children: [
-        ...items.asMap().entries.map((entry) =>
-            _buildItemWidget(entry.key, entry.value, showImageSourceDialog)),
+        ...items.asMap().entries.map(
+              (entry) => _buildItemWidget(
+                entry.key,
+                entry.value,
+                showImageSourceDialog,
+              ),
+            ),
         const SizedBox(height: 16.0),
         GestureDetector(
           onTap: addItem,
@@ -493,9 +535,10 @@ class InternalCabPageState extends State<InternalCabPage>
               Text(
                 'Add Additional Item',
                 style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w600),
+                  color: Colors.blue,
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -505,8 +548,11 @@ class InternalCabPageState extends State<InternalCabPage>
   }
 
   // Helper method to create an item widget (Damages, Additional Features, Fault Codes)
-  Widget _buildItemWidget(int index, Map<String, dynamic> item,
-      void Function(Map<String, dynamic>) showImageSourceDialog) {
+  Widget _buildItemWidget(
+    int index,
+    Map<String, dynamic> item,
+    void Function(Map<String, dynamic>) showImageSourceDialog,
+  ) {
     return Column(
       children: [
         const SizedBox(height: 16.0),
@@ -542,6 +588,8 @@ class InternalCabPageState extends State<InternalCabPage>
           ],
         ),
         const SizedBox(height: 16.0),
+
+        // Container for the item image
         GestureDetector(
           onTap: () => showImageSourceDialog(item),
           child: Container(
@@ -554,14 +602,41 @@ class InternalCabPageState extends State<InternalCabPage>
             ),
             child: item['image'] == null
                 ? _buildImagePlaceholder()
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
-                      item['image'],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
+                : Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.file(
+                          item['image'],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              item['image'] = null;
+                            });
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(4.0),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
           ),
         ),
@@ -579,7 +654,10 @@ class InternalCabPageState extends State<InternalCabPage>
         Text(
           'Clear Picture of Item',
           style: TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -598,17 +676,16 @@ class InternalCabPageState extends State<InternalCabPage>
     }
   }
 
-  // Method to show dialog for selecting image source for damages
+  // The following methods open a dialog to pick images for each item type
+
   void _showDamageImageSourceDialog(Map<String, dynamic> damage) {
     _showImageSourceDialogForItem(damage);
   }
 
-  // Method to show dialog for selecting image source for additional features
   void _showAdditionalFeatureImageSourceDialog(Map<String, dynamic> feature) {
     _showImageSourceDialogForItem(feature);
   }
 
-  // Method to show dialog for selecting image source for fault codes
   void _showFaultCodesImageSourceDialog(Map<String, dynamic> faultCode) {
     _showImageSourceDialogForItem(faultCode);
   }

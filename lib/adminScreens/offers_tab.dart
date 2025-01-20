@@ -234,9 +234,9 @@ class _OffersTabState extends State<OffersTab> {
 
     final filteredByStatus = offers.where((offer) {
       final status = offer.offerStatus.toLowerCase();
-      if (_filterStatus == 'All')
+      if (_filterStatus == 'All') {
         return true;
-      else if (_filterStatus == 'Accepted')
+      } else if (_filterStatus == 'Accepted')
         return status == 'accepted';
       else if (_filterStatus == 'Rejected')
         return status == 'rejected';

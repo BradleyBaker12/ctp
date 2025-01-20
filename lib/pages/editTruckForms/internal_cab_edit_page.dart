@@ -83,6 +83,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     super.build(context);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -331,7 +332,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
-  // Helper method to create a photo block
+  // =============================================================================
+  // 1. MAIN PHOTO BLOCKS WITH X BUTTON
+  // =============================================================================
   Widget _buildPhotoBlock(String title) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
@@ -340,14 +343,10 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     bool hasUrl = _selectedImages[title]?.url != null &&
         _selectedImages[title]!.url!.isNotEmpty;
 
-    // Debugging statements
-    // print(
-    //     'In _buildPhotoBlock for $title, hasFile: $hasFile, hasUrl: $hasUrl, URL: ${_selectedImages[title]?.url}');
-
     return GestureDetector(
       onTap: () {
+        // If there's an image, view in fullscreen
         if (hasFile || hasUrl) {
-          // View image
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -370,6 +369,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
             ),
           );
         } else if (!isDealer) {
+          // For transporters
           _showImageSourceDialog(title);
         }
       },
@@ -379,8 +379,11 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: hasFile
-            ? ClipRRect(
+        child: Stack(
+          children: [
+            // Existing image logic:
+            if (hasFile)
+              ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
                 child: Image.file(
                   _selectedImages[title]!.file!,
@@ -389,42 +392,240 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   height: double.infinity,
                 ),
               )
-            : hasUrl && _selectedImages[title]!.url!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      _selectedImages[title]!.url!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.error_outline,
-                            color: Colors.red);
-                      },
+            else if (hasUrl)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.network(
+                  _selectedImages[title]!.url!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(Icons.error_outline, color: Colors.red);
+                  },
+                ),
+              )
+            else
+              // Placeholder
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!isDealer)
+                    const Icon(Icons.add_circle_outline,
+                        color: Colors.white, size: 40.0),
+                  const SizedBox(height: 8.0),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (!isDealer)
-                        const Icon(Icons.add_circle_outline,
-                            color: Colors.white, size: 40.0),
-                      const SizedBox(height: 8.0),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                    textAlign: TextAlign.center,
                   ),
+                ],
+              ),
+
+            // The "X" button (only if user is a transporter and there's an image)
+            if (!isDealer && (hasFile || hasUrl))
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      _selectedImages[title] = ImageData(); // Clear the image
+                    });
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  // Method to show the dialog for selecting image source (Camera or Gallery)
+  // =============================================================================
+  // 2. ITEM IMAGES (DAMAGES, FEATURES, FAULT CODES) WITH X BUTTON
+  // =============================================================================
+  Widget _buildItemWidget(
+    int index,
+    ItemData item,
+    void Function(ItemData) showImageSourceDialog,
+  ) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
+    bool hasFile = item.imageData.file != null;
+    bool hasUrl = item.imageData.url != null && item.imageData.url!.isNotEmpty;
+
+    return Column(
+      children: [
+        const SizedBox(height: 16.0),
+        // Row with description and delete icon
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: TextEditingController(text: item.description),
+                onChanged: (value) {
+                  _updateAndNotify(() {
+                    item.description = value;
+                  });
+                },
+                enabled: !isDealer,
+                readOnly: isDealer,
+                decoration: InputDecoration(
+                  labelText: 'Describe Item',
+                  labelStyle: const TextStyle(color: Colors.white),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.1),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            if (!isDealer)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  setState(() {
+                    _removeItem(index, item);
+                  });
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 16.0),
+        // Image container with stack
+        GestureDetector(
+          onTap: () {
+            if (isDealer && (hasFile || hasUrl)) {
+              // Dealer can only view in fullscreen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => Scaffold(
+                    body: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Center(
+                        child: hasFile
+                            ? Image.file(item.imageData.file!)
+                            : Image.network(item.imageData.url!),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            } else if (!isDealer) {
+              // Transporter - show image source (camera/gallery)
+              showImageSourceDialog(item);
+            }
+          },
+          child: Container(
+            height: 150.0,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(color: AppColors.blue, width: 2.0),
+            ),
+            child: Stack(
+              children: [
+                // Existing image or placeholder
+                if (!hasFile &&
+                    (!hasUrl || !item.imageData.url!.startsWith('http')))
+                  _buildImagePlaceholder()
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: hasFile
+                        ? Image.file(
+                            item.imageData.file!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          )
+                        : Image.network(
+                            item.imageData.url!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildImagePlaceholder();
+                            },
+                          ),
+                  ),
+
+                // The "X" button (only if not dealer and there's an image)
+                if (!isDealer && (hasFile || hasUrl))
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          // Clear the image
+                          item.imageData = ImageData();
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =============================================================================
+  // Other Methods/Widgets (unchanged except for X-button additions)
+  // =============================================================================
+
+  // Placeholder widget for item images
+  Widget _buildImagePlaceholder() {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+        SizedBox(height: 8.0),
+        Text(
+          'Clear Picture of Item',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Method to remove an item from the appropriate list
+  void _removeItem(int index, ItemData item) {
+    if (_damageList.contains(item)) {
+      _damageList.removeAt(index);
+    }
+    if (_additionalFeaturesList.contains(item)) {
+      _additionalFeaturesList.removeAt(index);
+    }
+    if (_faultCodesList.contains(item)) {
+      _faultCodesList.removeAt(index);
+    }
+  }
+
+  // Dialog to pick image source for the main images
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
@@ -471,293 +672,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
-  // Helper method to build the additional section (Damages, Additional Features, Fault Codes)
-  Widget _buildAdditionalSection({
-    required String title,
-    required String anyItemsType,
-    required ValueChanged<String?> onChange,
-    required Widget Function() buildItemSection,
-  }) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isDealer = userProvider.getUserRole == 'dealer';
-    return Column(
-      children: [
-        Text(
-          title.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 15,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w900,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CustomRadioButton(
-              label: 'Yes',
-              value: 'yes',
-              groupValue: anyItemsType,
-              onChanged: onChange,
-              enabled: !isDealer,
-            ),
-            const SizedBox(width: 15),
-            CustomRadioButton(
-              label: 'No',
-              value: 'no',
-              groupValue: anyItemsType,
-              onChanged: onChange,
-              enabled: !isDealer,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16.0),
-        if (anyItemsType == 'yes') buildItemSection(),
-      ],
-    );
-  }
-
-  // Helper methods for building sections
-  Widget _buildDamageSection() {
-    return _buildItemSection(
-      items: _damageList,
-      addItem: () {
-        setState(() {
-          _damageList.add(ItemData(description: '', imageData: ImageData()));
-        });
-      },
-      showImageSourceDialog: _showDamageImageSourceDialog,
-    );
-  }
-
-  Widget _buildAdditionalFeaturesSection() {
-    return _buildItemSection(
-      items: _additionalFeaturesList,
-      addItem: () {
-        setState(() {
-          _additionalFeaturesList
-              .add(ItemData(description: '', imageData: ImageData()));
-        });
-      },
-      showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
-    );
-  }
-
-  Widget _buildFaultCodesSection() {
-    return _buildItemSection(
-      items: _faultCodesList,
-      addItem: () {
-        setState(() {
-          _faultCodesList
-              .add(ItemData(description: '', imageData: ImageData()));
-        });
-      },
-      showImageSourceDialog: _showFaultCodesImageSourceDialog,
-    );
-  }
-
-  // Helper method to build the item section (Damages, Additional Features, Fault Codes)
-  Widget _buildItemSection({
-    required List<ItemData> items,
-    required VoidCallback addItem,
-    required void Function(ItemData) showImageSourceDialog,
-  }) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isDealer = userProvider.getUserRole == 'dealer';
-
-    return Column(
-      children: [
-        ...items.asMap().entries.map((entry) =>
-            _buildItemWidget(entry.key, entry.value, showImageSourceDialog)),
-        const SizedBox(height: 16.0),
-        if (!isDealer)
-          GestureDetector(
-            onTap: addItem,
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
-                SizedBox(width: 8.0),
-                Text(
-                  'Add Additional Item',
-                  style: TextStyle(
-                      color: Colors.blue,
-                      fontSize: 16.0,
-                      fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  // Helper method to create an item widget (Damages, Additional Features, Fault Codes)
-  Widget _buildItemWidget(
-      int index, ItemData item, void Function(ItemData) showImageSourceDialog) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isDealer = userProvider.getUserRole == 'dealer';
-
-    // Debugging statements
-    bool hasFile = item.imageData.file != null;
-    bool hasUrl = item.imageData.url != null && item.imageData.url!.isNotEmpty;
-    print(
-        'In _buildItemWidget for item ${item.description}, hasFile: $hasFile, hasUrl: $hasUrl, URL: ${item.imageData.url}');
-
-    return Column(
-      children: [
-        const SizedBox(height: 16.0),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: TextEditingController(text: item.description),
-                onChanged: (value) {
-                  _updateAndNotify(() {
-                    item.description = value;
-                  });
-                },
-                enabled: !isDealer,
-                readOnly: isDealer,
-                decoration: InputDecoration(
-                  labelText: 'Describe Item',
-                  labelStyle: const TextStyle(color: Colors.white),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.1),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            if (!isDealer)
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  setState(() {
-                    _removeItem(index, item);
-                  });
-                },
-              ),
-          ],
-        ),
-        const SizedBox(height: 16.0),
-        GestureDetector(
-          onTap: () {
-            if (isDealer &&
-                (item.imageData.file != null || item.imageData.url != null)) {
-              // Dealer view - full screen image
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => Scaffold(
-                    body: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Center(
-                        child: item.imageData.file != null
-                            ? Image.file(item.imageData.file!)
-                            : Image.network(item.imageData.url!),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            } else if (!isDealer) {
-              // Transporter functionality - upload images
-              showImageSourceDialog(item);
-            }
-          },
-          child: Container(
-            height: 150.0,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.blue.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: AppColors.blue, width: 2.0),
-            ),
-            child: (item.imageData.file == null &&
-                    (item.imageData.url == null ||
-                        !item.imageData.url!.startsWith('http')))
-                ? _buildImagePlaceholder()
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: item.imageData.file != null
-                        ? Image.file(
-                            File(item.imageData.file!.path),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          )
-                        : item.imageData.url != null &&
-                                item.imageData.url!.isNotEmpty
-                            ? Image.network(
-                                item.imageData.url!,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return const Center(
-                                      child: CircularProgressIndicator());
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildImagePlaceholder();
-                                },
-                              )
-                            : _buildImagePlaceholder(),
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Placeholder widget for images
-  Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-        SizedBox(height: 8.0),
-        Text(
-          'Clear Picture of Item',
-          style: TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-
-  // Method to remove an item from the appropriate list
-  void _removeItem(int index, ItemData item) {
-    if (_damageList.contains(item)) {
-      _damageList.removeAt(index);
-    }
-    if (_additionalFeaturesList.contains(item)) {
-      _additionalFeaturesList.removeAt(index);
-    }
-    if (_faultCodesList.contains(item)) {
-      _faultCodesList.removeAt(index);
-    }
-  }
-
-  // Methods to show image source dialogs for different sections
-  void _showDamageImageSourceDialog(ItemData damage) {
-    _showImageSourceDialogForItem(damage);
-  }
-
-  void _showAdditionalFeatureImageSourceDialog(ItemData feature) {
-    _showImageSourceDialogForItem(feature);
-  }
-
-  void _showFaultCodesImageSourceDialog(ItemData faultCode) {
-    _showImageSourceDialogForItem(faultCode);
-  }
-
-  // Generic method to show dialog for selecting image source for a given item
+  // Dialog to pick image source for item images
   void _showImageSourceDialogForItem(ItemData item) {
     showDialog(
       context: context,
@@ -802,7 +717,151 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
-  // Method to upload images to Firebase Storage
+  // Specialized show methods for Damages/Features/Fault Codes
+  void _showDamageImageSourceDialog(ItemData damage) {
+    _showImageSourceDialogForItem(damage);
+  }
+
+  void _showAdditionalFeatureImageSourceDialog(ItemData feature) {
+    _showImageSourceDialogForItem(feature);
+  }
+
+  void _showFaultCodesImageSourceDialog(ItemData faultCode) {
+    _showImageSourceDialogForItem(faultCode);
+  }
+
+  // Build the additional sections (Damages, Additional Features, Fault Codes)
+  Widget _buildAdditionalSection({
+    required String title,
+    required String anyItemsType,
+    required ValueChanged<String?> onChange,
+    required Widget Function() buildItemSection,
+  }) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
+    return Column(
+      children: [
+        Text(
+          title.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 15,
+            color: Color.fromARGB(221, 255, 255, 255),
+            fontWeight: FontWeight.w900,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16.0),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: anyItemsType,
+              onChanged: onChange,
+              enabled: !isDealer,
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: anyItemsType,
+              onChanged: onChange,
+              enabled: !isDealer,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16.0),
+        if (anyItemsType == 'yes') buildItemSection(),
+      ],
+    );
+  }
+
+  // Build the list sections
+  Widget _buildDamageSection() {
+    return _buildItemSection(
+      items: _damageList,
+      addItem: () {
+        setState(() {
+          _damageList.add(ItemData(description: '', imageData: ImageData()));
+        });
+      },
+      showImageSourceDialog: _showDamageImageSourceDialog,
+    );
+  }
+
+  Widget _buildAdditionalFeaturesSection() {
+    return _buildItemSection(
+      items: _additionalFeaturesList,
+      addItem: () {
+        setState(() {
+          _additionalFeaturesList
+              .add(ItemData(description: '', imageData: ImageData()));
+        });
+      },
+      showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
+    );
+  }
+
+  Widget _buildFaultCodesSection() {
+    return _buildItemSection(
+      items: _faultCodesList,
+      addItem: () {
+        setState(() {
+          _faultCodesList
+              .add(ItemData(description: '', imageData: ImageData()));
+        });
+      },
+      showImageSourceDialog: _showFaultCodesImageSourceDialog,
+    );
+  }
+
+  // Generic method to build Damages, Additional Features, or Fault Codes sections
+  Widget _buildItemSection({
+    required List<ItemData> items,
+    required VoidCallback addItem,
+    required void Function(ItemData) showImageSourceDialog,
+  }) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
+    return Column(
+      children: [
+        ...items.asMap().entries.map(
+              (entry) => _buildItemWidget(
+                entry.key,
+                entry.value,
+                showImageSourceDialog,
+              ),
+            ),
+        const SizedBox(height: 16.0),
+        if (!isDealer)
+          GestureDetector(
+            onTap: addItem,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text(
+                  'Add Additional Item',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // =============================================================================
+  // Firebase Methods / Data Methods
+  // =============================================================================
   Future<String> _uploadImageToFirebase(File imageFile, String section) async {
     String fileName =
         'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -817,17 +876,21 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isTransporter = userProvider.getUserRole == 'transporter';
 
+    // Only transporters can upload data
     if (!isTransporter) {
       return {};
     }
 
+    // Serialize images
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
       if (entry.value.file != null) {
         String imageUrl = await _uploadImageToFirebase(
-            entry.value.file!, entry.key.replaceAll(' ', '_').toLowerCase());
+          entry.value.file!,
+          entry.key.replaceAll(' ', '_').toLowerCase(),
+        );
         serializedImages[entry.key] = {
-          'url': imageUrl, // Store the Firebase URL here
+          'url': imageUrl,
           'isNew': true,
         };
       } else if (entry.value.url != null) {
@@ -883,7 +946,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     for (var faultCode in _faultCodesList) {
       if (faultCode.imageData.file != null) {
         String imageUrl = await _uploadImageToFirebase(
-            faultCode.imageData.file!, 'fault_code');
+          faultCode.imageData.file!,
+          'fault_code',
+        );
         serializedFaultCodes.add({
           'description': faultCode.description,
           'imageUrl': imageUrl,
@@ -900,7 +965,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
     return {
       'condition': _selectedCondition,
-      'images': serializedImages, // Use 'images' to match your data structure
+      'images': serializedImages,
       'damagesCondition': _damagesCondition,
       'damages': serializedDamages,
       'additionalFeaturesCondition': _additionalFeaturesCondition,
@@ -915,67 +980,58 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     if (data.isEmpty) {
       return;
     }
-
-    // Use the data directly as internalCabData
-    Map<String, dynamic> internalCabData = data;
-
     setState(() {
-      _selectedCondition = internalCabData['condition'] ?? 'good';
-      _damagesCondition = internalCabData['damagesCondition'] ?? 'no';
+      _selectedCondition = data['condition'] ?? 'good';
+      _damagesCondition = data['damagesCondition'] ?? 'no';
       _additionalFeaturesCondition =
-          internalCabData['additionalFeaturesCondition'] ?? 'no';
-      _faultCodesCondition = internalCabData['faultCodesCondition'] ?? 'no';
+          data['additionalFeaturesCondition'] ?? 'no';
+      _faultCodesCondition = data['faultCodesCondition'] ?? 'no';
 
-      // Initialize images with proper URL handling
-      if (internalCabData['images'] != null) {
-        Map<String, dynamic> images =
-            Map<String, dynamic>.from(internalCabData['images']);
+      // Initialize images
+      if (data['images'] != null) {
+        final images = Map<String, dynamic>.from(data['images']);
         images.forEach((key, value) {
           if (value is Map && value.containsKey('url')) {
             String? url = value['url']?.toString();
-            if (url == null || url.isEmpty) {
-              url = null;
-            } else {}
-            _selectedImages[key] = ImageData(url: url);
-          } else if (value != null && value is String && value.isNotEmpty) {
-            // Handle case where the URL is stored directly as a string
-
+            if (url != null && url.isNotEmpty) {
+              _selectedImages[key] = ImageData(url: url);
+            }
+          } else if (value is String && value.isNotEmpty) {
             _selectedImages[key] = ImageData(url: value);
-          } else {}
+          }
         });
-      } else {}
+      }
 
       // Initialize damages
-      if (internalCabData['damages'] != null) {
-        _damageList = (internalCabData['damages'] as List).map((damage) {
+      if (data['damages'] != null) {
+        _damageList = (data['damages'] as List).map((damage) {
           return ItemData(
             description: damage['description'] ?? '',
             imageData: ImageData(url: damage['imageUrl']),
           );
         }).toList();
-      } else {}
+      }
 
       // Initialize additional features
-      if (internalCabData['additionalFeatures'] != null) {
+      if (data['additionalFeatures'] != null) {
         _additionalFeaturesList =
-            (internalCabData['additionalFeatures'] as List).map((feature) {
+            (data['additionalFeatures'] as List).map((feature) {
           return ItemData(
             description: feature['description'] ?? '',
             imageData: ImageData(url: feature['imageUrl']),
           );
         }).toList();
-      } else {}
+      }
 
       // Initialize fault codes
-      if (internalCabData['faultCodes'] != null) {
-        _faultCodesList =
-            (internalCabData['faultCodes'] as List).map((faultCode) {
+      if (data['faultCodes'] != null) {
+        _faultCodesList = (data['faultCodes'] as List).map((faultCode) {
           return ItemData(
             description: faultCode['description'] ?? '',
             imageData: ImageData(url: faultCode['imageUrl']),
           );
         }).toList();
-      } else {}
+      }
     });
   }
 
@@ -1009,7 +1065,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
     // Check all images (14 fields)
     _selectedImages.forEach((key, value) {
-      if (value.file != null || value.url != null) filledFields++;
+      if (value.file != null || (value.url != null && value.url!.isNotEmpty)) {
+        filledFields++;
+      }
     });
 
     // Check damages section (1 field)
@@ -1018,7 +1076,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
       bool isDamagesComplete = _damageList.every((damage) =>
           damage.description.isNotEmpty &&
-          (damage.imageData.file != null || damage.imageData.url != null));
+          (damage.imageData.file != null ||
+              (damage.imageData.url != null &&
+                  damage.imageData.url!.isNotEmpty)));
       if (isDamagesComplete) filledFields++;
     }
 
@@ -1029,7 +1089,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
         _additionalFeaturesList.isNotEmpty) {
       bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
           feature.description.isNotEmpty &&
-          (feature.imageData.file != null || feature.imageData.url != null));
+          (feature.imageData.file != null ||
+              (feature.imageData.url != null &&
+                  feature.imageData.url!.isNotEmpty)));
       if (isFeaturesComplete) filledFields++;
     }
 
@@ -1040,7 +1102,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       bool isFaultCodesComplete = _faultCodesList.every((faultCode) =>
           faultCode.description.isNotEmpty &&
           (faultCode.imageData.file != null ||
-              faultCode.imageData.url != null));
+              (faultCode.imageData.url != null &&
+                  faultCode.imageData.url!.isNotEmpty)));
       if (isFaultCodesComplete) filledFields++;
     }
 

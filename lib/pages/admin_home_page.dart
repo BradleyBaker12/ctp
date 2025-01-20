@@ -120,9 +120,10 @@ class _AdminHomePageState extends State<AdminHomePage>
   @override
   Widget build(BuildContext context) {
     var blue = const Color(0xFF2F7FFF);
-
-    // Access the UserProvider to get user details
-    final userProvider = Provider.of<UserProvider>(context);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String currentUserRole = userProvider.getUserRole;
+    final bool isAdmin = currentUserRole == 'admin';
+    final bool isSalesRep = currentUserRole == 'sales representative';
 
     // Ensure only admins can access this page
     if (userProvider.userRole != 'admin' &&
@@ -147,7 +148,7 @@ class _AdminHomePageState extends State<AdminHomePage>
           automaticallyImplyLeading:
               false, // Remove back arrow (since this is home page)
           title: Text(
-            'Admin Dashboard',
+            isAdmin ? 'Admin Dashboard' : 'Sales Rep Dashboard',
             style: GoogleFonts.montserrat(
               fontSize: 20,
               fontWeight: FontWeight.bold,

@@ -1,4 +1,5 @@
 // admin_section.dart
+
 import 'dart:io';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
@@ -12,7 +13,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 class AdminEditSection extends StatefulWidget {
   final Vehicle vehicle;
   final bool isUploading;
-  final bool isEditing;
+  final bool isEditing; // Whether user is allowed to edit/remove docs
   final Function(File?) onAdminDoc1Selected;
   final Function(File?) onAdminDoc2Selected;
   final Function(File?) onAdminDoc3Selected;
@@ -34,7 +35,7 @@ class AdminEditSection extends StatefulWidget {
     required this.onAdminDoc1Selected,
     required this.onAdminDoc2Selected,
     required this.onAdminDoc3Selected,
-    required this.requireToSettleType, // Added requireToSettleType
+    required this.requireToSettleType,
     this.settlementAmount,
     this.natisRc1Url,
     this.licenseDiskUrl,
@@ -81,6 +82,9 @@ class AdminEditSectionState extends State<AdminEditSection>
 
   // Helper function to pick files
   Future<void> _pickFile(int docNumber) async {
+    // Only pick files if editing is enabled
+    if (!widget.isEditing) return;
+
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
@@ -102,8 +106,7 @@ class AdminEditSectionState extends State<AdminEditSection>
               break;
             case 3:
               _settlementLetterFile = selectedFile;
-              _settlementLetterUrl =
-                  null; // Clear URL when a new file is selected
+              _settlementLetterUrl = null; // Clear URL when a new file selected
               widget.onAdminDoc3Selected(selectedFile);
               break;
           }
@@ -159,132 +162,150 @@ class AdminEditSectionState extends State<AdminEditSection>
     return url.split('/').last.split('?').first;
   }
 
-  // Helper method to display uploaded files
-  Widget _buildUploadedFile(File? file, String? fileUrl, bool isUploading) {
-    // Define a mapping for document names
-    String documentName = 'Unknown';
-    if (file != null) {
-      documentName = 'NATIS/RC1 Doc'; // For NATIS/RC1
-    } else if (fileUrl != null) {
-      if (fileUrl.contains('NATIS_RC1')) {
-        documentName = 'NATIS/RC1 Doc';
-      } else if (fileUrl.contains('LicenseDisk')) {
-        documentName = 'License Disk';
-      } else if (fileUrl.contains('SettlementLetter')) {
-        documentName = 'Settlement Letter';
-      }
-    }
-
+  // Helper method to display uploaded files in a Stack with "X" to remove
+  Widget _buildUploadedFile({
+    required File? file,
+    required String? fileUrl,
+    required bool isUploading,
+    required VoidCallback onRemove, // Callback to remove this doc
+    required String docName,
+  }) {
+    // If no file or URL, show "No file selected"
     if (file == null && fileUrl == null) {
       return const Text(
         'No file selected',
         style: TextStyle(color: Colors.white70),
       );
+    }
+
+    // Otherwise, gather file name + extension
+    String fileName;
+    String extension;
+    if (file != null) {
+      fileName = file.path.split('/').last;
+      extension = fileName.split('.').last;
     } else {
-      String fileName;
-      String extension;
-      if (file != null) {
-        fileName = file.path.split('/').last;
-        extension = fileName.split('.').last;
-      } else if (fileUrl != null) {
-        fileName = getFileNameFromUrl(fileUrl);
-        extension = fileName.split('.').last;
+      fileName = getFileNameFromUrl(fileUrl!);
+      extension = fileName.split('.').last;
+    }
+
+    // "Main widget" is either an image or an icon
+    Widget mainWidget;
+    if (file != null) {
+      // We have a local file
+      if (_isImageFile(file.path)) {
+        mainWidget = ClipRRect(
+          borderRadius: BorderRadius.circular(8.0),
+          child: Image.file(
+            file,
+            width: 100,
+            height: 100,
+            fit: BoxFit.cover,
+          ),
+        );
       } else {
-        fileName = 'Unknown';
-        extension = '';
+        mainWidget = Column(
+          children: [
+            Icon(
+              _getFileIcon(extension),
+              color: Colors.white,
+              size: 50.0,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                docName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        );
       }
-      return Column(
-        children: [
-          if (file != null)
-            if (_isImageFile(file.path))
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  file,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
+    } else {
+      // We have a URL
+      if (_isImageUrl(fileUrl!)) {
+        mainWidget = ClipRRect(
+          borderRadius: BorderRadius.circular(8.0),
+          child: Image.network(
+            fileUrl,
+            width: 100,
+            height: 100,
+            fit: BoxFit.cover,
+          ),
+        );
+      } else {
+        mainWidget = Column(
+          children: [
+            Icon(
+              _getFileIcon(extension),
+              color: Colors.white,
+              size: 50.0,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                docName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
                 ),
-              )
-            else
-              Column(
-                children: [
-                  Icon(
-                    _getFileIcon(extension),
-                    color: Colors.white,
-                    size: 50.0,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      documentName, // Use the document name here
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              )
-          else if (fileUrl != null)
-            if (_isImageUrl(fileUrl))
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  fileUrl,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              )
-            else
-              Column(
-                children: [
-                  Icon(
-                    _getFileIcon(extension),
-                    color: Colors.white,
-                    size: 50.0,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      documentName, // Use the document name here
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        );
+      }
+    }
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // The main widget (image or icon + doc name)
+        Column(
+          children: [
+            mainWidget,
+            const SizedBox(height: 8),
+            if (isUploading)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 10),
+                  Text(
+                    'Uploading...',
+                    style: TextStyle(color: Colors.white),
                   ),
                 ],
               ),
-          const SizedBox(height: 8),
-          if (isUploading)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                CircularProgressIndicator(),
-                SizedBox(width: 10),
-                Text(
-                  'Uploading...',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
+          ],
+        ),
+
+        // Show "X" only if editing is allowed & we have a file/URL
+        if (widget.isEditing && (file != null || fileUrl != null))
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.red),
+              onPressed: onRemove,
             ),
-        ],
-      );
-    }
+          ),
+      ],
+    );
   }
 
   void loadAdminData(Map<String, dynamic> adminData) {
@@ -475,7 +496,7 @@ class AdminEditSectionState extends State<AdminEditSection>
 
     // Settlement fields if required
     if (widget.requireToSettleType == 'yes') {
-      totalFields += 2;
+      totalFields += 2; // Settlement Letter + Settlement Amount
       if (_settlementLetterFile != null || _settlementLetterUrl != null) {
         filledFields++;
       }
@@ -487,6 +508,7 @@ class AdminEditSectionState extends State<AdminEditSection>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // For AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blueAccent,
@@ -541,7 +563,7 @@ class AdminEditSectionState extends State<AdminEditSection>
         ],
       ),
       body: SizedBox(
-        height: MediaQuery.of(context).size.height, // Set height to full screen
+        height: MediaQuery.of(context).size.height, // Full screen
         child: GradientBackground(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -549,16 +571,15 @@ class AdminEditSectionState extends State<AdminEditSection>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 20),
                   Center(
                     child: Text(
                       'ADMINISTRATION'.toUpperCase(),
                       style: const TextStyle(
-                          fontSize: 25,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900),
+                        fontSize: 25,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -568,9 +589,10 @@ class AdminEditSectionState extends State<AdminEditSection>
                     child: Text(
                       'Please attach NATIS/RC1 Documentation'.toUpperCase(),
                       style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900),
+                        fontSize: 15,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -592,7 +614,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                       child: Column(
                         children: [
                           if (_natisRc1File == null && _natisRc1Url == null)
-                            Icon(
+                            const Icon(
                               Icons.drive_folder_upload_outlined,
                               color: Colors.white,
                               size: 50.0,
@@ -601,7 +623,19 @@ class AdminEditSectionState extends State<AdminEditSection>
                           const SizedBox(height: 10),
                           if (_natisRc1File != null || _natisRc1Url != null)
                             _buildUploadedFile(
-                                _natisRc1File, _natisRc1Url, _isUploading)
+                              file: _natisRc1File,
+                              fileUrl: _natisRc1Url,
+                              isUploading: _isUploading,
+                              docName: 'NATIS/RC1',
+                              onRemove: () {
+                                // Remove NATIS/RC1 doc
+                                setState(() {
+                                  _natisRc1File = null;
+                                  _natisRc1Url = null;
+                                  widget.onAdminDoc1Selected(null);
+                                });
+                              },
+                            )
                           else
                             const Text(
                               'NATIS/RC1 Upload',
@@ -621,9 +655,10 @@ class AdminEditSectionState extends State<AdminEditSection>
                     child: Text(
                       'Please attach License Disk Photo'.toUpperCase(),
                       style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900),
+                        fontSize: 15,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -646,7 +681,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                         children: [
                           if (_licenseDiskFile == null &&
                               _licenseDiskUrl == null)
-                            Icon(
+                            const Icon(
                               Icons.drive_folder_upload_outlined,
                               color: Colors.white,
                               size: 50.0,
@@ -656,7 +691,19 @@ class AdminEditSectionState extends State<AdminEditSection>
                           if (_licenseDiskFile != null ||
                               _licenseDiskUrl != null)
                             _buildUploadedFile(
-                                _licenseDiskFile, _licenseDiskUrl, _isUploading)
+                              file: _licenseDiskFile,
+                              fileUrl: _licenseDiskUrl,
+                              isUploading: _isUploading,
+                              docName: 'License Disk',
+                              onRemove: () {
+                                // Remove License Disk doc
+                                setState(() {
+                                  _licenseDiskFile = null;
+                                  _licenseDiskUrl = null;
+                                  widget.onAdminDoc2Selected(null);
+                                });
+                              },
+                            )
                           else
                             const Text(
                               'License Disk Upload',
@@ -671,6 +718,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                     ),
                   ),
                   const SizedBox(height: 15),
+
                   // Conditionally display Settlement Letter upload and Settlement Amount field
                   if (widget.requireToSettleType == 'yes') ...[
                     // Upload Settlement Letter
@@ -678,9 +726,10 @@ class AdminEditSectionState extends State<AdminEditSection>
                       child: Text(
                         'Please attach Settlement Letter'.toUpperCase(),
                         style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900),
+                          fontSize: 15,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -703,7 +752,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                           children: [
                             if (_settlementLetterFile == null &&
                                 _settlementLetterUrl == null)
-                              Icon(
+                              const Icon(
                                 Icons.drive_folder_upload_outlined,
                                 color: Colors.white,
                                 size: 50.0,
@@ -712,8 +761,20 @@ class AdminEditSectionState extends State<AdminEditSection>
                             const SizedBox(height: 10),
                             if (_settlementLetterFile != null ||
                                 _settlementLetterUrl != null)
-                              _buildUploadedFile(_settlementLetterFile,
-                                  _settlementLetterUrl, _isUploading)
+                              _buildUploadedFile(
+                                file: _settlementLetterFile,
+                                fileUrl: _settlementLetterUrl,
+                                isUploading: _isUploading,
+                                docName: 'Settlement Letter',
+                                onRemove: () {
+                                  // Remove Settlement Letter doc
+                                  setState(() {
+                                    _settlementLetterFile = null;
+                                    _settlementLetterUrl = null;
+                                    widget.onAdminDoc3Selected(null);
+                                  });
+                                },
+                              )
                             else
                               const Text(
                                 'Settlement Letter Upload',
@@ -733,9 +794,10 @@ class AdminEditSectionState extends State<AdminEditSection>
                       child: Text(
                         'Please fill in your settlement amount'.toUpperCase(),
                         style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w400),
+                          fontSize: 15,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w400,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -745,12 +807,12 @@ class AdminEditSectionState extends State<AdminEditSection>
                       child: CustomTextField(
                         controller: _settlementAmountController,
                         hintText: 'Amount'.toUpperCase(),
-                        // isCurrency: true,
                         keyboardType: TextInputType.number,
                       ),
                     ),
                     const SizedBox(height: 20),
                   ],
+
                   const SizedBox(height: 20),
                   // Done Button
                   Center(
@@ -777,26 +839,26 @@ class AdminEditSectionState extends State<AdminEditSection>
                               );
 
                               try {
-                                bool success =
-                                    await saveAdminData(); // Call the save function
+                                bool success = await saveAdminData();
+                                Navigator.pop(context); // Dismiss loading
                                 if (success) {
-                                  Navigator.pop(
-                                      context); // Dismiss loading indicator
-                                  Navigator.pop(
-                                      context); // Navigate back if successful
+                                  Navigator.pop(context); // pop the page
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                        content: Text(
-                                            'Admin data saved successfully.')),
+                                      content: Text(
+                                        'Admin data saved successfully.',
+                                      ),
+                                    ),
                                   );
                                 }
                               } catch (error) {
-                                // Dismiss loading indicator
-                                Navigator.pop(context);
+                                Navigator.pop(context); // Dismiss loading
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                      content: Text(
-                                          'Error saving admin data: $error')),
+                                    content: Text(
+                                      'Error saving admin data: $error',
+                                    ),
+                                  ),
                                 );
                               } finally {
                                 setState(() {

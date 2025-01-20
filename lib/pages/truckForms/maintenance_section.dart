@@ -1,5 +1,3 @@
-// maintenance_section.dart
-
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
@@ -88,7 +86,6 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     });
   }
 
-  // Add method to load existing data
   void loadMaintenanceData(Map<String, dynamic>? maintenanceData) {
     if (maintenanceData != null) {
       setState(() {
@@ -100,7 +97,6 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     }
   }
 
-  // Method to upload a file to Firebase Storage
   Future<String?> _uploadFile(File file, String storagePath) async {
     try {
       UploadTask uploadTask =
@@ -116,7 +112,6 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     }
   }
 
-  // Modified saveMaintenanceData method
   Future<bool> saveMaintenanceData() async {
     String? oemReason =
         _oemInspectionType == 'no' ? _oemReasonController.text.trim() : null;
@@ -124,8 +119,8 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     if (_oemInspectionType == 'no' && (oemReason!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-                Text('Please explain why OEM inspection is not possible.')),
+          content: Text('Please explain why OEM inspection is not possible.'),
+        ),
       );
       return false;
     }
@@ -309,7 +304,6 @@ class MaintenanceSectionState extends State<MaintenanceSection>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
 
-    // Debugging: Print the current state of the files
     print('Building MaintenanceSection');
     print('_maintenanceDocFile: ${_maintenanceDocFile?.path}');
     print('widget.maintenanceDocUrl: ${widget.maintenanceDocUrl}');
@@ -317,7 +311,6 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     print('widget.warrantyDocUrl: ${widget.warrantyDocUrl}');
 
     return SingleChildScrollView(
-      // Added to handle overflow
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -326,9 +319,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
               child: Text(
                 'Maintenance'.toUpperCase(),
                 style: const TextStyle(
-                    fontSize: 25,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900),
+                  fontSize: 25,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -337,9 +331,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
               child: Text(
                 'PLEASE ATTACH MAINTENANCE DOCUMENTATION'.toUpperCase(),
                 style: const TextStyle(
-                    fontSize: 15,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900),
+                  fontSize: 15,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -362,7 +357,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                   children: [
                     if (_maintenanceDocFile == null &&
                         widget.maintenanceDocUrl == null)
-                      Icon(
+                      const Icon(
                         Icons.drive_folder_upload_outlined,
                         color: Colors.white,
                         size: 50.0,
@@ -371,8 +366,11 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                     const SizedBox(height: 10),
                     if (_maintenanceDocFile != null ||
                         widget.maintenanceDocUrl != null)
-                      Column(
+                      // Use a Stack so we can place a delete button on top
+                      Stack(
+                        alignment: Alignment.center,
                         children: [
+                          // Display the image or icon
                           if (_maintenanceDocFile != null)
                             if (_isImageFile(_maintenanceDocFile!.path))
                               ClipRRect(
@@ -398,7 +396,8 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                   Container(
                                     width: double.infinity,
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0),
+                                      horizontal: 16.0,
+                                    ),
                                     child: Text(
                                       _maintenanceDocFile!.path.split('/').last,
                                       style: const TextStyle(
@@ -438,7 +437,8 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                   Container(
                                     width: double.infinity,
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0),
+                                      horizontal: 16.0,
+                                    ),
                                     child: Text(
                                       getFileNameFromUrl(
                                           widget.maintenanceDocUrl!),
@@ -454,19 +454,35 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                   ),
                                 ],
                               ),
-                          const SizedBox(height: 8),
-                          if (widget.isUploading)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                CircularProgressIndicator(),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Uploading...',
-                                  style: TextStyle(color: Colors.white),
+
+                          // ADDED DELETE BUTTON HERE
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  // Remove both the file and the URL
+                                  _maintenanceDocFile = null;
+                                  _maintenanceDocUrl = null;
+                                  // Also notify the parent that file is removed
+                                  widget.onMaintenanceFileSelected(null);
+                                });
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
                                 ),
-                              ],
+                                padding: const EdgeInsets.all(4.0),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
                             ),
+                          ),
                         ],
                       )
                     else if (!widget.isUploading)
@@ -478,6 +494,19 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                         ),
                         textAlign: TextAlign.center,
                       ),
+                    const SizedBox(height: 8),
+                    if (widget.isUploading)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 10),
+                          Text(
+                            'Uploading...',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -487,7 +516,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
               child: Text(
                 'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?'
                     .toUpperCase(),
-                style: const TextStyle(fontSize: 15, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Colors.white,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -496,7 +528,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
               child: Text(
                 'Please note that OEM will charge you for inspection'
                     .toUpperCase(),
-                style: const TextStyle(fontSize: 12, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -512,7 +547,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                     setState(() {
                       _oemInspectionType = value!;
                       if (_oemInspectionType == 'yes') {
-                        _oemReasonController.clear(); // Clear the explanation
+                        _oemReasonController.clear();
                       }
                     });
                     notifyProgress();
@@ -533,7 +568,6 @@ class MaintenanceSectionState extends State<MaintenanceSection>
               ],
             ),
             const SizedBox(height: 15),
-            // Conditional Explanation Input Field
             if (_oemInspectionType == 'no')
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -549,9 +583,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
               child: Text(
                 'PLEASE ATTACH WARRANTY DOCUMENTATION'.toUpperCase(),
                 style: const TextStyle(
-                    fontSize: 15,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900),
+                  fontSize: 15,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -574,7 +609,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                   children: [
                     if (_warrantyDocFile == null &&
                         widget.warrantyDocUrl == null)
-                      Icon(
+                      const Icon(
                         Icons.drive_folder_upload_outlined,
                         color: Colors.white,
                         size: 50.0,
@@ -583,7 +618,9 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                     const SizedBox(height: 10),
                     if (_warrantyDocFile != null ||
                         widget.warrantyDocUrl != null)
-                      Column(
+                      // Use a Stack so we can place a delete button on top
+                      Stack(
+                        alignment: Alignment.center,
                         children: [
                           if (_warrantyDocFile != null)
                             if (_isImageFile(_warrantyDocFile!.path))
@@ -609,7 +646,8 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                   Container(
                                     width: double.infinity,
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0),
+                                      horizontal: 16.0,
+                                    ),
                                     child: Text(
                                       _warrantyDocFile!.path.split('/').last,
                                       style: const TextStyle(
@@ -657,19 +695,35 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                   ),
                                 ],
                               ),
-                          const SizedBox(height: 8),
-                          if (widget.isUploading)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                CircularProgressIndicator(),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Uploading...',
-                                  style: TextStyle(color: Colors.white),
+
+                          // ADDED DELETE BUTTON HERE
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  // Remove both the file and the URL
+                                  _warrantyDocFile = null;
+                                  _warrantyDocUrl = null;
+                                  // Also notify the parent that file is removed
+                                  widget.onWarrantyFileSelected(null);
+                                });
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
                                 ),
-                              ],
+                                padding: const EdgeInsets.all(4.0),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
                             ),
+                          ),
                         ],
                       )
                     else if (!widget.isUploading)
@@ -680,6 +734,19 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                           color: Colors.white70,
                         ),
                         textAlign: TextAlign.center,
+                      ),
+                    const SizedBox(height: 8),
+                    if (widget.isUploading)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 10),
+                          Text(
+                            'Uploading...',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
                       ),
                   ],
                 ),

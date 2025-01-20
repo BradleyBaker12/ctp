@@ -10,7 +10,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:path/path.dart' as path;
 import 'package:mime/mime.dart'; // Added for MIME type checks
 import '../providers/offer_provider.dart';
 import '../providers/user_provider.dart';

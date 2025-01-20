@@ -6,7 +6,6 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart'; // Import share_plus
-import 'package:cross_file/cross_file.dart';
 
 class DocumentPreviewScreen extends StatefulWidget {
   final String? url; // URL of the document

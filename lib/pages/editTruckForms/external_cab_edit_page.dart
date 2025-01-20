@@ -443,7 +443,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     });
   }
 
-  // Helper method to create a photo block
+  // Helper method to create a photo block (with an X/delete button)
   Widget _buildPhotoBlock(String title) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
@@ -456,6 +456,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
     return GestureDetector(
       onTap: () {
+        // If there's an image, allow viewing in full screen:
         if (imageData?.file != null ||
             (imageData?.url != null && imageData!.url!.isNotEmpty)) {
           Navigator.push(
@@ -488,7 +489,9 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               ),
             ),
           );
-        } else if (!isDealer) {
+        }
+        // Otherwise, if transporter (not a dealer), show picking options
+        else if (!isDealer) {
           _showImageSourceDialog(title);
         }
       },
@@ -498,7 +501,30 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _getImageWidget(_selectedImages[title], title, isDealer),
+        child: Stack(
+          children: [
+            // The existing image or placeholder
+            _getImageWidget(imageData, title, isDealer),
+
+            // Show "X" button only if it's not a dealer AND an image is present
+            if (!isDealer &&
+                (imageData?.file != null ||
+                    (imageData?.url != null && imageData!.url!.isNotEmpty)))
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      // Remove the image by resetting it
+                      _selectedImages[title] = ImageData();
+                    });
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -753,7 +779,31 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: _getItemImageWidget(item.imageData, isDealer),
+            child: Stack(
+              children: [
+                // The existing image or placeholder
+                _getItemImageWidget(item.imageData, isDealer),
+
+                // Show "X" button only if NOT a dealer and there's an image
+                if (!isDealer &&
+                    (item.imageData.file != null ||
+                        (item.imageData.url != null &&
+                            item.imageData.url!.isNotEmpty)))
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          // Remove the image by resetting it
+                          item.imageData = ImageData();
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
@@ -793,14 +843,16 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
           Text(
             'Clear Picture of Item',
             style: TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       );
     }
   }
 
-  // Methods to show image source dialogs for different sections
   void _showDamageImageSourceDialog(ItemData damage) {
     _showImageSourceDialogForItem(damage);
   }

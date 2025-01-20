@@ -178,9 +178,9 @@ class _UsersTabState extends State<UsersTab> {
 
       // Debug: print how many documents were fetched.
       print("Fetched ${querySnapshot.docs.length} users.");
-      querySnapshot.docs.forEach((doc) {
+      for (var doc in querySnapshot.docs) {
         print("User ID: ${doc.id}");
-      });
+      }
 
       if (querySnapshot.docs.isNotEmpty) {
         _lastDocument = querySnapshot.docs.last;
@@ -566,7 +566,7 @@ class _UsersTabState extends State<UsersTab> {
       return;
     }
 
-    final GlobalKey<FormState> _createUserFormKey = GlobalKey<FormState>();
+    final GlobalKey<FormState> createUserFormKey = GlobalKey<FormState>();
 
     await showDialog(
       context: context,
@@ -582,7 +582,7 @@ class _UsersTabState extends State<UsersTab> {
               ),
               content: SingleChildScrollView(
                 child: Form(
-                  key: _createUserFormKey,
+                  key: createUserFormKey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -747,7 +747,7 @@ class _UsersTabState extends State<UsersTab> {
                         GoogleFonts.montserrat(color: const Color(0xFFFF4E00)),
                   ),
                   onPressed: () async {
-                    if (!_createUserFormKey.currentState!.validate()) {
+                    if (!createUserFormKey.currentState!.validate()) {
                       return;
                     }
                     if (isAdmin &&

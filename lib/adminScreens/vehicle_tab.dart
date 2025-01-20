@@ -361,10 +361,17 @@ class _VehiclesTabState extends State<VehiclesTab> {
     debugPrint('Current sort field: $_sortField, ascending: $_sortAscending');
     debugPrint('Limit: $_limit, Last Document: ${_lastDocument?.id ?? "None"}');
 
-    Query query = FirebaseFirestore.instance.collection('vehicles').orderBy(
-          _sortField,
-          descending: !_sortAscending,
-        );
+    // Start by excluding Archived vehicles:
+    Query query = FirebaseFirestore.instance
+        .collection('vehicles')
+        .where('vehicleStatus', isNotEqualTo: 'Archived');
+
+    // Because Firestore requires that fields used in an inequality filter appear in the orderBy,
+    // if the sort field is not 'vehicleStatus', add an orderBy on 'vehicleStatus' first.
+    if (_sortField != 'vehicleStatus') {
+      query = query.orderBy('vehicleStatus');
+    }
+    query = query.orderBy(_sortField, descending: !_sortAscending);
 
     // ─── Filter for Sales Representatives ──────────────────────────────
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -781,7 +788,6 @@ class _VehiclesTabState extends State<VehiclesTab> {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
-    Overlay.of(context).context.findRenderObject() as RenderBox;
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(Offset.zero, ancestor: overlay),
