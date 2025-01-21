@@ -70,209 +70,224 @@ class DriveTrainPageState extends State<DriveTrainPage>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     return SingleChildScrollView(
-        child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 16.0),
+            Text(
+              'Details for DRIVE TRAIN'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            const Text(
+              'Condition of the Drive Train',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            // Condition Radio Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                const SizedBox(height: 16.0),
-                Text(
-                  'Details for DRIVE TRAIN'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 25,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w900,
-                  ),
-                  textAlign: TextAlign.center,
+                CustomRadioButton(
+                  label: 'Poor',
+                  value: 'poor',
+                  groupValue: _selectedCondition,
+                  onChanged: _updateCondition,
                 ),
-                const SizedBox(height: 16.0),
-                const Text(
-                  'Condition of the Drive Train',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
+                CustomRadioButton(
+                  label: 'Good',
+                  value: 'good',
+                  groupValue: _selectedCondition,
+                  onChanged: _updateCondition,
                 ),
-                const SizedBox(height: 16.0),
-                // Condition Radio Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    CustomRadioButton(
-                      label: 'Poor',
-                      value: 'poor',
-                      groupValue: _selectedCondition,
-                      onChanged: _updateCondition,
-                    ),
-                    CustomRadioButton(
-                      label: 'Good',
-                      value: 'good',
-                      groupValue: _selectedCondition,
-                      onChanged: _updateCondition,
-                    ),
-                    CustomRadioButton(
-                      label: 'Excellent',
-                      value: 'excellent',
-                      groupValue: _selectedCondition,
-                      onChanged: _updateCondition,
-                    ),
-                  ],
+                CustomRadioButton(
+                  label: 'Excellent',
+                  value: 'excellent',
+                  groupValue: _selectedCondition,
+                  onChanged: _updateCondition,
                 ),
-                const SizedBox(height: 16.0),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 16.0),
-                // Photos Section
-                Text(
-                  'Photos'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w900,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16.0),
-                // Grid of Photos
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16.0,
-                  mainAxisSpacing: 16.0,
-                  children: _selectedImages.keys
-                      .where((key) =>
-                          key.contains('Left') ||
-                          key.contains('Right') ||
-                          key.contains('Down') ||
-                          key.contains('Up'))
-                      .map((key) => _buildPhotoBlock(key))
-                      .toList(),
-                ),
-                const SizedBox(height: 16.0),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 16.0),
-                // Engine Section
-                Text(
-                  'Engine'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w900,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16.0),
-                // Engine Photos
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16.0,
-                  mainAxisSpacing: 16.0,
-                  children: _selectedImages.keys
-                      .where((key) =>
-                          key.contains('Engine') && !key.contains('Leak'))
-                      .map((key) => _buildPhotoBlock(key))
-                      .toList(),
-                ),
-                const SizedBox(height: 16.0),
-                // Engine Oil Leak Section
-                _buildYesNoSection(
-                  title: 'Are there any oil leaks in the engine?',
-                  groupValue: _oilLeakConditionEngine,
-                  onChanged: _updateOilLeakCondition,
-                  imageKey: 'Engine Oil Leak',
-                ),
-                const SizedBox(height: 16.0),
-                // Engine Water Leak Section
-                _buildYesNoSection(
-                  title: 'Are there any water leaks in the engine?',
-                  groupValue: _waterLeakConditionEngine,
-                  onChanged: _updateWaterLeakCondition,
-                  imageKey: 'Engine Water Leak',
-                ),
-                const SizedBox(height: 16.0),
-                // Blowby Condition Section (No Image)
-                _buildYesNoRadioOnlySection(
-                  title: 'Is there blowby/engine breathing?',
-                  groupValue: _blowbyCondition,
-                  onChanged: _updateBlowbyCondition,
-                ),
-                const SizedBox(height: 16.0),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 16.0),
-                // Gearbox Section
-                Text(
-                  'Gearbox'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w900,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16.0),
-                // Gearbox Photos
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16.0,
-                  mainAxisSpacing: 16.0,
-                  children: _selectedImages.keys
-                      .where((key) =>
-                          key.contains('Gearbox') && !key.contains('Leak'))
-                      .map((key) => _buildPhotoBlock(key))
-                      .toList(),
-                ),
-                const SizedBox(height: 16.0),
-                // Gearbox Oil Leak Section
-                _buildYesNoSection(
-                  title: 'Are there any oil leaks in the gearbox?',
-                  groupValue: _oilLeakConditionGearbox,
-                  onChanged: _updateGearboxOilLeakCondition,
-                  imageKey: 'Gearbox Oil Leak',
-                ),
-                const SizedBox(height: 16.0),
-                // Retarder Condition Section (No Image)
-                _buildYesNoRadioOnlySection(
-                  title: 'Does the gearbox come with a retarder?',
-                  groupValue: _retarderCondition,
-                  onChanged: _updateRetarderCondition,
-                ),
-                const SizedBox(height: 16.0),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 16.0),
-                // Diffs Section
-                Text(
-                  'Diffs (Differentials)'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w900,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16.0),
-                // Diffs Photos
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16.0,
-                  mainAxisSpacing: 16.0,
-                  children: _selectedImages.keys
-                      .where((key) => key.contains('Diffs'))
-                      .map((key) => _buildPhotoBlock(key))
-                      .toList(),
-                ),
-                const SizedBox(height: 16.0),
               ],
-            )));
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+
+            // Photos Section
+            Text(
+              'Photos'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 20,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+
+            // Grid of Photos (Down, Left, Up, Right)
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              children: _selectedImages.keys
+                  .where((key) =>
+                      key.contains('Left') ||
+                      key.contains('Right') ||
+                      key.contains('Down') ||
+                      key.contains('Up'))
+                  .map((key) => _buildPhotoBlock(key))
+                  .toList(),
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+
+            // Engine Section
+            Text(
+              'Engine'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 20,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+
+            // Engine Photos (Engine Left/Right but not leaks)
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              children: _selectedImages.keys
+                  .where(
+                      (key) => key.contains('Engine') && !key.contains('Leak'))
+                  .map((key) => _buildPhotoBlock(key))
+                  .toList(),
+            ),
+            const SizedBox(height: 16.0),
+
+            // Engine Oil Leak Section
+            _buildYesNoSection(
+              title: 'Are there any oil leaks in the engine?',
+              groupValue: _oilLeakConditionEngine,
+              onChanged: _updateOilLeakCondition,
+              imageKey: 'Engine Oil Leak',
+            ),
+            const SizedBox(height: 16.0),
+
+            // Engine Water Leak Section
+            _buildYesNoSection(
+              title: 'Are there any water leaks in the engine?',
+              groupValue: _waterLeakConditionEngine,
+              onChanged: _updateWaterLeakCondition,
+              imageKey: 'Engine Water Leak',
+            ),
+            const SizedBox(height: 16.0),
+
+            // Blowby Condition Section (No Image)
+            _buildYesNoRadioOnlySection(
+              title: 'Is there blowby/engine breathing?',
+              groupValue: _blowbyCondition,
+              onChanged: _updateBlowbyCondition,
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+
+            // Gearbox Section
+            Text(
+              'Gearbox'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 20,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+
+            // Gearbox Photos (but not leaks)
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              children: _selectedImages.keys
+                  .where(
+                      (key) => key.contains('Gearbox') && !key.contains('Leak'))
+                  .map((key) => _buildPhotoBlock(key))
+                  .toList(),
+            ),
+            const SizedBox(height: 16.0),
+
+            // Gearbox Oil Leak Section
+            _buildYesNoSection(
+              title: 'Are there any oil leaks in the gearbox?',
+              groupValue: _oilLeakConditionGearbox,
+              onChanged: _updateGearboxOilLeakCondition,
+              imageKey: 'Gearbox Oil Leak',
+            ),
+            const SizedBox(height: 16.0),
+
+            // Retarder Condition Section (No Image)
+            _buildYesNoRadioOnlySection(
+              title: 'Does the gearbox come with a retarder?',
+              groupValue: _retarderCondition,
+              onChanged: _updateRetarderCondition,
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+
+            // Diffs Section
+            Text(
+              'Diffs (Differentials)'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 20,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+
+            // Diffs Photos
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              children: _selectedImages.keys
+                  .where((key) => key.contains('Diffs'))
+                  .map((key) => _buildPhotoBlock(key))
+                  .toList(),
+            ),
+            const SizedBox(height: 16.0),
+          ],
+        ),
+      ),
+    );
   }
 
-  // Helper method to create a photo block
+  /// Creates a photo block that includes an "X" (delete) button if an image is present.
   Widget _buildPhotoBlock(String title) {
     return GestureDetector(
       onTap: () => _showImageSourceDialog(title),
@@ -294,21 +309,53 @@ class DriveTrainPageState extends State<DriveTrainPage>
                   Text(
                     title,
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600),
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
               )
-            : ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  _selectedImages[title]!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
+            : Stack(
+                children: [
+                  // Display the image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.file(
+                      _selectedImages[title]!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  ),
+
+                  // 'X' button to remove the image
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () {
+                        // Stop the parent onTap from also firing
+                        setState(() {
+                          _selectedImages[title] = null;
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(4.0),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -397,6 +444,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
           ],
         ),
         const SizedBox(height: 16.0),
+        // If user selects yes, show the image block with an 'X' button
         if (groupValue == 'yes') _buildPhotoBlock(imageKey),
       ],
     );
@@ -489,16 +537,18 @@ class DriveTrainPageState extends State<DriveTrainPage>
     for (var entry in _selectedImages.entries) {
       if (entry.value != null) {
         String imageUrl = await _uploadImageToFirebase(
-            entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
+          entry.value!,
+          entry.key.replaceAll(' ', '_').toLowerCase(),
+        );
         serializedImages[entry.key] = {
           'url': imageUrl,
           'path': entry.value!.path,
-          'isNew': true
+          'isNew': true,
         };
       } else if (_imageUrls.containsKey(entry.key)) {
         serializedImages[entry.key] = {
           'url': _imageUrls[entry.key],
-          'isNew': false
+          'isNew': false,
         };
       }
     }
@@ -510,7 +560,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
       'blowbyCondition': _blowbyCondition,
       'gearboxOilLeak': _oilLeakConditionGearbox,
       'retarderCondition': _retarderCondition,
-      'images': serializedImages
+      'images': serializedImages,
     };
   }
 
@@ -596,9 +646,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
     });
     widget.onProgressUpdate();
   }
-
-  // Update all setState calls to use _updateAndNotify
-  // For example:
 
   // For condition selection
   void _updateCondition(String? value) {

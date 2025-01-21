@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Image picker for uploading images
+import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-import 'package:provider/provider.dart'; // Ensure this import path is correct
+import 'package:provider/provider.dart';
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
@@ -17,12 +17,15 @@ class ImageData {
   ImageData({this.file, this.url});
 }
 
-/// Class to represent items with descriptions and images
+/// Class to represent items with descriptions and images.
+/// A persistent TextEditingController is added to prevent recreating it on every build.
 class ItemData {
   String description;
   ImageData imageData;
+  TextEditingController controller;
 
-  ItemData({required this.description, required this.imageData});
+  ItemData({required this.description, required this.imageData})
+      : controller = TextEditingController(text: description);
 }
 
 class ExternalCabEditPage extends StatefulWidget {
@@ -74,6 +77,13 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   void dispose() {
     // Dispose the scroll controller to release resources
     _scrollController.dispose();
+    // Dispose each TextEditingController so that no memory leaks occur.
+    for (var damage in _damageList) {
+      damage.controller.dispose();
+    }
+    for (var feature in _additionalFeaturesList) {
+      feature.controller.dispose();
+    }
     super.dispose();
   }
 
@@ -94,24 +104,29 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 16.0),
-          Text(
-            'Details for EXTERNAL CAB'.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 25,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w900,
+          // Main title centered
+          const Center(
+            child: Text(
+              'Details for EXTERNAL CAB',
+              style: TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16.0),
-          const Text(
-            'Condition of the Outside CAB',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w500,
+          const Center(
+            child: Text(
+              'Condition of the Outside CAB',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16.0),
           Row(
@@ -143,14 +158,17 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
           const SizedBox(height: 16.0),
           const Divider(thickness: 1.0),
           const SizedBox(height: 16.0),
-          Text(
-            'Front Side of Cab'.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 25,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w900,
+          // Front Side of Cab title centered
+          Center(
+            child: Text(
+              'Front Side of Cab'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16.0),
           // Photo Blocks Section
@@ -443,7 +461,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     });
   }
 
-  // Helper method to create a photo block
+  // Helper method to create a photo block (with an X/delete button)
   Widget _buildPhotoBlock(String title) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
@@ -456,6 +474,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
     return GestureDetector(
       onTap: () {
+        // If there's an image, allow viewing in full screen:
         if (imageData?.file != null ||
             (imageData?.url != null && imageData!.url!.isNotEmpty)) {
           Navigator.push(
@@ -488,17 +507,42 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               ),
             ),
           );
-        } else if (!isDealer) {
+        }
+        // Otherwise, if transporter (not a dealer), show picking options
+        else if (!isDealer) {
           _showImageSourceDialog(title);
         }
       },
       child: Container(
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.blue.withOpacity(0.3),
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _getImageWidget(_selectedImages[title], title, isDealer),
+        child: Stack(
+          children: [
+            // The existing image or placeholder
+            _getImageWidget(imageData, title, isDealer),
+            // Show "X" button only if it's not a dealer AND an image is present
+            if (!isDealer &&
+                (imageData?.file != null ||
+                    (imageData?.url != null && imageData!.url!.isNotEmpty)))
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      // Remove the image by resetting it
+                      _selectedImages[title] = ImageData();
+                    });
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -561,14 +605,17 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     final bool isDealer = userProvider.getUserRole == 'dealer';
     return Column(
       children: [
-        Text(
-          title.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 15,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w900,
+        // Center the section title.
+        Center(
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 15,
+              color: Color.fromARGB(221, 255, 255, 255),
+              fontWeight: FontWeight.w900,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16.0),
         Row(
@@ -641,22 +688,26 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
           return _buildItemWidget(index, item, showImageSourceDialog);
         }),
         const SizedBox(height: 16.0),
+        // Center the add item (plus icon and text) row.
         if (!isDealer)
-          GestureDetector(
-            onTap: addItem,
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
-                SizedBox(width: 8.0),
-                Text(
-                  'Add Additional Item',
-                  style: TextStyle(
-                      color: Colors.blue,
-                      fontSize: 16.0,
-                      fontWeight: FontWeight.w600),
-                ),
-              ],
+          Center(
+            child: GestureDetector(
+              onTap: addItem,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.add_circle_outline,
+                      color: Colors.blue, size: 30.0),
+                  SizedBox(width: 8.0),
+                  Text(
+                    'Add Additional Item',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -669,7 +720,6 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
 
-    // Debugging statements
     print(
         'In _buildItemWidget for item ${item.description}, hasFile: ${item.imageData.file != null}, hasUrl: ${item.imageData.url != null && item.imageData.url!.isNotEmpty}, URL: ${item.imageData.url}');
 
@@ -681,8 +731,10 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
             Expanded(
               child: TextField(
                 enabled: !isDealer,
-                controller: TextEditingController(text: item.description),
-                onChanged: (value) => _updateDamageDescription(index, value),
+                controller: item.controller, // Using the persistent controller
+                onChanged: (value) {
+                  item.description = value;
+                },
                 readOnly: isDealer,
                 decoration: InputDecoration(
                   labelText: 'Describe Item',
@@ -718,7 +770,6 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
             if ((item.imageData.file != null) ||
                 (item.imageData.url != null &&
                     item.imageData.url!.isNotEmpty)) {
-              // View image
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -741,7 +792,6 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                 ),
               );
             } else if (!isDealer) {
-              // For transporters - show image source dialog
               showImageSourceDialog(item);
             }
           },
@@ -753,13 +803,34 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: _getItemImageWidget(item.imageData, isDealer),
+            child: Stack(
+              children: [
+                _getItemImageWidget(item.imageData, isDealer),
+                if (!isDealer &&
+                    (item.imageData.file != null ||
+                        (item.imageData.url != null &&
+                            item.imageData.url!.isNotEmpty)))
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          item.imageData = ImageData();
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
+  /// Modified helper to get the widget for an item's image.
   Widget _getItemImageWidget(ImageData imageData, bool isDealer) {
     if (imageData.file != null) {
       return ClipRRect(
@@ -775,32 +846,40 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Image.network(
-          imageData.url!, // Uses the url field to load the image
+          imageData.url!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
           errorBuilder: (context, error, stackTrace) {
-            return const Icon(Icons.error_outline, color: Colors.red);
+            return const Center(
+              child: Icon(Icons.error_outline, color: Colors.red),
+            );
           },
         ),
       );
     } else {
-      return const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-          SizedBox(height: 8.0),
-          Text(
-            'Clear Picture of Item',
-            style: TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ],
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: const [
+            Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+            SizedBox(height: 8.0),
+            Text(
+              'Clear Picture of Item',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       );
     }
   }
 
-  // Methods to show image source dialogs for different sections
   void _showDamageImageSourceDialog(ItemData damage) {
     _showImageSourceDialogForItem(damage);
   }
@@ -895,7 +974,6 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
       if (isFeaturesComplete) filledFields++;
     }
 
-    // Calculate and return percentage
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
@@ -940,15 +1018,5 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         }
       });
     }
-  }
-
-  void _updateDamageDescription(int index, String value) {
-    _updateAndNotify(() {
-      if (index < _damageList.length) {
-        _damageList[index].description = value;
-      } else if (index < _additionalFeaturesList.length) {
-        _additionalFeaturesList[index].description = value;
-      }
-    });
   }
 }

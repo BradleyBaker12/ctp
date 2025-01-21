@@ -1,8 +1,8 @@
-// vehicle_upload_tabs.dart
+// lib/pages/truckForms/vehilce_upload_screen.dart
 
 import 'dart:io';
-import 'dart:convert'; // Added for JSON decoding
-import 'package:flutter/services.dart'; // Added for loading assets
+import 'dart:convert'; // For JSON decoding
+import 'package:flutter/services.dart'; // For loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
@@ -12,31 +12,32 @@ import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:ctp/pages/truckForms/maintenance_warrenty_screen.dart';
 import 'package:ctp/providers/form_data_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart'; // Added for file picking
+import 'package:file_picker/file_picker.dart'; // For file picking
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'image_picker_widget.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
   final Vehicle? vehicle;
   final bool isNewUpload;
   final bool isAdminUpload;
-  final String? transporterId;
-
-  const VehicleUploadScreen(
-      {super.key,
-      this.vehicle,
-      this.transporterId,
-      this.isAdminUpload = false,
-      this.isDuplicating = false,
-      this.isNewUpload = false});
+  // transporterId removed because admins now select Sales Rep from a dropdown.
+  const VehicleUploadScreen({
+    super.key,
+    this.vehicle,
+    this.isAdminUpload = false,
+    this.isDuplicating = false,
+    this.isNewUpload = false,
+  });
 
   @override
   _VehicleUploadScreenState createState() => _VehicleUploadScreenState();
@@ -46,6 +47,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // Controllers and Variables
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0;
+  bool _isCustomYear = false;
+  final TextEditingController _customYearController = TextEditingController();
+  final TextEditingController _customBrandController = TextEditingController();
+  final TextEditingController _customModelController = TextEditingController();
   final TextEditingController _sellingPriceController = TextEditingController();
   final TextEditingController _vinNumberController = TextEditingController();
   final TextEditingController _mileageController = TextEditingController();
@@ -58,7 +63,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       TextEditingController();
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _variantController = TextEditingController();
-
   final TextEditingController _brandsController = TextEditingController();
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
@@ -99,39 +103,36 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     '6X2',
     '4X2',
     '8X4',
-    // Add any other configurations if needed
   ];
 
   late Map<String, List<String>> _makeModelOptions = {};
-
   List<String> _brandOptions = [];
-
   List<String> _variantOptions = [];
   final Map<String, List<String>> _modelVariants = {};
 
   // Variable to hold selected RC1/NATIS file
   File? _natisRc1File;
 
-  // Add this flag at the top with other variables
-  bool isNewUpload = false;
-
-  // Add these variables
+  // --- Added Missing Fields ---
   String? _existingNatisRc1Url;
   String? _existingNatisRc1Name;
 
-  // Add this line with other class variables
+  // For multi-step forms
   int _currentStep = 0;
 
-  // Add these controllers
+  // Additional controllers
   final TextEditingController _configController = TextEditingController();
   final TextEditingController _applicationController = TextEditingController();
   final TextEditingController _countryController =
-      TextEditingController(); // Added for country selection
+      TextEditingController(); // For country selection
 
-  List<String> _countryOptions = []; // Define the country options list
+  List<String> _countryOptions = []; // Country options list
   List<String> _provinceOptions = [];
-  // Add this with other class variables
   List<String> _yearOptions = [];
+
+  // --- New: Variables for Admin Sales Rep selection ---
+  // Instead of a dummy list, we'll fetch from UserProvider's dealers.
+  String? _selectedSalesRep;
 
   Future<void> _loadYearOptions() async {
     final String response =
@@ -139,6 +140,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final data = json.decode(response);
     setState(() {
       _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
+      _yearOptions.add('Other'); // Add "Other" option
     });
   }
 
@@ -161,7 +163,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
-
     setState(() {
       final models = data[year][brand] as List<dynamic>;
       _makeModelOptions = {brand: models.cast<String>()};
@@ -177,7 +178,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
     setState(() {
-      // This will correctly get the variants for the selected model
       _variantOptions = List<String>.from(data[year][brand][model]);
       formData.setVariant(null);
     });
@@ -187,29 +187,23 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final String response =
         await rootBundle.loadString('lib/assets/countries.json');
     final List<dynamic> data = json.decode(response);
-
     setState(() {
       final country = data.firstWhere(
         (country) => country['name'] == selectedCountry,
         orElse: () => {'states': []},
       );
-
       _provinceOptions = (country['states'] as List<dynamic>)
           .map((state) => state['name'] as String)
           .toList();
-
-      print("Provinces loaded: $_provinceOptions"); // Add this line
+      debugPrint("Provinces loaded: $_provinceOptions");
     });
   }
-
-  // Define year options
 
   Future<bool> _isVinNumberUnique(String vinNumber) async {
     final querySnapshot = await FirebaseFirestore.instance
         .collection('vehicles')
         .where('vinNumber', isEqualTo: vinNumber)
         .get();
-
     return querySnapshot.docs.isEmpty;
   }
 
@@ -222,7 +216,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _loadYearOptions();
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.isNewUpload) {
         _clearAllData(formData);
@@ -230,11 +223,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         _vehicleId = widget.vehicle!.id;
         _populateVehicleData();
       }
-
       _initializeTextControllers(formData);
       _addControllerListeners(formData);
     });
-
     _scrollController.addListener(() {
       setState(() {
         double offset = _scrollController.offset;
@@ -260,19 +251,14 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   Future<void> _loadCountryOptions() async {
-    // Load the JSON file
     final String response =
         await rootBundle.loadString('lib/assets/country-by-name.json');
     final List<dynamic> data = json.decode(response);
     setState(() {
-      _countryOptions = data
-          .map((country) => country['country'] as String)
-          .toList(); // Parse country names
+      _countryOptions =
+          data.map((country) => country['country'] as String).toList();
     });
-
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-
-    // Set "South Africa" as the default country if not already set
     if (formData.country == null && _countryOptions.contains('South Africa')) {
       formData.setCountry('South Africa');
     }
@@ -283,7 +269,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setSelectedMainImage(null);
     formData.setMainImageUrl(null);
     formData.setNatisRc1Url(null);
-
     formData.setYear(null);
     formData.setMakeModel(null);
     formData.setVinNumber(null);
@@ -303,55 +288,28 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setRequireToSettleType('no');
     formData.setReferenceNumber(null);
     formData.setBrands([]);
-
     _clearFormControllers();
-
     setState(() {
       _natisRc1File = null;
       _existingNatisRc1Url = null;
       _existingNatisRc1Name = null;
-
-      // Update the form data provider instead
       final formData = Provider.of<FormDataProvider>(context, listen: false);
       formData.setSelectedMainImage(null);
       formData.setMainImageUrl(null);
     });
-
     _vehicleId = null;
     _isLoading = false;
     _currentStep = 0;
   }
 
-  // void _clearFormControllers() {
-  //   _yearController.clear();
-  //   _makeModelController.clear();
-  //   _sellingPriceController.clear();
-  //   _vinNumberController.clear();
-  //   _mileageController.clear();
-  //   _engineNumberController.clear();
-  //   _warrantyDetailsController.clear();
-  //   _registrationNumberController.clear();
-  //   _referenceNumberController.clear();
-  //   _brandsController.clear();
-  //   _configController.clear();
-  //   _applicationController.clear();
-
-  //   setState(() {
-  //     _natisRc1File = null;
-  //     _existingNatisRc1Url = null;
-  //     _existingNatisRc1Name = null;
-  //   });
-  // }
-
   void _initializeDefaultValues(FormDataProvider formData) {
-    // Set any default values needed for new trucks
-    formData.setVehicleType('truck'); // Default to truck
-    formData.setSuspension('spring'); // Default suspension
-    formData.setTransmissionType('automatic'); // Default transmission
-    formData.setHydraulics('no'); // Default hydraulics
-    formData.setMaintenance('no'); // Default maintenance
-    formData.setWarranty('no'); // Default warranty
-    formData.setRequireToSettleType('no'); // Default settle type
+    formData.setVehicleType('truck');
+    formData.setSuspension('spring');
+    formData.setTransmissionType('automatic');
+    formData.setHydraulics('no');
+    formData.setMaintenance('no');
+    formData.setWarranty('no');
+    formData.setRequireToSettleType('no');
   }
 
   void _initializeTextControllers(FormDataProvider formData) {
@@ -362,9 +320,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _sellingPriceController.text = formData.sellingPrice ?? '';
     _warrantyDetailsController.text = formData.warrantyDetails ?? '';
     _referenceNumberController.text = formData.referenceNumber ?? '';
-    _brandsController.text = (formData.brands)?.firstOrNull ?? '';
-    _countryController.text =
-        formData.country ?? 'South Africa'; // Initialize country controller
+    _brandsController.text =
+        (formData.brands)?.isNotEmpty == true ? formData.brands!.first : '';
+    _countryController.text = formData.country ?? 'South Africa';
   }
 
   void _addControllerListeners(FormDataProvider formData) {
@@ -396,11 +354,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   void _populateVehicleData() {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-
-    // Store existing document URL and name
     _existingNatisRc1Url = widget.vehicle!.rc1NatisFile;
     _existingNatisRc1Name = _getFileNameFromUrl(_existingNatisRc1Url);
-
     formData.setNatisRc1Url(widget.vehicle!.rc1NatisFile, notify: false);
     formData.setVehicleType(widget.vehicle!.vehicleType, notify: false);
     formData.setYear(widget.vehicle!.year, notify: false);
@@ -413,7 +368,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setSellingPrice(widget.vehicle!.adminData.settlementAmount,
         notify: false);
     formData.setMainImageUrl(widget.vehicle!.mainImageUrl, notify: false);
-
     formData.setApplication(widget.vehicle!.application as String,
         notify: false);
     formData.setConfig(widget.vehicle!.config, notify: false);
@@ -423,10 +377,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setHydraulics(widget.vehicle!.hydraluicType, notify: false);
     formData.setWarranty(widget.vehicle!.warrentyType, notify: false);
     formData.setWarrantyDetails(widget.vehicle!.warrantyDetails, notify: false);
-
     formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
     formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
-
     if (widget.isDuplicating) {
       _vehicleId = null;
     } else {
@@ -434,19 +386,16 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
-  // Helper to extract filename from URL
   String? _getFileNameFromUrl(String? url) {
     if (url == null) return null;
     return url.split('/').last.split('?').first;
   }
 
-  // Function to pick RC1/NATIS file
   Future<void> _pickNatisRc1File() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
       );
-
       if (result != null && result.files.single.path != null) {
         setState(() {
           _natisRc1File = File(result.files.single.path!);
@@ -459,7 +408,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
-  // Helper function to get file icon based on extension
   IconData _getFileIcon(String extension) {
     switch (extension.toLowerCase()) {
       case 'pdf':
@@ -485,14 +433,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
-  // Helper function to check if file is an image
   bool _isImageFile(String path) {
     final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
     String extension = path.split('.').last.toLowerCase();
     return imageExtensions.contains(extension);
   }
 
-  // Helper method to display uploaded files
   Widget _buildUploadedFile(File? file, bool isUploading) {
     if (file == null) {
       return const Text(
@@ -553,10 +499,42 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
+  // --- Updated Helper Method to Pull Sales Reps via UserProvider (Dealers) ---
+  Future<List<Map<String, String>>> _getSalesReps() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    // Ensure dealers are fetched
+    await userProvider.fetchAdmins();
+    return userProvider.dealers.map((dealer) {
+      // Use tradingName if available; otherwise, use firstName + lastName
+      String displayName =
+          dealer.tradingName ?? '${dealer.firstName} ${dealer.lastName}'.trim();
+      return {'id': dealer.id, 'display': displayName};
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    // Removed _searchController disposal because it is not defined in this class.
+    _sellingPriceController.dispose();
+    _vinNumberController.dispose();
+    _mileageController.dispose();
+    _engineNumberController.dispose();
+    _warrantyDetailsController.dispose();
+    _registrationNumberController.dispose();
+    _referenceNumberController.dispose();
+    _brandsController.dispose();
+    _modelController.dispose();
+    _variantController.dispose();
+    _configController.dispose();
+    _applicationController.dispose();
+    _countryController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final formData = Provider.of<FormDataProvider>(context);
-
     return WillPopScope(
       onWillPop: () async {
         if (widget.isNewUpload) {
@@ -576,7 +554,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 color: Colors.white,
                 iconSize: 40,
               ),
-              backgroundColor: Color(0xFF0E4CAF),
+              backgroundColor: const Color(0xFF0E4CAF),
               elevation: 0.0,
               systemOverlayStyle: SystemUiOverlayStyle.light,
               centerTitle: true,
@@ -628,8 +606,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   Widget _buildImageSection() {
     final formData = Provider.of<FormDataProvider>(context);
-
-    // Function to show image picker dialog
     void showImagePickerDialog() {
       showDialog(
         context: context,
@@ -662,7 +638,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       );
     }
 
-    // Function to handle image tap
     void handleImageTap() {
       if (formData.selectedMainImage != null ||
           (formData.mainImageUrl != null &&
@@ -755,7 +730,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   }
                 },
               ),
-            // Add an overlay hint
             Positioned(
               bottom: 8,
               right: 8,
@@ -790,7 +764,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              'truck/trailer form'.toUpperCase(),
+              'TRUCK/TRAILER FORM'.toUpperCase(),
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -818,8 +792,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          const SizedBox(height: 15),
-          // Reference Number field
+          // Reference Number Field
           CustomTextField(
             controller: _referenceNumberController,
             hintText: 'Reference Number',
@@ -831,8 +804,58 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               return null;
             },
           ),
+          // --- For Admins: Sales Rep Dropdown using UserProvider (dealers) ---
+          if (widget.isAdminUpload) ...[
+            const SizedBox(height: 15),
+            FutureBuilder<List<Map<String, String>>>(
+              future: _getSalesReps(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+                final salesReps = snapshot.data!;
+                return DropdownButtonFormField<String>(
+                  dropdownColor: Colors.grey[900],
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey[800],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  hint: Text(
+                    'Select Sales Rep',
+                    style: GoogleFonts.montserrat(color: Colors.white),
+                  ),
+                  value: _selectedSalesRep,
+                  items: salesReps.map((rep) {
+                    return DropdownMenuItem<String>(
+                      value: rep['id'],
+                      child: Text(
+                        rep['display']!,
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedSalesRep = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select a Sales Rep';
+                    }
+                    return null;
+                  },
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 15),
-          // RC1/NATIS File Upload Section
           _buildNatisRc1Section(),
           const SizedBox(height: 15),
           Row(
@@ -857,61 +880,110 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 15),
-
           Form(
             key: _formKeys[0],
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-// Temporary Year Dropdown
-                CustomDropdown(
-                  hintText: 'Year',
-                  value: formData.year,
-                  items: _yearOptions, // This will be populated from JSON keys
-                  onChanged: (value) {
-                    formData.setYear(value);
-                    _loadBrandsForYear(
-                        value!); // This will populate brands based on year
-                  },
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CustomDropdown(
+                      hintText: 'Year',
+                      value: formData.year,
+                      items: _yearOptions,
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == 'Other') {
+                            _isCustomYear = true;
+                            formData.setYear(null);
+                          } else {
+                            _isCustomYear = false;
+                            formData.setYear(value);
+                            debugPrint("Year set to: $value");
+                            _loadBrandsForYear(value!);
+                          }
+                        });
+                      },
+                    ),
+                    if (_isCustomYear) ...[
+                      const SizedBox(height: 15),
+                      CustomTextField(
+                        controller: _customYearController,
+                        hintText: 'Enter Year',
+                        keyboardType: TextInputType.number,
+                        inputFormatter: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        validator: _validateCustomYear,
+                        onChanged: (value) {
+                          formData.setYear(value);
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      CustomTextField(
+                        controller: _customBrandController,
+                        hintText: 'Enter Manufacturer',
+                        inputFormatter: [UpperCaseTextFormatter()],
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the brand';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          formData.setBrands([value]);
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      CustomTextField(
+                        controller: _customModelController,
+                        hintText: 'Enter Model',
+                        inputFormatter: [UpperCaseTextFormatter()],
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the model';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          formData.setMakeModel(value);
+                        },
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 15),
+                      CustomDropdown(
+                        hintText: 'Manufacturer',
+                        value: formData.brands?.isNotEmpty == true
+                            ? formData.brands![0]
+                            : null,
+                        items: _brandOptions,
+                        onChanged: (value) {
+                          if (value != null) {
+                            formData.setBrands([value]);
+                            _loadModelsForBrand(value);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      CustomDropdown(
+                        hintText: 'Model',
+                        value: formData.makeModel,
+                        items: _makeModelOptions[
+                                formData.brands?.isNotEmpty == true
+                                    ? formData.brands![0]
+                                    : ''] ??
+                            [],
+                        onChanged: (value) {
+                          formData.setMakeModel(value);
+                        },
+                      ),
+                    ],
+                  ],
                 ),
-
                 const SizedBox(height: 15),
-// Temporary Brand Dropdown
-                CustomDropdown(
-                  hintText: 'Manufacturer',
-                  value: formData.brands?.isNotEmpty == true
-                      ? formData.brands![0]
-                      : null,
-                  items:
-                      _brandOptions, // This will be populated based on selected year
-                  onChanged: (value) {
-                    if (value != null) {
-                      formData.setBrands([value]);
-                      _loadModelsForBrand(
-                          value); // This will populate models based on brand
-                    }
-                  },
-                ),
-
-                const SizedBox(height: 15),
-// Temporary Model Text Input
-                CustomDropdown(
-                  hintText: 'Model',
-                  value: formData.makeModel,
-                  items: _makeModelOptions[formData.brands?.isNotEmpty == true
-                          ? formData.brands![0]
-                          : ''] ??
-                      [],
-                  onChanged: (value) {
-                    formData.setMakeModel(value);
-                  },
-                ),
-
-                const SizedBox(height: 15),
-
                 CustomTextField(
                   controller: _variantController,
                   hintText: 'Variant',
@@ -920,21 +992,18 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     formData.setVariant(value);
                   },
                 ),
-
                 const SizedBox(height: 15),
-                // Country Dropdown
                 CustomDropdown(
                   hintText: 'Select Country',
                   value: formData.country?.isNotEmpty == true
                       ? formData.country
                       : null,
-                  items: _countryOptions, // Assuming _countryOptions is defined
+                  items: _countryOptions,
                   onChanged: (value) {
-                    formData.setCountry(value); // Update form data provider
+                    formData.setCountry(value);
                     if (value != null) {
                       _updateProvinceOptions(value);
-                      formData.setProvince(
-                          null); // Reset province when country changes
+                      formData.setProvince(null);
                     }
                   },
                   validator: (value) {
@@ -948,7 +1017,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 CustomDropdown(
                   hintText: 'Select Province/State',
                   value: formData.province,
-                  items: _provinceOptions, // Verify this list is not empty
+                  items: _provinceOptions,
                   onChanged: (value) {
                     formData.setProvince(value);
                   },
@@ -960,7 +1029,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   },
                 ),
                 const SizedBox(height: 15),
-                // Mileage
                 CustomTextField(
                   controller: _mileageController,
                   hintText: 'Mileage',
@@ -991,7 +1059,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   },
                 ),
                 const SizedBox(height: 15),
-                // Application of Use
                 CustomDropdown(
                   hintText: 'Application of Use',
                   value: formData.application?.isNotEmpty == true
@@ -1009,14 +1076,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   },
                 ),
                 const SizedBox(height: 15),
-                // VIN Number
                 CustomTextField(
                   controller: _vinNumberController,
                   hintText: 'VIN Number',
                   inputFormatter: [UpperCaseTextFormatter()],
                   onChanged: (value) async {
                     if (value.length >= 17) {
-                      // Most VIN numbers are 17 characters
                       bool isUnique = await _isVinNumberUnique(value);
                       if (!isUnique) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1043,21 +1108,18 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   },
                 ),
                 const SizedBox(height: 15),
-                // Engine Number
                 CustomTextField(
                   controller: _engineNumberController,
                   hintText: 'Engine No.',
                   inputFormatter: [UpperCaseTextFormatter()],
                 ),
                 const SizedBox(height: 15),
-                // Registration Number
                 CustomTextField(
                   controller: _registrationNumberController,
                   hintText: 'Registration No.',
                   inputFormatter: [UpperCaseTextFormatter()],
                 ),
                 const SizedBox(height: 15),
-                // Selling Price
                 CustomTextField(
                   controller: _sellingPriceController,
                   hintText: 'Expected Selling Price',
@@ -1255,8 +1317,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 const SizedBox(height: 15),
                 Center(
                   child: Text(
-                    'Do you require the truck to be settled before selling'
-                        .toUpperCase(),
+                    'DO YOU REQUIRE THE TRUCK TO BE SETTLED BEFORE SELLING',
                     style: const TextStyle(fontSize: 14, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
@@ -1295,19 +1356,29 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     );
   }
 
+  /// Save Section 1 Data with Sales Rep Assignment Logic and Debugging
   Future<String?> _saveSection1Data() async {
     try {
       final formData = Provider.of<FormDataProvider>(context, listen: false);
 
-      if (widget.isNewUpload) {
+      // For admin uploads, ensure that a Sales Rep has been selected.
+      if (widget.isAdminUpload) {
+        if (_selectedSalesRep == null || _selectedSalesRep!.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please select a Sales Rep')),
+          );
+          return null;
+        }
+      } else {
+        // For non-admin uploads, validate required fields.
         if (!_validateRequiredFields(formData)) {
           return null;
         }
       }
 
+      debugPrint("=== _saveSection1Data START ===");
+      // Upload the main image, if provided.
       String? imageUrl;
-      String? natisRc1Url;
-
       if (formData.selectedMainImage != null) {
         final ref = FirebaseStorage.instance
             .ref()
@@ -1315,15 +1386,43 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             .child('${DateTime.now().toIso8601String()}.jpg');
         await ref.putFile(formData.selectedMainImage!);
         imageUrl = await ref.getDownloadURL();
+        debugPrint("Main image uploaded. URL: $imageUrl");
+      } else {
+        debugPrint("No main image selected.");
       }
 
+      // Upload the NATIS/RC1 file if one was picked.
+      String? natisRc1Url;
       if (_natisRc1File != null) {
-        final ref = FirebaseStorage.instance.ref().child('vehicle_documents').child(
-            '${DateTime.now().millisecondsSinceEpoch}_${_natisRc1File!.path.split('/').last}');
+        final fileName = _natisRc1File!.path.split('/').last;
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('vehicle_documents')
+            .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
         await ref.putFile(_natisRc1File!);
         natisRc1Url = await ref.getDownloadURL();
+        debugPrint("NATIS/RC1 file uploaded. URL: $natisRc1Url");
+      } else {
+        debugPrint("No NATIS/RC1 file selected.");
       }
 
+      // Determine the assigned Sales Rep.
+      final currentUser = FirebaseAuth.instance.currentUser;
+      debugPrint(
+          "Current Firebase user: ${currentUser?.uid ?? 'No user found'}");
+      String? assignedSalesRepId;
+      if (widget.isAdminUpload) {
+        // For admin uploads, use the selected Sales Rep from the dropdown.
+        assignedSalesRepId = _selectedSalesRep;
+        debugPrint(
+            "Admin upload selected. Using Sales Rep: $assignedSalesRepId");
+      } else {
+        // For regular Sales Rep uploads, assign the current user's UID.
+        assignedSalesRepId = currentUser?.uid;
+      }
+      debugPrint("Assigned Sales Rep ID to be saved: $assignedSalesRepId");
+
+      // Build the vehicle data map.
       final vehicleData = {
         'year': formData.year,
         'makeModel': _modelController.text,
@@ -1351,24 +1450,27 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'province': formData.province,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'userId': widget.isAdminUpload
-            ? widget.transporterId
-            : FirebaseAuth.instance.currentUser?.uid,
-        'vehicleStatus': 'Draft', // Initial status for new vehicles
+        // Always store current user's UID as userId.
+        'userId': currentUser?.uid,
+        // Assigned Sales Rep ID based on selection or current user.
+        'assignedSalesRepId': assignedSalesRepId,
+        'vehicleStatus': 'Draft',
       };
+
+      debugPrint("Vehicle data being saved to Firestore: $vehicleData");
 
       final docRef = await FirebaseFirestore.instance
           .collection('vehicles')
           .add(vehicleData);
-
       _vehicleId = docRef.id;
-
+      debugPrint("Vehicle successfully created with document ID: $_vehicleId");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vehicle created successfully')),
       );
-
+      debugPrint("=== _saveSection1Data END ===");
       return _vehicleId;
     } catch (e) {
+      debugPrint("Error in _saveSection1Data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving vehicle: $e')),
       );
@@ -1377,6 +1479,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   bool _validateRequiredFields(FormDataProvider formData) {
+    debugPrint("Validating year: ${formData.year}"); // Add debug logging
+
     if (formData.selectedMainImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a main image')),
@@ -1384,19 +1488,26 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       return false;
     }
 
-    if (formData.year == null || formData.year!.isEmpty) {
+    // Check for either selected year or custom year
+    if (_isCustomYear) {
+      if (_customYearController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a custom year')),
+        );
+        return false;
+      }
+      // Set the year in formData if using custom year
+      formData.setYear(_customYearController.text);
+    } else if (formData.year == null || formData.year!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the year')),
+        const SnackBar(content: Text('Please select a year')),
       );
       return false;
     }
 
-    // Add more validations as needed
-
     return true;
   }
 
-// Update the Next button handler
   Widget _buildNextButton() {
     return Center(
       child: CustomButton(
@@ -1438,7 +1549,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     );
   }
 
-// Add this method to clear form controllers
   void _clearFormControllers() {
     _sellingPriceController.clear();
     _vinNumberController.clear();
@@ -1448,12 +1558,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _registrationNumberController.clear();
     _referenceNumberController.clear();
     _brandsController.clear();
-
-    // Clear image-related data
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     formData.setSelectedMainImage(null);
     formData.setMainImageUrl(null);
-
     setState(() {
       _natisRc1File = null;
       _existingNatisRc1Url = null;
@@ -1465,23 +1572,19 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: source);
-
     if (image != null) {
       formData.setSelectedMainImage(File(image.path));
     }
   }
 
-// Add this new method to load saved form data
   Future<void> _loadSavedFormData(FormDataProvider formData) async {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('vehicles')
           .doc(_vehicleId)
           .get();
-
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
-
         setState(() {
           _mileageController.text = data['mileage'] ?? '';
           _vinNumberController.text = data['vinNumber'] ?? '';
@@ -1491,9 +1594,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           _warrantyDetailsController.text = data['warrantyDetails'] ?? '';
           _referenceNumberController.text = data['referenceNumber'] ?? '';
           _brandsController.text =
-              (data['brands'] as List<String>?)?.firstOrNull ?? '';
-
-          // Update FormDataProvider
+              (data['brands'] as List<String>?)?.first ?? '';
           formData.setYear(data['year']);
           formData.setMakeModel(data['makeModel']);
           formData.setVinNumber(data['vinNumber']);
@@ -1517,7 +1618,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         });
       }
     } catch (e) {
-      print('Error loading saved form data: $e');
+      debugPrint('Error loading saved form data: $e');
     }
   }
 
@@ -1526,7 +1627,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       children: [
         Center(
           child: Text(
-            'NATIS/RC1 Documentation'.toUpperCase(),
+            'NATIS/RC1 DOCUMENTATION'.toUpperCase(),
             style: const TextStyle(
                 fontSize: 15, color: Colors.white, fontWeight: FontWeight.w900),
             textAlign: TextAlign.center,
@@ -1570,9 +1671,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       Text(
                         _existingNatisRc1Name ?? 'Existing Document',
                         style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
+                            color: Colors.white70, fontSize: 14),
                       ),
                     ],
                   )
@@ -1588,10 +1687,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       SizedBox(height: 10),
                       Text(
                         'NATIS/RC1 Upload',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.white70),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1654,10 +1750,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   void _viewDocument() async {
     final url = _natisRc1File != null ? null : _existingNatisRc1Url;
     if (url != null) {
-      // Implement document viewing logic here
-      // You might want to use url_launcher or a custom document viewer
-      // For example:
-      // launchUrl(Uri.parse(url));
+      // Implement document viewing logic here (e.g., using url_launcher)
     }
   }
 
@@ -1668,15 +1761,29 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       _existingNatisRc1Name = null;
     });
   }
+
+  // Add this new method to validate custom year
+  String? _validateCustomYear(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter a year';
+    }
+    final year = int.tryParse(value);
+    if (year == null) {
+      return 'Please enter a valid year';
+    }
+    final currentYear = DateTime.now().year;
+    if (year < 1900 || year > currentYear) {
+      return 'Please enter a year between 1900 and $currentYear';
+    }
+    return null;
+  }
 }
 
 // UpperCaseTextFormatter remains the same
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue, TextEditingValue newValue) {
     return TextEditingValue(
       text: newValue.text.toUpperCase(),
       selection: newValue.selection,
@@ -1687,19 +1794,12 @@ class UpperCaseTextFormatter extends TextInputFormatter {
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue, TextEditingValue newValue) {
     if (newValue.text.isEmpty) {
       return newValue;
     }
-
-    // Only keep digits
     final String cleanText = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-
-    // Format with thousand separators
     final String formatted = NumberFormat('####').format(int.parse(cleanText));
-
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),

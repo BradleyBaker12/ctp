@@ -10,7 +10,11 @@ import 'package:ctp/adminScreens/offers_tab.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import FirebaseAuth for logout
+// Remove FirebaseAuth import if you don't need logout functionality anymore
+// import 'package:firebase_auth/firebase_auth.dart';
+
+// Import the ProfilePage for navigation
+import 'package:ctp/pages/profile_page.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -57,75 +61,17 @@ class _AdminHomePageState extends State<AdminHomePage>
     super.dispose();
   }
 
-  // Common method to show confirmation dialogs (e.g., Logout confirmation)
-  Future<bool?> _showConfirmationDialog(
-      BuildContext context, String title, String content) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title,
-              style: GoogleFonts.montserrat(
-                color: Colors.white,
-              )),
-          content: Text(content,
-              style: GoogleFonts.montserrat(
-                color: Colors.white70,
-              )),
-          backgroundColor: Colors.black87,
-          actions: [
-            TextButton(
-              child: Text('Cancel',
-                  style: GoogleFonts.montserrat(
-                    color: Colors.white,
-                  )),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: Text('Logout',
-                  style: GoogleFonts.montserrat(color: Colors.red)),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Method to handle logout
-  Future<void> _logout() async {
-    bool? confirmLogout = await _showConfirmationDialog(
-        context, 'Confirm Logout', 'Are you sure you want to logout?');
-
-    if (confirmLogout == true) {
-      try {
-        await FirebaseAuth.instance.signOut();
-
-        // Optionally, clear any stored user data here
-
-        // Navigate to the login screen and remove all previous routes
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      } catch (e) {
-        print('Error during logout: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error during logout. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     var blue = const Color(0xFF2F7FFF);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String currentUserRole = userProvider.getUserRole;
+    final bool isAdmin = currentUserRole == 'admin';
+    final bool isSalesRep = currentUserRole == 'sales representative';
 
-    // Access the UserProvider to get user details
-    final userProvider = Provider.of<UserProvider>(context);
-
-    // Ensure only admins can access this page
-    if (userProvider.userRole != 'admin') {
+    // Ensure only admins and sales representatives can access this page
+    if (userProvider.userRole != 'admin' &&
+        userProvider.userRole != 'sales representative') {
       // Redirect to an error page or unauthorized access page
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacementNamed(context, '/error');
@@ -134,19 +80,15 @@ class _AdminHomePageState extends State<AdminHomePage>
     }
 
     return GradientBackground(
-      // begin: const FractionalOffset(0.5, 0),
-      // end: const FractionalOffset(0.5, 1),
-      // stops: const [0.0, 1.0],
       child: Scaffold(
-        backgroundColor:
-            Colors.transparent, // Make Scaffold background transparent
+        backgroundColor: Colors.transparent, // Transparent scaffold background
         appBar: AppBar(
           backgroundColor: blue,
           elevation: 0,
           automaticallyImplyLeading:
-              false, // Remove back arrow (since this is home page)
+              false, // Remove back arrow (since this is home)
           title: Text(
-            'Admin Dashboard',
+            isAdmin ? 'Admin Dashboard' : 'Sales Rep Dashboard',
             style: GoogleFonts.montserrat(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -154,13 +96,45 @@ class _AdminHomePageState extends State<AdminHomePage>
             ),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(
-                Icons.logout,
-                color: Colors.white,
+            Padding(
+              padding: const EdgeInsets.only(right: 25.0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilePage(),
+                    ),
+                  );
+                },
+                child: Consumer<UserProvider>(
+                  builder: (context, userProvider, _) {
+                    final profileImageUrl = userProvider.getProfileImageUrl;
+                    return CircleAvatar(
+                      radius: 26,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: profileImageUrl.isNotEmpty
+                          ? NetworkImage(profileImageUrl)
+                          : const AssetImage(
+                                  'lib/assets/default-profile-photo.jpg')
+                              as ImageProvider,
+                      // Only display the fallback icon if the user is not a sales rep.
+                      child: () {
+                        if (currentUserRole == 'sales representative') {
+                          return null;
+                        }
+                        return profileImageUrl.isEmpty
+                            ? const Icon(
+                                Icons.person,
+                                size: 26,
+                                color: Colors.grey,
+                              )
+                            : null;
+                      }(),
+                    );
+                  },
+                ),
               ),
-              tooltip: 'Logout',
-              onPressed: _logout,
             ),
           ],
           bottom: TabBar(
@@ -176,12 +150,9 @@ class _AdminHomePageState extends State<AdminHomePage>
             ),
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            labelPadding:
-                const EdgeInsets.symmetric(horizontal: 16.0), // Add padding
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16.0),
             isScrollable: false, // Force tabs to fill width
           ),
-          // Optional: Adjust the AppBar height if needed
-          // toolbarHeight: 60.0,
         ),
         body: TabBarView(
           controller: _tabController,

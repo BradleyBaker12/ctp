@@ -14,6 +14,8 @@ class Complaint {
   final String selectedIssue;
   final Timestamp timestamp;
   final String userId;
+  final String?
+      assignedSalesRepId; // New field to indicate which sales rep manages this complaint
 
   Complaint({
     required this.complaintId,
@@ -24,6 +26,7 @@ class Complaint {
     required this.selectedIssue,
     required this.timestamp,
     required this.userId,
+    this.assignedSalesRepId, // This field is optional
   });
 
   // Factory method to create a Complaint from Firestore data
@@ -39,6 +42,8 @@ class Complaint {
       selectedIssue: data['selectedIssue'] ?? '',
       timestamp: data['timestamp'] ?? Timestamp.now(),
       userId: data['userId'] ?? '',
+      assignedSalesRepId: data['assignedSalesRepId'] ??
+          '', // Read the new field from Firestore (default to an empty string if not present)
     );
   }
 
@@ -52,6 +57,7 @@ class Complaint {
       'selectedIssue': selectedIssue,
       'timestamp': timestamp,
       'userId': userId,
+      'assignedSalesRepId': assignedSalesRepId,
     };
   }
 }
@@ -220,7 +226,7 @@ class ComplaintsProvider extends ChangeNotifier {
     var previousStatus = complaint?.complaintStatus;
 
     try {
-      //Optimistically update the local state
+      // Optimistically update the local state.
       optimisticallyUpdateComplaint(complaintId, newStatus);
 
       await _firestore
@@ -230,6 +236,7 @@ class ComplaintsProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       print('Error updating complaint status: $e');
+      // Optionally, you could rollback using: rollbackComplaintStatus(complaintId, previousStatus);
       return false;
     }
   }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/offer_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OffersTab extends StatefulWidget {
   final String userId;
@@ -21,51 +22,49 @@ class _OffersTabState extends State<OffersTab> {
   final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
 
+  // Sorting
   String _sortField = 'createdAt';
   bool _sortAscending = false;
-  String _filterStatus = 'All';
 
+  // Filters: Added "Rejected" here
   final List<String> _filterOptions = [
     'All',
-    'Pending',
+    'In-Progress',
     'Accepted',
     'Rejected',
-    'Expired'
   ];
   final List<String> _selectedFilters = [];
 
+  // Track the filter that actually gets applied
+  String _filterStatus = 'All';
+
+  // Sort dropdown options
   final List<Map<String, String>> _sortOptions = [
     {'field': 'createdAt', 'label': 'Date'},
     {'field': 'offerAmount', 'label': 'Amount'},
     {'field': 'offerStatus', 'label': 'Status'}
   ];
 
-  // Add stream subscription
+  // Offers stream subscription
   StreamSubscription? _offerSubscription;
 
   @override
   void initState() {
     super.initState();
-    print('DEBUG: OffersTab initState');
-    print('DEBUG: userId: ${widget.userId}, userRole: ${widget.userRole}');
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      print('DEBUG: Post frame callback executing');
       final offerProvider = Provider.of<OfferProvider>(context, listen: false);
       offerProvider.initialize(widget.userId, widget.userRole);
-      print('DEBUG: Provider initialized, fetching offers');
       await offerProvider.refreshOffers();
-      print('DEBUG: Initial fetch completed');
     });
 
+    // Listen to provider's offers stream
     _offerSubscription = Provider.of<OfferProvider>(context, listen: false)
         .offersStream
         .listen((offers) {
-      print('DEBUG: Stream update - offers count: ${offers.length}');
       if (mounted) setState(() {});
     });
 
-    // Add scroll listener for pagination
+    // Scroll listener for pagination
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 200 &&
@@ -75,22 +74,16 @@ class _OffersTabState extends State<OffersTab> {
       }
     });
 
-    // Add listener for search input with debounce
+    // Debounce for search
     _searchController.addListener(_onSearchChanged);
   }
 
-  Future<void> _initializeData() async {
-    if (mounted) {
-      await Provider.of<OfferProvider>(context, listen: false).refreshOffers();
-    }
-  }
-
-  // Debounce search input
   void _onSearchChanged() {
     if (_debounce?.isActive ?? false) _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
+        print('DEBUG: _searchQuery set to => $_searchQuery');
       });
     });
   }
@@ -141,6 +134,7 @@ class _OffersTabState extends State<OffersTab> {
       if (value != null) {
         setState(() {
           _sortField = value;
+          print('DEBUG: _sortField changed to => $_sortField');
         });
       }
     });
@@ -151,31 +145,28 @@ class _OffersTabState extends State<OffersTab> {
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
+          builder: (BuildContext context, StateSetter setDialogState) {
             return AlertDialog(
               backgroundColor: Colors.grey[900],
-              title: Text(
-                'Filter Offers',
-                style: GoogleFonts.montserrat(color: Colors.white),
-              ),
+              title: Text('Filter Offers',
+                  style: GoogleFonts.montserrat(color: Colors.white)),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ListView(
                   shrinkWrap: true,
                   children: _filterOptions.map((filter) {
                     return CheckboxListTile(
-                      title: Text(
-                        filter,
-                        style: GoogleFonts.montserrat(color: Colors.white),
-                      ),
+                      title: Text(filter,
+                          style: GoogleFonts.montserrat(color: Colors.white)),
                       value: _selectedFilters.contains(filter),
                       onChanged: (bool? value) {
-                        setState(() {
+                        setDialogState(() {
                           if (value == true) {
                             _selectedFilters.add(filter);
                           } else {
                             _selectedFilters.remove(filter);
                           }
+                          print('DEBUG: _selectedFilters => $_selectedFilters');
                         });
                       },
                       checkColor: Colors.black,
@@ -187,27 +178,28 @@ class _OffersTabState extends State<OffersTab> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    setState(() {
+                      _selectedFilters.clear();
+                      _filterStatus = 'All';
+                    });
+                    print('DEBUG: Filters cleared. _filterStatus = All');
                     Navigator.pop(context);
                   },
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.montserrat(color: Colors.white),
-                  ),
+                  child: Text('Clear All',
+                      style: GoogleFonts.montserrat(color: Colors.white)),
                 ),
                 TextButton(
                   onPressed: () {
-                    this.setState(() {
-                      // Update parent widget state
+                    setState(() {
                       _filterStatus = _selectedFilters.isEmpty
                           ? 'All'
                           : _selectedFilters.first;
                     });
+                    print('DEBUG: _filterStatus set to => $_filterStatus');
                     Navigator.pop(context);
                   },
-                  child: Text(
-                    'Apply',
-                    style: GoogleFonts.montserrat(color: Colors.white),
-                  ),
+                  child: Text('Apply',
+                      style: GoogleFonts.montserrat(color: Colors.white)),
                 ),
               ],
             );
@@ -217,28 +209,49 @@ class _OffersTabState extends State<OffersTab> {
     );
   }
 
-  // Helper method to filter offers based on search query
+  /// Matches the search query against offer fields.
   bool _matchesSearch(Offer offer) {
-    if (_searchQuery.isEmpty) return true;
-
-    String vehicleMakeModel = offer.vehicleMakeModel?.toLowerCase() ?? '';
-    String dealerId = offer.dealerId.toLowerCase();
-    String offerStatus = offer.offerStatus.toLowerCase();
-
-    return vehicleMakeModel.contains(_searchQuery) ||
+    if (_searchQuery.isEmpty) {
+      print('DEBUG: Offer ${offer.offerId} matched search (empty query).');
+      return true;
+    }
+    final vehicleMakeModel = (offer.vehicleMakeModel ?? '').toLowerCase();
+    final dealerId = offer.dealerId.toLowerCase();
+    final offerStatus = offer.offerStatus.toLowerCase();
+    final matches = vehicleMakeModel.contains(_searchQuery) ||
         dealerId.contains(_searchQuery) ||
         offerStatus.contains(_searchQuery);
+    print(
+        'DEBUG: Offer ${offer.offerId} => match = $matches (search: $_searchQuery)');
+    return matches;
   }
 
+  /// Filter offers by status, sort them, and return the final list.
   List<Offer> _getFilteredAndSortedOffers(List<Offer> offers) {
-    // First apply status filter
-    var filteredOffers = offers.where((offer) {
-      if (_filterStatus == 'All') return true;
-      return offer.offerStatus.toLowerCase() == _filterStatus.toLowerCase();
+    print(
+        'DEBUG: _getFilteredAndSortedOffers => _filterStatus = $_filterStatus');
+    print('DEBUG: Offers before filtering => ${offers.length}');
+
+    final filteredByStatus = offers.where((offer) {
+      final status = offer.offerStatus.toLowerCase();
+      if (_filterStatus == 'All') {
+        return true;
+      } else if (_filterStatus == 'Accepted')
+        return status == 'accepted';
+      else if (_filterStatus == 'Rejected')
+        return status == 'rejected';
+      else if (_filterStatus == 'In-Progress')
+        return status != 'accepted' && status != 'rejected';
+      return true;
     }).toList();
 
-    // Then sort
-    filteredOffers.sort((a, b) {
+    print(
+        'DEBUG: After status filter => ${filteredByStatus.length} offers remain:');
+    for (final offer in filteredByStatus) {
+      print('  -> Offer ${offer.offerId}, status = ${offer.offerStatus}');
+    }
+
+    filteredByStatus.sort((a, b) {
       if (_sortField == 'createdAt') {
         return _sortAscending
             ? (a.createdAt ?? DateTime(0)).compareTo(b.createdAt ?? DateTime(0))
@@ -258,15 +271,17 @@ class _OffersTabState extends State<OffersTab> {
       return 0;
     });
 
-    return filteredOffers;
+    print('DEBUG: After sorting => ${filteredByStatus.length} offers remain:');
+    for (final offer in filteredByStatus) {
+      print('  -> Offer ${offer.offerId}, status = ${offer.offerStatus}');
+    }
+
+    return filteredByStatus;
   }
 
   Widget _buildOfferImage(Offer offer) {
-    print('DEBUG: Building image for offer: ${offer.offerId}');
-    print('DEBUG: Vehicle main image URL: ${offer.vehicleMainImage}');
-    
     if (offer.isVehicleDetailsLoading) {
-      return SizedBox(
+      return const SizedBox(
         width: 50,
         height: 50,
         child: Center(
@@ -276,9 +291,7 @@ class _OffersTabState extends State<OffersTab> {
         ),
       );
     }
-    
     if (offer.vehicleMainImage == null || offer.vehicleMainImage!.isEmpty) {
-      print('DEBUG: No main image available for offer: ${offer.offerId}');
       return Container(
         width: 50,
         height: 50,
@@ -286,10 +299,9 @@ class _OffersTabState extends State<OffersTab> {
           color: Colors.grey[800],
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(Icons.directions_car, color: Colors.blueAccent),
+        child: const Icon(Icons.directions_car, color: Colors.blueAccent),
       );
     }
-  
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: Image.network(
@@ -298,7 +310,6 @@ class _OffersTabState extends State<OffersTab> {
         height: 50,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          print('DEBUG: Error loading image: $error');
           return Container(
             width: 50,
             height: 50,
@@ -306,7 +317,7 @@ class _OffersTabState extends State<OffersTab> {
               color: Colors.grey[800],
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.error_outline, color: Colors.red),
+            child: const Icon(Icons.error_outline, color: Colors.red),
           );
         },
         loadingBuilder: (context, child, loadingProgress) {
@@ -324,7 +335,8 @@ class _OffersTabState extends State<OffersTab> {
                     ? loadingProgress.cumulativeBytesLoaded /
                         loadingProgress.expectedTotalBytes!
                     : null,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
               ),
             ),
           );
@@ -333,16 +345,54 @@ class _OffersTabState extends State<OffersTab> {
     );
   }
 
+  /// Filter offers for Sales Representative asynchronously.
+  Future<List<Offer>> getFilteredOffersForSalesRep(
+      List<Offer> allOffers, String salesRepId) async {
+    print('DEBUG: Filtering offers for sales rep: $salesRepId');
+
+    try {
+      // Get all users (dealers/transporters) managed by this sales rep
+      QuerySnapshot managedAccounts = await FirebaseFirestore.instance
+          .collection('users')
+          .where('assignedSalesRep', isEqualTo: salesRepId)
+          .get();
+
+      // Get the IDs of all managed accounts
+      List<String> managedAccountIds =
+          managedAccounts.docs.map((doc) => doc.id).toList();
+
+      print('DEBUG: Found ${managedAccountIds.length} managed accounts');
+
+      // Filter offers to only include those where either dealerId or transporterId
+      // belongs to accounts managed by the sales rep
+      List<Offer> filteredOffers = allOffers.where((offer) {
+        bool isManaged = managedAccountIds.contains(offer.dealerId) ||
+            managedAccountIds.contains(offer.transporterId);
+
+        print('DEBUG: Offer ${offer.offerId} - Dealer: ${offer.dealerId}, '
+            'Transporter: ${offer.transporterId}, Is Managed: $isManaged');
+
+        return isManaged;
+      }).toList();
+
+      print(
+          'DEBUG: Filtered ${allOffers.length} offers down to ${filteredOffers.length}');
+      return filteredOffers;
+    } catch (e) {
+      print('ERROR: Failed to filter offers for sales rep: $e');
+      return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Search Bar and Controls Row
+        // Search and Controls Row.
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Row(
             children: [
-              // Search Bar
               Expanded(
                 child: Container(
                   height: 40,
@@ -364,18 +414,15 @@ class _OffersTabState extends State<OffersTab> {
                         vertical: 12,
                       ),
                     ),
-                    // Removed the immediate onChanged callback to rely solely on debounce
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              // Sort Button
               IconButton(
                 icon: const Icon(Icons.sort, color: Colors.white),
-                onPressed: () => _showSortMenu(),
+                onPressed: _showSortMenu,
                 tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
               ),
-              // Sort Direction Button
               IconButton(
                 icon: Icon(
                   _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
@@ -384,33 +431,31 @@ class _OffersTabState extends State<OffersTab> {
                 onPressed: () {
                   setState(() {
                     _sortAscending = !_sortAscending;
+                    print('DEBUG: _sortAscending => $_sortAscending');
                   });
                 },
                 tooltip: _sortAscending ? 'Sort Ascending' : 'Sort Descending',
               ),
-              // Filter Button
               IconButton(
                 icon: const Icon(Icons.filter_list, color: Colors.white),
-                onPressed: () => _showFilterDialog(),
+                onPressed: _showFilterDialog,
                 tooltip: 'Filter Offers',
               ),
             ],
           ),
         ),
-        // Expanded ListView
+        // Expanded Offers List.
         Expanded(
           child: Consumer<OfferProvider>(
             builder: (context, offerProvider, child) {
               if (offerProvider.isFetching && offerProvider.offers.isEmpty) {
-                // Initial loading
-                return Center(
+                return const Center(
                   child: CircularProgressIndicator(
                     valueColor:
                         AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
                   ),
                 );
               }
-
               if (offerProvider.errorMessage != null &&
                   offerProvider.offers.isEmpty) {
                 return Center(
@@ -420,7 +465,6 @@ class _OffersTabState extends State<OffersTab> {
                   ),
                 );
               }
-
               if (offerProvider.offers.isEmpty) {
                 return Center(
                   child: Text(
@@ -430,120 +474,241 @@ class _OffersTabState extends State<OffersTab> {
                 );
               }
 
-              // Apply filtering and sorting
-              final filteredAndSortedOffers = _getFilteredAndSortedOffers(
-                  offerProvider.offers
-                      .where((offer) => _matchesSearch(offer))
-                      .toList());
+              // Check if filtering for Sales Representative is needed.
+              // If the user is a sales rep, we use FutureBuilder to wait for filtering.
+              if (widget.userRole.toLowerCase() == 'sales representative') {
+                return FutureBuilder<List<Offer>>(
+                  future: getFilteredOffersForSalesRep(
+                      offerProvider.offers, widget.userId),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-              if (filteredAndSortedOffers.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No offers match your search.',
-                    style: GoogleFonts.montserrat(color: Colors.white),
-                  ),
-                );
-              }
+                    if (snapshot.hasError) {
+                      return Center(
+                          child:
+                              Text('Error loading offers: ${snapshot.error}'));
+                    }
 
-              return ListView.builder(
-                controller: _scrollController,
-                itemCount: filteredAndSortedOffers.length +
-                    (offerProvider.hasMore ? 1 : 0), // Extra item for loading
-                itemBuilder: (context, index) {
-                  if (index == filteredAndSortedOffers.length) {
-                    // Loading indicator at the bottom
-                    if (offerProvider.isFetching) {
-                      return Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFFFF4E00)),
-                          ),
+                    final filteredOffers = snapshot.data ?? [];
+                    // Continue with displaying the filtered offers...
+                    // Apply search filter.
+                    final searchedOffers =
+                        filteredOffers.where(_matchesSearch).toList();
+                    // Apply status filtering and sorting.
+                    final filteredAndSortedOffers =
+                        _getFilteredAndSortedOffers(searchedOffers);
+
+                    if (filteredAndSortedOffers.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No offers match your search.',
+                          style: GoogleFonts.montserrat(color: Colors.white),
                         ),
                       );
-                    } else {
-                      return SizedBox.shrink();
                     }
-                  }
-
-                  Offer offer = filteredAndSortedOffers[index];
-
-                  // **Determine if the offer needs attention based solely on 'needsInvoice'**
-                  bool needsAttention = offer.needsInvoice == true;
-
-                  return Card(
-                    color: needsAttention
-                        ? Colors.red[800]
-                        : Colors.grey[900], // Updated
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    child: ListTile(
-                      leading: Stack(
-                        children: [
-                          _buildOfferImage(offer),
-                          if (needsAttention)
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: Colors.yellow,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.warning,
-                                  size: 12,
-                                  color: Colors.red[800],
+                    return ListView.builder(
+                      controller: _scrollController,
+                      itemCount: filteredAndSortedOffers.length +
+                          (offerProvider.hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == filteredAndSortedOffers.length) {
+                          if (offerProvider.isFetching) {
+                            return const Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFFFF4E00)),
                                 ),
                               ),
+                            );
+                          } else {
+                            return const SizedBox.shrink();
+                          }
+                        }
+                        final offer = filteredAndSortedOffers[index];
+                        final needsAttention = offer.needsInvoice == true;
+                        return Card(
+                          color: needsAttention
+                              ? Colors.red[800]
+                              : Colors.grey[900],
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          child: ListTile(
+                            leading: Stack(
+                              children: [
+                                _buildOfferImage(offer),
+                                if (needsAttention)
+                                  Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.yellow,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.warning,
+                                        size: 12,
+                                        color: Colors.red[800],
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
-                      title: Text(
-                        "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Status: ${offer.offerStatus}',
-                            style:
-                                GoogleFonts.montserrat(color: Colors.white70),
-                          ),
-                          if (needsAttention)
-                            Text(
-                              'Needs Invoice',
+                            title: Text(
+                              "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
                               style: GoogleFonts.montserrat(
-                                color: Colors.yellowAccent,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
                             ),
-                        ],
-                      ),
-                      isThreeLine:
-                          needsAttention, // Adjust based on whether needsInvoice is true
-                      trailing:
-                          Icon(Icons.arrow_forward_ios, color: Colors.white),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => OfferDetailPage(
-                              offer: offer,
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Status: ${offer.offerStatus}',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white70),
+                                ),
+                                if (needsAttention)
+                                  Text(
+                                    'Needs Invoice',
+                                    style: GoogleFonts.montserrat(
+                                      color: Colors.yellowAccent,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                              ],
                             ),
+                            isThreeLine: needsAttention,
+                            trailing: const Icon(Icons.arrow_forward_ios,
+                                color: Colors.white),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      OfferDetailPage(offer: offer),
+                                ),
+                              );
+                            },
                           ),
                         );
                       },
+                    );
+                  },
+                );
+              } else {
+                // For non-sales representatives, proceed synchronously.
+                List<Offer> offersForDisplay = offerProvider.offers;
+                // Apply search filter.
+                final searchedOffers =
+                    offersForDisplay.where(_matchesSearch).toList();
+                // Apply status filtering and sorting.
+                final filteredAndSortedOffers =
+                    _getFilteredAndSortedOffers(searchedOffers);
+
+                if (filteredAndSortedOffers.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No offers match your search.',
+                      style: GoogleFonts.montserrat(color: Colors.white),
                     ),
                   );
-                },
-              );
+                }
+                return ListView.builder(
+                  controller: _scrollController,
+                  itemCount: filteredAndSortedOffers.length +
+                      (offerProvider.hasMore ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == filteredAndSortedOffers.length) {
+                      if (offerProvider.isFetching) {
+                        return const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFFFF4E00)),
+                            ),
+                          ),
+                        );
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    }
+                    final offer = filteredAndSortedOffers[index];
+                    final needsAttention = offer.needsInvoice == true;
+                    return Card(
+                      color:
+                          needsAttention ? Colors.red[800] : Colors.grey[900],
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      child: ListTile(
+                        leading: Stack(
+                          children: [
+                            _buildOfferImage(offer),
+                            if (needsAttention)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.yellow,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.warning,
+                                    size: 12,
+                                    color: Colors.red[800],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        title: Text(
+                          "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
+                          style: GoogleFonts.montserrat(
+                              fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Status: ${offer.offerStatus}',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white70),
+                            ),
+                            if (needsAttention)
+                              Text(
+                                'Needs Invoice',
+                                style: GoogleFonts.montserrat(
+                                  color: Colors.yellowAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
+                        isThreeLine: needsAttention,
+                        trailing: const Icon(Icons.arrow_forward_ios,
+                            color: Colors.white),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  OfferDetailPage(offer: offer),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              }
             },
           ),
         ),

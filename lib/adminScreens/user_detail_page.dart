@@ -1,18 +1,18 @@
-// lib/adminScreens/user_detail_page.dart
+// user_detail_page.dart
 
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/pages/document_preview_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import '../providers/user_provider.dart';
-// For PlatformException
 
 class UserDetailPage extends StatefulWidget {
   final String userId;
@@ -26,7 +26,7 @@ class UserDetailPage extends StatefulWidget {
 class _UserDetailPageState extends State<UserDetailPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers to handle form fields
+  // Controllers for basic details.
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _middleNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -40,14 +40,27 @@ class _UserDetailPageState extends State<UserDetailPage> {
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _postalCodeController = TextEditingController();
 
+  // Controllers for additional fields.
+  final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _registrationNumberController =
+      TextEditingController();
+  final TextEditingController _vatNumberController = TextEditingController();
+
+  // Dropdown state variables.
+  String _accountStatus = 'active'; // default value.
+  String _userRole =
+      'dealer'; // default value; options vary by current user's role
+
+  // Holds the selected Sales Representative (document ID)
+  String? _selectedSalesRep;
+
   File? _profileImage;
 
-  // Flag to check if controllers are initialized
+  // Flag to check if controllers are initialized.
   bool _isControllersInitialized = false;
 
   @override
   void dispose() {
-    // Dispose controllers when the widget is removed from the widget tree
     _firstNameController.dispose();
     _middleNameController.dispose();
     _lastNameController.dispose();
@@ -60,38 +73,36 @@ class _UserDetailPageState extends State<UserDetailPage> {
     _cityController.dispose();
     _stateController.dispose();
     _postalCodeController.dispose();
+    _countryController.dispose();
+    _registrationNumberController.dispose();
+    _vatNumberController.dispose();
     super.dispose();
   }
 
+  /// Pick a new profile image from the gallery.
   Future<void> _pickImage() async {
-    print('Debug: Starting image picker.');
     try {
       final pickedFile =
           await ImagePicker().pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
-        print('Debug: Image selected - ${pickedFile.path}');
         setState(() {
           _profileImage = File(pickedFile.path);
         });
-      } else {
-        print('Debug: No image selected.');
       }
     } catch (e) {
       print('Error picking image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Error picking image: $e',
-            style: GoogleFonts.montserrat(),
-          ),
+          content:
+              Text('Error picking image: $e', style: GoogleFonts.montserrat()),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
 
+  /// Upload the profile image to Firebase Storage.
   Future<String> _uploadProfileImage(File imageFile) async {
-    print('Debug: Starting image upload for user ${widget.userId}.');
     String fileName =
         'profile_images/${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.png';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
@@ -100,7 +111,6 @@ class _UserDetailPageState extends State<UserDetailPage> {
     try {
       TaskSnapshot snapshot = await uploadTask;
       String downloadUrl = await snapshot.ref.getDownloadURL();
-      print('Debug: Image uploaded successfully. Download URL: $downloadUrl');
       return downloadUrl;
     } catch (e) {
       print('Error uploading image: $e');
@@ -108,19 +118,24 @@ class _UserDetailPageState extends State<UserDetailPage> {
     }
   }
 
+  /// Save the changes in the form and update Firestore.
   Future<void> _saveChanges() async {
-    print('Debug: Save changes initiated.');
     if (_formKey.currentState?.validate() ?? false) {
       try {
-        // Handle profile image upload if a new image is selected
         String? profileImageUrl;
         if (_profileImage != null) {
-          print('Debug: New profile image detected.');
           profileImageUrl = await _uploadProfileImage(_profileImage!);
         }
 
-        // Update user information in Firestore
+        // Access current user details from UserProvider.
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        // If the currently logged-in user is a sales rep, then assign the current rep's id.
+        if (userProvider.getUserRole == 'sales representative') {
+          _selectedSalesRep = userProvider.userRole;
+        }
+
         Map<String, dynamic> updateData = {
+          'accountStatus': _accountStatus,
           'firstName': _firstNameController.text,
           'middleName': _middleNameController.text,
           'lastName': _lastNameController.text,
@@ -133,70 +148,135 @@ class _UserDetailPageState extends State<UserDetailPage> {
           'city': _cityController.text,
           'state': _stateController.text,
           'postalCode': _postalCodeController.text,
+          'country': _countryController.text,
+          'registrationNumber': _registrationNumberController.text,
+          'userRole': _userRole,
+          'vatNumber': _vatNumberController.text,
+          'assignedSalesRep': _selectedSalesRep,
         };
 
         if (profileImageUrl != null) {
           updateData['profileImageUrl'] = profileImageUrl;
         }
 
-        print('Debug: Updating Firestore with data: $updateData');
-
         await FirebaseFirestore.instance
             .collection('users')
             .doc(widget.userId)
             .update(updateData);
 
-        print('Debug: User details updated successfully.');
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'User details updated successfully.',
-              style: GoogleFonts.montserrat(),
-            ),
+            content: Text('User details updated successfully.',
+                style: GoogleFonts.montserrat()),
           ),
         );
       } catch (e) {
         print('Error saving changes: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed to update user details.',
-              style: GoogleFonts.montserrat(),
-            ),
+            content: Text('Failed to update user details.',
+                style: GoogleFonts.montserrat()),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } else {
-      print('Debug: Form validation failed.');
     }
   }
 
-  // New method to handle document viewing using DocumentPreviewScreen
+  /// View a document using the ViewerPage.
   Future<void> _viewDocument(String url, String title) async {
-    print('Debug: Attempting to view document at URL: $url');
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => DocumentPreviewScreen(url: url),
-      ),
+      MaterialPageRoute(builder: (context) => ViewerPage(url: url)),
     );
+  }
+
+  /// Helper method to upload a document file.
+  Future<String> _uploadDocument(File file, String fieldName) async {
+    String extension = file.path.split('.').last;
+    String fileName =
+        'documents/${widget.userId}_${fieldName}_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+    UploadTask uploadTask = storageRef.putFile(file);
+
+    try {
+      TaskSnapshot snapshot = await uploadTask;
+      String downloadUrl = await snapshot.ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading document: $e');
+      throw Exception('Document upload failed');
+    }
+  }
+
+  /// Pick a document using file_picker, upload it and update the Firestore field.
+  Future<void> _pickAndUploadDocument(String fieldName) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx'],
+      );
+      if (result != null && result.files.single.path != null) {
+        File file = File(result.files.single.path!);
+        String docUrl = await _uploadDocument(file, fieldName);
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .update({fieldName: docUrl});
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$fieldName updated successfully.',
+                style: GoogleFonts.montserrat()),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error uploading document: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update $fieldName.',
+              style: GoogleFonts.montserrat()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Helper method to fetch Sales Representatives from Firestore.
+  Future<QuerySnapshot> _fetchSalesReps() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .where('userRole', isEqualTo: 'sales representative')
+        .get();
   }
 
   @override
   Widget build(BuildContext context) {
-    print('Debug: Building UserDetailPage for user ${widget.userId}.');
     final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String currentUserRole = userProvider.getUserRole;
+    final bool isAdmin = currentUserRole == 'admin';
+    final bool isSalesRep = currentUserRole == 'sales representative';
+
+    // Determine allowed user roles based on current user's role.
+    // Admin can choose among transporter, dealer, and admin.
+    // Sales rep can only create/edit a transporter or dealer.
+    final List<String> roleOptions = isAdmin
+        ? ['transporter', 'dealer', 'admin']
+        : ['transporter', 'dealer'];
+
+    // If logged in user is a sales rep and no sales rep is assigned, assign current rep id.
+    if (isSalesRep &&
+        (_selectedSalesRep == null || _selectedSalesRep!.isEmpty)) {
+      _selectedSalesRep = userProvider.userId;
+    }
 
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text(
-            'User Details',
-            style: GoogleFonts.montserrat(color: Colors.white),
-          ),
+          title: Text('User Details',
+              style: GoogleFonts.montserrat(color: Colors.white)),
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
@@ -207,53 +287,28 @@ class _UserDetailPageState extends State<UserDetailPage> {
               .snapshots(),
           builder:
               (BuildContext context, AsyncSnapshot<DocumentSnapshot> snapshot) {
-            print('Debug: StreamBuilder state: ${snapshot.connectionState}');
             if (snapshot.hasError) {
-              print('Error fetching user details: ${snapshot.error}');
               return Center(
-                child: Text(
-                  'Error fetching user details.',
-                  style: GoogleFonts.montserrat(color: Colors.white),
-                ),
+                child: Text('Error fetching user details.',
+                    style: GoogleFonts.montserrat(color: Colors.white)),
               );
             }
 
             if (snapshot.connectionState == ConnectionState.waiting) {
-              print('Debug: Waiting for user details...');
               return Center(child: CircularProgressIndicator());
             }
 
             if (!snapshot.hasData || !snapshot.data!.exists) {
-              print('Debug: User not found.');
               return Center(
-                child: Text(
-                  'User not found.',
-                  style: GoogleFonts.montserrat(color: Colors.white),
-                ),
+                child: Text('User not found.',
+                    style: GoogleFonts.montserrat(color: Colors.white)),
               );
             }
 
             Map<String, dynamic> data =
                 snapshot.data!.data() as Map<String, dynamic>;
-            print('Debug: User data fetched: $data');
 
-            // **Handling accountStatus which might be a bool or a String**
-            var accountStatusField = data['accountStatus'];
-            String accountStatus;
-
-            if (accountStatusField is String) {
-              accountStatus = accountStatusField;
-            } else if (accountStatusField is bool) {
-              accountStatus = accountStatusField
-                  ? 'active'
-                  : 'inactive'; // Adjust as needed
-            } else {
-              accountStatus = 'active'; // Default status
-            }
-
-            print('Debug: Account status: $accountStatus');
-
-            // Initialize controllers only once
+            // Initialize controllers once.
             if (!_isControllersInitialized) {
               _firstNameController.text = data['firstName'] ?? '';
               _middleNameController.text = data['middleName'] ?? '';
@@ -267,6 +322,34 @@ class _UserDetailPageState extends State<UserDetailPage> {
               _cityController.text = data['city'] ?? '';
               _stateController.text = data['state'] ?? '';
               _postalCodeController.text = data['postalCode'] ?? '';
+
+              _countryController.text = data['country'] ?? '';
+              _registrationNumberController.text =
+                  data['registrationNumber'] ?? '';
+              _vatNumberController.text = data['vatNumber'] ?? '';
+
+              // Initialize account status.
+              var accountStatusField = data['accountStatus'];
+              if (accountStatusField is String) {
+                _accountStatus = accountStatusField;
+              } else if (accountStatusField is bool) {
+                _accountStatus = accountStatusField ? 'active' : 'inactive';
+              } else {
+                _accountStatus = 'active';
+              }
+
+              // Initialize user role.
+              if (data['userRole'] != null &&
+                  ['transporter', 'dealer', 'admin']
+                      .contains(data['userRole'])) {
+                _userRole = data['userRole'];
+              } else {
+                _userRole = 'dealer';
+              }
+
+              // Initialize assigned Sales Representative if set.
+              _selectedSalesRep = data['assignedSalesRep'];
+
               _isControllersInitialized = true;
             }
 
@@ -276,22 +359,20 @@ class _UserDetailPageState extends State<UserDetailPage> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     return ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: constraints.maxWidth,
-                      ),
+                      constraints:
+                          BoxConstraints(maxWidth: constraints.maxWidth),
                       child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Profile Image and Account Status at the Top
+                            // Profile Image and Account Status at the Top.
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Profile Image
+                                // Profile Image.
                                 Stack(
                                   children: [
-                                    // Using FadeInImage with a placeholder and error handling
                                     ClipOval(
                                       child: _profileImage != null
                                           ? Image.file(
@@ -305,7 +386,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                       .isNotEmpty
                                               ? FadeInImage.assetNetwork(
                                                   placeholder:
-                                                      'lib/assets/default-profile-photo.jpg', // Ensure this asset exists
+                                                      'lib/assets/default-profile-photo.jpg',
                                                   image:
                                                       data['profileImageUrl'],
                                                   width: 100,
@@ -313,8 +394,6 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                   fit: BoxFit.cover,
                                                   imageErrorBuilder: (context,
                                                       error, stackTrace) {
-                                                    print(
-                                                        'Error loading profile image: $error');
                                                     return Image.asset(
                                                       'lib/assets/default-profile-photo.jpg',
                                                       width: 100,
@@ -349,7 +428,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                   ],
                                 ),
                                 SizedBox(width: 20),
-                                // Account Status
+                                // Account Status dropdown and Verification switch.
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -363,158 +442,37 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                             color: Colors.white),
                                       ),
                                       SizedBox(height: 5),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            accountStatus
-                                                .replaceAll('_', ' ')
-                                                .toUpperCase(),
-                                            style: GoogleFonts.montserrat(
-                                              fontSize: 16,
-                                              color: _getStatusColor(
-                                                  accountStatus),
-                                              fontWeight: FontWeight.bold,
+                                      DropdownButtonFormField<String>(
+                                        value: _accountStatus,
+                                        dropdownColor: Colors.grey[800],
+                                        style: GoogleFonts.montserrat(
+                                            color: Colors.white),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: Colors.grey[800],
+                                        ),
+                                        items: <String>[
+                                          'active',
+                                          'suspended',
+                                          'deactivated',
+                                          'inactive'
+                                        ].map((String value) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(
+                                              value.toUpperCase(),
+                                              style: GoogleFonts.montserrat(
+                                                  color: Colors.white),
                                             ),
-                                          ),
-                                          SizedBox(width: 10),
-                                          Expanded(
-                                            child: CustomButton(
-                                              text: _getStatusAction(
-                                                  accountStatus),
-                                              borderColor:
-                                                  _getStatusButtonColor(
-                                                      accountStatus),
-                                              onPressed: () async {
-                                                String newStatus;
-                                                String action;
-
-                                                switch (accountStatus
-                                                    .toLowerCase()) {
-                                                  case 'active':
-                                                    newStatus = 'suspended';
-                                                    action = 'Suspend';
-                                                    break;
-                                                  case 'suspended':
-                                                    newStatus = 'active';
-                                                    action = 'Activate';
-                                                    break;
-                                                  case 'deactivated':
-                                                    newStatus = 'active';
-                                                    action = 'Reactivate';
-                                                    break;
-                                                  case 'inactive':
-                                                    newStatus = 'active';
-                                                    action = 'Activate';
-                                                    break;
-                                                  default:
-                                                    newStatus = 'active';
-                                                    action = 'Activate';
-                                                    break;
-                                                }
-
-                                                print(
-                                                    'Debug: Account action - $action (New Status: $newStatus)');
-
-                                                bool? confirm =
-                                                    await showDialog<bool>(
-                                                  context: context,
-                                                  builder: (context) =>
-                                                      AlertDialog(
-                                                    title: Text(
-                                                      'Confirm $action',
-                                                      style: GoogleFonts
-                                                          .montserrat(),
-                                                    ),
-                                                    content: Text(
-                                                      "Are you sure you want to $action this user's account?",
-                                                      style: GoogleFonts
-                                                          .montserrat(),
-                                                    ),
-                                                    backgroundColor:
-                                                        Colors.grey[800],
-                                                    actions: [
-                                                      TextButton(
-                                                        child: Text(
-                                                          'Cancel',
-                                                          style: GoogleFonts
-                                                              .montserrat(
-                                                                  color: Colors
-                                                                      .white),
-                                                        ),
-                                                        onPressed: () =>
-                                                            Navigator.of(
-                                                                    context)
-                                                                .pop(false),
-                                                      ),
-                                                      TextButton(
-                                                        child: Text(
-                                                          'Confirm',
-                                                          style: GoogleFonts
-                                                              .montserrat(
-                                                                  color: Colors
-                                                                      .red),
-                                                        ),
-                                                        onPressed: () =>
-                                                            Navigator.of(
-                                                                    context)
-                                                                .pop(true),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-
-                                                if (confirm == true) {
-                                                  print(
-                                                      'Debug: User confirmed $action.');
-
-                                                  try {
-                                                    await userProvider
-                                                        .updateUserAccountStatus(
-                                                            widget.userId,
-                                                            newStatus);
-
-                                                    print(
-                                                        'Debug: Account status updated to $newStatus.');
-
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'User account $action successfully.',
-                                                          style: GoogleFonts
-                                                              .montserrat(),
-                                                        ),
-                                                      ),
-                                                    );
-
-                                                    // No need to call setState here as StreamBuilder will handle the UI update
-                                                  } catch (e) {
-                                                    print(
-                                                        'Error updating account status: $e');
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Failed to update account status.',
-                                                          style: GoogleFonts
-                                                              .montserrat(),
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                  }
-                                                } else {
-                                                  print(
-                                                      'Debug: User cancelled $action.');
-                                                }
-                                              },
-                                            ),
-                                          ),
-                                        ],
+                                          );
+                                        }).toList(),
+                                        onChanged: (newValue) {
+                                          setState(() {
+                                            _accountStatus = newValue!;
+                                          });
+                                        },
                                       ),
+                                      SizedBox(height: 15),
                                       Row(
                                         children: [
                                           Text(
@@ -526,15 +484,12 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                           ),
                                           const SizedBox(width: 10),
                                           Switch(
-                                            activeColor: AppColors
-                                                .orange, // Thumb color when ON
-                                            activeTrackColor: AppColors.orange
-                                                .withAlpha(
-                                                    150), // Track color when ON
-                                            inactiveThumbColor: Colors
-                                                .grey, // Thumb color when OFF
-                                            inactiveTrackColor: Colors.grey
-                                                .shade400, // Track color when OFF
+                                            activeColor: AppColors.orange,
+                                            activeTrackColor:
+                                                AppColors.orange.withAlpha(150),
+                                            inactiveThumbColor: Colors.grey,
+                                            inactiveTrackColor:
+                                                Colors.grey.shade400,
                                             value: data['isVerified'] ?? false,
                                             onChanged: (bool newValue) async {
                                               try {
@@ -544,7 +499,6 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                     .updateUserVerificationStatus(
                                                         widget.userId,
                                                         newValue);
-
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(
                                                   SnackBar(
@@ -557,7 +511,6 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                     ),
                                                   ),
                                                 );
-                                                // No need to call setState here as StreamBuilder will handle the UI update
                                               } catch (e) {
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(
@@ -581,8 +534,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                               ],
                             ),
                             SizedBox(height: 30),
-
-                            // User Information Section
+                            // User Information Section.
                             Text(
                               'User Information',
                               style: GoogleFonts.montserrat(
@@ -591,46 +543,152 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                   color: Colors.white),
                             ),
                             SizedBox(height: 10),
-
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildEditableField(
-                                    'First Name', _firstNameController, false),
-                                _buildEditableField('Middle Name',
-                                    _middleNameController, false),
-                                _buildEditableField(
-                                    'Last Name', _lastNameController, false),
-                                _buildEditableField(
-                                    'Email', _emailController, false),
-                                _buildEditableField('Phone Number',
-                                    _phoneNumberController, false),
-                                _buildEditableField('Company Name',
-                                    _companyNameController, false),
-                                _buildEditableField('Trading Name',
-                                    _tradingNameController, false),
-                                _buildEditableField('Address Line 1',
-                                    _addressLine1Controller, false),
-                                _buildEditableField('Address Line 2',
-                                    _addressLine2Controller, false),
-                                _buildEditableField(
-                                    'City', _cityController, false),
-                                _buildEditableField(
-                                    'State', _stateController, false),
-                                _buildEditableField('Postal Code',
-                                    _postalCodeController, false),
-                                SizedBox(height: 20),
-                                CustomButton(
-                                  text: 'Save Changes',
-                                  onPressed: _saveChanges,
-                                  borderColor: Colors.deepOrange,
+                            _buildEditableField(
+                                'First Name', _firstNameController, true),
+                            _buildEditableField(
+                                'Middle Name', _middleNameController, false),
+                            _buildEditableField(
+                                'Last Name', _lastNameController, true),
+                            _buildEditableField(
+                                'Email', _emailController, true),
+                            _buildEditableField(
+                                'Phone Number', _phoneNumberController, true),
+                            _buildEditableField(
+                                'Company Name', _companyNameController, false),
+                            _buildEditableField(
+                                'Trading Name', _tradingNameController, false),
+                            _buildEditableField('Address Line 1',
+                                _addressLine1Controller, false),
+                            _buildEditableField('Address Line 2',
+                                _addressLine2Controller, false),
+                            _buildEditableField('City', _cityController, false),
+                            _buildEditableField(
+                                'State', _stateController, false),
+                            _buildEditableField(
+                                'Postal Code', _postalCodeController, false),
+                            // Additional fields.
+                            _buildEditableField(
+                                'Country', _countryController, false),
+                            _buildEditableField('Registration Number',
+                                _registrationNumberController, false),
+                            // User Role Dropdown.
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10.0),
+                              child: DropdownButtonFormField<String>(
+                                value: _userRole,
+                                dropdownColor: Colors.grey[800],
+                                style:
+                                    GoogleFonts.montserrat(color: Colors.white),
+                                decoration: InputDecoration(
+                                  labelText: 'User Role',
+                                  labelStyle: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                  filled: true,
+                                  fillColor: Colors.grey[800],
+                                  border: OutlineInputBorder(),
                                 ),
-                              ],
+                                items: roleOptions.map((String role) {
+                                  return DropdownMenuItem<String>(
+                                    value: role,
+                                    child: Text(
+                                      role.toUpperCase(),
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (newValue) {
+                                  setState(() {
+                                    _userRole = newValue!;
+                                    // For admins: if the role is changed to something other than transporter or dealer,
+                                    // reset the sales rep assignment.
+                                    if (isAdmin &&
+                                        !(_userRole == 'transporter' ||
+                                            _userRole == 'dealer')) {
+                                      _selectedSalesRep = null;
+                                    }
+                                  });
+                                },
+                              ),
                             ),
+                            _buildEditableField(
+                                'VAT Number', _vatNumberController, false),
+                            SizedBox(height: 20),
+                            // ----- Sales Representative Assignment -----
+                            // Show dropdown only if the logged-in user is admin and the user being edited has transporter or dealer role.
+                            if (isAdmin &&
+                                (_userRole == 'transporter' ||
+                                    _userRole == 'dealer'))
+                              FutureBuilder<QuerySnapshot>(
+                                future: _fetchSalesReps(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return CircularProgressIndicator();
+                                  }
+                                  if (!snapshot.hasData ||
+                                      snapshot.data!.docs.isEmpty) {
+                                    return Text(
+                                      'No sales representatives found.',
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white),
+                                    );
+                                  }
+                                  List<DropdownMenuItem<String>> salesRepItems =
+                                      snapshot.data!.docs.map((doc) {
+                                    Map<String, dynamic> repData =
+                                        doc.data() as Map<String, dynamic>;
+                                    String repName =
+                                        repData['firstName'] ?? 'No Name';
+                                    if (repData['lastName'] != null) {
+                                      repName += ' ${repData['lastName']}';
+                                    }
+                                    return DropdownMenuItem<String>(
+                                      value: doc.id,
+                                      child: Text(repName,
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white)),
+                                    );
+                                  }).toList();
 
-                            SizedBox(height: 30),
-
-                            // Documents Section
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10.0),
+                                    child: DropdownButtonFormField<String>(
+                                      value: _selectedSalesRep,
+                                      dropdownColor: Colors.grey[800],
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'Assign Sales Rep',
+                                        labelStyle: GoogleFonts.montserrat(
+                                            color: Colors.white),
+                                        filled: true,
+                                        fillColor: Colors.grey[800],
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: salesRepItems,
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          _selectedSalesRep = newValue;
+                                        });
+                                      },
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please select a sales representative';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  );
+                                },
+                              )
+                            else
+                              // For sales reps, no dropdown is shown; the account's assignedSalesRep is auto-assigned.
+                              SizedBox.shrink(),
+                            // ------------------------------------------------
+                            // Documents Section.
                             Text(
                               'Documents',
                               style: GoogleFonts.montserrat(
@@ -639,17 +697,27 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                   color: Colors.white),
                             ),
                             SizedBox(height: 10),
-
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildDocumentTile('Bank Confirmation',
-                                    data['bankConfirmationUrl']),
-                                _buildDocumentTile('Proxy', data['proxyUrl']),
-                                _buildDocumentTile('BRNC', data['brncUrl']),
-                                _buildDocumentTile('CIPC Certificate',
-                                    data['cipcCertificateUrl']),
+                                _buildDocumentTile(
+                                    'Bank Confirmation',
+                                    data['bankConfirmationUrl'],
+                                    'bankConfirmationUrl'),
+                                _buildDocumentTile(
+                                    'Proxy', data['proxyUrl'], 'proxyUrl'),
+                                _buildDocumentTile(
+                                    'BRNC', data['brncUrl'], 'brncUrl'),
+                                _buildDocumentTile(
+                                    'CIPC Certificate',
+                                    data['cipcCertificateUrl'],
+                                    'cipcCertificateUrl'),
                               ],
+                            ),
+                            CustomButton(
+                              text: 'Save Changes',
+                              onPressed: _saveChanges,
+                              borderColor: Colors.deepOrange,
                             ),
                           ],
                         ),
@@ -665,7 +733,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
     );
   }
 
-  // Helper to build editable fields
+  /// Helper method to build an editable text field.
   Widget _buildEditableField(
       String label, TextEditingController controller, bool isRequired) {
     return Padding(
@@ -690,81 +758,36 @@ class _UserDetailPageState extends State<UserDetailPage> {
     );
   }
 
-  // Helper to build document tiles
-  Widget _buildDocumentTile(String documentName, String? url) {
-    print('Debug: Building document tile for $documentName with URL: $url');
+  /// Helper method to build a document tile.
+  Widget _buildDocumentTile(
+      String documentName, String? url, String fieldName) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isAdmin = userProvider.userRole == 'admin';
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: ListTile(
-        title: Text(
-          documentName,
-          style: GoogleFonts.montserrat(color: Colors.white),
-        ),
-        trailing: url != null && url.isNotEmpty
-            ? IconButton(
-                icon: Icon(
-                  Icons.visibility,
-                  color: Colors.blue,
-                ),
-                onPressed: () {
-                  print('$documentName visibility icon tapped.');
-                  // Navigate to DocumentPreviewScreen
-                  _viewDocument(url, documentName);
-                },
+        title: Text(documentName,
+            style: GoogleFonts.montserrat(color: Colors.white)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (url != null && url.isNotEmpty)
+              IconButton(
+                icon: Icon(Icons.visibility, color: Colors.blue),
+                onPressed: () => _viewDocument(url, documentName),
               )
-            : Text(
-                'Not uploaded',
-                style: GoogleFonts.montserrat(color: Colors.redAccent),
+            else
+              Text('Not uploaded',
+                  style: GoogleFonts.montserrat(color: Colors.redAccent)),
+            if (isAdmin)
+              IconButton(
+                icon: Icon(Icons.upload_file, color: Colors.white),
+                onPressed: () => _pickAndUploadDocument(fieldName),
               ),
+          ],
+        ),
       ),
     );
-  }
-
-  // Helper method to determine status color
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return Colors.green;
-      case 'suspended':
-        return Colors.orange;
-      case 'deactivated':
-        return Colors.red;
-      case 'inactive':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  // Helper method to determine status action text
-  String _getStatusAction(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return 'Suspend Account';
-      case 'suspended':
-        return 'Activate Account';
-      case 'deactivated':
-        return 'Reactivate Account';
-      case 'inactive':
-        return 'Activate Account';
-      default:
-        return 'Activate Account';
-    }
-  }
-
-  // Helper method to determine status button color
-  Color _getStatusButtonColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return Colors.orange;
-      case 'suspended':
-        return Colors.green;
-      case 'deactivated':
-        return Colors.blue;
-      case 'inactive':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
   }
 }

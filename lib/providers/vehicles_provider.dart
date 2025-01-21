@@ -95,7 +95,12 @@ class VehicleProvider with ChangeNotifier {
         // Initialize truck conditions
         if (data['truckConditions'] is Map) {
           var conditions = data['truckConditions'] as Map<String, dynamic>;
-          for (var section in ['chassis', 'externalCab', 'driveTrain', 'internalCab']) {
+          for (var section in [
+            'chassis',
+            'externalCab',
+            'driveTrain',
+            'internalCab'
+          ]) {
             if (conditions[section] is Map) {
               var sectionData = conditions[section] as Map<String, dynamic>;
               sectionData['damages'] = [];
@@ -339,7 +344,9 @@ class VehicleProvider with ChangeNotifier {
       await FirebaseFirestore.instance
           .collection('vehicles')
           .doc(vehicleId)
-          .delete();
+          .update({
+        'vehicleStatus': 'Archived',
+      });
 
       // Remove the vehicle from the local list
       _vehicles.removeWhere((vehicle) => vehicle.id == vehicleId);

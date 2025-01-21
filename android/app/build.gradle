@@ -41,18 +41,22 @@ if (flutterVersionName == null) {
 
 android {
     namespace = "com.example.ctp"
-    compileSdkVersion 34
-    ndkVersion = flutter.ndkVersion
+    compileSdkVersion 35
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
     defaultConfig {
         applicationId "com.example.ctp"
         minSdkVersion 23
-        targetSdkVersion 34
+        targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true

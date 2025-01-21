@@ -46,7 +46,7 @@ class Offer extends ChangeNotifier {
 
   bool isVehicleDetailsLoading = false;
 
-  String? proofOfPayment;
+  String? proofOfPaymentUrl;
 
   Offer({
     required this.offerId,
@@ -74,7 +74,7 @@ class Offer extends ChangeNotifier {
     this.inspectionLocations,
     this.collectionDates,
     this.collectionLocations,
-    this.proofOfPayment,
+    this.proofOfPaymentUrl,
     this.vehicleYear,
     this.vehicleMileage,
     this.vehicleTransmission,
@@ -129,7 +129,7 @@ class Offer extends ChangeNotifier {
       inspectionLocations: data['inspectionLocations'],
       collectionDates: data['collectionDates'],
       collectionLocations: data['collectionLocations'],
-      proofOfPayment: data['proofOfPayment'],
+      proofOfPaymentUrl: data['proofOfPaymentUrl'],
       needsInvoice: data['needsInvoice'] is bool
           ? data['needsInvoice'] as bool
           : (data['needsInvoice'] == 'true' ? true : false),
@@ -358,7 +358,11 @@ class OfferProvider with ChangeNotifier {
       await _firestore
           .collection('offers')
           .doc(offerId)
-          .update({'offerStatus': newStatus});
+          .update({'paymentStatus': newStatus});
+      // await _firestore
+      //     .collection('offers')
+      //     .doc(offerId)
+      //     .update({'offerStatus': newStatus});
 
       // Update local state
       Offer? offer = getOfferById(offerId);
@@ -376,7 +380,11 @@ class OfferProvider with ChangeNotifier {
   /// Deletes an offer from Firestore and updates the local list.
   Future<void> deleteOffer(String offerId) async {
     try {
-      await _firestore.collection('offers').doc(offerId).delete();
+      // Instead of deleting the document, update its offerStatus to "Archived".
+      await _firestore
+          .collection('offers')
+          .doc(offerId)
+          .update({'offerStatus': 'Archived'});
 
       // Update local state
       _offers.removeWhere((offer) => offer.offerId == offerId);

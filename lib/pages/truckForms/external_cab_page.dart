@@ -29,8 +29,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
     with AutomaticKeepAliveClientMixin {
   String _selectedCondition = 'good'; // Default selected value
   String _anyDamagesType = 'no'; // Default selected value
-  String _anyAdditionalFeaturesType =
-      'no'; // Default selected value for additional features
+  String _anyAdditionalFeaturesType = 'no'; // Default selected value
   final ImagePicker _picker = ImagePicker(); // Image picker instance
 
   // Scroll controller for managing automatic scrolling
@@ -128,19 +127,20 @@ class ExternalCabPageState extends State<ExternalCabPage>
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16.0),
+
           // Photo Blocks Section
           GridView.count(
             shrinkWrap: true, // Allows GridView to fit inside the Column
-            physics:
-                const NeverScrollableScrollPhysics(), // Prevent GridView from scrolling independently
+            physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
             crossAxisSpacing: 16.0,
             mainAxisSpacing: 16.0,
-            childAspectRatio: 1.5, // Controls the aspect ratio of the blocks
+            childAspectRatio: 1.5, // Adjust to control the shape of each block
             children: _selectedImages.keys
                 .map((title) => _buildPhotoBlock(title))
                 .toList(),
           ),
+
           const SizedBox(height: 70.0),
           // Damage Section
           _buildAdditionalSection(
@@ -149,9 +149,11 @@ class ExternalCabPageState extends State<ExternalCabPage>
             onChange: _updateDamagesType,
             buildItemSection: _buildDamageSection,
           ),
+
           const SizedBox(height: 16.0),
           const Divider(thickness: 1.0),
           const SizedBox(height: 16.0),
+
           // Additional Features Section
           _buildAdditionalSection(
             title: 'Are there any additional features on the cab',
@@ -168,9 +170,6 @@ class ExternalCabPageState extends State<ExternalCabPage>
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
     setState(() {
-      // _isInitialized = true;
-
-      // Initialize basic fields
       _selectedCondition = data['condition'] ?? 'good';
       _anyDamagesType = data['damagesCondition'] ?? 'no';
       _anyAdditionalFeaturesType = data['additionalFeaturesCondition'] ?? 'no';
@@ -240,6 +239,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
     return await snapshot.ref.getDownloadURL();
   }
 
+  /// Returns a Map (JSON) containing all data from this page, including
+  /// the newly uploaded images for main images, damages, and features.
   Future<Map<String, dynamic>> getData() async {
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
@@ -307,27 +308,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
     });
   }
 
-  // Helper method to upload a single image to Firebase Storage
-  Future<String> _uploadImage(File file, String key) async {
-    try {
-      String fileName =
-          'external_cab/${widget.vehicleId}_$key${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(file);
-
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
-      );
-      return '';
-    }
-  }
-
-  // Method to scroll to the bottom of the page
+  // Helper method to scroll to the bottom of the page
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollController.animateTo(
@@ -338,8 +319,10 @@ class ExternalCabPageState extends State<ExternalCabPage>
     });
   }
 
-  // Helper method to create a photo block
+  // Helper method to create a photo block with an "X" (delete) button
   Widget _buildPhotoBlock(String title) {
+    final imageFile = _selectedImages[title];
+
     return GestureDetector(
       onTap: () => _showImageSourceDialog(title),
       child: Container(
@@ -348,7 +331,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] == null
+        // If no image, show the add icon and title. If there's an image, show a Stack with the image + X button.
+        child: imageFile == null
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -365,14 +349,47 @@ class ExternalCabPageState extends State<ExternalCabPage>
                   ),
                 ],
               )
-            : ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  _selectedImages[title]!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
+            : Stack(
+                children: [
+                  // The image itself
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.file(
+                      imageFile,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  ),
+                  // The "X" button to remove the image
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () {
+                        // Prevent the parent gesture from triggering
+                        // the onTap for picking a new image
+                        // by stopping the event propagation
+                        // and clearing the image instead.
+                        setState(() {
+                          _selectedImages[title] = null;
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(4.0),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -529,8 +546,11 @@ class ExternalCabPageState extends State<ExternalCabPage>
   }
 
   // Helper method to create an item widget (Damage or Additional Features)
-  Widget _buildItemWidget(int index, Map<String, dynamic> item,
-      void Function(Map<String, dynamic>) showImageSourceDialog) {
+  Widget _buildItemWidget(
+    int index,
+    Map<String, dynamic> item,
+    void Function(Map<String, dynamic>) showImageSourceDialog,
+  ) {
     return Column(
       children: [
         const SizedBox(height: 16.0),
@@ -567,6 +587,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
           ],
         ),
         const SizedBox(height: 16.0),
+
+        // This container now shows the image in a Stack with an X button, if available
         GestureDetector(
           onTap: () async {
             final pickedFile =
@@ -601,14 +623,43 @@ class ExternalCabPageState extends State<ExternalCabPage>
                       ),
                     ],
                   )
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
-                      item['image'],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
+                : Stack(
+                    children: [
+                      // Display the image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.file(
+                          item['image'],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      ),
+                      // "X" button to remove the image
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              item['image'] = null;
+                            });
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(4.0),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
           ),
         ),
@@ -673,19 +724,20 @@ class ExternalCabPageState extends State<ExternalCabPage>
 
   double getCompletionPercentage() {
     int filledFields = 0;
-    int totalFields = 7; // Total number of sections
+    int totalFields = 7; // Total number of sections (adjust as needed)
 
     // Check condition selection
     if (_selectedCondition.isNotEmpty) filledFields++;
 
-    // Check images
+    // Check images (FRONT, RIGHT SIDE, REAR, LEFT SIDE)
     _selectedImages.forEach((key, value) {
       if (value != null) filledFields++;
     });
 
     // Check damages section
     if (_anyDamagesType == 'no') {
-      filledFields++; // Count as completed if no damages
+      // Count as completed if no damages
+      filledFields++;
     } else if (_anyDamagesType == 'yes' && _damageList.isNotEmpty) {
       bool isDamagesComplete = _damageList.every((damage) =>
           damage['description']?.isNotEmpty == true && damage['image'] != null);
@@ -694,7 +746,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
 
     // Check additional features section
     if (_anyAdditionalFeaturesType == 'no') {
-      filledFields++; // Count as completed if no additional features
+      filledFields++;
     } else if (_anyAdditionalFeaturesType == 'yes' &&
         _additionalFeaturesList.isNotEmpty) {
       bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
@@ -703,7 +755,6 @@ class ExternalCabPageState extends State<ExternalCabPage>
       if (isFeaturesComplete) filledFields++;
     }
 
-    // Calculate and return percentage
     return filledFields / totalFields;
   }
 
@@ -767,7 +818,4 @@ class ExternalCabPageState extends State<ExternalCabPage>
       _damageList[index]['image'] = imageFile;
     });
   }
-
-  // Similar updates for additional features
-  // ... other methods ...
 }

@@ -62,6 +62,8 @@ class Vehicle {
   final Maintenance maintenance;
   final TruckConditions truckConditions;
 
+  final String? assignedSalesRepId;
+
   // ------------------------------
   // NEW FIELDS (all optional):
   // ------------------------------
@@ -80,6 +82,7 @@ class Vehicle {
   final List<Map<String, dynamic>>? features;
 
   Vehicle({
+    this.assignedSalesRepId,
     required this.id,
     required this.application,
     required this.damageDescription,
@@ -207,6 +210,7 @@ class Vehicle {
 
     return Vehicle(
       id: docId,
+      assignedSalesRepId: getString(data['assignedSalesRepId']),
       application: applications,
       length: getString(data['length']),
       damageDescription: getString(data['damageDescription']),
@@ -405,6 +409,7 @@ class Vehicle {
       'requireToSettleType': requireToSettleType,
       'country': country,
       'variant': variant,
+      'assignedSalesRepId': assignedSalesRepId,
 
       // Existing line not to remove
       'length': length,
@@ -459,6 +464,7 @@ class Vehicle {
 
     return Vehicle(
       id: doc.id,
+      assignedSalesRepId: data['assignedSalesRepId'] ?? '',
       createdAt: parsedCreatedAt,
       application: applications,
       brands: brands,
@@ -624,6 +630,7 @@ class Vehicle {
   factory Vehicle.fromMap(Map<String, dynamic> data) {
     return Vehicle(
       id: data['id'] ?? '',
+      assignedSalesRepId: data['assignedSalesRepId'] ?? '',
       referenceNumber: data['referenceNumber'] ?? '',
       vinTrailer: data['vinTrailer'] ?? '',
       damagesDescription: data['damagesDescription'] ?? '',
