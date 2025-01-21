@@ -867,7 +867,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   context: context,
                   builder: (BuildContext context) {
                     return AlertDialog(
-                      title: const Text('DeleteVehicle'),
+                      title: const Text('Delete Vehicle'),
                       content: const Text(
                         'Are you sure you want to delete this vehicle? ',
                       ),
@@ -877,7 +877,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                         TextButton(
-                          child: const Text('Archive'),
+                          child: const Text('Delete'),
                           onPressed: () async {
                             try {
                               await FirebaseFirestore.instance

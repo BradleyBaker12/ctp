@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/services.dart'; // Added for loading assets
 
@@ -1968,31 +1969,33 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     );
   }
 
-  void _viewDocument() async {
-    final url = _natisRc1File != null ? null : _existingNatisRc1Url;
-    if (url != null && url.isNotEmpty) {
-      debugPrint('Attempting to view document at URL: $url');
-      try {
-        final Uri uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          debugPrint('Document opened successfully.');
-        } else {
-          debugPrint('Could not open document URL.');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Could not open document')));
-          }
-        }
-      } catch (e) {
-        debugPrint('Error opening document: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error opening document: $e')));
-        }
-      }
-    } else if (_natisRc1File != null) {
-      debugPrint('Viewing local NATIS/RC1 file: ${_natisRc1File!.path}');
+  void _viewDocument() {
+    // Determine the URL to display. In our example, we give preference to the existing URL.
+    String? documentUrl = _existingNatisRc1Url;
+
+    if ((documentUrl == null || documentUrl.isEmpty) && _natisRc1File != null) {
+      // Optionally: If the file was picked locally but not yet uploaded,
+      // you might show an error message or upload it first. Here we display an error.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please upload the document before viewing.')),
+      );
+      return;
+    }
+
+    if (documentUrl != null && documentUrl.isNotEmpty) {
+      debugPrint('Attempting to view document using ViewerPage: $documentUrl');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ViewerPage(url: documentUrl!),
+        ),
+      );
+    } else {
+      debugPrint('No document available to view.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No document available to view.')),
+      );
     }
   }
 

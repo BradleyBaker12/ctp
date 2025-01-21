@@ -18,12 +18,15 @@ class ImageData {
   ImageData({this.file, this.url});
 }
 
-/// Class to represent items with descriptions and images
+/// Class to represent items with descriptions and images.
+/// A persistent TextEditingController is included so that the controller is not recreated every build.
 class ItemData {
   String description;
   ImageData imageData;
+  TextEditingController controller;
 
-  ItemData({required this.description, required this.imageData});
+  ItemData({required this.description, required this.imageData})
+      : controller = TextEditingController(text: description);
 }
 
 class InternalCabEditPage extends StatefulWidget {
@@ -77,6 +80,24 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   List<ItemData> _faultCodesList = [];
 
   bool _isInitialized = false; // Flag to prevent re-initialization
+
+  @override
+  void dispose() {
+    // Dispose controllers for all items
+    for (var damage in _damageList) {
+      damage.controller.dispose();
+    }
+    for (var feature in _additionalFeaturesList) {
+      feature.controller.dispose();
+    }
+    for (var faultCode in _faultCodesList) {
+      faultCode.controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
@@ -380,8 +401,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
         child: Stack(
+          alignment: Alignment.center,
           children: [
-            // Existing image logic:
             if (hasFile)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
@@ -406,27 +427,27 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                 ),
               )
             else
-              // Placeholder
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!isDealer)
-                    const Icon(Icons.add_circle_outline,
-                        color: Colors.white, size: 40.0),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+              // Wrap the placeholder content in a Center widget to center the icon and text.
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!isDealer)
+                      const Icon(Icons.add_circle_outline,
+                          color: Colors.white, size: 40.0),
+                    const SizedBox(height: 8.0),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                  ],
+                ),
               ),
-
-            // The "X" button (only if user is a transporter and there's an image)
             if (!isDealer && (hasFile || hasUrl))
               Positioned(
                 top: 0,
@@ -435,7 +456,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   icon: const Icon(Icons.close, color: Colors.red),
                   onPressed: () {
                     setState(() {
-                      _selectedImages[title] = ImageData(); // Clear the image
+                      _selectedImages[title] = ImageData();
                     });
                   },
                 ),
@@ -468,7 +489,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
           children: [
             Expanded(
               child: TextField(
-                controller: TextEditingController(text: item.description),
+                controller: item.controller, // Use persistent controller
                 onChanged: (value) {
                   _updateAndNotify(() {
                     item.description = value;
@@ -504,7 +525,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
         GestureDetector(
           onTap: () {
             if (isDealer && (hasFile || hasUrl)) {
-              // Dealer can only view in fullscreen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -521,7 +541,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                 ),
               );
             } else if (!isDealer) {
-              // Transporter - show image source (camera/gallery)
               showImageSourceDialog(item);
             }
           },
@@ -535,7 +554,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
             ),
             child: Stack(
               children: [
-                // Existing image or placeholder
                 if (!hasFile &&
                     (!hasUrl || !item.imageData.url!.startsWith('http')))
                   _buildImagePlaceholder()
@@ -565,8 +583,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                             },
                           ),
                   ),
-
-                // The "X" button (only if not dealer and there's an image)
                 if (!isDealer && (hasFile || hasUrl))
                   Positioned(
                     top: 0,
@@ -575,7 +591,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       icon: const Icon(Icons.close, color: Colors.red),
                       onPressed: () {
                         setState(() {
-                          // Clear the image
                           item.imageData = ImageData();
                         });
                       },
@@ -590,25 +605,29 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   }
 
   // =============================================================================
-  // Other Methods/Widgets (unchanged except for X-button additions)
+  // Other Methods/Widgets
   // =============================================================================
 
   // Placeholder widget for item images
   Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-        SizedBox(height: 8.0),
-        Text(
-          'Clear Picture of Item',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+    // Wrap the placeholder content in a Center widget to ensure the icon and text are centered.
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+          SizedBox(height: 8.0),
+          Text(
+            'Clear Picture of Item',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -717,7 +736,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
-  // Specialized show methods for Damages/Features/Fault Codes
+  // Specialized methods for damages, additional features, and fault codes
   void _showDamageImageSourceDialog(ItemData damage) {
     _showImageSourceDialogForItem(damage);
   }
@@ -876,7 +895,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isTransporter = userProvider.getUserRole == 'transporter';
 
-    // Only transporters can upload data
     if (!isTransporter) {
       return {};
     }
@@ -1051,26 +1069,23 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       _additionalFeaturesList.clear();
       _faultCodesList.clear();
 
-      _isInitialized = false; // Allow re-initialization if needed
+      _isInitialized = false;
     });
   }
 
   // Method to calculate completion percentage
   double getCompletionPercentage() {
-    int totalFields = 18; // Total number of fields to fill
+    int totalFields = 18;
     int filledFields = 0;
 
-    // Check condition selection (1 field)
     if (_selectedCondition.isNotEmpty) filledFields++;
 
-    // Check all images (14 fields)
     _selectedImages.forEach((key, value) {
       if (value.file != null || (value.url != null && value.url!.isNotEmpty)) {
         filledFields++;
       }
     });
 
-    // Check damages section (1 field)
     if (_damagesCondition == 'no') {
       filledFields++;
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
@@ -1082,7 +1097,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       if (isDamagesComplete) filledFields++;
     }
 
-    // Check additional features section (1 field)
     if (_additionalFeaturesCondition == 'no') {
       filledFields++;
     } else if (_additionalFeaturesCondition == 'yes' &&
@@ -1095,7 +1109,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       if (isFeaturesComplete) filledFields++;
     }
 
-    // Check fault codes section (1 field)
     if (_faultCodesCondition == 'no') {
       filledFields++;
     } else if (_faultCodesCondition == 'yes' && _faultCodesList.isNotEmpty) {
@@ -1107,7 +1120,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       if (isFaultCodesComplete) filledFields++;
     }
 
-    // Ensure we don't exceed 1.0 and handle potential division errors
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
@@ -1118,7 +1130,4 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     });
     widget.onProgressUpdate();
   }
-
-  @override
-  bool get wantKeepAlive => true;
 }

@@ -105,6 +105,7 @@ class TyresPageState extends State<TyresPage>
 
   @override
   bool get wantKeepAlive => true; // Implementing the required getter
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -202,7 +203,9 @@ class TyresPageState extends State<TyresPage>
               groupValue: _chassisConditions[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _chassisConditions[pos] = value;
+                  _updateAndNotify(() {
+                    _chassisConditions[pos] = value;
+                  });
                 }
               },
             ),
@@ -212,7 +215,9 @@ class TyresPageState extends State<TyresPage>
               groupValue: _chassisConditions[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _chassisConditions[pos] = value;
+                  _updateAndNotify(() {
+                    _chassisConditions[pos] = value;
+                  });
                 }
               },
             ),
@@ -239,7 +244,9 @@ class TyresPageState extends State<TyresPage>
               groupValue: _virginOrRecaps[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _virginOrRecaps[pos] = value;
+                  _updateAndNotify(() {
+                    _virginOrRecaps[pos] = value;
+                  });
                 }
               },
             ),
@@ -249,7 +256,9 @@ class TyresPageState extends State<TyresPage>
               groupValue: _virginOrRecaps[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _virginOrRecaps[pos] = value;
+                  _updateAndNotify(() {
+                    _virginOrRecaps[pos] = value;
+                  });
                 }
               },
             ),
@@ -276,7 +285,9 @@ class TyresPageState extends State<TyresPage>
               groupValue: _rimTypes[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _rimTypes[pos] = value;
+                  _updateAndNotify(() {
+                    _rimTypes[pos] = value;
+                  });
                 }
               },
             ),
@@ -286,7 +297,9 @@ class TyresPageState extends State<TyresPage>
               groupValue: _rimTypes[pos] ?? '',
               onChanged: (String? value) {
                 if (value != null) {
-                  _rimTypes[pos] = value;
+                  _updateAndNotify(() {
+                    _rimTypes[pos] = value;
+                  });
                 }
               },
             ),

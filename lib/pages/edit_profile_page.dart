@@ -467,6 +467,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     var orange = const Color(0xFFFF4E00);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String currentUserRole =
+        userProvider.getUserRole.toLowerCase(); // Ensure lowercase
+    // Hide document uploads for admin and sales representative roles.
+    final bool hideDocumentUploads =
+        currentUserRole == 'admin' || currentUserRole == 'sales representative';
 
     return Scaffold(
       body: Stack(
@@ -543,29 +549,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             _buildTextField(
                                 'Postal Code', _postalCodeController),
                             const SizedBox(height: 20),
-                            const Text(
-                              'Upload Documents',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                            // Document upload section is displayed only if hideDocumentUploads is false.
+                            if (!hideDocumentUploads) ...[
+                              const Text(
+                                'Upload Documents',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            _buildUploadLabel('Bank Confirmation'),
-                            _buildUploadButton('bankConfirmation',
-                                _bankConfirmationUrl, _bankConfirmationFile),
-                            const SizedBox(height: 15),
-                            _buildUploadLabel('CIPC Certificate'),
-                            _buildUploadButton('cipcCertificate',
-                                _cipcCertificateUrl, _cipcCertificateFile),
-                            const SizedBox(height: 15),
-                            _buildUploadLabel('Proxy'),
-                            _buildUploadButton('proxy', _proxyUrl, _proxyFile),
-                            const SizedBox(height: 15),
-                            _buildUploadLabel('BRNC'),
-                            _buildUploadButton('brnc', _brncUrl, _brncFile),
-                            const SizedBox(height: 30),
+                              const SizedBox(height: 10),
+                              _buildUploadLabel('Bank Confirmation'),
+                              _buildUploadButton('bankConfirmation',
+                                  _bankConfirmationUrl, _bankConfirmationFile),
+                              const SizedBox(height: 15),
+                              // Only show the CIPC Certificate upload if the user is not a transporter.
+                              if (currentUserRole != 'transporter') ...[
+                                _buildUploadLabel('CIPC Certificate'),
+                                _buildUploadButton('cipcCertificate',
+                                    _cipcCertificateUrl, _cipcCertificateFile),
+                                const SizedBox(height: 15),
+                              ],
+                              _buildUploadLabel('Proxy'),
+                              _buildUploadButton(
+                                  'proxy', _proxyUrl, _proxyFile),
+                              const SizedBox(height: 15),
+                              _buildUploadLabel('BRNC'),
+                              _buildUploadButton('brnc', _brncUrl, _brncFile),
+                              const SizedBox(height: 30),
+                            ],
                             CustomButton(
                               text: _isLoading ? 'Saving...' : 'Save',
                               borderColor: orange,

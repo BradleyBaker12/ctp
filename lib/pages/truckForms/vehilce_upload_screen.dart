@@ -47,6 +47,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // Controllers and Variables
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0;
+  bool _isCustomYear = false;
+  final TextEditingController _customYearController = TextEditingController();
+  final TextEditingController _customBrandController = TextEditingController();
+  final TextEditingController _customModelController = TextEditingController();
   final TextEditingController _sellingPriceController = TextEditingController();
   final TextEditingController _vinNumberController = TextEditingController();
   final TextEditingController _mileageController = TextEditingController();
@@ -136,6 +140,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final data = json.decode(response);
     setState(() {
       _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
+      _yearOptions.add('Other'); // Add "Other" option
     });
   }
 
@@ -882,40 +887,101 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                CustomDropdown(
-                  hintText: 'Year',
-                  value: formData.year,
-                  items: _yearOptions,
-                  onChanged: (value) {
-                    formData.setYear(value);
-                    _loadBrandsForYear(value!);
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Manufacturer',
-                  value: formData.brands?.isNotEmpty == true
-                      ? formData.brands![0]
-                      : null,
-                  items: _brandOptions,
-                  onChanged: (value) {
-                    if (value != null) {
-                      formData.setBrands([value]);
-                      _loadModelsForBrand(value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Model',
-                  value: formData.makeModel,
-                  items: _makeModelOptions[formData.brands?.isNotEmpty == true
-                          ? formData.brands![0]
-                          : ''] ??
-                      [],
-                  onChanged: (value) {
-                    formData.setMakeModel(value);
-                  },
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CustomDropdown(
+                      hintText: 'Year',
+                      value: formData.year,
+                      items: _yearOptions,
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == 'Other') {
+                            _isCustomYear = true;
+                            formData.setYear(null);
+                          } else {
+                            _isCustomYear = false;
+                            formData.setYear(value);
+                            debugPrint("Year set to: $value");
+                            _loadBrandsForYear(value!);
+                          }
+                        });
+                      },
+                    ),
+                    if (_isCustomYear) ...[
+                      const SizedBox(height: 15),
+                      CustomTextField(
+                        controller: _customYearController,
+                        hintText: 'Enter Year',
+                        keyboardType: TextInputType.number,
+                        inputFormatter: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        validator: _validateCustomYear,
+                        onChanged: (value) {
+                          formData.setYear(value);
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      CustomTextField(
+                        controller: _customBrandController,
+                        hintText: 'Enter Manufacturer',
+                        inputFormatter: [UpperCaseTextFormatter()],
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the brand';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          formData.setBrands([value]);
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      CustomTextField(
+                        controller: _customModelController,
+                        hintText: 'Enter Model',
+                        inputFormatter: [UpperCaseTextFormatter()],
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the model';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          formData.setMakeModel(value);
+                        },
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 15),
+                      CustomDropdown(
+                        hintText: 'Manufacturer',
+                        value: formData.brands?.isNotEmpty == true
+                            ? formData.brands![0]
+                            : null,
+                        items: _brandOptions,
+                        onChanged: (value) {
+                          if (value != null) {
+                            formData.setBrands([value]);
+                            _loadModelsForBrand(value);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      CustomDropdown(
+                        hintText: 'Model',
+                        value: formData.makeModel,
+                        items: _makeModelOptions[
+                                formData.brands?.isNotEmpty == true
+                                    ? formData.brands![0]
+                                    : ''] ??
+                            [],
+                        onChanged: (value) {
+                          formData.setMakeModel(value);
+                        },
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 15),
                 CustomTextField(
@@ -1413,18 +1479,32 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   bool _validateRequiredFields(FormDataProvider formData) {
+    debugPrint("Validating year: ${formData.year}"); // Add debug logging
+
     if (formData.selectedMainImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a main image')),
       );
       return false;
     }
-    if (formData.year == null || formData.year!.isEmpty) {
+
+    // Check for either selected year or custom year
+    if (_isCustomYear) {
+      if (_customYearController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a custom year')),
+        );
+        return false;
+      }
+      // Set the year in formData if using custom year
+      formData.setYear(_customYearController.text);
+    } else if (formData.year == null || formData.year!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the year')),
+        const SnackBar(content: Text('Please select a year')),
       );
       return false;
     }
+
     return true;
   }
 
@@ -1436,13 +1516,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         onPressed: () async {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);
-          // For admin uploads, Sales Rep selection has been validated already.
-          if (!widget.isAdminUpload &&
-              widget.isNewUpload &&
-              !_validateRequiredFields(formData)) {
+
+          if (widget.isNewUpload && !_validateRequiredFields(formData)) {
             return;
           }
+
           setState(() => _isLoading = true);
+
           try {
             String? vehicleId = await _saveSection1Data();
             if (vehicleId != null) {
@@ -1680,6 +1760,22 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       _existingNatisRc1Url = null;
       _existingNatisRc1Name = null;
     });
+  }
+
+  // Add this new method to validate custom year
+  String? _validateCustomYear(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter a year';
+    }
+    final year = int.tryParse(value);
+    if (year == null) {
+      return 'Please enter a valid year';
+    }
+    final currentYear = DateTime.now().year;
+    if (year < 1900 || year > currentYear) {
+      return 'Please enter a year between 1900 and $currentYear';
+    }
+    return null;
   }
 }
 

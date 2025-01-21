@@ -308,6 +308,79 @@ class AdminEditSectionState extends State<AdminEditSection>
     );
   }
 
+  // NEW: Helper method to show the options dialog for each document.
+  Future<void> _showDocumentOptionsDialog({
+    required int docNumber,
+    required String docName,
+    required File? file,
+    required String? fileUrl,
+    required VoidCallback onRemove,
+  }) async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(docName),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Option to view the document
+              ListTile(
+                leading: const Icon(Icons.visibility),
+                title: const Text("View"),
+                onTap: () {
+                  Navigator.pop(context);
+                  // If the document is an image, display a dialog with the image
+                  if (file != null && _isImageFile(file.path)) {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Dialog(
+                        child: Image.file(file),
+                      ),
+                    );
+                  } else if (fileUrl != null && _isImageUrl(fileUrl)) {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Dialog(
+                        child: Image.network(fileUrl),
+                      ),
+                    );
+                  } else {
+                    // If not an image, you could open it with a file viewer,
+                    // or show a message that preview is not available.
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Preview not available")),
+                    );
+                  }
+                },
+              ),
+              // Option to change the document (if editing is allowed)
+              if (widget.isEditing)
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text("Change"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickFile(docNumber);
+                  },
+                ),
+              // Option to remove the document (if editing is allowed)
+              if (widget.isEditing)
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text("Remove"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onRemove();
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void loadAdminData(Map<String, dynamic> adminData) {
     setState(() {
       _settlementAmountController.text = adminData['settlementAmount'] ?? '';
@@ -430,7 +503,7 @@ class AdminEditSectionState extends State<AdminEditSection>
       // Save to Firestore using the vehicle's ID
       await FirebaseFirestore.instance
           .collection('vehicles')
-          .doc(widget.vehicle.id) // Use the vehicle ID here
+          .doc(widget.vehicle.id)
           .set({'adminData': adminData}, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -598,7 +671,27 @@ class AdminEditSectionState extends State<AdminEditSection>
                   ),
                   const SizedBox(height: 15),
                   InkWell(
-                    onTap: () => _pickFile(1),
+                    onTap: () {
+                      // If a document exists, show the options dialog
+                      if (_natisRc1File != null || _natisRc1Url != null) {
+                        _showDocumentOptionsDialog(
+                          docNumber: 1,
+                          docName: 'NATIS/RC1',
+                          file: _natisRc1File,
+                          fileUrl: _natisRc1Url,
+                          onRemove: () {
+                            setState(() {
+                              _natisRc1File = null;
+                              _natisRc1Url = null;
+                              widget.onAdminDoc1Selected(null);
+                            });
+                          },
+                        );
+                      } else {
+                        // Otherwise, pick a file
+                        _pickFile(1);
+                      }
+                    },
                     borderRadius: BorderRadius.circular(10.0),
                     child: Container(
                       width: double.infinity,
@@ -628,7 +721,6 @@ class AdminEditSectionState extends State<AdminEditSection>
                               isUploading: _isUploading,
                               docName: 'NATIS/RC1',
                               onRemove: () {
-                                // Remove NATIS/RC1 doc
                                 setState(() {
                                   _natisRc1File = null;
                                   _natisRc1Url = null;
@@ -664,7 +756,25 @@ class AdminEditSectionState extends State<AdminEditSection>
                   ),
                   const SizedBox(height: 15),
                   InkWell(
-                    onTap: () => _pickFile(2),
+                    onTap: () {
+                      if (_licenseDiskFile != null || _licenseDiskUrl != null) {
+                        _showDocumentOptionsDialog(
+                          docNumber: 2,
+                          docName: 'License Disk',
+                          file: _licenseDiskFile,
+                          fileUrl: _licenseDiskUrl,
+                          onRemove: () {
+                            setState(() {
+                              _licenseDiskFile = null;
+                              _licenseDiskUrl = null;
+                              widget.onAdminDoc2Selected(null);
+                            });
+                          },
+                        );
+                      } else {
+                        _pickFile(2);
+                      }
+                    },
                     borderRadius: BorderRadius.circular(10.0),
                     child: Container(
                       width: double.infinity,
@@ -696,7 +806,6 @@ class AdminEditSectionState extends State<AdminEditSection>
                               isUploading: _isUploading,
                               docName: 'License Disk',
                               onRemove: () {
-                                // Remove License Disk doc
                                 setState(() {
                                   _licenseDiskFile = null;
                                   _licenseDiskUrl = null;
@@ -735,7 +844,26 @@ class AdminEditSectionState extends State<AdminEditSection>
                     ),
                     const SizedBox(height: 15),
                     InkWell(
-                      onTap: () => _pickFile(3),
+                      onTap: () {
+                        if (_settlementLetterFile != null ||
+                            _settlementLetterUrl != null) {
+                          _showDocumentOptionsDialog(
+                            docNumber: 3,
+                            docName: 'Settlement Letter',
+                            file: _settlementLetterFile,
+                            fileUrl: _settlementLetterUrl,
+                            onRemove: () {
+                              setState(() {
+                                _settlementLetterFile = null;
+                                _settlementLetterUrl = null;
+                                widget.onAdminDoc3Selected(null);
+                              });
+                            },
+                          );
+                        } else {
+                          _pickFile(3);
+                        }
+                      },
                       borderRadius: BorderRadius.circular(10.0),
                       child: Container(
                         width: double.infinity,
@@ -767,7 +895,6 @@ class AdminEditSectionState extends State<AdminEditSection>
                                 isUploading: _isUploading,
                                 docName: 'Settlement Letter',
                                 onRemove: () {
-                                  // Remove Settlement Letter doc
                                   setState(() {
                                     _settlementLetterFile = null;
                                     _settlementLetterUrl = null;

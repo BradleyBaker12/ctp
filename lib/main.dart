@@ -187,6 +187,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
         });
         return const AccountStatusPage();
       }
+
+      if (userProvider.isUserRolePending || userProvider.userRole == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pushReplacementNamed('/tradingCategory');
+        });
+        return const TradingCategoryPage();
+      }
+
       return const HomePage();
     } else {
       return const LoginPage();

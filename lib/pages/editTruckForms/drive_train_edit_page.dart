@@ -317,6 +317,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         }
       },
       child: Container(
+        alignment: Alignment.center,
         width: double.infinity,
         height: 130,
         decoration: BoxDecoration(
