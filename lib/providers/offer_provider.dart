@@ -3,7 +3,6 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'; // Added for the widget
 
 /// The Offer model representing each offer from Firestore.

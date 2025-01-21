@@ -665,8 +665,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // Basic Info progress (example placeholders)
   int _calculateBasicInfoProgress() {
     int completedSteps = 0;
-    if (vehicle.mainImageUrl != null && vehicle.mainImageUrl!.isNotEmpty)
+    if (vehicle.mainImageUrl != null && vehicle.mainImageUrl!.isNotEmpty) {
       completedSteps++;
+    }
     // Assuming there are 11 steps; adjust accordingly
     completedSteps += 3; // Placeholder for additional steps
     return completedSteps;
@@ -1211,7 +1212,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             if (snapshot.hasData && !isAdmin && isDealer) {
                               Map<String, dynamic> userData =
                                   snapshot.data!.data() as Map<String, dynamic>;
-
 
                               // Detailed debug logging
                               print('Raw userData: $userData');

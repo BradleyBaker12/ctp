@@ -11,7 +11,7 @@ import 'package:path/path.dart' as path;
 class ViewerPage extends StatefulWidget {
   final String url;
 
-  const ViewerPage({Key? key, required this.url}) : super(key: key);
+  const ViewerPage({super.key, required this.url});
 
   @override
   _ViewerPageState createState() => _ViewerPageState();

@@ -22,7 +22,7 @@ class AdminHomePage extends StatefulWidget {
 class _AdminHomePageState extends State<AdminHomePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  Key _offersTabKey = UniqueKey(); // Add this line
+  final Key _offersTabKey = UniqueKey(); // Add this line
 
   final List<Tab> myTabs = <Tab>[
     const Tab(text: 'Users'),

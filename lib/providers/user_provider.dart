@@ -111,7 +111,7 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
       } catch (e) {
         print('Error updating user role: $e');
-        throw e;
+        rethrow;
       }
     } else {
       throw Exception('No user logged in');

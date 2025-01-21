@@ -1,9 +1,9 @@
-{
-    "cors": {
-        "allowedOrigins": ["*"],
-        "allowedMethods": ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allowedHeaders": ["Content-Type", "Authorization"],
-        "allowCredentials": true,
-        "maxAge": 3600
+[
+    {
+      "origin": ["*"],
+      "responseHeader": ["Content-Type", "Authorization"],
+      "method": ["GET", "HEAD", "OPTIONS"],
+      "maxAgeSeconds": 3600
     }
-}
+  ]
+  

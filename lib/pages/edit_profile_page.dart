@@ -46,6 +46,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   File? _cipcCertificateFile;
   File? _proxyFile;
   File? _brncFile;
+  Uint8List? _bankConfirmationByte;
+  Uint8List? _cipcCertificateByte;
+  Uint8List? _proxyByte;
+  Uint8List? _brncByte;
+  Uint8List? _profileImageByte;
   bool _isLoading = false;
 
   @override
@@ -112,26 +117,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ],
     );
 
-    if (result != null && result.files.single.path != null) {
-      File selectedFile = File(result.files.single.path!);
+    if (result != null) {
       setState(() {
-        switch (field) {
-          case 'bankConfirmation':
-            _bankConfirmationFile = selectedFile;
-            _bankConfirmationUrl = null; // Reset existing URL
-            break;
-          case 'cipcCertificate':
-            _cipcCertificateFile = selectedFile;
-            _cipcCertificateUrl = null; // Reset existing URL
-            break;
-          case 'proxy':
-            _proxyFile = selectedFile;
-            _proxyUrl = null; // Reset existing URL
-            break;
-          case 'brnc':
-            _brncFile = selectedFile;
-            _brncUrl = null; // Reset existing URL
-            break;
+        if (!kIsWeb) {
+          File selectedFile = File(result.files.single.path!);
+          switch (field) {
+            case 'bankConfirmation':
+              _bankConfirmationFile = selectedFile;
+              _bankConfirmationUrl = null;
+              break;
+            case 'cipcCertificate':
+              _cipcCertificateFile = selectedFile;
+              _cipcCertificateUrl = null;
+              break;
+            case 'proxy':
+              _proxyFile = selectedFile;
+              _proxyUrl = null;
+              break;
+            case 'brnc':
+              _brncFile = selectedFile;
+              _brncUrl = null;
+              break;
+          }
+        } else {
+          Uint8List selectedBytes = result.files.single.bytes!;
+          switch (field) {
+            case 'bankConfirmation':
+              _bankConfirmationByte = selectedBytes;
+              _bankConfirmationUrl = null;
+              break;
+            case 'cipcCertificate':
+              _cipcCertificateByte = selectedBytes;
+              _cipcCertificateUrl = null;
+              break;
+            case 'proxy':
+              _proxyByte = selectedBytes;
+              _proxyUrl = null;
+              break;
+            case 'brnc':
+              _brncByte = selectedBytes;
+              _brncUrl = null;
+              break;
+          }
         }
       });
     }
@@ -180,6 +207,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
         IOSUiSettings(
           title: 'Crop and Fit',
+        ),
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: CropperSize(width: 520, height: 520),
+          background: true,
+          movable: true,
+          scalable: true,
+          zoomable: true,
         ),
       ],
     );
@@ -334,23 +370,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  switch (field) {
-                    case 'bankConfirmation':
-                      _bankConfirmationFile = null;
-                      _bankConfirmationUrl = null;
-                      break;
-                    case 'cipcCertificate':
-                      _cipcCertificateFile = null;
-                      _cipcCertificateUrl = null;
-                      break;
-                    case 'proxy':
-                      _proxyFile = null;
-                      _proxyUrl = null;
-                      break;
-                    case 'brnc':
-                      _brncFile = null;
-                      _brncUrl = null;
-                      break;
+                  if (!kIsWeb) {
+                    switch (field) {
+                      case 'bankConfirmation':
+                        _bankConfirmationFile = null;
+                        _bankConfirmationUrl = null;
+                        break;
+                      case 'cipcCertificate':
+                        _cipcCertificateFile = null;
+                        _cipcCertificateUrl = null;
+                        break;
+                      case 'proxy':
+                        _proxyFile = null;
+                        _proxyUrl = null;
+                        break;
+                      case 'brnc':
+                        _brncFile = null;
+                        _brncUrl = null;
+                        break;
+                    }
+                  } else {
+                    switch (field) {
+                      case 'bankConfirmation':
+                        _bankConfirmationByte = null;
+                        _bankConfirmationUrl = null;
+                        break;
+                      case 'cipcCertificate':
+                        _cipcCertificateByte = null;
+                        _cipcCertificateUrl = null;
+                        break;
+                      case 'proxy':
+                        _proxyByte = null;
+                        _proxyUrl = null;
+                        break;
+                      case 'brnc':
+                        _brncByte = null;
+                        _brncUrl = null;
+                        break;
+                    }
                   }
                 });
               },
@@ -376,18 +433,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String? profileImageUrl;
 
       // Upload Profile Image if a new one is selected
-      if (_profileImageFile != null) {
-        try {
-          profileImageUrl = await userProvider.uploadFile(_profileImageFile!);
-        } catch (e) {
-          debugPrint('Error uploading profile image: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error uploading profile image: $e')),
-          );
-          setState(() {
-            _isLoading = false;
-          });
-          return;
+      if (!kIsWeb) {
+        if (_profileImageFile != null) {
+          try {
+            profileImageUrl = await userProvider.uploadFile(_profileImageFile!);
+          } catch (e) {
+            debugPrint('Error uploading profile image: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error uploading profile image: $e')),
+            );
+            setState(() {
+              _isLoading = false;
+            });
+            return;
+          }
+        }
+      } else {
+        if (_profileImageFile != null) {
+          try {
+            profileImageUrl =
+                await userProvider.uploadBytes(_profileImageByte!);
+          } catch (e) {
+            debugPrint('Error uploading profile image: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error uploading profile image: $e')),
+            );
+            setState(() {
+              _isLoading = false;
+            });
+            return;
+          }
         }
       }
 
@@ -398,22 +473,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String? brncDownloadUrl;
 
       try {
-        if (_bankConfirmationFile != null) {
-          bankConfirmationDownloadUrl =
-              await userProvider.uploadFile(_bankConfirmationFile!);
+        if (!kIsWeb) {
+          if (_bankConfirmationFile != null) {
+            bankConfirmationDownloadUrl =
+                await userProvider.uploadFile(_bankConfirmationFile!);
+          }
+        } else {
+          if (_bankConfirmationByte != null) {
+            bankConfirmationDownloadUrl =
+                await userProvider.uploadBytes(_bankConfirmationByte!);
+          }
         }
 
-        if (_cipcCertificateFile != null) {
-          cipcCertificateDownloadUrl =
-              await userProvider.uploadFile(_cipcCertificateFile!);
+        if (!kIsWeb) {
+          if (_cipcCertificateFile != null) {
+            cipcCertificateDownloadUrl =
+                await userProvider.uploadFile(_cipcCertificateFile!);
+          }
+        } else {
+          if (_cipcCertificateByte != null) {
+            cipcCertificateDownloadUrl =
+                await userProvider.uploadBytes(_cipcCertificateByte!);
+          }
         }
 
-        if (_proxyFile != null) {
-          proxyDownloadUrl = await userProvider.uploadFile(_proxyFile!);
+        if (!kIsWeb) {
+          if (_proxyFile != null) {
+            proxyDownloadUrl = await userProvider.uploadFile(_proxyFile!);
+          }
+        } else {
+          if (_proxyByte != null) {
+            proxyDownloadUrl = await userProvider.uploadBytes(_proxyByte!);
+          }
         }
 
-        if (_brncFile != null) {
-          brncDownloadUrl = await userProvider.uploadFile(_brncFile!);
+        if (!kIsWeb) {
+          if (_brncFile != null) {
+            brncDownloadUrl = await userProvider.uploadFile(_brncFile!);
+          }
+        } else {
+          if (_brncByte != null) {
+            brncDownloadUrl = await userProvider.uploadBytes(_brncByte!);
+          }
         }
       } catch (e) {
         debugPrint('Error uploading documents: $e');

@@ -35,8 +35,10 @@ class _AddProfilePhotoPageTransporterState
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                CropPhotoPage(imageFile: pickedFile, userData: const {},), // Pass XFile directly
+            builder: (context) => CropPhotoPage(
+              imageFile: pickedFile,
+              userData: const {},
+            ), // Pass XFile directly
           ),
         );
       } else {
@@ -69,9 +71,9 @@ class _AddProfilePhotoPageTransporterState
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              const TransporterRegistrationPage(), // Ensure DealerRegistrationPage exists
-        ),
+            builder: (context) =>
+                const TransporterRegistrationPage() // Ensure TransporterRegistrationPage exists
+            ),
       );
     } catch (e) {
       print("Error setting default profile image: $e");

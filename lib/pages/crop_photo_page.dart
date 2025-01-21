@@ -164,8 +164,7 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
 
         if (mounted) {
           // Ensure string comparison is exact
-          final userRole =
-              finalUserData['userRole']?.toString().trim().toLowerCase();
+          final userRole = finalUserData['userRole'];
           print('Processed User Role: $userRole'); // Debug print
 
           Navigator.pushReplacement(
