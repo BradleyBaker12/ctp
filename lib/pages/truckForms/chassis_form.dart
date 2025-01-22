@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field, unused_local_variable
+
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';

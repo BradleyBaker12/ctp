@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable, unused_field
+
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
@@ -69,15 +71,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   Dealer? _selectedDealer;
   bool _isDealersLoading = false;
 
-  // Maintenance & Admin expansions
-  final bool _isMaintenanceInfoExpanded = false;
-  final bool _isAdminDataExpanded = false;
-  final bool _isTruckConditionsExpanded = false;
-  final bool _isExternalCabExpanded = false;
-  final bool _isInternalCabExpanded = false;
-  final bool _isChassisExpanded = false;
-  final bool _isDriveTrainExpanded = false;
-  final bool _isTyresExpanded = false;
 
   @override
   void initState() {
@@ -1442,7 +1435,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 initialIndex: 0,
                 vehicleId: vehicle.id,
                 mainImageUrl: vehicle.mainImageUrl,
-                referenceNumber: vehicle.referenceNumber ?? 'REF',
+                referenceNumber: vehicle.referenceNumber,
                 isEditing: true,
               ),
             ),

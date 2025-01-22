@@ -1,5 +1,7 @@
 // lib/adminScreens/admin_home_page.dart
 
+// ignore_for_file: unused_local_variable, unused_field
+
 import 'package:ctp/adminScreens/user_tabs.dart';
 import 'package:ctp/adminScreens/vehicle_tab.dart';
 import 'package:ctp/components/gradient_background.dart';

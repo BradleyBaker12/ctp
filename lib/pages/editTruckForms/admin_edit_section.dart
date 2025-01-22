@@ -612,7 +612,7 @@ class AdminEditSectionState extends State<AdminEditSection>
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Text(
-              widget.vehicle.referenceNumber ?? 'REF',
+              widget.vehicle.referenceNumber,
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(width: 16),

@@ -1,5 +1,7 @@
 // lib/providers/complaints_provider.dart
 
+// ignore_for_file: unused_local_variable
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

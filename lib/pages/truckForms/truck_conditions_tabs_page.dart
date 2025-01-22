@@ -1,5 +1,7 @@
 // lib/pages/truckForms/truck_conditions_tabs_page.dart
 
+// ignore_for_file: unused_field
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

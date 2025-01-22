@@ -1,5 +1,7 @@
 // lib/adminScreens/vehicle_tab.dart
 
+// ignore_for_file: unused_field
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';

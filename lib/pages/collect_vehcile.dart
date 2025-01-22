@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/rating_pages/rate_dealer_page_two.dart';

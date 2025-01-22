@@ -1,5 +1,7 @@
 // lib/pages/truckForms/tyres_page.dart
 
+// ignore_for_file: unused_local_variable, unused_field
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';

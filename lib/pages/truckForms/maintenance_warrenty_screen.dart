@@ -1,5 +1,7 @@
 // maintenance_warrenty_screen.dart
 
+// ignore_for_file: unused_field, unused_local_variable
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';

@@ -112,7 +112,7 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userRole = userProvider.getUserRole ?? '';
+    final userRole = userProvider.getUserRole;
 
     return Scaffold(
       body: GradientBackground(

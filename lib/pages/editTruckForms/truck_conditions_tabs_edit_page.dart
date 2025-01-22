@@ -1,5 +1,7 @@
 // lib/pages/truckForms/truck_conditions_tabs_page.dart
 
+// ignore_for_file: unused_field
+
 import 'dart:io';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';

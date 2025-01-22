@@ -1,5 +1,7 @@
 // lib/adminScreens/vehicle_details_admin_page.dart
 
+// ignore_for_file: unused_field
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';

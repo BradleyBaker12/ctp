@@ -1,5 +1,7 @@
 // lib/pages/editTruckForms/basic_information_edit.dart
 
+// ignore_for_file: unused_field, unused_local_variable
+
 import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
 import 'package:ctp/adminScreens/viewer_page.dart';
@@ -23,7 +25,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class BasicInformationEdit extends StatefulWidget {
   final bool isDuplicating;

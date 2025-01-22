@@ -1,5 +1,7 @@
 // lib/components/offer_card.dart
 
+// ignore_for_file: unused_field, unused_local_variable
+
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/payment_approved.dart';
@@ -127,7 +129,7 @@ class _OfferCardState extends State<OfferCard> {
 
   void navigateBasedOnStatus(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userRole = userProvider.getUserRole ?? '';
+    final userRole = userProvider.getUserRole;
 
     if (userRole == 'transporter') {
       switch (widget.offer.offerStatus) {
@@ -424,7 +426,7 @@ class _OfferCardState extends State<OfferCard> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final userRole = userProvider.getUserRole ?? '';
+    final userRole = userProvider.getUserRole;
     final userId = userProvider.userId;
 
     print('''
@@ -734,7 +736,7 @@ Rendering Offer:
 
   String getDisplayStatus(String? offerStatus) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userRole = userProvider.getUserRole ?? '';
+    final userRole = userProvider.getUserRole;
 
     if (userRole == 'transporter' &&
         (offerStatus == 'payment pending' || offerStatus == 'paid')) {

@@ -106,10 +106,10 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
 
       // Add null safety checks
       await offerRef.set({
-        'dealerSelectedInspectionDate': widget.date ?? DateTime.now(),
-        'dealerSelectedInspectionTime': widget.time ?? "12:00 PM",
+        'dealerSelectedInspectionDate': widget.date,
+        'dealerSelectedInspectionTime': widget.time,
         'dealerSelectedInspectionLocation':
-            widget.address ?? "Unknown Location",
+            widget.address,
         'latLng': _latLng != null
             ? GeoPoint(_latLng!.latitude, _latLng!.longitude)
             : null,

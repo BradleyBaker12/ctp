@@ -11,6 +11,7 @@ class TradingCategoryPage extends StatelessWidget {
   const TradingCategoryPage({super.key});
 
   Future<void> _updateUserRole(BuildContext context, String role) async {
+    // ignore: unused_local_variable
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);

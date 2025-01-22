@@ -1,5 +1,7 @@
 // lib/pages/truckForms/external_cab_page.dart
 
+// ignore_for_file: unused_field
+
 import 'dart:io';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';

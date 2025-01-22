@@ -1,5 +1,7 @@
 // lib/pages/truckForms/vehilce_upload_screen.dart
 
+// ignore_for_file: unused_field, unused_local_variable
+
 import 'dart:io';
 import 'dart:convert'; // For JSON decoding
 import 'package:flutter/services.dart'; // For loading assets
@@ -378,7 +380,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setWarranty(widget.vehicle!.warrentyType, notify: false);
     formData.setWarrantyDetails(widget.vehicle!.warrantyDetails, notify: false);
     formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
-    formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
+    formData.setBrands(widget.vehicle!.brands, notify: false);
     if (widget.isDuplicating) {
       _vehicleId = null;
     } else {

@@ -30,42 +30,42 @@ class _VehiclesListPageState extends State<VehiclesListPage>
   late TabController _tabController;
   bool isLoading = true;
 
-  Future<void> _checkRegistrationCompletion() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    bool isComplete = await userProvider.hasCompletedBasicRegistration();
+  // Future<void> _checkRegistrationCompletion() async {
+  //   final userProvider = Provider.of<UserProvider>(context, listen: false);
+  //   bool isComplete = await userProvider.hasCompletedBasicRegistration();
 
-    if (!isComplete && mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false, // Force user to complete registration
-        builder: (context) => AlertDialog(
-          title: const Text('Complete Registration'),
-          content: const Text(
-              'Please complete your registration details to continue.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Route based on user role
-                if (userProvider.getUserRole == 'dealer') {
-                  Navigator.pushReplacementNamed(context, '/dealerRegister');
-                } else {
-                  Navigator.pushReplacementNamed(
-                      context, '/transporterRegister');
-                }
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
+  //   if (!isComplete && mounted) {
+  //     showDialog(
+  //       context: context,
+  //       barrierDismissible: false, // Force user to complete registration
+  //       builder: (context) => AlertDialog(
+  //         title: const Text('Complete Registration'),
+  //         content: const Text(
+  //             'Please complete your registration details to continue.'),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () {
+  //               Navigator.pop(context);
+  //               // Route based on user role
+  //               if (userProvider.getUserRole == 'dealer') {
+  //                 Navigator.pushReplacementNamed(context, '/dealerRegister');
+  //               } else {
+  //                 Navigator.pushReplacementNamed(
+  //                     context, '/transporterRegister');
+  //               }
+  //             },
+  //             child: const Text('OK'),
+  //           ),
+  //         ],
+  //       ),
+  //     );
+  //   }
+  // }
 
   @override
   void initState() {
     super.initState();
-    _checkRegistrationCompletion();
+    // _checkRegistrationCompletion();
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final vehicleProvider =

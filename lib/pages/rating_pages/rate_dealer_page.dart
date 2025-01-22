@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'dart:async';
 import 'package:ctp/pages/setup_collection.dart';
 import 'package:flutter/material.dart';

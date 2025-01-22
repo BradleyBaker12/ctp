@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 

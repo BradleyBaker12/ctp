@@ -1,5 +1,7 @@
 // lib/models/offer.dart
 
+// ignore_for_file: unused_element
+
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';

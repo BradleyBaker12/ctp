@@ -1,27 +1,27 @@
-import 'package:flutter/material.dart';
+// import 'package:flutter/material.dart';
 
-class ImageUploadIndicator extends StatelessWidget {
-  final bool isUploading;
-  final Widget child;
+// class ImageUploadIndicator extends StatelessWidget {
+//   final bool isUploading;
+//   final Widget child;
 
-  const ImageUploadIndicator({
-    super.key,
-    required this.isUploading,
-    required this.child,
-  });
+//   const ImageUploadIndicator({
+//     super.key,
+//     required this.isUploading,
+//     required this.child,
+//   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        child,
-        if (isUploading)
-          Container(
-            color: Colors.black54,
-            child: const CircularProgressIndicator(),
-          ),
-      ],
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Stack(
+//       alignment: Alignment.center,
+//       children: [
+//         child,
+//         if (isUploading)
+//           Container(
+//             color: Colors.black54,
+//             child: const CircularProgressIndicator(),
+//           ),
+//       ],
+//     );
+//   }
+// }

@@ -196,20 +196,20 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     if (trailer == null) return;
 
     // Populate from Firestore => local text controllers
-    _referenceNumberController.text = trailer.referenceNumber ?? '';
-    _yearController.text = trailer.year ?? '';
-    _vinNumberController.text = trailer.vinNumber ?? '';
-    _registrationNumberController.text = trailer.registrationNumber ?? '';
-    _mileageController.text = trailer.mileage ?? '';
-    _engineNumberController.text = trailer.engineNumber ?? '';
-    _trailerTypeController.text = trailer.trailerType ?? '';
-    _axlesController.text = trailer.axles ?? '';
-    _lengthController.text = trailer.length ?? '';
-    _warrantyDetailsController.text = trailer.warrantyDetails ?? '';
+    _referenceNumberController.text = trailer.referenceNumber;
+    _yearController.text = trailer.year;
+    _vinNumberController.text = trailer.vinNumber;
+    _registrationNumberController.text = trailer.registrationNumber;
+    _mileageController.text = trailer.mileage;
+    _engineNumberController.text = trailer.engineNumber;
+    _trailerTypeController.text = trailer.trailerType;
+    _axlesController.text = trailer.axles;
+    _lengthController.text = trailer.length;
+    _warrantyDetailsController.text = trailer.warrantyDetails;
 
-    _makeController.text = trailer.makeModel ?? '';
+    _makeController.text = trailer.makeModel;
     // If your doc calls it "sellingPrice" or "expectedSellingPrice":
-    _sellingPriceController.text = trailer.expectedSellingPrice ?? '';
+    _sellingPriceController.text = trailer.expectedSellingPrice;
 
     // NATIS doc
     if ((trailer.natisDocumentUrl?.isNotEmpty ?? false)) {
@@ -281,7 +281,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     }
 
     // Vehicle status
-    _vehicleStatus = trailer.vehicleStatus ?? 'Draft';
+    _vehicleStatus = trailer.vehicleStatus;
 
     setState(() {});
   }

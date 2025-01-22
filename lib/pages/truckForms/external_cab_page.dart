@@ -1,5 +1,7 @@
 // lib/pages/truckForms/external_cab_page.dart
 
+// ignore_for_file: override_on_non_overriding_member, unused_field
+
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';

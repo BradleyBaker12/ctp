@@ -1,5 +1,7 @@
 // transporter_offer_details_page.dart
 
+// ignore_for_file: unused_field
+
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:flutter/material.dart';

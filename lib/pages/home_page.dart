@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member, unused_local_variable
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/honesty_bar.dart';
@@ -49,7 +51,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _checkRegistrationCompletion();
     controller = AppinioSwiperController();
     _initialization = _initializeData();
     _checkPaymentStatusForOffers();
@@ -81,11 +82,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (currentUser == null || userProvider.userId == null) {
         await FirebaseAuth.instance.signOut();
         Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
-
-      if (userProvider.isUserRolePending) {
-        Navigator.pushReplacementNamed(context, '/tradingCategory');
         return;
       }
 
@@ -126,38 +122,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       );
       await FirebaseCrashlytics.instance.recordError(e, stackTrace);
-    }
-  }
-
-  Future<void> _checkRegistrationCompletion() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    bool isComplete = await userProvider.hasCompletedBasicRegistration();
-
-    if (!isComplete && mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false, // Force user to complete registration
-        builder: (context) => AlertDialog(
-          title: const Text('Complete Registration'),
-          content: const Text(
-              'Please complete your registration details to continue.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Route based on user role
-                if (userProvider.getUserRole == 'dealer') {
-                  Navigator.pushReplacementNamed(context, '/dealerRegister');
-                } else {
-                  Navigator.pushReplacementNamed(
-                      context, '/transporterRegister');
-                }
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
     }
   }
 
@@ -317,7 +281,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         return Scaffold(
           // Allow the body to extend behind the app bar.
-          extendBodyBehindAppBar: false, // Changed from false to true
+          extendBodyBehindAppBar: true, // Changed from false to true
           backgroundColor: Colors.black,
           appBar:
               CustomAppBar(), // Update your CustomAppBar if needed for transparency

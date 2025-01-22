@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
@@ -361,7 +363,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Text(
-              vehicle!.referenceNumber ?? 'REF',
+              vehicle!.referenceNumber,
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(width: 16),
@@ -507,7 +509,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          vehicle!.referenceNumber ?? 'REF',
+                          vehicle!.referenceNumber,
                           style: const TextStyle(
                               color: Colors.white, fontSize: 15),
                         ),
@@ -593,7 +595,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                 initialIndex: 0,
                 vehicleId: vehicle!.id,
                 mainImageUrl: vehicle!.mainImageUrl,
-                referenceNumber: vehicle!.referenceNumber ?? 'REF',
+                referenceNumber: vehicle!.referenceNumber,
                 isEditing: true,
               ),
             ),

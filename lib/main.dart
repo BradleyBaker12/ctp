@@ -23,8 +23,6 @@ import 'package:ctp/pages/trading_intrests_page.dart';
 import 'package:ctp/pages/transporter_reg.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/pages/tutorial_page.dart';
-import 'package:ctp/pages/tutorial_started.dart';
 import 'package:ctp/pages/waiting_for_approval.dart';
 import 'package:ctp/providers/complaints_provider.dart';
 import 'package:ctp/providers/form_data_provider.dart';
@@ -110,8 +108,6 @@ class MyApp extends StatelessWidget {
         '/houseRules': (context) => const HouseRulesPage(),
         '/preferedBrands': (context) => const PreferredBrandsPage(),
         '/tradingInterests': (context) => const TradingInterestsPage(),
-        '/tutorial': (context) => const TutorialPage(),
-        '/tutorialStarted': (context) => const TutorialStartedPage(),
         '/pendingOffers': (context) => const PendingOffersPage(),
         '/truckPage': (context) => const TruckPage(),
         '/offers': (context) => const OffersPage(),
@@ -186,13 +182,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
           }
         });
         return const AccountStatusPage();
-      }
-
-      if (userProvider.isUserRolePending) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.of(context).pushReplacementNamed('/tradingCategory');
-        });
-        return const TradingCategoryPage();
       }
 
       return const HomePage();
