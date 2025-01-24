@@ -467,6 +467,27 @@ Rendering Offer:
   Widget _buildDealerCard(Color statusColor, BoxConstraints constraints) {
     var screenSize = MediaQuery.of(context).size;
     double cardHeight = screenSize.height * 0.14;
+    // Format vehicle info consistently
+    String vehicleInfo = [
+      widget.offer.vehicleBrand,
+      widget.offer.vehicleMakeModel,
+      widget.offer.vehicleYear
+    ].where((element) => element != null && element.isNotEmpty).join(' ');
+
+    // If vehicleInfo is empty, try to get it from the vehicle details
+    if (vehicleInfo.isEmpty) {
+      _getVehicle().then((vehicle) {
+        if (vehicle != null && mounted) {
+          setState(() {
+            widget.offer.vehicleBrand =
+                vehicle.brands.isNotEmpty ? vehicle.brands[0] : null;
+            widget.offer.vehicleMakeModel = vehicle.makeModel;
+            widget.offer.vehicleYear = vehicle.year;
+          });
+        }
+      });
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -509,8 +530,9 @@ Rendering Offer:
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "${widget.offer.vehicleBrand ?? 'Unknown'} ${widget.offer.vehicleMakeModel ?? 'Unknown'} ${widget.offer.vehicleYear ?? 'Unknown'}"
-                            .toUpperCase(),
+                        vehicleInfo.isEmpty
+                            ? 'Loading...'
+                            : vehicleInfo.toUpperCase(),
                         style: customFont(
                           screenSize.width * 0.03,
                           FontWeight.w800,
@@ -581,6 +603,26 @@ Rendering Offer:
 
     var screenSize = MediaQuery.of(context).size;
     double cardHeight = screenSize.height * 0.14;
+    // Format vehicle info consistently
+    String vehicleInfo = [
+      widget.offer.vehicleBrand,
+      widget.offer.vehicleMakeModel,
+      widget.offer.vehicleYear
+    ].where((element) => element != null && element.isNotEmpty).join(' ');
+
+    // If vehicleInfo is empty, try to get it from the vehicle details
+    if (vehicleInfo.isEmpty) {
+      _getVehicle().then((vehicle) {
+        if (vehicle != null && mounted) {
+          setState(() {
+            widget.offer.vehicleBrand =
+                vehicle.brands.isNotEmpty ? vehicle.brands[0] : null;
+            widget.offer.vehicleMakeModel = vehicle.makeModel;
+            widget.offer.vehicleYear = vehicle.year;
+          });
+        }
+      });
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -624,8 +666,9 @@ Rendering Offer:
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "${widget.offer.vehicleBrand ?? 'Unknown'} ${widget.offer.vehicleMakeModel ?? 'Unknown'} ${widget.offer.vehicleYear ?? 'Unknown'}"
-                            .toUpperCase(),
+                        vehicleInfo.isEmpty
+                            ? 'Loading...'
+                            : vehicleInfo.toUpperCase(),
                         style: customFont(screenSize.height * 0.016,
                             FontWeight.w800, Colors.white),
                       ),

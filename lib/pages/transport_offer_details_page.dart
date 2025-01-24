@@ -38,11 +38,19 @@ class _TransporterOfferDetailsPageState
     super.initState();
     _pageController = PageController();
 
-    // Initialize photos
-    allPhotos = [
-      if (widget.vehicle.mainImageUrl != null) widget.vehicle.mainImageUrl!,
-      ...widget.vehicle.photos.where((photo) => photo != null).cast<String>(),
-    ];
+    // Initialize photos with null checks
+    allPhotos = [];
+    if (widget.vehicle.mainImageUrl != null) {
+      allPhotos.add(widget.vehicle.mainImageUrl!);
+    }
+    if (widget.vehicle.photos.isNotEmpty) {
+      allPhotos.addAll(
+          widget.vehicle.photos.where((photo) => photo != null).cast<String>());
+    }
+    // Add a default image if no photos are available
+    if (allPhotos.isEmpty) {
+      allPhotos.add('assets/default_vehicle_image.png');
+    }
 
     if (widget.offer.offerStatus == 'accepted' ||
         widget.offer.offerStatus == 'rejected') {
@@ -186,6 +194,11 @@ class _TransporterOfferDetailsPageState
     }
   }
 
+  String _safeCapitalize(String? text) {
+    if (text == null || text.isEmpty) return 'N/A';
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -321,29 +334,39 @@ class _TransporterOfferDetailsPageState
                         SizedBox(
                           height: screenSize.height * 0.3,
                           width: double.infinity,
-                          child: PageView.builder(
-                            controller: _pageController,
-                            itemCount: allPhotos.length,
-                            onPageChanged: (index) {
-                              setState(() {
-                                _currentImageIndex = index;
-                              });
-                            },
-                            itemBuilder: (context, index) {
-                              return Image.network(
-                                allPhotos[index],
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset(
-                                    'assets/default_vehicle_image.png',
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: screenSize.height * 0.3,
-                                  );
-                                },
-                              );
-                            },
-                          ),
+                          child: allPhotos.isEmpty
+                              ? Image.asset(
+                                  'assets/default_vehicle_image.png',
+                                  fit: BoxFit.cover,
+                                )
+                              : PageView.builder(
+                                  controller: _pageController,
+                                  itemCount: allPhotos.length,
+                                  onPageChanged: (index) {
+                                    setState(() {
+                                      _currentImageIndex = index;
+                                    });
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return allPhotos[index]
+                                            .startsWith('assets/')
+                                        ? Image.asset(
+                                            allPhotos[index],
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Image.network(
+                                            allPhotos[index],
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Image.asset(
+                                                'assets/default_vehicle_image.png',
+                                                fit: BoxFit.cover,
+                                              );
+                                            },
+                                          );
+                                  },
+                                ),
                         ),
                       ],
                     ),
@@ -351,7 +374,8 @@ class _TransporterOfferDetailsPageState
                     // Accept and Reject Buttons
                     if (offerStatus == 'in-progress' && !_hasResponded)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 16.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -375,7 +399,8 @@ class _TransporterOfferDetailsPageState
                       )
                     else
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 16.0),
                         child: Center(
                           child: Text(
                             _responseMessage,
@@ -386,41 +411,46 @@ class _TransporterOfferDetailsPageState
                       ),
 
                     // Setup Inspection and Collection Buttons
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: Column(
-                        children: [
-                          isInspectionComplete
-                              ? Center(
-                                  child: Text(
-                                    'Inspection Setup Complete',
-                                    style: customFont(
-                                        18, FontWeight.bold, Colors.green),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                )
-                              : CustomButton(
+                    Column(
+                      children: [
+                        isInspectionComplete
+                            ? Center(
+                                child: Text(
+                                  'Inspection Setup Complete',
+                                  style: customFont(
+                                      18, FontWeight.bold, Colors.green),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0),
+                                child: CustomButton(
                                   text: 'Setup Inspection',
                                   borderColor: Colors.blue,
                                   onPressed: _setupInspection,
                                 ),
-                          const SizedBox(height: 16),
-                          isCollectionComplete
-                              ? Center(
-                                  child: Text(
-                                    'Collection Setup Complete',
-                                    style: customFont(
-                                        18, FontWeight.bold, Colors.green),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                )
-                              : CustomButton(
+                              ),
+                        const SizedBox(height: 16),
+                        isCollectionComplete
+                            ? Center(
+                                child: Text(
+                                  'Collection Setup Complete',
+                                  style: customFont(
+                                      18, FontWeight.bold, Colors.green),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0),
+                                child: CustomButton(
                                   text: 'Setup Collection',
                                   borderColor: Colors.blue,
                                   onPressed: _setupCollection,
                                 ),
-                        ],
-                      ),
+                              ),
+                      ],
                     ),
 
                     // Offer Details Section
@@ -447,8 +477,11 @@ class _TransporterOfferDetailsPageState
                                 customFont(20, FontWeight.bold, Colors.white),
                           ),
                           const SizedBox(height: 10),
-                          _buildInfoRow('Make/Model',
-                              widget.vehicle.makeModel.toString().capitalize()),
+                          _buildInfoRow(
+                              'Make/Model',
+                              _safeCapitalize(
+                                  widget.vehicle.makeModel?.toString() ??
+                                      'N/A')),
                           _buildInfoRow('Year', widget.vehicle.year.toString()),
                         ],
                       ),
