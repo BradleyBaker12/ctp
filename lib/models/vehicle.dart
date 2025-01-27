@@ -11,6 +11,8 @@ import 'maintenance.dart';
 import 'truck_conditions.dart';
 
 class Vehicle {
+  final bool isAccepted;
+  final String? acceptedOfferId;
   final String makeModel;
   final String year;
   final String id;
@@ -83,6 +85,8 @@ class Vehicle {
 
   Vehicle({
     this.assignedSalesRepId,
+    required this.isAccepted,
+    required this.acceptedOfferId,
     required this.id,
     required this.application,
     required this.damageDescription,
@@ -210,6 +214,8 @@ class Vehicle {
 
     return Vehicle(
       id: docId,
+      isAccepted: data['isAccepted'] ?? false,
+      acceptedOfferId: data['acceptedOfferId'] ?? '',
       assignedSalesRepId: getString(data['assignedSalesRepId']),
       application: applications,
       length: getString(data['length']),
@@ -464,6 +470,8 @@ class Vehicle {
 
     return Vehicle(
       id: doc.id,
+      isAccepted: data['isAccepted'] ?? false,
+      acceptedOfferId: data['acceptedOfferId'] ?? '',
       assignedSalesRepId: data['assignedSalesRepId'] ?? '',
       createdAt: parsedCreatedAt,
       application: applications,
@@ -630,6 +638,8 @@ class Vehicle {
   factory Vehicle.fromMap(Map<String, dynamic> data) {
     return Vehicle(
       id: data['id'] ?? '',
+      isAccepted: data['isAccepted'] ?? false,
+      acceptedOfferId: data['acceptedOfferId'] ?? '',
       assignedSalesRepId: data['assignedSalesRepId'] ?? '',
       referenceNumber: data['referenceNumber'] ?? '',
       vinTrailer: data['vinTrailer'] ?? '',

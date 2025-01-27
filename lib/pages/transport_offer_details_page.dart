@@ -8,7 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/setup_inspection.dart';
 import 'package:ctp/pages/setup_collection.dart';
-import 'package:ctp/components/custom_button.dart'; // Import CustomButton
+import 'package:ctp/components/custom_button.dart';
+import 'package:provider/provider.dart'; // Import CustomButton
 
 class TransporterOfferDetailsPage extends StatefulWidget {
   final Offer offer;
@@ -94,40 +95,27 @@ class _TransporterOfferDetailsPageState
     );
   }
 
-  Future<void> _handleAccept(BuildContext context) async {
+  Future<void> _handleAccept() async {
     try {
-      // Update the offer status to 'accepted'
-      await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offer.offerId)
-          .update({'offerStatus': 'accepted'});
-
-      if (mounted) {
-        setState(() {
-          _hasResponded = true;
-          _responseMessage = 'You have accepted the offer';
-        });
-
-        // Navigate to SetupInspectionPage
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SetupInspectionPage(
-              vehicleId: widget.vehicle.id,
-            ),
-          ),
-        );
-      }
-    } catch (e, stackTrace) {
-      print('Exception in _handleAccept: $e');
-      print('Stack trace: $stackTrace');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Failed to accept the offer. Please try again.\nError: $e'),
-          backgroundColor: Colors.red,
-        ),
+      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+      final success = await offerProvider.acceptOffer(
+        widget.offer.offerId,
+        widget.vehicle.id
       );
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This vehicle already has an accepted offer'))
+        );
+        return;
+      }
+
+      setState(() {
+        _hasResponded = true;
+        _responseMessage = 'You have accepted the offer';
+      });
+    } catch (e) {
+      print('Error handling offer acceptance: $e');
     }
   }
 
@@ -383,7 +371,7 @@ class _TransporterOfferDetailsPageState
                               child: CustomButton(
                                 text: 'Accept',
                                 borderColor: Colors.blue,
-                                onPressed: () => _handleAccept(context),
+                                onPressed: _handleAccept,
                               ),
                             ),
                             const SizedBox(width: 16),

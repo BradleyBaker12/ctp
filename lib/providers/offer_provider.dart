@@ -467,6 +467,35 @@ class OfferProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> acceptOffer(String offerId, String vehicleId) async {
+    try {
+      return await _firestore.runTransaction((transaction) async {
+        final vehicleDoc = await transaction.get(
+          _firestore.collection('vehicles').doc(vehicleId)
+        );
+
+        if (vehicleDoc.data()?['isAccepted'] == true) {
+          throw Exception('Vehicle already has an accepted offer');
+        }
+
+        transaction.update(vehicleDoc.reference, {
+          'isAccepted': true,
+          'acceptedOfferId': offerId,
+        });
+
+        transaction.update(
+          _firestore.collection('offers').doc(offerId),
+          {'offerStatus': 'accepted'}
+        );
+
+        return true;
+      });
+    } catch (e) {
+      print('Error accepting offer: $e');
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     _offersController.close();

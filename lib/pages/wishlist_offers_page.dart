@@ -200,6 +200,8 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             referenceNumber: 'N/A',
                             warrantyDetails: 'N/A',
                             damageDescription: '',
+                            isAccepted: false,
+                            acceptedOfferId: 'N/A',
                             damagePhotos: [],
                             engineNumber: 'N/A',
                             expectedSellingPrice: 'N/A',

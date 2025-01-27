@@ -206,6 +206,8 @@ class _WishlistPageState extends State<WishlistPage> {
                                     : List<String>.from(data['application']))
                                 : [],
                             warrantyDetails: 'N/A',
+                            isAccepted: false,
+                            acceptedOfferId: 'N/A',
                             damageDescription: '',
                             damagePhotos: [],
                             engineNumber: 'N/A',

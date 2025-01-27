@@ -767,7 +767,7 @@ class _TruckPageState extends State<TruckPage> {
                               ),
                               overflow: TextOverflow.ellipsis, // Add this line
                               maxLines:
-                                  3, // Optionally add this to limit to single line
+                                  2, // Optionally add this to limit to single line
                             ),
                           ),
                           Consumer<UserProvider>(
