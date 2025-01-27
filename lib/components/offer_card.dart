@@ -36,6 +36,7 @@ class OfferCard extends StatefulWidget {
 
 class _OfferCardState extends State<OfferCard> {
   final TextEditingController _editController = TextEditingController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -418,6 +419,49 @@ class _OfferCardState extends State<OfferCard> {
         print(
             "Offer status not handled in _navigateToRespectivePage: ${widget.offer.offerStatus}");
         break;
+    }
+  }
+
+  Future<bool> acceptOffer(String offerId, String vehicleId) async {
+    try {
+      return await _firestore.runTransaction((transaction) async {
+        // Check if vehicle already has an accepted offer
+        final vehicleDoc = await transaction
+            .get(_firestore.collection('vehicles').doc(vehicleId));
+
+        if (vehicleDoc.data()?['isAccepted'] == true) {
+          throw Exception('Vehicle already has an accepted offer');
+        }
+
+        // Get all offers for this vehicle
+        final offersQuery = await _firestore
+            .collection('offers')
+            .where('vehicleId', isEqualTo: vehicleId)
+            .get();
+
+        // Update the accepted offer
+        transaction.update(_firestore.collection('offers').doc(offerId),
+            {'offerStatus': 'accepted'});
+
+        // Update vehicle status
+        transaction.update(vehicleDoc.reference, {
+          'isAccepted': true,
+          'acceptedOfferId': offerId,
+        });
+
+        // Update all other offers for this vehicle
+        for (var doc in offersQuery.docs) {
+          if (doc.id != offerId) {
+            transaction.update(_firestore.collection('offers').doc(doc.id),
+                {'offerStatus': 'another_offer_accepted'});
+          }
+        }
+
+        return true;
+      });
+    } catch (e) {
+      print('Error accepting offer: $e');
+      return false;
     }
   }
 

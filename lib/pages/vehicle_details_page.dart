@@ -1145,6 +1145,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final size = MediaQuery.of(context).size;
     final bool isTrailer = (vehicle.vehicleType.toLowerCase() == 'trailer');
 
+    print('''
+=== VEHICLE DETAILS DEBUG ===
+isTransporter: $isTransporter
+vehicle.isAccepted: ${vehicle.isAccepted}
+vehicle.referenceNumber: ${vehicle.referenceNumber}
+''');
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -1719,7 +1726,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED',
                               ),
                             // Maintenance & Warranty
-                            if (isTransporter || isDealer || isAdminOrSalesRep)
+                            if (isDealer || isAdminOrSalesRep)
                               _buildSection(
                                 context,
                                 'MAINTENANCE AND WARRANTY',
@@ -1731,16 +1738,43 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
                       // If transporter => Show the offers made on this vehicle
                       if (isTransporter) ...[
-                        Text(
-                          "Offers Made on This Vehicle (${vehicle.referenceNumber}):",
-                          style: _customFont(
-                            20,
-                            FontWeight.bold,
-                            const Color(0xFFFF4E00),
-                          ),
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 10.0),
+                          child: vehicle.isAccepted == true
+                              ? Container(
+                                  padding: const EdgeInsets.all(16.0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    border: Border.all(color: Colors.red),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Icon(Icons.warning_amber_rounded,
+                                          color: Colors.red, size: 40),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        "This vehicle has an accepted offer",
+                                        style: _customFont(
+                                            18, FontWeight.bold, Colors.red),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      Text(
+                                        "No new offers can be placed",
+                                        style: _customFont(
+                                            16, FontWeight.normal, Colors.red),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // ... existing offer section code ...
+                                  ],
+                                ),
                         ),
-                        const SizedBox(height: 10),
-                        _buildOffersList(),
                       ],
                     ],
                   ),

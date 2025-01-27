@@ -19,7 +19,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'image_picker_widget.dart';
@@ -1494,43 +1493,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Future<void> _pickImage(ImageSource source) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final ImagePicker picker = ImagePicker();
-
-    try {
-      if (source == ImageSource.camera) {
-        // For camera, capture and save immediately
-        final XFile? capturedImage =
-            await picker.pickImage(source: ImageSource.camera);
-        if (capturedImage != null) {
-          // Save to gallery immediately after capture
-          final bytes = await capturedImage.readAsBytes();
-          final result = await ImageGallerySaver.saveImage(bytes,
-              quality: 100,
-              name: "CTP_${DateTime.now().millisecondsSinceEpoch}");
-
-          if (result['isSuccess']) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Photo saved to gallery')),
-            );
-            // Update the form with the captured image
-            formData.setSelectedMainImage(File(capturedImage.path));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Failed to save photo to gallery')),
-            );
-          }
-        }
-      } else {
-        // For gallery, just pick the image
-        final XFile? image =
-            await picker.pickImage(source: ImageSource.gallery);
-        if (image != null) {
-          formData.setSelectedMainImage(File(image.path));
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing image: $e')),
-      );
+    final XFile? image = await picker.pickImage(source: source);
+    if (image != null) {
+      formData.setSelectedMainImage(File(image.path));
     }
   }
 

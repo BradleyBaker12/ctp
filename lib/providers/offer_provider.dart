@@ -467,32 +467,42 @@ class OfferProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> acceptOffer(String offerId, String vehicleId) async {
+  Future<void> acceptOffer(String offerId, String vehicleId) async {
     try {
-      return await _firestore.runTransaction((transaction) async {
-        final vehicleDoc = await transaction.get(
-          _firestore.collection('vehicles').doc(vehicleId)
-        );
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        // Get all offers for this vehicle
+        final offersQuery = await FirebaseFirestore.instance
+            .collection('offers')
+            .where('vehicleId', isEqualTo: vehicleId)
+            .get();
 
-        if (vehicleDoc.data()?['isAccepted'] == true) {
-          throw Exception('Vehicle already has an accepted offer');
-        }
+        // Update the accepted offer
+        await transaction.update(
+            FirebaseFirestore.instance.collection('offers').doc(offerId),
+            {'offerStatus': 'accepted'});
 
-        transaction.update(vehicleDoc.reference, {
+        // Update vehicle status
+        await transaction.update(
+            FirebaseFirestore.instance.collection('vehicles').doc(vehicleId), {
           'isAccepted': true,
           'acceptedOfferId': offerId,
         });
 
-        transaction.update(
-          _firestore.collection('offers').doc(offerId),
-          {'offerStatus': 'accepted'}
-        );
-
-        return true;
+        // Update all other offers for this vehicle to rejected
+        for (var doc in offersQuery.docs) {
+          if (doc.id != offerId) {
+            await transaction.update(
+                FirebaseFirestore.instance.collection('offers').doc(doc.id),
+                {'offerStatus': 'rejected'});
+          }
+        }
       });
+
+      // Refresh offers list after successful update
+      notifyListeners();
     } catch (e) {
       print('Error accepting offer: $e');
-      return false;
+      rethrow; // Allow UI to handle the error
     }
   }
 
