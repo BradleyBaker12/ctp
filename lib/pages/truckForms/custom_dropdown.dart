@@ -54,7 +54,7 @@ class CustomDropdown extends StatelessWidget {
           value: validValue,
           onChanged: enabled ? onChanged : null,
           validator: validator,
-          dropdownColor: Colors.grey[900],
+          dropdownColor: Colors.grey.withAlpha(120),
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             hintText: hintText,

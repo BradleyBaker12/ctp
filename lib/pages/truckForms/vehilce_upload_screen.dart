@@ -109,7 +109,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   final Map<String, List<String>> _modelVariants = {};
 
   // Variable to hold selected RC1/NATIS file
-  File? _natisRc1File;
+  Uint8List? _natisRc1File;
+  String? _natisRc1FileName;
 
   // --- Added Missing Fields ---
   String? _existingNatisRc1Url;
@@ -263,7 +264,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   void _clearAllData(FormDataProvider formData) {
     formData.clearAllData();
-    formData.setSelectedMainImage(null);
+    formData.setSelectedMainImage(null, null);
     formData.setMainImageUrl(null);
     formData.setNatisRc1Url(null);
     formData.setYear(null);
@@ -291,7 +292,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       _existingNatisRc1Url = null;
       _existingNatisRc1Name = null;
       final formData = Provider.of<FormDataProvider>(context, listen: false);
-      formData.setSelectedMainImage(null);
+      formData.setSelectedMainImage(null, null);
       formData.setMainImageUrl(null);
     });
     _vehicleId = null;
@@ -391,11 +392,24 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Future<void> _pickNatisRc1File() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
       );
-      if (result != null && result.files.single.path != null) {
+      if (result != null) {
+        final bytes = await result.files.first.xFile.readAsBytes();
+        final fileName = result.files.first.name;
         setState(() {
-          _natisRc1File = File(result.files.single.path!);
+          _natisRc1File = bytes;
+          _natisRc1FileName = fileName;
         });
       }
     } catch (e) {
@@ -436,21 +450,22 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     return imageExtensions.contains(extension);
   }
 
-  Widget _buildUploadedFile(File? file, bool isUploading) {
+  Widget _buildUploadedFile(
+      Uint8List? file, String fileName, bool isUploading) {
     if (file == null) {
       return const Text(
         'No file selected',
         style: TextStyle(color: Colors.white70),
       );
     } else {
-      String fileName = file.path.split('/').last;
-      String extension = fileName.split('.').last;
+      String _fileName = fileName.split('/').last;
+      String extension = _fileName.split('.').last;
       return Column(
         children: [
-          if (_isImageFile(file.path))
+          if (_isImageFile(fileName))
             ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
-              child: Image.file(
+              child: Image.memory(
                 file,
                 width: 100,
                 height: 100,
@@ -657,7 +672,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   onPressed: () {
                     Navigator.pop(context);
                     setState(() {
-                      formData.setSelectedMainImage(null);
+                      formData.setSelectedMainImage(null, null);
                       formData.setMainImageUrl(null);
                     });
                   },
@@ -690,7 +705,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             if (formData.selectedMainImage != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10.0),
-                child: Image.file(
+                child: Image.memory(
                   formData.selectedMainImage!,
                   width: double.infinity,
                   height: _imageHeight,
@@ -721,9 +736,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               )
             else
               ImagePickerWidget(
-                onImagePicked: (File? image) {
+                onImagePicked: (Uint8List? image, fileName) {
                   if (image != null) {
-                    formData.setSelectedMainImage(image);
+                    formData.setSelectedMainImage(image, fileName);
                   }
                 },
               ),
@@ -1320,7 +1335,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             .ref()
             .child('vehicle_images')
             .child('${DateTime.now().toIso8601String()}.jpg');
-        await ref.putFile(formData.selectedMainImage!);
+        await ref.putData(formData.selectedMainImage!);
         imageUrl = await ref.getDownloadURL();
         debugPrint("Main image uploaded. URL: $imageUrl");
       } else {
@@ -1330,12 +1345,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       // Upload the NATIS/RC1 file if one was picked.
       String? natisRc1Url;
       if (_natisRc1File != null) {
-        final fileName = _natisRc1File!.path.split('/').last;
+        final fileName = _natisRc1FileName?.split('/').last;
         final ref = FirebaseStorage.instance
             .ref()
             .child('vehicle_documents')
             .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
-        await ref.putFile(_natisRc1File!);
+        await ref.putData(_natisRc1File!);
         natisRc1Url = await ref.getDownloadURL();
         debugPrint("NATIS/RC1 file uploaded. URL: $natisRc1Url");
       } else {
@@ -1481,7 +1496,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _referenceNumberController.clear();
     _brandsController.clear();
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-    formData.setSelectedMainImage(null);
+    formData.setSelectedMainImage(null, null);
     formData.setMainImageUrl(null);
     setState(() {
       _natisRc1File = null;
@@ -1495,7 +1510,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: source);
     if (image != null) {
-      formData.setSelectedMainImage(File(image.path));
+      final fileName = image.name;
+      final bytes = await image.readAsBytes();
+      formData.setSelectedMainImage(bytes, fileName);
     }
   }
 
@@ -1579,7 +1596,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             child: Column(
               children: [
                 if (_natisRc1File != null)
-                  _buildUploadedFile(_natisRc1File, _isLoading)
+                  _buildUploadedFile(
+                      _natisRc1File, _natisRc1FileName!, _isLoading)
                 else if (_existingNatisRc1Url != null)
                   Column(
                     children: [

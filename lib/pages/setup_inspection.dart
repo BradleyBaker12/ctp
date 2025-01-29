@@ -11,9 +11,9 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // For Firebase Auth
 
 class SetupInspectionPage extends StatefulWidget {
-  final String offerId; // Change from vehicleId to offerId
+  final String vehicleId;
 
-  const SetupInspectionPage({super.key, required this.offerId});
+  const SetupInspectionPage({super.key, required this.vehicleId});
 
   @override
   _SetupInspectionPageState createState() => _SetupInspectionPageState();
@@ -275,13 +275,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       });
 
       try {
-        // Save the inspection details to the offer document in Firestore
+        // Save the inspection details to the vehicle document in Firestore
         await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(widget.offerId) // Need to pass offerId to this page
-            .update({
-          'inspectionDetails': inspectionDetails,
-        });
+            .collection('vehicles')
+            .doc(widget.vehicleId)
+            .update(inspectionDetails);
 
         // Optionally, navigate back or show a confirmation
         ScaffoldMessenger.of(context).showSnackBar(

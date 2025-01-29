@@ -594,7 +594,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => SetupInspectionPage(
-                          offerId: widget.offer.offerId,
+                          vehicleId: widget.offer.vehicleId,
                         ),
                       ),
                     ),
@@ -615,7 +615,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => SetupCollectionPage(
-                          offerId: widget.offer.offerId,
+                          vehicleId: widget.offer.vehicleId,
                         ),
                       ),
                     ),

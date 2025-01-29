@@ -2,7 +2,6 @@
 
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
-import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/pages/payment_approved.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/transport_offer_details_page.dart';
@@ -27,9 +26,9 @@ class OfferCard extends StatefulWidget {
   final Offer offer;
 
   const OfferCard({
-    Key? key,
+    super.key,
     required this.offer,
-  }) : super(key: key);
+  });
 
   @override
   _OfferCardState createState() => _OfferCardState();
@@ -102,7 +101,6 @@ class _OfferCardState extends State<OfferCard> {
       decimalDigits: 0,
     ).format(amount);
 
-    // Remove commas if desired (R1,234 -> R1 234)
     return formattedAmount.replaceAll(',', ' ');
   }
 
@@ -132,9 +130,6 @@ class _OfferCardState extends State<OfferCard> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? '';
 
-    // ---------------------------------------
-    // Transporter Navigation
-    // ---------------------------------------
     if (userRole == 'transporter') {
       switch (widget.offer.offerStatus) {
         case 'inspection pending':
@@ -160,7 +155,6 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
         case 'Inspection Done':
           Navigator.push(
             context,
@@ -173,7 +167,6 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
         case 'payment pending':
           Navigator.push(
             context,
@@ -184,16 +177,16 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
-        case 'Collection Location Confirmation': // Ensure status matches Firestore
+        case 'Collection Location Confirmation': // Ensure this status matches
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => CollectionConfirmationPage(
                 offerId: widget.offer.offerId,
-                location:
-                    widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
-                address: widget.offer.transporterDeliveryAddress ?? 'Unknown',
+                location: widget.offer.dealerSelectedInspectionLocation ??
+                    'Unknown', // Replace with the correct location key
+                address: widget.offer.transporterDeliveryAddress ??
+                    'Unknown', // Replace with the correct address key
                 date: widget.offer.dealerSelectedInspectionDate!,
                 time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
                 latLng: widget.offer.latLng != null
@@ -206,16 +199,7 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
-        // ---------------------------------------
-        // Transporter should NOT go to CollectionDetailsPage:
-        // so do NOT handle "collection details" here.
-        // If offerStatus == "collection details", it just falls through
-        // or do a "default" with no special navigation.
-        // ---------------------------------------
-
         default:
-          // If no recognized status for transporter, fallback:
           _getVehicle().then((vehicle) {
             if (vehicle != null) {
               Navigator.push(
@@ -240,9 +224,7 @@ class _OfferCardState extends State<OfferCard> {
       }
     }
 
-    // ---------------------------------------
-    // Dealer Navigation
-    // ---------------------------------------
+    // Dealer-specific navigation logic
     switch (widget.offer.offerStatus) {
       case 'set location and time':
         Navigator.push(
@@ -257,7 +239,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'confirm location':
         Navigator.push(
           context,
@@ -277,7 +258,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'Confirm Collection':
       case 'Collection Location Confirmation':
         Navigator.push(
@@ -285,9 +265,10 @@ class _OfferCardState extends State<OfferCard> {
           MaterialPageRoute(
             builder: (context) => CollectionConfirmationPage(
               offerId: widget.offer.offerId,
-              location:
-                  widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
-              address: widget.offer.transporterDeliveryAddress ?? 'Unknown',
+              location: widget.offer.dealerSelectedInspectionLocation ??
+                  'Unknown', // Replace with the correct location key
+              address: widget.offer.transporterDeliveryAddress ??
+                  'Unknown', // Replace with the correct address key
               date: widget.offer.dealerSelectedInspectionDate!,
               time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
               latLng: widget.offer.latLng != null
@@ -300,7 +281,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'payment options':
         Navigator.push(
           context,
@@ -311,7 +291,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'accepted':
         Navigator.push(
           context,
@@ -325,13 +304,11 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'inspection pending':
       case 'Inspection Done':
       case 'payment pending':
         _navigateToRespectivePage(userRole);
         break;
-
       case 'paid':
         Navigator.push(
           context,
@@ -342,21 +319,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
-      // ---------------------------------------
-      // DEALER "collection details"
-      // ---------------------------------------
-      case 'collection details':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CollectionDetailsPage(
-              offerId: widget.offer.offerId,
-            ),
-          ),
-        );
-        break;
-
       default:
         print(
             "Offer status not handled for dealer: ${widget.offer.offerStatus}");
@@ -370,14 +332,12 @@ class _OfferCardState extends State<OfferCard> {
     Vehicle? vehicle;
 
     try {
-      // 1) Try to get from provider
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.id == widget.offer.vehicleId,
         orElse: () => throw Exception('Vehicle not found in provider'),
       );
     } catch (e) {
       try {
-        // 2) If not in provider, fetch from Firestore
         DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
             .collection('vehicles')
             .doc(widget.offer.vehicleId)
@@ -394,10 +354,10 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
         }
-      } catch (err) {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error fetching vehicle details: $err'),
+            content: Text('Error fetching vehicle details: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -432,7 +392,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'Inspection Done':
         Navigator.push(
           context,
@@ -446,7 +405,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'payment pending':
         Navigator.push(
           context,
@@ -457,7 +415,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       default:
         print(
             "Offer status not handled in _navigateToRespectivePage: ${widget.offer.offerStatus}");
@@ -483,10 +440,8 @@ class _OfferCardState extends State<OfferCard> {
             .get();
 
         // Update the accepted offer
-        transaction.update(
-          _firestore.collection('offers').doc(offerId),
-          {'offerStatus': 'accepted'},
-        );
+        transaction.update(_firestore.collection('offers').doc(offerId),
+            {'offerStatus': 'accepted'});
 
         // Update vehicle status
         transaction.update(vehicleDoc.reference, {
@@ -497,10 +452,8 @@ class _OfferCardState extends State<OfferCard> {
         // Update all other offers for this vehicle
         for (var doc in offersQuery.docs) {
           if (doc.id != offerId) {
-            transaction.update(
-              _firestore.collection('offers').doc(doc.id),
-              {'offerStatus': 'another_offer_accepted'},
-            );
+            transaction.update(_firestore.collection('offers').doc(doc.id),
+                {'offerStatus': 'another_offer_accepted'});
           }
         }
 
@@ -668,11 +621,8 @@ Rendering Offer:
                         const SizedBox(height: 5),
                         Text(
                           getDisplayStatus(widget.offer.offerStatus),
-                          style: customFont(
-                            screenSize.height * 0.012,
-                            FontWeight.bold,
-                            Colors.white,
-                          ),
+                          style: customFont(screenSize.height * 0.012,
+                              FontWeight.bold, Colors.white),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -688,6 +638,13 @@ Rendering Offer:
   }
 
   Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
+    //   print('''
+    // === OFFER CARD DEBUG ===
+    // Brand: ${widget.offer.vehicleBrand}
+    // MakeModel: ${widget.offer.vehicleMakeModel}
+    // MainImage: ${widget.offer.vehicleMainImage}
+    //   ''');
+
     var screenSize = MediaQuery.of(context).size;
     double cardHeight = screenSize.height * 0.14;
     // Format vehicle info consistently
@@ -756,21 +713,15 @@ Rendering Offer:
                         vehicleInfo.isEmpty
                             ? 'Loading...'
                             : vehicleInfo.toUpperCase(),
-                        style: customFont(
-                          screenSize.height * 0.016,
-                          FontWeight.w800,
-                          Colors.white,
-                        ),
+                        style: customFont(screenSize.height * 0.016,
+                            FontWeight.w800, Colors.white),
                       ),
                       const SizedBox(height: 1),
                       Text(
                         'Offer of ${formatOfferAmount(widget.offer.offerAmount)}'
                             .toUpperCase(),
-                        style: customFont(
-                          screenSize.height * 0.015,
-                          FontWeight.w800,
-                          Colors.white,
-                        ),
+                        style: customFont(screenSize.height * 0.015,
+                            FontWeight.w800, Colors.white),
                       ),
                     ],
                   ),
@@ -796,11 +747,8 @@ Rendering Offer:
                         const SizedBox(height: 5),
                         Text(
                           getDisplayStatus(widget.offer.offerStatus),
-                          style: customFont(
-                            screenSize.height * 0.012,
-                            FontWeight.bold,
-                            Colors.white,
-                          ),
+                          style: customFont(screenSize.height * 0.012,
+                              FontWeight.bold, Colors.white),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -821,7 +769,7 @@ Rendering Offer:
     Vehicle? vehicle;
 
     try {
-      // First, try the provider
+      // First attempt to get from provider
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.id == widget.offer.vehicleId,
         orElse: () => throw Exception('Vehicle not found in provider'),
@@ -836,7 +784,7 @@ Rendering Offer:
 
         if (vehicleSnapshot.exists) {
           vehicle = Vehicle.fromDocument(vehicleSnapshot);
-          vehicleProvider.addVehicle(vehicle); // Add for future use
+          vehicleProvider.addVehicle(vehicle); // Add to provider for future use
 
           if (mounted) {
             Navigator.push(
@@ -847,11 +795,11 @@ Rendering Offer:
             );
           }
         }
-      } catch (err) {
+      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error loading vehicle details: $err'),
+              content: Text('Error loading vehicle details: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -860,8 +808,8 @@ Rendering Offer:
       return;
     }
 
-    // If the vehicle was found in provider, navigate
-    if (mounted && vehicle != null) {
+    // If vehicle was found in provider, navigate
+    if (mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -875,7 +823,6 @@ Rendering Offer:
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? '';
 
-    // If transporter and status is payment (pending or paid) -> "Payment Processing"
     if (userRole == 'transporter' &&
         (offerStatus == 'payment pending' || offerStatus == 'paid')) {
       return 'Payment Processing';

@@ -1,11 +1,13 @@
 // image_picker_widget.dart
+import 'dart:typed_data';
+
 import 'package:ctp/components/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 class ImagePickerWidget extends StatelessWidget {
-  final Function(File?) onImagePicked;
+  final Function(Uint8List?,String?) onImagePicked;
 
   const ImagePickerWidget({super.key, required this.onImagePicked});
 
@@ -13,8 +15,9 @@ class ImagePickerWidget extends StatelessWidget {
     try {
       final pickedFile = await ImagePicker().pickImage(source: source);
       if (pickedFile != null) {
-        File imageFile = File(pickedFile.path);
-        onImagePicked(imageFile);
+        final bytes=await pickedFile.readAsBytes();
+        final fileName= pickedFile.name;
+        onImagePicked(bytes,fileName);
       }
     } catch (e) {
       print("Error picking image: $e");

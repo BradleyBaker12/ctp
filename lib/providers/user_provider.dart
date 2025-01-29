@@ -1,4 +1,5 @@
 // lib/providers/user_provider.dart
+import 'package:uuid/uuid.dart';
 
 import 'dart:io';
 import 'dart:async'; // Add this import
@@ -391,11 +392,16 @@ class UserProvider extends ChangeNotifier {
 
   String get getAccountStatus => _accountStatus;
 
-  Future<String> uploadFile(File file) async {
+  Future<String> uploadFile(Uint8List file, String nameFile) async {
+    String fileName = '${Uuid().v4()} $nameFile';
+    // String fileName = nameFile;
     final storageRef = FirebaseStorage.instance
         .ref()
-        .child('profile_images/${_user!.uid}/${file.path.split('/').last}');
-    final uploadTask = storageRef.putFile(file);
+        .child('profile_images/${_user!.uid}/$fileName');
+    // final storageRef = FirebaseStorage.instance
+    //     .ref()
+    //     .child('profile_images/${_user!.uid}/${file.path.split('/').last}');
+    final uploadTask = storageRef.putData(file);
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }

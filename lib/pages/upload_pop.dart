@@ -1,6 +1,9 @@
 // File: upload_proof_of_payment_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,7 +11,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/pages/payment_pending_page.dart'; // Updated import
+import 'package:ctp/pages/payment_pending_page.dart';
+import 'package:provider/provider.dart'; // Updated import
 
 class UploadProofOfPaymentPage extends StatefulWidget {
   final String offerId;
@@ -24,12 +28,26 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
   bool _isUploaded = false;
+  final FirebaseStorage storage = FirebaseStorage.instance;
+
+  Future<String> uploadByte(Uint8List fileByte, String fileName) async {
+    final userId = Provider.of<UserProvider>(context, listen: false).userId!;
+    final ref = storage.ref().child('documents/$userId/$fileName');
+    final task = ref.putData(fileByte);
+    final snapshot = await task;
+    return await snapshot.ref.getDownloadURL();
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
       final pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
-        await _uploadFile(File(pickedFile.path));
+        if (kIsWeb) {
+          final bytes = await pickedFile.readAsBytes();
+          await uploadByte(bytes, pickedFile.name);
+        } else {
+          await _uploadFile(File(pickedFile.path));
+        }
       } else {
         print('No image selected.');
       }
@@ -44,8 +62,13 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
   Future<void> _pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles();
-      if (result != null && result.files.single.path != null) {
-        await _uploadFile(File(result.files.single.path!));
+      if (result != null) {
+        if (kIsWeb) {
+          await uploadByte(
+              result.files.single.bytes!, result.files.single.xFile.name);
+        } else {
+          await _uploadFile(File(result.files.single.path!));
+        }
       } else {
         print('No file selected.');
       }

@@ -12,8 +12,7 @@ import 'package:geocoding/geocoding.dart';
 class CollectionDetailsPage extends StatefulWidget {
   final String offerId;
 
-  const CollectionDetailsPage({Key? key, required this.offerId})
-      : super(key: key);
+  const CollectionDetailsPage({super.key, required this.offerId});
 
   @override
   _CollectionDetailsPageState createState() => _CollectionDetailsPageState();
@@ -53,164 +52,151 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     _fetchCollectionLocations();
   }
 
-  /// Fetches collection-related data **directly from the `offer`** document.
   Future<void> _fetchCollectionLocations() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      // 1) Fetch the offer doc
-      final DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
           .get();
 
       if (!offerSnapshot.exists) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Offer does not exist.')),
+          const SnackBar(
+            content: Text('Offer does not exist.'),
+          ),
         );
         return;
       }
 
-      // 2) Extract top-level fields from the offer
-      final Map<String, dynamic>? offerData =
+      Map<String, dynamic>? offerData =
           offerSnapshot.data() as Map<String, dynamic>?;
+      String? vehicleId = offerData?['vehicleId'];
 
-      // This must match what you have in Firestore:
-      // e.g. "offerDeliveryService": true/false
-      final bool offerDeliveryService =
-          offerData?['offerDeliveryService'] ?? false;
+      if (vehicleId == null || vehicleId.isEmpty) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vehicle ID not found in the offer.'),
+          ),
+        );
+        return;
+      }
 
-      // 3) Extract collectionDetails -> locations from the same offer
-      //
-      // We expect structure like:
-      // collectionDetails: {
-      //   locations: [
-      //     {
-      //       address: "...",
-      //       dates: ["29-01-2025", ...],
-      //       timeSlots: [
-      //         {
-      //           date: "29-01-2025",
-      //           times: ["12:30 PM", ...]
-      //         }
-      //       ]
-      //     }
-      //   ]
-      // }
-      final Map<String, dynamic>? collectionDetails =
-          offerData?['collectionDetails'] as Map<String, dynamic>?;
+      DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(vehicleId)
+          .get();
 
-      if (collectionDetails == null) {
+      if (!vehicleSnapshot.exists) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vehicle does not exist.'),
+          ),
+        );
+        return;
+      }
+
+      Map<String, dynamic>? vehicleData =
+          vehicleSnapshot.data() as Map<String, dynamic>?;
+      var collectionLocations = vehicleData?['collectionDetails']
+          ?['collectionLocations']?['locations'] as List<dynamic>?;
+
+      bool offerDeliveryService = vehicleData?['offerDeliveryService'] ?? false;
+
+      if (collectionLocations == null || collectionLocations.isEmpty) {
         setState(() {
           _offerDeliveryService = offerDeliveryService;
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No collectionDetails found in this offer.'),
+            content: Text('No collection locations available for this offer.'),
           ),
         );
         return;
       }
 
-      final List<dynamic>? locationsArray =
-          collectionDetails['locations'] as List<dynamic>?;
-
-      if (locationsArray == null || locationsArray.isEmpty) {
-        setState(() {
-          _offerDeliveryService = offerDeliveryService;
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No collection locations available in this offer.'),
-          ),
-        );
-        return;
-      }
-
-      // 4) Prepare local variables
       List<String> locations = [];
       List<String> addresses = [];
       List<List<DateTime>> locationDates = [];
       List<List<Map<String, dynamic>>> locationTimeSlots = [];
       List<LatLng> latLngs = [];
 
-      // 5) Iterate over each location entry
-      for (var locationEntry in locationsArray) {
+      for (var locationEntry in collectionLocations) {
         if (locationEntry == null) continue;
 
-        final String address = locationEntry['address'] ?? '';
-        final List<dynamic> timeSlots = locationEntry['timeSlots'] ?? [];
-        final List<dynamic> dateStrings = locationEntry['dates'] ?? [];
+        String address = locationEntry['address'] ?? '';
+        List<dynamic> timeSlots = locationEntry['timeSlots'] ?? [];
 
-        // Basic validation
-        if (address.isEmpty || timeSlots.isEmpty || dateStrings.isEmpty) {
+        if (address.isEmpty || timeSlots.isEmpty) {
           continue;
         }
 
-        // Parse date strings -> DateTime
-        final List<DateTime> parsedDates = [];
-        for (var dateStr in dateStrings) {
-          if (dateStr is String) {
-            try {
-              // e.g. "29-01-2025"
-              final DateTime dt = DateFormat('d-MM-yyyy').parse(dateStr);
-              parsedDates.add(dt);
-            } catch (e) {
-              // skip invalid
-            }
-          }
-        }
+        List<DateTime> dates = [];
+        List<Map<String, dynamic>> timeSlotsList = [];
 
-        // Parse timeSlots -> each slot has date and times
-        final List<Map<String, dynamic>> parsedTimeSlots = [];
-        for (var slot in timeSlots) {
-          if (slot == null) continue;
-          final String? slotDateStr = slot['date'];
-          final List<dynamic> times = slot['times'] ?? [];
+        for (var timeSlot in timeSlots) {
+          if (timeSlot == null) continue;
 
-          if (slotDateStr == null || times.isEmpty) continue;
+          String? dateString = timeSlot['date'];
+          if (dateString == null) continue;
 
+          DateTime date;
           try {
-            // e.g. "29-01-2025"
-            final DateTime slotDate =
-                DateFormat('d-MM-yyyy').parse(slotDateStr);
-
-            parsedTimeSlots.add({
-              'date': slotDate,
-              'times': times,
-            });
+            date = DateFormat('d-M-yyyy').parse(dateString);
           } catch (e) {
-            // skip invalid
+            continue;
           }
+
+          if (!dates.contains(date)) {
+            dates.add(date);
+          }
+
+          List<dynamic> times = timeSlot['times'] ?? [];
+          if (times.isEmpty) {
+            continue;
+          }
+
+          timeSlotsList.add({
+            'date': date,
+            'times': times,
+          });
         }
 
-        // If we still have valid data, add to our lists
-        if (parsedDates.isNotEmpty && parsedTimeSlots.isNotEmpty) {
-          locations.add(address);
-          addresses.add(address);
-          locationDates.add(parsedDates);
-          locationTimeSlots.add(parsedTimeSlots);
+        if (dates.isEmpty || timeSlotsList.isEmpty) {
+          continue;
+        }
 
-          // Attempt geocoding for each location
-          try {
-            final List<Location> geoLocations =
-                await locationFromAddress(address);
-            if (geoLocations.isNotEmpty) {
-              final loc = geoLocations.first;
-              latLngs.add(LatLng(loc.latitude, loc.longitude));
-            } else {
-              latLngs.add(const LatLng(0, 0));
-            }
-          } catch (_) {
+        locations.add(address);
+        addresses.add(address);
+        locationDates.add(dates);
+        locationTimeSlots.add(timeSlotsList);
+
+        try {
+          List<Location> geoLocations = await locationFromAddress(address);
+          if (geoLocations.isNotEmpty) {
+            final location = geoLocations.first;
+            latLngs.add(LatLng(location.latitude, location.longitude));
+          } else {
             latLngs.add(const LatLng(0, 0));
           }
+        } catch (e) {
+          latLngs.add(const LatLng(0, 0));
         }
       }
 
-      // 6) If no valid parsed locations
       if (locations.isEmpty) {
         setState(() {
           _offerDeliveryService = offerDeliveryService;
@@ -218,72 +204,68 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No valid collection locations found in this offer.'),
+            content:
+                Text('No valid collection locations found for this offer.'),
           ),
         );
         return;
       }
 
-      // 7) Auto-select earliest date
-      DateTime? earliest;
-      for (var dateList in locationDates) {
-        for (var d in dateList) {
-          // choose earliest date after "now"
-          if (d.isAfter(DateTime.now().subtract(const Duration(days: 1))) &&
-              (earliest == null || d.isBefore(earliest))) {
-            earliest = d;
+      DateTime? firstAvailableDate;
+      for (var dates in locationDates) {
+        for (var date in dates) {
+          if (date.isAfter(DateTime.now()) &&
+              (firstAvailableDate == null ||
+                  date.isBefore(firstAvailableDate))) {
+            firstAvailableDate = date;
           }
         }
       }
 
+      _focusedDay = firstAvailableDate ?? DateTime.now();
+      _selectedDay = _focusedDay;
+
       setState(() {
-        _offerDeliveryService = offerDeliveryService;
         _locations = locations;
         _addresses = addresses;
         _locationDates = locationDates;
         _locationTimeSlots = locationTimeSlots;
         _latLngs = latLngs;
+        _offerDeliveryService = offerDeliveryService;
         _isLoading = false;
-
-        // If we found an earliest date, focus on it
-        _focusedDay = earliest ?? DateTime.now();
-        _selectedDay = _focusedDay;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to load collection details: $e'),
+          content: Text('Failed to load collection locations: $e'),
         ),
       );
     }
   }
 
-  /// If user picks "Delivery", we show times from the "first location"
-  /// or any custom logic you prefer.
   int get _currentLocationIndex {
     if (_selectedDeliveryOption == 1) {
-      // For delivery, always use location index = 0
+      // For delivery, use times from the first location as an example
       return 0;
     } else {
       return _selectedLocation;
     }
   }
 
-  /// Returns all available time strings for the currently _selectedDay
-  /// and the chosen location.
   List<String> get _availableTimes {
     if (_selectedDay != null &&
         _locationTimeSlots.isNotEmpty &&
         _currentLocationIndex < _locationTimeSlots.length) {
       final normalizedSelectedDay = _normalizeDate(_selectedDay!);
-      final List<Map<String, dynamic>> timeSlots =
+      List<Map<String, dynamic>> timeSlots =
           _locationTimeSlots[_currentLocationIndex];
-
-      for (var slotMap in timeSlots) {
-        final DateTime slotDate = _normalizeDate(slotMap['date']);
-        if (slotDate.isAtSameMomentAs(normalizedSelectedDay)) {
-          final List<dynamic> times = slotMap['times'];
+      for (var timeSlot in timeSlots) {
+        DateTime date = _normalizeDate(timeSlot['date']);
+        if (date.isAtSameMomentAs(normalizedSelectedDay)) {
+          List<dynamic> times = timeSlot['times'];
           return times.cast<String>();
         }
       }
@@ -291,7 +273,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     return [];
   }
 
-  DateTime _normalizeDate(DateTime d) => DateTime(d.year, d.month, d.day);
+  DateTime _normalizeDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
 
   bool isDateAvailable(DateTime day) {
     if (_locationDates.isEmpty ||
@@ -299,9 +283,11 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         _locationDates[_currentLocationIndex].isEmpty) {
       return false;
     }
-    final checkDay = _normalizeDate(day);
-    for (var d in _locationDates[_currentLocationIndex]) {
-      if (_normalizeDate(d).isAtSameMomentAs(checkDay)) {
+    DateTime checkDay = _normalizeDate(day);
+    List<DateTime> dates = _locationDates[_currentLocationIndex];
+    for (var date in dates) {
+      DateTime availableDate = _normalizeDate(date);
+      if (checkDay.isAtSameMomentAs(availableDate)) {
         return true;
       }
     }
@@ -309,34 +295,26 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   }
 
   Future<void> _saveCollectionDetails() async {
-    if (_selectedDay == null || _availableTimes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date and time first.')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      final offerRef =
+      final DocumentReference offerRef =
           FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
 
-      await offerRef.set(
-        {
-          'dealerSelectedCollectionDate': _selectedDay,
-          'dealerSelectedCollectionTime': _availableTimes[_selectedTimeSlot],
-          'dealerSelectedCollectionLocation': _addresses[_selectedLocation],
-          'latLng': GeoPoint(
-            _latLngs[_selectedLocation].latitude,
-            _latLngs[_selectedLocation].longitude,
-          ),
-          'dealerSelectedDelivery': false,
-        },
-        SetOptions(merge: true),
-      );
+      await offerRef.set({
+        'dealerSelectedCollectionDate': _selectedDay,
+        'dealerSelectedCollectionTime': _availableTimes[_selectedTimeSlot],
+        'dealerSelectedCollectionLocation': _addresses[_selectedLocation],
+        'latLng': _latLngs[_selectedLocation] != null
+            ? GeoPoint(_latLngs[_selectedLocation].latitude,
+                _latLngs[_selectedLocation].longitude)
+            : null,
+        'dealerSelectedDelivery': false,
+      }, SetOptions(merge: true));
 
-      // Navigate to confirmation
+      // Use PageRouteBuilder with zero transition durations for proper navigation
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => CollectionConfirmationPage(
@@ -351,17 +329,19 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           reverseTransitionDuration: Duration.zero,
         ),
       );
-    } catch (err) {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save collection details: $err')),
+        SnackBar(content: Text('Failed to save collection details: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _saveDeliveryDetails() async {
-    // Validate required address fields
+    // Validate required fields
     if (_deliveryAddressLine1Controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter Address Line 1.')),
@@ -395,30 +375,24 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
-    final fullDeliveryAddress = [
-      _deliveryAddressLine1Controller.text,
-      if (_deliveryAddressLine2Controller.text.isNotEmpty)
-        _deliveryAddressLine2Controller.text,
-      _deliveryCityController.text,
-      _deliveryStateController.text,
-      _deliveryPostalCodeController.text
-    ].join(', ');
+    String fullDeliveryAddress = '${_deliveryAddressLine1Controller.text}, '
+        '${_deliveryAddressLine2Controller.text.isNotEmpty ? '${_deliveryAddressLine2Controller.text}, ' : ''}'
+        '${_deliveryCityController.text}, ${_deliveryStateController.text}, ${_deliveryPostalCodeController.text}';
 
     try {
-      final offerRef =
+      final DocumentReference offerRef =
           FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
 
-      await offerRef.set(
-        {
-          'dealerSelectedDelivery': true,
-          'transporterDeliveryAddress': fullDeliveryAddress,
-          'dealerSelectedDeliveryDate': _selectedDay,
-          'dealerSelectedDeliveryTime': _availableTimes[_selectedTimeSlot],
-        },
-        SetOptions(merge: true),
-      );
+      await offerRef.set({
+        'dealerSelectedDelivery': true,
+        'transporterDeliveryAddress': fullDeliveryAddress,
+        'dealerSelectedDeliveryDate': _selectedDay,
+        'dealerSelectedDeliveryTime': _availableTimes[_selectedTimeSlot],
+      }, SetOptions(merge: true));
 
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -434,18 +408,19 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           reverseTransitionDuration: Duration.zero,
         ),
       );
-    } catch (err) {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save delivery details: $err')),
+        SnackBar(content: Text('Failed to save delivery details: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Widget _buildCollectionPage(List<String> monthNames) {
     if (_locations.isEmpty) {
-      // Means no valid locations
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Stack(
@@ -460,10 +435,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                       const Text(
                         'Waiting for collection locations from transporter.',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),
@@ -499,19 +473,18 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 80, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16.0, 80.0, 16.0, 16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Logo
                         SizedBox(
                           width: 100,
                           height: 100,
-                          child: Image.asset('lib/assets/CTPLogo.png'),
+                          child: Image.asset(
+                            'lib/assets/CTPLogo.png',
+                          ),
                         ),
                         const SizedBox(height: 16),
-
-                        // Title
                         const Text(
                           'CONFIRM YOUR COLLECTION DETAILS',
                           style: TextStyle(
@@ -522,8 +495,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 32),
-
-                        // Intro
                         const Text(
                           'Great news! You have a potential buyer.',
                           style: TextStyle(
@@ -535,8 +506,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Now, let\'s set up a meeting to collect the vehicle. '
-                          'Your careful selection ensures a smooth process ahead.',
+                          'Now, let\'s set up a meeting with the potential seller to collect the vehicle. Your careful selection ensures a smooth process ahead.',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,
@@ -545,8 +515,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 40),
-
-                        // Locations
                         const Text(
                           'SELECT LOCATION',
                           style: TextStyle(
@@ -557,11 +525,10 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 32),
-
                         Column(
                           children: _locations.asMap().entries.map((entry) {
-                            final idx = entry.key;
-                            final location = entry.value;
+                            int idx = entry.key;
+                            String location = entry.value;
                             return RadioListTile(
                               title: Text(
                                 location.toUpperCase(),
@@ -581,8 +548,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           }).toList(),
                         ),
                         const SizedBox(height: 16),
-
-                        // Calendar
                         const Text(
                           'SELECT FROM AVAILABLE DATES AND TIMES FOR YOUR SELECTED LOCATION',
                           style: TextStyle(
@@ -593,7 +558,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
-
                         Container(
                           margin: const EdgeInsets.only(top: 20.0),
                           decoration: BoxDecoration(
@@ -605,8 +569,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             firstDay: DateTime.utc(2020, 1, 1),
                             lastDay: DateTime.utc(2100, 1, 1),
                             focusedDay: _focusedDay,
-                            selectedDayPredicate: (day) =>
-                                isSameDay(_selectedDay, day),
+                            selectedDayPredicate: (day) {
+                              return isSameDay(_selectedDay, day);
+                            },
                             onDaySelected: (selectedDay, focusedDay) {
                               setState(() {
                                 _selectedDay = selectedDay;
@@ -614,12 +579,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                               });
                             },
                             enabledDayPredicate: (day) {
-                              // Only enable days that are after today and in the location's list
-                              return day.isAfter(
-                                    DateTime.now().subtract(
-                                      const Duration(days: 2),
-                                    ),
-                                  ) &&
+                              return day.isAfter(DateTime.now()
+                                      .subtract(const Duration(days: 2))) &&
                                   isDateAvailable(day);
                             },
                             calendarStyle: CalendarStyle(
@@ -696,12 +657,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // Selected date
                         if (_selectedDay != null)
                           Text(
-                            'Selected Date: ${_selectedDay!.day} '
-                            '${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
+                            'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -709,8 +667,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             ),
                           ),
                         const SizedBox(height: 16),
-
-                        // Times
                         if (_selectedDay != null && _availableTimes.isNotEmpty)
                           Column(
                             children: [
@@ -727,8 +683,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                               Column(
                                 children: _availableTimes.asMap().entries.map(
                                   (entry) {
-                                    final idx = entry.key;
-                                    final timeSlot = entry.value;
+                                    int idx = entry.key;
+                                    String timeSlot = entry.value;
                                     return RadioListTile(
                                       title: Text(
                                         timeSlot,
@@ -750,8 +706,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             ],
                           ),
                         const SizedBox(height: 16),
-
-                        // Confirm button
                         CustomButton(
                           text: 'CONFIRM PICKUP',
                           borderColor: Colors.blue,
@@ -767,7 +721,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
               ),
             ],
           ),
-          // Loading overlay
           if (_isLoading)
             Container(
               color: Colors.black54,
@@ -777,7 +730,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                 ),
               ),
             ),
-          // Back button
           Positioned(
             top: 120,
             left: 16,
@@ -797,10 +749,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         const Text(
           'ENTER DELIVERY ADDRESS',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+              fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 16),
         _buildTextField(
@@ -858,7 +807,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             firstDay: DateTime.utc(2020, 1, 1),
             lastDay: DateTime.utc(2100, 1, 1),
             focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            selectedDayPredicate: (day) {
+              return isSameDay(_selectedDay, day);
+            },
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
@@ -937,8 +888,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         const SizedBox(height: 16),
         if (_selectedDay != null)
           Text(
-            'Selected Date: ${_selectedDay!.day} '
-            '${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
+            'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -958,24 +908,26 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           ),
           const SizedBox(height: 8),
           Column(
-            children: _availableTimes.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final timeSlot = entry.value;
-              return RadioListTile(
-                title: Text(
-                  timeSlot,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                value: idx,
-                groupValue: _selectedTimeSlot,
-                activeColor: const Color(0xFFFF4E00),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedTimeSlot = value!;
-                  });
-                },
-              );
-            }).toList(),
+            children: _availableTimes.asMap().entries.map(
+              (entry) {
+                int idx = entry.key;
+                String timeSlot = entry.value;
+                return RadioListTile(
+                  title: Text(
+                    timeSlot,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  value: idx,
+                  groupValue: _selectedTimeSlot,
+                  activeColor: const Color(0xFFFF4E00),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedTimeSlot = value!;
+                    });
+                  },
+                );
+              },
+            ).toList(),
           ),
         ],
       ],
@@ -1022,19 +974,16 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       children: [
         SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 80, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16.0, 80.0, 16.0, 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Logo
                 SizedBox(
                   width: 100,
                   height: 100,
                   child: Image.asset('lib/assets/CTPLogo.png'),
                 ),
                 const SizedBox(height: 16),
-
-                // Title
                 const Text(
                   'HOW WOULD YOU LIKE TO PROCEED?',
                   style: TextStyle(
@@ -1045,8 +994,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-
-                // Explanation
                 const Text(
                   'You can choose to collect the vehicle or have it delivered to your preferred location.',
                   style: TextStyle(
@@ -1057,8 +1004,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-
-                // Radio for collect
                 RadioListTile<int>(
                   title: const Text(
                     'Collect the vehicle',
@@ -1068,11 +1013,11 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   groupValue: _selectedDeliveryOption,
                   activeColor: const Color(0xFFFF4E00),
                   onChanged: (value) {
-                    setState(() => _selectedDeliveryOption = value!);
+                    setState(() {
+                      _selectedDeliveryOption = value!;
+                    });
                   },
                 ),
-
-                // Radio for delivery
                 RadioListTile<int>(
                   title: const Text(
                     'Have it delivered to me',
@@ -1082,12 +1027,13 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   groupValue: _selectedDeliveryOption,
                   activeColor: const Color(0xFFFF4E00),
                   onChanged: (value) {
-                    setState(() => _selectedDeliveryOption = value!);
+                    setState(() {
+                      _selectedDeliveryOption = value!;
+                    });
                   },
                 ),
                 const SizedBox(height: 24),
-
-                // If delivery is chosen => show address form & date/time
+                // If delivery option chosen, show address and date/time at once
                 if (_selectedDeliveryOption == 1) ...[
                   _buildDeliveryAddressForm(),
                   _buildDeliveryDateTimeSelection(monthNames),
@@ -1098,8 +1044,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                     onPressed: _saveDeliveryDetails,
                   ),
                 ],
-
-                // If collecting => show a "Continue" button to show the standard "collection" UI
                 if (_selectedDeliveryOption == 0)
                   CustomButton(
                     text: 'CONTINUE',
@@ -1114,8 +1058,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             ),
           ),
         ),
-
-        // Back button
         Positioned(
           top: 120,
           left: 16,
@@ -1149,11 +1091,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         backgroundColor: Colors.transparent,
         body: Builder(
           builder: (context) {
-            // If we're still loading from Firestore
             if (_isLoading) {
               return Stack(
                 children: [
-                  // If we haven't decided on location logic, show the radio or collection page in the background
                   _offerDeliveryService &&
                           !_showCollectionDetails &&
                           _selectedDeliveryOption == 0
@@ -1163,43 +1103,39 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           : (_showCollectionDetails
                               ? _buildCollectionPage(monthNames)
                               : _buildDeliveryOrCollectionChoice(monthNames))),
-                  // Overlay loading indicator
                   Container(
                     color: Colors.black54,
                     child: const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFFFF4E00),
-                        ),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
                       ),
                     ),
                   ),
                 ],
               );
             } else {
-              // Fully loaded
               if (!_offerDeliveryService) {
-                // No delivery option => show collection directly
+                // No delivery option, show collection page
                 return _buildCollectionPage(monthNames);
               }
-              // Delivery is offered => check user selection
+              // Delivery is offered:
               if (_offerDeliveryService &&
                   !_showCollectionDetails &&
                   _selectedDeliveryOption == 1) {
-                // They want it delivered => show the address form + date/time
+                // Show both address and date/time for delivery
                 return _buildDeliveryOrCollectionChoice(monthNames);
               }
               if (_offerDeliveryService &&
                   !_showCollectionDetails &&
                   _selectedDeliveryOption == 0) {
-                // They chose to collect => show the radio choice again
+                // Chose collection after seeing delivery option
                 return _buildDeliveryOrCollectionChoice(monthNames);
               }
               if (_showCollectionDetails) {
-                // Show normal collection page with location/time
+                // Show collection details page
                 return _buildCollectionPage(monthNames);
               }
-              // Fallback
               return _buildDeliveryOrCollectionChoice(monthNames);
             }
           },

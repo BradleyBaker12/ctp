@@ -33,13 +33,7 @@ class _WishlistPageState extends State<WishlistPage> {
   late Future<void> _fetchOffersFuture;
   late OfferProvider _offerProvider;
 
-  // State variable to manage selected tab
   String _selectedTab = 'Trucks';
-
-  // Lists to hold filtered vehicles
-  List<DocumentSnapshot> _trucks = [];
-  List<DocumentSnapshot> _trailers = [];
-
   @override
   void initState() {
     super.initState();
@@ -73,55 +67,23 @@ class _WishlistPageState extends State<WishlistPage> {
       if (userDoc.exists) {
         List<String> wishlistItems =
             List<String>.from(userDoc['likedVehicles'] ?? []);
-        if (wishlistItems.isNotEmpty) {
-          // Firestore's 'whereIn' can handle a maximum of 10 items. Handle accordingly.
-          // Split the wishlistItems into chunks of 10.
-          List<List<String>> chunks = [];
-          const int chunkSize = 10;
-          for (var i = 0; i < wishlistItems.length; i += chunkSize) {
-            chunks.add(
-                wishlistItems.skip(i).take(chunkSize).toList(growable: false));
-          }
+        QuerySnapshot vehiclesSnapshot = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where(FieldPath.documentId, whereIn: wishlistItems)
+            .get();
 
-          List<DocumentSnapshot> allDocs = [];
+        final vehicleProvider =
+            Provider.of<VehicleProvider>(context, listen: false);
 
-          for (var chunk in chunks) {
-            QuerySnapshot snapshot = await FirebaseFirestore.instance
-                .collection('vehicles')
-                .where(FieldPath.documentId, whereIn: chunk)
-                .get();
-            allDocs.addAll(snapshot.docs);
-          }
-
-          final vehicleProvider =
-              Provider.of<VehicleProvider>(context, listen: false);
-
-          for (var doc in allDocs) {
-            Vehicle vehicle = Vehicle.fromFirestore(
-                doc.id, doc.data() as Map<String, dynamic>);
-            vehicleProvider.addVehicle(vehicle);
-          }
-
-          setState(() {
-            _wishlistVehicles.addAll(allDocs);
-            _trucks = _wishlistVehicles.where((vehicleDoc) {
-              Map<String, dynamic>? data =
-                  vehicleDoc.data() as Map<String, dynamic>?;
-              return data != null &&
-                  (data['vehicleType'] == 'truck' ||
-                      data['vehicleType'] == 'pickup' ||
-                      data['vehicleType'] == 'lorry');
-            }).toList();
-
-            _trailers = _wishlistVehicles.where((vehicleDoc) {
-              Map<String, dynamic>? data =
-                  vehicleDoc.data() as Map<String, dynamic>?;
-              return data != null &&
-                  (data['vehicleType'] == 'trailer' ||
-                      data['vehicleType'] == 'semi-trailer');
-            }).toList();
-          });
+        for (var doc in vehiclesSnapshot.docs) {
+          Vehicle vehicle =
+              Vehicle.fromFirestore(doc.id, doc.data() as Map<String, dynamic>);
+          vehicleProvider.addVehicle(vehicle);
         }
+
+        setState(() {
+          _wishlistVehicles.addAll(vehiclesSnapshot.docs);
+        });
       }
     }
   }
@@ -136,262 +98,22 @@ class _WishlistPageState extends State<WishlistPage> {
     }
   }
 
-  // Method to build the custom tabs with black and blue blocks
-  Widget _buildCustomTabs(Size screenSize) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildTabButton('Trucks', 'Trucks'),
-        SizedBox(width: screenSize.width * 0.02),
-        _buildTabButton('Trailers', 'Trailers'),
-      ],
-    );
-  }
+  List<DocumentSnapshot> _getFilteredVehicles() {
+    return _wishlistVehicles.where((vehicleDoc) {
+      Map<String, dynamic>? data = vehicleDoc.data() as Map<String, dynamic>?;
 
-  // Helper method to create a custom tab button
-  Widget _buildTabButton(String title, String tab) {
-    bool isSelected = _selectedTab == tab;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedTab = tab;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.deepOrange : Colors.black,
-          borderRadius: BorderRadius.circular(4.0),
-          border: Border.all(
-            color: isSelected ? Colors.black : Colors.blue,
-            width: 1.0,
-          ),
-        ),
-        child: Row(
-          children: [
-            // Colored block (if any) can be customized here
-            // Removed the dot as per your request
-            Text(
-              title.toUpperCase(),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Method to build the list of vehicles based on the selected tab
-  Widget _buildVehicleList(
-    List<DocumentSnapshot> vehicles,
-    VehicleProvider vehicleProvider,
-    OfferProvider offerProvider,
-    Size screenSize,
-  ) {
-    if (vehicles.isEmpty) {
-      return Center(
-        child: Text(
-          'No vehicles found.',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: vehicles.length,
-      itemBuilder: (context, index) {
-        DocumentSnapshot vehicleDoc = vehicles[index];
-        Map<String, dynamic>? data = vehicleDoc.data() as Map<String, dynamic>?;
-        Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
-          (v) => v.id == vehicleDoc.id,
-          orElse: () => Vehicle(
-            id: vehicleDoc.id,
-            application: data != null && data['application'] != null
-                ? (data['application'] is String
-                    ? [data['application']]
-                    : List<String>.from(data['application']))
-                : [],
-            warrantyDetails: 'N/A',
-            isAccepted: false,
-            acceptedOfferId: 'N/A',
-            damageDescription: '',
-            damagePhotos: [],
-            engineNumber: 'N/A',
-            expectedSellingPrice: 'N/A',
-            hydraluicType: 'N/A',
-            makeModel: data != null && data['makeModel'] != null
-                ? data['makeModel']
-                : 'Unknown',
-            mileage: 'N/A',
-            mainImageUrl: null,
-            photos: [],
-            registrationNumber: 'N/A',
-            suspensionType: 'N/A',
-            transmissionType: 'N/A',
-            userId: 'N/A',
-            vehicleType:
-                data != null ? data['vehicleType'].toLowerCase() : 'unknown',
-            vinNumber: 'N/A',
-            warrentyType: 'N/A',
-            year:
-                data != null && data['year'] != null ? data['year'] : 'Unknown',
-            createdAt: (vehicleDoc['createdAt'] as Timestamp).toDate(),
-            vehicleAvailableImmediately: 'N/A',
-            availableDate: 'N/A',
-            trailerType: 'N/A',
-            axles: 'N/A',
-            trailerLength: 'N/A',
-            dashboardPhoto: '',
-            faultCodesPhoto: '',
-            licenceDiskUrl: '',
-            mileageImage: '',
-            rc1NatisFile: '',
-            config: '',
-            referenceNumber: '',
-            brands: [],
-            country: '',
-            province: '',
-            adminData: AdminData(
-              settlementAmount: '0',
-              natisRc1Url: '',
-              licenseDiskUrl: '',
-              settlementLetterUrl: '',
-            ),
-            maintenance: Maintenance(
-              vehicleId: vehicleDoc.id,
-              oemInspectionType: '',
-              maintenanceDocUrl: '',
-              warrantyDocUrl: '',
-              maintenanceSelection: '',
-              warrantySelection: '',
-              lastUpdated: DateTime.now(),
-            ),
-            truckConditions: TruckConditions(
-              externalCab: ExternalCab(
-                damages: [],
-                additionalFeatures: [],
-                condition: '',
-                damagesCondition: '',
-                additionalFeaturesCondition: '',
-                images: {},
-              ),
-              internalCab: InternalCab(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  faultCodesCondition: '',
-                  viewImages: {},
-                  damages: [],
-                  additionalFeatures: [],
-                  faultCodes: []),
-              chassis: Chassis(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  images: {},
-                  damages: [],
-                  additionalFeatures: []),
-              driveTrain: DriveTrain(
-                condition: '',
-                oilLeakConditionEngine: '',
-                waterLeakConditionEngine: '',
-                blowbyCondition: '',
-                oilLeakConditionGearbox: '',
-                retarderCondition: '',
-                lastUpdated: DateTime.now(),
-                images: {
-                  'Right Brake': '',
-                  'Left Brake': '',
-                  'Front Axel': '',
-                  'Suspension': '',
-                  'Fuel Tank': '',
-                  'Battery': '',
-                  'Cat Walk': '',
-                  'Electrical Cable Black': '',
-                  'Air Cable Yellow': '',
-                  'Air Cable Red': '',
-                  'Tail Board': '',
-                  '5th Wheel': '',
-                  'Left Brake Rear Axel': '',
-                  'Right Brake Rear Axel': '',
-                },
-                damages: [],
-                additionalFeatures: [],
-                faultCodes: [],
-              ),
-              tyres: {
-                'default': Tyres(
-                  lastUpdated: DateTime.now(),
-                  positions: {},
-                ),
-              },
-            ),
-            vehicleStatus: '',
-            length: '',
-            vinTrailer: '',
-            damagesDescription: '',
-            additionalFeatures: '',
-          ),
-        );
-
-        bool hasOffer =
-            offerProvider.offers.any((offer) => offer.vehicleId == vehicle.id);
-
-        return WishCard(
-          vehicleMakeModel: "${vehicle.makeModel} ${vehicle.year}",
-          vehicleImageUrl: vehicle.mainImageUrl != null
-              ? vehicle.mainImageUrl!
-              : 'lib/assets/default_vehicle_image.png',
-          size: screenSize,
-          customFont: (double fontSize, FontWeight fontWeight, Color color) {
-            return TextStyle(
-              fontSize: fontSize,
-              fontWeight: fontWeight,
-              color: color,
-              fontFamily: 'Montserrat',
-            );
-          },
-          hasOffer: hasOffer,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-              ),
-            );
-          },
-          onDelete: () async {
-            User? user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .update({
-                'likedVehicles': FieldValue.arrayRemove([vehicle.id])
-              });
-              setState(() {
-                _wishlistVehicles.remove(vehicleDoc);
-                if (_selectedTab == 'Trucks') {
-                  _trucks.remove(vehicleDoc);
-                } else {
-                  _trailers.remove(vehicleDoc);
-                }
-              });
-            }
-          },
-          vehicleId: vehicle.id,
-          vehicle: vehicle,
-        );
-      },
-    );
+      if (_selectedTab == 'Trucks') {
+        return data != null &&
+            (data['vehicleType'] == 'truck' ||
+                data['vehicleType'] == 'pickup' ||
+                data['vehicleType'] == 'lorry');
+      } else if (_selectedTab == 'Trailers') {
+        return data != null &&
+            (data['vehicleType'] == 'trailer' ||
+                data['vehicleType'] == 'semi-trailer');
+      }
+      return false;
+    }).toList();
   }
 
   @override
@@ -400,17 +122,14 @@ class _WishlistPageState extends State<WishlistPage> {
     final vehicleProvider = Provider.of<VehicleProvider>(context);
     final offerProvider = _offerProvider;
 
-    // Determine which list to display based on the selected tab
-    List<DocumentSnapshot> currentList =
-        _selectedTab == 'Trucks' ? _trucks : _trailers;
+    final filteredVehicles = _getFilteredVehicles();
 
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: const CustomAppBar(),
+        appBar: CustomAppBar(),
         body: Column(
           children: [
-            // Header Section
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -438,13 +157,18 @@ class _WishlistPageState extends State<WishlistPage> {
                     ],
                   ),
                   SizedBox(height: screenSize.height * 0.03),
-                  // Custom Tabs
-                  _buildCustomTabs(screenSize),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildTab('Trucks'),
+                      SizedBox(width: screenSize.width * 0.06),
+                      _buildTab('Trailers'),
+                    ],
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            // Vehicle List Section
             Expanded(
               child: FutureBuilder<void>(
                 future: _fetchOffersFuture,
@@ -465,11 +189,196 @@ class _WishlistPageState extends State<WishlistPage> {
                       ),
                     );
                   } else {
-                    return _buildVehicleList(
-                      currentList,
-                      vehicleProvider,
-                      offerProvider,
-                      screenSize,
+                    return ListView.builder(
+                      itemCount: filteredVehicles.length,
+                      itemBuilder: (context, index) {
+                        DocumentSnapshot vehicleDoc = filteredVehicles[index];
+                        Map<String, dynamic>? data =
+                            vehicleDoc.data() as Map<String, dynamic>?;
+                        Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
+                          (v) => v.id == vehicleDoc.id,
+                          orElse: () => Vehicle(
+                            id: vehicleDoc.id,
+                            application: data != null &&
+                                    data['application'] != null
+                                ? (data['application'] is String
+                                    ? [data['application']]
+                                    : List<String>.from(data['application']))
+                                : [],
+                            warrantyDetails: 'N/A',
+                            isAccepted: false,
+                            acceptedOfferId: 'N/A',
+                            damageDescription: '',
+                            damagePhotos: [],
+                            engineNumber: 'N/A',
+                            expectedSellingPrice: 'N/A',
+                            hydraluicType: 'N/A',
+                            makeModel: data != null && data['makeModel'] != null
+                                ? data['makeModel']
+                                : 'Unknown',
+                            mileage: 'N/A',
+                            mainImageUrl: null,
+                            photos: [],
+                            registrationNumber: 'N/A',
+                            suspensionType: 'N/A',
+                            transmissionType: 'N/A',
+                            userId: 'N/A',
+                            vehicleType: data != null
+                                ? data['vehicleType'].toLowerCase()
+                                : 'unknown',
+                            vinNumber: 'N/A',
+                            warrentyType: 'N/A',
+                            year: data != null && data['year'] != null
+                                ? data['year']
+                                : 'Unknown',
+                            createdAt:
+                                (vehicleDoc['createdAt'] as Timestamp).toDate(),
+                            vehicleAvailableImmediately: 'N/A',
+                            availableDate: 'N/A',
+                            trailerType: 'N/A',
+                            axles: 'N/A',
+                            trailerLength: 'N/A',
+                            dashboardPhoto: '',
+                            faultCodesPhoto: '',
+                            licenceDiskUrl: '',
+                            mileageImage: '',
+                            rc1NatisFile: '',
+                            config: '',
+                            referenceNumber: '',
+                            brands: [],
+                            country: '',
+                            province: '',
+                            adminData: AdminData(
+                              settlementAmount: '0',
+                              natisRc1Url: '',
+                              licenseDiskUrl: '',
+                              settlementLetterUrl: '',
+                            ),
+                            maintenance: Maintenance(
+                              vehicleId: vehicleDoc.id,
+                              oemInspectionType: '',
+                              maintenanceDocUrl: '',
+                              warrantyDocUrl: '',
+                              maintenanceSelection: '',
+                              warrantySelection: '',
+                              lastUpdated: DateTime.now(),
+                            ),
+                            truckConditions: TruckConditions(
+                              externalCab: ExternalCab(
+                                damages: [],
+                                additionalFeatures: [],
+                                condition: '',
+                                damagesCondition: '',
+                                additionalFeaturesCondition: '',
+                                images: {},
+                              ),
+                              internalCab: InternalCab(
+                                  condition: '',
+                                  damagesCondition: '',
+                                  additionalFeaturesCondition: '',
+                                  faultCodesCondition: '',
+                                  viewImages: {},
+                                  damages: [],
+                                  additionalFeatures: [],
+                                  faultCodes: []),
+                              chassis: Chassis(
+                                  condition: '',
+                                  damagesCondition: '',
+                                  additionalFeaturesCondition: '',
+                                  images: {},
+                                  damages: [],
+                                  additionalFeatures: []),
+                              driveTrain: DriveTrain(
+                                condition: '',
+                                oilLeakConditionEngine: '',
+                                waterLeakConditionEngine: '',
+                                blowbyCondition: '',
+                                oilLeakConditionGearbox: '',
+                                retarderCondition: '',
+                                lastUpdated: DateTime.now(),
+                                images: {
+                                  'Right Brake': '',
+                                  'Left Brake': '',
+                                  'Front Axel': '',
+                                  'Suspension': '',
+                                  'Fuel Tank': '',
+                                  'Battery': '',
+                                  'Cat Walk': '',
+                                  'Electrical Cable Black': '',
+                                  'Air Cable Yellow': '',
+                                  'Air Cable Red': '',
+                                  'Tail Board': '',
+                                  '5th Wheel': '',
+                                  'Left Brake Rear Axel': '',
+                                  'Right Brake Rear Axel': '',
+                                },
+                                damages: [],
+                                additionalFeatures: [],
+                                faultCodes: [],
+                              ),
+                              tyres: {
+                                'default': Tyres(
+                                  lastUpdated: DateTime.now(),
+                                  positions: {},
+                                ),
+                              },
+                            ),
+                            vehicleStatus: '',
+                            length: '',
+                            vinTrailer: '',
+                            damagesDescription: '',
+                            additionalFeatures: '',
+                          ),
+                        );
+
+                        bool hasOffer = offerProvider.offers
+                            .any((offer) => offer.vehicleId == vehicle.id);
+
+                        return WishCard(
+                          vehicleMakeModel:
+                              "${vehicle.makeModel} ${vehicle.year}",
+                          vehicleImageUrl: vehicle.mainImageUrl != null
+                              ? vehicle.mainImageUrl!
+                              : 'lib/assets/default_vehicle_image.png',
+                          size: screenSize,
+                          customFont: (double fontSize, FontWeight fontWeight,
+                              Color color) {
+                            return TextStyle(
+                              fontSize: fontSize,
+                              fontWeight: fontWeight,
+                              color: color,
+                              fontFamily: 'Montserrat',
+                            );
+                          },
+                          hasOffer: hasOffer,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    VehicleDetailsPage(vehicle: vehicle),
+                              ),
+                            );
+                          },
+                          onDelete: () async {
+                            User? user = FirebaseAuth.instance.currentUser;
+                            if (user != null) {
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .update({
+                                'likedVehicles':
+                                    FieldValue.arrayRemove([vehicle.id])
+                              });
+                              setState(() {
+                                _wishlistVehicles.remove(vehicleDoc);
+                              });
+                            }
+                          },
+                          vehicleId: vehicle.id,
+                          vehicle: vehicle,
+                        );
+                      },
                     );
                   }
                 },
@@ -485,6 +394,37 @@ class _WishlistPageState extends State<WishlistPage> {
             });
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildTab(String tabName) {
+    final isSelected = _selectedTab == tabName;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedTab = tabName;
+        });
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            tabName.toUpperCase(),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.blue : Colors.white,
+            ),
+          ),
+          if (isSelected)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              height: 2,
+              width: 40,
+              color: const Color(0xFFFF4E00),
+            ),
+        ],
       ),
     );
   }

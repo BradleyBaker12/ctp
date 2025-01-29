@@ -38,8 +38,8 @@ class FormDataProvider with ChangeNotifier {
   String? _oemInspectionExplanation;
 
   // Main Image
-  File? _selectedMainImage;
-  File? get selectedMainImage => _selectedMainImage;
+  Uint8List? _selectedMainImage;
+  Uint8List? get selectedMainImage => _selectedMainImage;
 
   String? _mainImageUrl;
   String? get mainImageUrl => _mainImageUrl;
@@ -212,7 +212,7 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  void setSelectedMainImage(File? image) {
+  void setSelectedMainImage(Uint8List? image,fileName) {
     _selectedMainImage = image;
     notifyListeners();
   }

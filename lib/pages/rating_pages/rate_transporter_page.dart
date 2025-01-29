@@ -176,7 +176,7 @@ class _RateTransporterPageState extends State<RateTransporterPage> {
         await FirebaseFirestore.instance
             .collection('offers')
             .doc(widget.offerId)
-            .update({'offerStatus': 'collection details'});
+            .update({'offerStatus': 'Collection Location Confirmation'});
       } catch (e) {
         print('Error submitting rating: $e');
       }

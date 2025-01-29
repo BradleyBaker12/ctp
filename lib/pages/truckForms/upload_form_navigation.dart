@@ -225,6 +225,7 @@ class _UploadFormNavigationState extends State<UploadFormNavigation> {
                     vehicleId: vehicle!.id,
                     isUploading: false,
                     isEditing: true,
+                    isFromAdmin: true,
                     onMaintenanceFileSelected: (file) {
                       // Handle maintenance file selection
                     },
@@ -297,13 +298,13 @@ class _UploadFormNavigationState extends State<UploadFormNavigation> {
                 vehicle: vehicle!,
                 isUploading: false,
                 isEditing: true,
-                onAdminDoc1Selected: (file) {
+                onAdminDoc1Selected: (file,fileName) {
                   // Handle admin doc 1 selection
                 },
-                onAdminDoc2Selected: (file) {
+                onAdminDoc2Selected: (file,fileName) {
                   // Handle admin doc 2 selection
                 },
-                onAdminDoc3Selected: (file) {
+                onAdminDoc3Selected: (file,fileName) {
                   // Handle admin doc 3 selection
                 },
                 requireToSettleType: vehicle!.requireToSettleType ?? 'no',

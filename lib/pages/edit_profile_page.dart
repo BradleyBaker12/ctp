@@ -1,6 +1,9 @@
 // lib/screens/edit_profile_page.dart
 
+import 'dart:developer';
 import 'dart:io';
+import 'package:ctp/pages/profile_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -40,11 +43,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _cipcCertificateUrl;
   String? _proxyUrl;
   String? _brncUrl;
-  File? _profileImageFile;
-  File? _bankConfirmationFile;
-  File? _cipcCertificateFile;
-  File? _proxyFile;
-  File? _brncFile;
+  Uint8List? _profileImageFile;
+  Uint8List? _bankConfirmationFile;
+  Uint8List? _cipcCertificateFile;
+  Uint8List? _proxyFile;
+  Uint8List? _brncFile;
+  String? _profileImageFileName;
+  String? _bankConfirmationFileName;
+  String? _cipcCertificateFileName;
+  String? _proxyFileName;
+  String? _brncFileName;
   bool _isLoading = false;
 
   @override
@@ -111,24 +119,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ],
     );
 
-    if (result != null && result.files.single.path != null) {
-      File selectedFile = File(result.files.single.path!);
+    if (result != null && result.files.single.bytes != null) {
+      String selectedFileName = result.files.single.name;
+
+      Uint8List? selectedFile = result.files.single.bytes;
       setState(() {
         switch (field) {
           case 'bankConfirmation':
             _bankConfirmationFile = selectedFile;
+            _bankConfirmationFileName = selectedFileName;
+
             _bankConfirmationUrl = null; // Reset existing URL
             break;
           case 'cipcCertificate':
             _cipcCertificateFile = selectedFile;
+            _cipcCertificateFileName = selectedFileName;
             _cipcCertificateUrl = null; // Reset existing URL
             break;
           case 'proxy':
             _proxyFile = selectedFile;
+            _proxyFileName = selectedFileName;
             _proxyUrl = null; // Reset existing URL
             break;
           case 'brnc':
             _brncFile = selectedFile;
+            _brncFileName = selectedFileName;
             _brncUrl = null; // Reset existing URL
             break;
         }
@@ -148,7 +163,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
           await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        File? croppedFile = await _cropImage(File(pickedFile.path));
+        _profileImageFileName = pickedFile.name;
+        final data = await pickedFile.readAsBytes();
+        Uint8List? croppedFile = await _cropImage(File(pickedFile.path));
+
         if (croppedFile != null) {
           final compressedFile = await _compressImageFile(croppedFile);
           setState(() {
@@ -165,7 +183,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   /// Crops the selected image to a square aspect ratio.
-  Future<File?> _cropImage(File imageFile) async {
+  Future<Uint8List?> _cropImage(File imageFile) async {
     CroppedFile? croppedFile = await ImageCropper().cropImage(
       sourcePath: imageFile.path,
       aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
@@ -180,29 +198,45 @@ class _EditProfilePageState extends State<EditProfilePage> {
         IOSUiSettings(
           title: 'Crop and Fit',
         ),
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: const CropperSize(width: 200, height: 200),
+          initialAspectRatio: 1, // Square aspect ratio
+          dragMode: WebDragMode.crop, // Set to crop mode
+          center: true, // Center the image in the crop box
+          highlight: true, // Highlight the crop box
+          cropBoxResizable: false,
+        ),
       ],
     );
 
     if (croppedFile != null) {
-      return File(croppedFile.path);
+      final Uint8List croppedBytes = await croppedFile.readAsBytes();
+
+      return croppedBytes;
     }
     return null;
   }
 
   /// Compresses the image file to reduce its size.
-  Future<File> _compressImageFile(File file) async {
-    final compressedFile = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      file.absolute.path.replaceAll('.jpg', '_compressed.jpg'),
+  Future<Uint8List?> _compressImageFile(Uint8List imageBytes) async {
+    final Uint8List compressedBytes =
+        await FlutterImageCompress.compressWithList(
+      imageBytes,
+      minWidth: 800,
+      minHeight: 600,
       quality: 70,
+      format: CompressFormat.jpeg,
     );
-
-    return compressedFile != null ? File(compressedFile.path) : file;
+    return compressedBytes;
   }
 
   /// Determines the appropriate icon based on the file type.
   IconData _getIconForFileType(String fileName) {
-    final extension = path.extension(fileName).toLowerCase();
+    final extension =
+        path.extension(fileName).toLowerCase().trim().split("?").first.trim();
+    log("Extensions are ${extension}");
     switch (extension) {
       case '.pdf':
         return Icons.picture_as_pdf;
@@ -277,15 +311,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   /// Builds an upload button for documents.
-  Widget _buildUploadButton(String field, String? fileUrl, File? file) {
+  Widget _buildUploadButton(String field, String? fileUrl, String? fileName) {
     String? displayName;
     IconData iconData = Icons.folder_open;
 
-    if (file != null) {
-      displayName = path.basename(file.path);
-      iconData = _getIconForFileType(file.path);
+    if (fileName != null) {
+      // displayName = path.basename(file.path);
+      displayName = fileName;
+      iconData = _getIconForFileType(fileName);
     } else if (fileUrl != null && fileUrl.isNotEmpty) {
+      log("File name $fileUrl");
       displayName = _getFileNameFromUrl(fileUrl);
+      // displayName = _getFileNameFromUrl(fileUrl);
       iconData = _getIconForFileType(fileUrl);
     }
 
@@ -318,6 +355,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             displayName,
                             style: const TextStyle(color: Colors.white),
                             textAlign: TextAlign.center,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -336,18 +374,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   switch (field) {
                     case 'bankConfirmation':
                       _bankConfirmationFile = null;
+                      _bankConfirmationFileName = null;
                       _bankConfirmationUrl = null;
                       break;
                     case 'cipcCertificate':
                       _cipcCertificateFile = null;
+                      _cipcCertificateFileName = null;
                       _cipcCertificateUrl = null;
                       break;
                     case 'proxy':
                       _proxyFile = null;
+                      _proxyFileName = null;
                       _proxyUrl = null;
                       break;
                     case 'brnc':
                       _brncFile = null;
+                      _brncFileName = null;
                       _brncUrl = null;
                       break;
                   }
@@ -377,7 +419,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       // Upload Profile Image if a new one is selected
       if (_profileImageFile != null) {
         try {
-          profileImageUrl = await userProvider.uploadFile(_profileImageFile!);
+          profileImageUrl = await userProvider.uploadFile(
+              _profileImageFile!, _profileImageFileName!);
         } catch (e) {
           debugPrint('Error uploading profile image: $e');
           ScaffoldMessenger.of(context).showSnackBar(
@@ -398,21 +441,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       try {
         if (_bankConfirmationFile != null) {
-          bankConfirmationDownloadUrl =
-              await userProvider.uploadFile(_bankConfirmationFile!);
+          bankConfirmationDownloadUrl = await userProvider.uploadFile(
+              _bankConfirmationFile!, _bankConfirmationFileName!);
         }
 
         if (_cipcCertificateFile != null) {
-          cipcCertificateDownloadUrl =
-              await userProvider.uploadFile(_cipcCertificateFile!);
+          cipcCertificateDownloadUrl = await userProvider.uploadFile(
+              _cipcCertificateFile!, _cipcCertificateFileName!);
         }
 
         if (_proxyFile != null) {
-          proxyDownloadUrl = await userProvider.uploadFile(_proxyFile!);
+          proxyDownloadUrl =
+              await userProvider.uploadFile(_proxyFile!, _proxyFileName!);
         }
 
         if (_brncFile != null) {
-          brncDownloadUrl = await userProvider.uploadFile(_brncFile!);
+          brncDownloadUrl =
+              await userProvider.uploadFile(_brncFile!, _brncFileName!);
         }
       } catch (e) {
         debugPrint('Error uploading documents: $e');
@@ -450,7 +495,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );
-        Navigator.pop(context);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProfilePage(),
+          ),
+        );
       } catch (e) {
         debugPrint('Error saving profile: $e');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -493,7 +543,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   child: CircleAvatar(
                                     radius: 60,
                                     backgroundImage: _profileImageFile != null
-                                        ? FileImage(_profileImageFile!)
+                                        ? MemoryImage(_profileImageFile!)
                                         : (_profileImageUrl != null
                                             ? NetworkImage(_profileImageUrl!)
                                             : null),
@@ -553,18 +603,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             ),
                             const SizedBox(height: 10),
                             _buildUploadLabel('Bank Confirmation'),
-                            _buildUploadButton('bankConfirmation',
-                                _bankConfirmationUrl, _bankConfirmationFile),
+                            _buildUploadButton(
+                                'bankConfirmation',
+                                _bankConfirmationUrl,
+                                _bankConfirmationFileName),
                             const SizedBox(height: 15),
                             _buildUploadLabel('CIPC Certificate'),
                             _buildUploadButton('cipcCertificate',
-                                _cipcCertificateUrl, _cipcCertificateFile),
+                                _cipcCertificateUrl, _cipcCertificateFileName),
                             const SizedBox(height: 15),
                             _buildUploadLabel('Proxy'),
-                            _buildUploadButton('proxy', _proxyUrl, _proxyFile),
+                            _buildUploadButton(
+                                'proxy', _proxyUrl, _proxyFileName),
                             const SizedBox(height: 15),
                             _buildUploadLabel('BRNC'),
-                            _buildUploadButton('brnc', _brncUrl, _brncFile),
+                            _buildUploadButton('brnc', _brncUrl, _brncFileName),
                             const SizedBox(height: 30),
                             CustomButton(
                               text: _isLoading ? 'Saving...' : 'Save',

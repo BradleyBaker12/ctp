@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'dart:html' as html;
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class ViewerPage extends StatefulWidget {
   final String url;
@@ -28,6 +31,13 @@ class _ViewerPageState extends State<ViewerPage> {
 
   /// If the file is a PDF, download it to a local temp directory; otherwise skip.
   Future<void> _prepareFile() async {
+    if (kIsWeb) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
     try {
       // Strip query parameters, then check if it ends with .pdf
       final sanitizedUrl = widget.url.split('?').first.toLowerCase();
@@ -101,9 +111,11 @@ class _ViewerPageState extends State<ViewerPage> {
           ? const Center(child: CircularProgressIndicator())
           : isPDF
               // ---- PDF Mode ----
-              ? (_localPDFPath != null)
-                  ? _buildPDFView()
-                  : const Center(child: Text('Failed to load PDF.'))
+              ? kIsWeb
+                  ? SfPdfViewer.network(widget.url)
+                  : (_localPDFPath != null)
+                      ? _buildPDFView()
+                      : const Center(child: Text('Failed to load PDF.'))
               // ---- Image Mode ----
               : _buildImageView(),
     );

@@ -188,7 +188,12 @@ class _RateDealerPageState extends State<RateDealerPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(offerId: widget.offerId),
+        builder: (context) => SetupCollectionPage(
+          vehicleId: Provider.of<OfferProvider>(context, listen: false)
+              .offers
+              .firstWhere((offer) => offer.offerId == widget.offerId)
+              .vehicleId,
+        ),
       ),
     );
   }

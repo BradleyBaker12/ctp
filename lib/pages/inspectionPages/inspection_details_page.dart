@@ -38,146 +38,182 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
   List<List<DateTime>> _locationDates = [];
   List<List<Map<String, dynamic>>> _locationTimeSlots = [];
 
-  // Add this helper method to convert string to DateTime
-  DateTime _parseDateTime(String dateStr) {
-    // Expected format: "29-1-2025" or "29-01-2025"
-    List<String> parts = dateStr.split('-');
-    if (parts.length == 3) {
-      int day = int.parse(parts[0]);
-      int month = int.parse(parts[1]);
-      int year = int.parse(parts[2]);
-      return DateTime(year, month, day);
-    }
-    return DateTime.now(); // Fallback value
-  }
-
-  // List<String> _availableTimes(DateTime selectedDay) {
-  //   // _selectedLocation is already the index, no need to search for it
-  //   int locationIndex = _selectedLocation;
-  //   if (locationIndex >= _locations.length) return [];
-
-  //   // Find matching date in location dates
-  //   int dateIndex = _locationDates[locationIndex].indexWhere((date) =>
-  //       date.year == selectedDay.year &&
-  //       date.month == selectedDay.month &&
-  //       date.day == selectedDay.day);
-  //   if (dateIndex == -1) return [];
-
-  //   // Get time slots for this date
-  //   var timeSlots = _locationTimeSlots[locationIndex];
-  //   if (dateIndex >= timeSlots.length) return [];
-
-  //   // Find matching date in time slots
-  //   var matchingSlot = timeSlots.firstWhere(
-  //     (slot) => _parseDateTime(slot['date'].toString()).isAtSameMomentAs(selectedDay),
-  //     orElse: () => {'times': []},
-  //   );
-
-  //   return (matchingSlot['times'] as List?)?.cast<String>() ?? [];
-  // }
-
   @override
   void initState() {
     super.initState();
-    print('DEBUG: initState called');
-    print('DEBUG: offerId: ${widget.offerId}');
-    print('DEBUG: vehicleId: ${widget.vehicleId}');
     _fetchInspectionLocations();
   }
 
   Future<void> _fetchInspectionLocations() async {
-    print('DEBUG: Starting _fetchInspectionLocations');
     try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // 1. Fetch document
-      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offerId)
+      // Get the vehicle document
+      DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
           .get();
 
-      print('DEBUG: Document fetch complete');
-      print('DEBUG: Document exists: ${offerSnapshot.exists}');
+      if (vehicleSnapshot.exists) {
+        print('Vehicle Document Data: ${vehicleSnapshot.data()}');
 
-      Map<String, dynamic>? data =
-          offerSnapshot.data() as Map<String, dynamic>?;
-      print('DEBUG: Raw data: $data');
+        // Check if 'inspectionLocations' field exists
+        Map<String, dynamic>? vehicleData =
+            vehicleSnapshot.data() as Map<String, dynamic>?;
 
-      // 2. Parse inspection locations
-      var inspectionDetails = data?['inspectionDetails']?['inspectionDetails']
-          ?['inspectionLocations']?['locations'];
-      print('DEBUG: Inspection details: $inspectionDetails');
+        // Use null-aware operators to safely access the field
+        var inspectionLocations = vehicleData?['inspectionDetails']
+            ?['inspectionLocations']?['locations'] as List<dynamic>?;
 
-      if (inspectionDetails == null) {
-        print('DEBUG: No inspection details found');
-        setState(() {
-          _isLoading = false;
-          _locations = [];
-        });
-        return;
-      }
+        // Check for null or empty inspectionLocations
+        if (inspectionLocations == null || inspectionLocations.isEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Waiting of transporter to setup inspection'),
+            ),
+          );
+          return;
+        }
 
-      // 3. Process locations
-      List<String> tempLocations = [];
-      List<String> tempAddresses = [];
-      List<List<DateTime>> tempDates = [];
-      List<List<Map<String, dynamic>>> tempTimeSlots = [];
+        print('Inspection Locations Data: $inspectionLocations');
 
-      for (var location in inspectionDetails) {
-        print('DEBUG: Processing location: $location');
+        List<String> locations = [];
+        List<String> addresses = [];
+        List<List<DateTime>> locationDates = [];
+        List<List<Map<String, dynamic>>> locationTimeSlots = [];
 
-        String address = location['address'] ?? '';
-        var dates = location['dates'] ?? [];
-        var timeSlots = location['timeSlots'] ?? [];
+        for (var locationEntry in inspectionLocations) {
+          if (locationEntry == null) continue; // Skip if null
 
-        print('DEBUG: Address: $address');
-        print('DEBUG: Dates: $dates');
-        print('DEBUG: TimeSlots: $timeSlots');
+          String address = locationEntry['address'] ?? '';
+          List<dynamic> timeSlots = locationEntry['timeSlots'] ?? [];
 
-        tempLocations.add(address);
-        tempAddresses.add(address);
+          if (address.isEmpty || timeSlots.isEmpty) {
+            continue; // Skip if data is missing
+          }
 
-        // Process dates
-        List<DateTime> locationDates = [];
-        for (var dateStr in dates) {
-          try {
-            DateTime date = DateFormat('dd-MM-yyyy').parse(dateStr);
-            locationDates.add(date);
-          } catch (e) {
-            print('DEBUG: Date parsing error: $e for date: $dateStr');
+          print('Processing location: $address');
+
+          // Lists to hold dates and time slots for this location
+          List<DateTime> dates = [];
+          List<Map<String, dynamic>> timeSlotsList = [];
+
+          for (var timeSlot in timeSlots) {
+            if (timeSlot == null) continue; // Skip if null
+
+            String? dateString = timeSlot['date']; // e.g., "18-9-2024"
+            if (dateString == null) continue; // Skip if date is missing
+
+            DateTime date;
+            try {
+              date = DateFormat('d-M-yyyy').parse(dateString);
+              print('Parsed dateString $dateString to date $date');
+            } catch (e) {
+              print('Error parsing date: $dateString');
+              continue; // Skip this timeSlot if date parsing fails
+            }
+
+            // Add the date to the dates list if not already present
+            if (!dates.contains(date)) {
+              dates.add(date);
+            }
+
+            // Add the times
+            List<dynamic> times = timeSlot['times'] ?? []; // List<String>
+            if (times.isEmpty) {
+              continue; // Skip if times are missing
+            }
+
+            print('Date: $date, Times: $times');
+
+            // Store the date and times together
+            timeSlotsList.add({
+              'date': date,
+              'times': times,
+            });
+          }
+
+          if (dates.isEmpty || timeSlotsList.isEmpty) {
+            continue; // Skip this location if no valid dates or times
+          }
+
+          // Add the address
+          locations.add(address);
+          addresses.add(address);
+
+          // Add the dates and time slots
+          locationDates.add(dates);
+          locationTimeSlots.add(timeSlotsList);
+        }
+
+        // Check if any valid locations were found
+        if (locations.isEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'No valid inspection locations found for this vehicle ${widget.vehicleId}.'),
+            ),
+          );
+          return;
+        }
+
+        // For debugging, print the populated data
+        print('Final Locations: $locations');
+        print('Final Addresses: $addresses');
+        print('Final Location Dates: $locationDates');
+        print('Final Location Time Slots: $locationTimeSlots');
+
+        // Find the first available date across all locations
+        DateTime? firstAvailableDate;
+        for (var dates in locationDates) {
+          for (var date in dates) {
+            if (date.isAfter(DateTime.now()) &&
+                (firstAvailableDate == null ||
+                    date.isBefore(firstAvailableDate))) {
+              firstAvailableDate = date;
+            }
           }
         }
-        tempDates.add(locationDates);
 
-        // Process time slots
-        List<Map<String, dynamic>> locationTimeSlots = [];
-        for (var slot in timeSlots) {
-          locationTimeSlots.add(slot);
-        }
-        tempTimeSlots.add(locationTimeSlots);
+        // Set the focused day to the first available date or the current date if none found
+        _focusedDay = firstAvailableDate ?? DateTime.now();
+        _selectedDay = _focusedDay;
+
+        setState(() {
+          _locations = locations;
+          _addresses = addresses;
+          _locationDates = locationDates;
+          _locationTimeSlots = locationTimeSlots;
+          _isLoading = false;
+        });
+
+        // Update the offer status to "set location and time"
+        FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .update({'offerStatus': 'set location and time'});
+      } else {
+        // Handle the case where the vehicle document does not exist
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vehicle not found for ${widget.vehicleId}')),
+        );
       }
-
-      // 4. Update state
-      setState(() {
-        _isLoading = false;
-        _locations = tempLocations;
-        _addresses = tempAddresses;
-        _locationDates = tempDates;
-        _locationTimeSlots = tempTimeSlots;
-      });
-
-      print('DEBUG: Final state:');
-      print('Locations: $_locations');
-      print('Dates: $_locationDates');
-      print('TimeSlots: $_locationTimeSlots');
-    } catch (e, stack) {
-      print('DEBUG: Error in _fetchInspectionLocations: $e');
-      print('DEBUG: Stack trace: $stack');
+    } catch (e, stacktrace) {
+      print('Error fetching inspection locations: $e');
+      print(stacktrace);
       setState(() {
         _isLoading = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load data: $e')),
+      );
     }
   }
 
@@ -190,13 +226,9 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
           _locationTimeSlots[_selectedLocation];
 
       for (var timeSlot in timeSlots) {
-        // Parse the string date into a DateTime
-        final dateString = timeSlot['date'] as String;
-        final parsedDate = _parseDateTime(dateString);
-        final date = _normalizeDate(parsedDate);
-
+        DateTime date = _normalizeDate(timeSlot['date']);
         if (date.isAtSameMomentAs(normalizedSelectedDay)) {
-          List<dynamic> times = timeSlot['times']; // should be List<String>
+          List<dynamic> times = timeSlot['times']; // List<String>
           print('Available times for $_selectedDay: $times');
           return times.cast<String>();
         }
@@ -258,32 +290,6 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    print('DEBUG: Build method called');
-    print('DEBUG: isLoading: $_isLoading');
-    print('DEBUG: locations: $_locations');
-    print('DEBUG: selectedDay: $_selectedDay');
-
-    if (_isLoading) {
-      return GradientBackground(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                CircularProgressIndicator(color: Colors.white),
-                SizedBox(height: 16),
-                Text(
-                  'Loading inspection details...',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     // Array to get the name of the month
     final List<String> monthNames = [
       'January',
@@ -299,6 +305,12 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
       'November',
       'December'
     ];
+
+    if (_isLoading) {
+      return GradientBackground(
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     if (_locations.isEmpty) {
       return GradientBackground(
@@ -327,427 +339,374 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
     }
 
     return GradientBackground(
-      child: ErrorBoundary(
-        child: Material(
-          color: Colors.transparent,
-          child: SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: AlwaysScrollableScrollPhysics(),
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                              left: 16, right: 16, top: 16, bottom: 100),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 80),
-                              SizedBox(
-                                width: 100,
-                                height: 100,
-                                child: Image.asset(
-                                  'lib/assets/CTPLogo.png',
-                                ),
+      child: Material(
+        color: Colors.transparent,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: 16, right: 16, top: 16, bottom: 100),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 80),
+                            SizedBox(
+                              width: 100,
+                              height: 100,
+                              child: Image.asset(
+                                'lib/assets/CTPLogo.png',
                               ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'CONFIRM YOUR FINAL INSPECTION DETAILS',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'CONFIRM YOUR FINAL INSPECTION DETAILS',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
-                              const SizedBox(height: 16),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Great news!',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  SizedBox(
-                                    width: 5,
-                                  ),
-                                  Text(
-                                    'You have a potential buyer.',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Now, let\'s set up a meeting with the potential seller to inspect the vehicle. Your careful selection ensures a smooth process ahead.',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 32),
-                              GestureDetector(
-                                onTap: () {
-                                  // Handle skip action
-                                },
-                                child: const Text(
-                                  'SKIP >',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Great news!',
                                   style: TextStyle(
                                     fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFFF4E00),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              const Text(
-                                'YOU CAN SKIP THIS STEP IF YOU TRUST THE TRANSPORTER',
-                                style: TextStyle(
-                                    fontSize: 12,
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w500),
-                                textAlign: TextAlign.center,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(
+                                  width: 5,
+                                ),
+                                Text(
+                                  'You have a potential buyer.',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Now, let\'s set up a meeting with the potential seller to inspect the vehicle. Your careful selection ensures a smooth process ahead.',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
                               ),
-                              const SizedBox(height: 40),
-                              const Text(
-                                'SELECT LOCATION',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 32),
+                            GestureDetector(
+                              onTap: () {
+                                // Handle skip action
+                              },
+                              child: const Text(
+                                'SKIP >',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: Color(0xFFFF4E00),
                                 ),
-                                textAlign: TextAlign.center,
                               ),
-                              const SizedBox(height: 32),
+                            ),
+                            const SizedBox(height: 5),
+                            const Text(
+                              'YOU CAN SKIP THIS STEP IF YOU TRUST THE TRANSPORTER',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 40),
+                            const Text(
+                              'SELECT LOCATION',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 32),
+                            Column(
+                              children: _locations.asMap().entries.map((entry) {
+                                int idx = entry.key;
+                                String location = entry.value;
+                                return RadioListTile(
+                                  title: Text(
+                                    location,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                  value: idx,
+                                  groupValue: _selectedLocation,
+                                  activeColor: const Color(0xFFFF4E00),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedLocation = value!;
+                                      _selectedDay = null;
+                                      _selectedTimeSlot = 0;
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'SELECT FROM AVAILABLE DATES AND TIMES FOR YOUR SELECTED LOCATION',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              margin: const EdgeInsets.only(top: 20.0),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: TableCalendar(
+                                availableGestures: AvailableGestures.none,
+                                firstDay: DateTime.utc(2020, 1, 1),
+                                lastDay: DateTime.utc(2100, 1, 1),
+                                focusedDay: _focusedDay,
+                                selectedDayPredicate: (day) {
+                                  return isSameDay(_selectedDay, day);
+                                },
+                                onDaySelected: (selectedDay, focusedDay) {
+                                  setState(() {
+                                    _selectedDay = selectedDay;
+                                    _focusedDay = focusedDay;
+                                  });
+                                },
+                                enabledDayPredicate: (day) {
+                                  return day.isAfter(DateTime.now()
+                                          .subtract(const Duration(days: 1))) &&
+                                      isDateAvailable(day);
+                                },
+                                calendarStyle: CalendarStyle(
+                                  cellMargin: const EdgeInsets.all(4.0),
+                                  selectedDecoration: const BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  todayDecoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  todayTextStyle: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  defaultDecoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.8),
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  defaultTextStyle: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  weekendDecoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.8),
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  weekendTextStyle: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  outsideDaysVisible: false,
+                                  disabledDecoration: const BoxDecoration(
+                                    color: Colors.transparent,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  disabledTextStyle: const TextStyle(
+                                    color: Color.fromARGB(255, 54, 54, 54),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  markerDecoration: const BoxDecoration(
+                                    color: Colors.transparent,
+                                  ),
+                                ),
+                                calendarBuilders: CalendarBuilders(
+                                  disabledBuilder: (context, day, focusedDay) {
+                                    return Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.transparent,
+                                        shape: BoxShape.rectangle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${day.day}',
+                                          style: const TextStyle(
+                                            color:
+                                                Color.fromARGB(255, 54, 54, 54),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                headerStyle: const HeaderStyle(
+                                  titleCentered: true,
+                                  formatButtonVisible: false,
+                                  titleTextStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  leftChevronIcon: Icon(
+                                    Icons.chevron_left,
+                                    color: Colors.white,
+                                  ),
+                                  rightChevronIcon: Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                daysOfWeekStyle: const DaysOfWeekStyle(
+                                  weekdayStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  weekendStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                shouldFillViewport: false,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            if (_selectedDay != null)
+                              Text(
+                                'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFFF4E00),
+                                ),
+                              ),
+                            const SizedBox(height: 32),
+                            if (_selectedDay != null &&
+                                _availableTimes.isNotEmpty) ...[
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: const Text(
+                                  'AVAILABLE TIMES',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.start,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
                               Column(
-                                children:
-                                    _locations.asMap().entries.map((entry) {
+                                children: _availableTimes
+                                    .asMap()
+                                    .entries
+                                    .map((entry) {
                                   int idx = entry.key;
-                                  String location = entry.value;
+                                  String timeSlot = entry.value;
                                   return RadioListTile(
                                     title: Text(
-                                      location,
+                                      timeSlot,
                                       style:
                                           const TextStyle(color: Colors.white),
                                     ),
                                     value: idx,
-                                    groupValue: _selectedLocation,
+                                    groupValue: _selectedTimeSlot,
                                     activeColor: const Color(0xFFFF4E00),
                                     onChanged: (value) {
                                       setState(() {
-                                        _selectedLocation = value!;
-                                        _selectedDay = null;
-                                        _selectedTimeSlot = 0;
+                                        _selectedTimeSlot = value!;
                                       });
                                     },
                                   );
                                 }).toList(),
                               ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'SELECT FROM AVAILABLE DATES AND TIMES FOR YOUR SELECTED LOCATION',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                margin: const EdgeInsets.only(top: 20.0),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: TableCalendar(
-                                  availableGestures: AvailableGestures.none,
-                                  firstDay: DateTime.utc(2020, 1, 1),
-                                  lastDay: DateTime.utc(2100, 1, 1),
-                                  focusedDay: _focusedDay,
-                                  selectedDayPredicate: (day) {
-                                    return isSameDay(_selectedDay, day);
-                                  },
-                                  onDaySelected: (selectedDay, focusedDay) {
-                                    setState(() {
-                                      _selectedDay = selectedDay;
-                                      _focusedDay = focusedDay;
-                                    });
-                                  },
-                                  enabledDayPredicate: (day) {
-                                    return day.isAfter(DateTime.now().subtract(
-                                            const Duration(days: 1))) &&
-                                        isDateAvailable(day);
-                                  },
-                                  calendarStyle: CalendarStyle(
-                                    cellMargin: const EdgeInsets.all(4.0),
-                                    selectedDecoration: const BoxDecoration(
-                                      color: Colors.blue,
-                                      shape: BoxShape.rectangle,
-                                    ),
-                                    todayDecoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.rectangle,
-                                    ),
-                                    todayTextStyle: const TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    defaultDecoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.8),
-                                      shape: BoxShape.rectangle,
-                                    ),
-                                    defaultTextStyle: const TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    weekendDecoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.8),
-                                      shape: BoxShape.rectangle,
-                                    ),
-                                    weekendTextStyle: const TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    outsideDaysVisible: false,
-                                    disabledDecoration: const BoxDecoration(
-                                      color: Colors.transparent,
-                                      shape: BoxShape.rectangle,
-                                    ),
-                                    disabledTextStyle: const TextStyle(
-                                      color: Color.fromARGB(255, 54, 54, 54),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    markerDecoration: const BoxDecoration(
-                                      color: Colors.transparent,
-                                    ),
-                                  ),
-                                  calendarBuilders: CalendarBuilders(
-                                    disabledBuilder:
-                                        (context, day, focusedDay) {
-                                      return Container(
-                                        decoration: const BoxDecoration(
-                                          color: Colors.transparent,
-                                          shape: BoxShape.rectangle,
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            '${day.day}',
-                                            style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                  255, 54, 54, 54),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
+                            ],
+                            const SizedBox(height: 16),
+                            CustomButton(
+                              text: 'CONFIRM MEETING',
+                              borderColor: Colors.blue,
+                              onPressed: (_selectedDay != null &&
+                                      _availableTimes.isNotEmpty)
+                                  ? () async {
+                                      await _saveInspectionDetails();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              LocationConfirmationPage(
+                                            offerId: widget.offerId,
+                                            location:
+                                                _locations[_selectedLocation],
+                                            address:
+                                                _addresses[_selectedLocation],
+                                            date: _selectedDay!,
+                                            time: _availableTimes[
+                                                _selectedTimeSlot],
+                                            makeModel: widget.makeModel,
+                                            offerAmount: widget.offerAmount,
+                                            vehicleId: widget.vehicleId,
                                           ),
                                         ),
                                       );
-                                    },
-                                  ),
-                                  headerStyle: const HeaderStyle(
-                                    titleCentered: true,
-                                    formatButtonVisible: false,
-                                    titleTextStyle: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    leftChevronIcon: Icon(
-                                      Icons.chevron_left,
-                                      color: Colors.white,
-                                    ),
-                                    rightChevronIcon: Icon(
-                                      Icons.chevron_right,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  daysOfWeekStyle: const DaysOfWeekStyle(
-                                    weekdayStyle: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    weekendStyle: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  shouldFillViewport: false,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              if (_selectedDay != null)
-                                Text(
-                                  'Selected Date: ${_selectedDay!.day} ${monthNames[_selectedDay!.month - 1]}, ${_selectedDay!.year}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFFF4E00),
-                                  ),
-                                ),
-                              const SizedBox(height: 32),
-                              if (_selectedDay != null &&
-                                  _availableTimes.isNotEmpty) ...[
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: const Text(
-                                    'AVAILABLE TIMES',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                    textAlign: TextAlign.start,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Column(
-                                  children: _availableTimes
-                                      .asMap()
-                                      .entries
-                                      .map((entry) {
-                                    int idx = entry.key;
-                                    String timeSlot = entry.value;
-                                    return RadioListTile(
-                                      title: Text(
-                                        timeSlot,
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                      ),
-                                      value: idx,
-                                      groupValue: _selectedTimeSlot,
-                                      activeColor: const Color(0xFFFF4E00),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _selectedTimeSlot = value!;
-                                        });
-                                      },
-                                    );
-                                  }).toList(),
-                                ),
-                              ],
-                              const SizedBox(height: 16),
-                              CustomButton(
-                                text: 'CONFIRM MEETING',
-                                borderColor: Colors.blue,
-                                onPressed: (_selectedDay != null &&
-                                        _availableTimes.isNotEmpty)
-                                    ? () async {
-                                        await _saveInspectionDetails();
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                LocationConfirmationPage(
-                                              offerId: widget.offerId,
-                                              location:
-                                                  _locations[_selectedLocation],
-                                              address:
-                                                  _addresses[_selectedLocation],
-                                              date: _selectedDay!,
-                                              time: _availableTimes[
-                                                  _selectedTimeSlot],
-                                              makeModel: widget.makeModel,
-                                              offerAmount: widget.offerAmount,
-                                              vehicleId: widget.vehicleId,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    : null,
-                              ),
-                            ],
-                          ),
+                                    }
+                                  : null,
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    CustomBottomNavigation(
-                      selectedIndex: 1,
-                      onItemTapped: (index) {
-                        setState(() {
-                          // Handle navigation logic if necessary
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                Positioned(
-                  top: 120,
-                  left: 16,
-                  child: CustomBackButton(
-                    onPressed: () => Navigator.of(context).pop(),
                   ),
+                  CustomBottomNavigation(
+                    selectedIndex: 1,
+                    onItemTapped: (index) {
+                      setState(() {
+                        // Handle navigation logic if necessary
+                      });
+                    },
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 120,
+                left: 16,
+                child: CustomBackButton(
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
-}
-
-// Add new ErrorBoundary widget:
-class ErrorBoundary extends StatelessWidget {
-  final Widget child;
-
-  const ErrorBoundary({Key? key, required this.child}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        child,
-        Positioned(
-          top: 40,
-          right: 16,
-          child: IconButton(
-            icon: Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('Debug Info'),
-                  content: SingleChildScrollView(
-                    child: ListBody(
-                      children: [
-                        Text(
-                            'Screen Width: ${MediaQuery.of(context).size.width}'),
-                        Text(
-                            'Screen Height: ${MediaQuery.of(context).size.height}'),
-                        Text('Platform: ${Theme.of(context).platform}'),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      child: Text('Close'),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 }

@@ -308,7 +308,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   void _clearAllData(FormDataProvider formData) {
     debugPrint('Clearing all form data for new upload.');
     formData.clearAllData();
-    formData.setSelectedMainImage(null);
+    formData.setSelectedMainImage(null,null);
     formData.setMainImageUrl(null);
     formData.setNatisRc1Url(null);
     formData.setYear(null);
@@ -1048,7 +1048,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   onPressed: () {
                     Navigator.pop(context);
                     setState(() {
-                      formData.setSelectedMainImage(null);
+                      formData.setSelectedMainImage(null,null);
                       formData.setMainImageUrl(null);
                     });
                     debugPrint('Main image removed by user.');
@@ -1080,7 +1080,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             if (formData.selectedMainImage != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10.0),
-                child: Image.file(formData.selectedMainImage!,
+                child: Image.memory(formData.selectedMainImage!,
                     width: double.infinity,
                     height: _imageHeight,
                     fit: BoxFit.cover),
@@ -1107,10 +1107,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               )
             else
               ImagePickerWidget(
-                onImagePicked: (File? image) {
+                onImagePicked: (Uint8List? image,fileName) {
                   if (image != null) {
-                    formData.setSelectedMainImage(image);
-                    debugPrint('Main image picked: ${image.path}');
+                    formData.setSelectedMainImage(image,fileName);
+                    debugPrint('Main image picked: ${fileName}');
                   }
                 },
               ),
@@ -1689,7 +1689,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             .ref()
             .child('vehicle_images')
             .child('${DateTime.now().toIso8601String()}.jpg');
-        await ref.putFile(formData.selectedMainImage!);
+        await ref.putData(formData.selectedMainImage!);
         imageUrl = await ref.getDownloadURL();
         debugPrint('Main image uploaded. URL: $imageUrl');
       }
@@ -1838,7 +1838,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     _modelController.clear();
     _variantController.clear();
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-    formData.setSelectedMainImage(null);
+    formData.setSelectedMainImage(null,null);
     formData.setMainImageUrl(null);
     setState(() {
       _natisRc1File = null;
@@ -1854,7 +1854,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     try {
       final XFile? image = await picker.pickImage(source: source);
       if (image != null) {
-        formData.setSelectedMainImage(File(image.path));
+        final bytes= await image.readAsBytes();
+        final fileName= image.name;
+        formData.setSelectedMainImage(bytes,fileName);
         debugPrint('Image picked from $source: ${image.path}');
       } else {
         debugPrint('No image selected from $source.');

@@ -1,22 +1,24 @@
 // admin_section.dart
 
-import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:flutter/material.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 
 class AdminEditSection extends StatefulWidget {
   final Vehicle vehicle;
   final bool isUploading;
   final bool isEditing; // Whether user is allowed to edit/remove docs
-  final Function(File?) onAdminDoc1Selected;
-  final Function(File?) onAdminDoc2Selected;
-  final Function(File?) onAdminDoc3Selected;
+  final Function(Uint8List?, String?) onAdminDoc1Selected;
+  final Function(Uint8List?, String?) onAdminDoc2Selected;
+  final Function(Uint8List?, String?) onAdminDoc3Selected;
 
   // Parameter to accept the user's selection
   final String requireToSettleType;
@@ -53,9 +55,12 @@ class AdminEditSectionState extends State<AdminEditSection>
       TextEditingController();
 
   // Variables to hold selected files
-  File? _natisRc1File;
-  File? _licenseDiskFile;
-  File? _settlementLetterFile;
+  Uint8List? _natisRc1File;
+  Uint8List? _licenseDiskFile;
+  Uint8List? _settlementLetterFile;
+  String? _natisRc1FileName;
+  String? _licenseDiskFileName;
+  String? _settlementLetterFileName;
 
   // Variables to hold existing file URLs
   String? _natisRc1Url;
@@ -87,27 +92,42 @@ class AdminEditSectionState extends State<AdminEditSection>
 
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
       );
 
-      if (result != null && result.files.single.path != null) {
-        File selectedFile = File(result.files.single.path!);
+      if (result != null) {
+        final bytes = await result.xFiles.first.readAsBytes();
+        final fileName = result.xFiles.first.name;
         setState(() {
           switch (docNumber) {
             case 1:
-              _natisRc1File = selectedFile;
+              _natisRc1File = bytes;
+              _natisRc1FileName = fileName;
+
               _natisRc1Url = null; // Clear URL when a new file is selected
-              widget.onAdminDoc1Selected(selectedFile);
+              widget.onAdminDoc1Selected(bytes, fileName);
               break;
             case 2:
-              _licenseDiskFile = selectedFile;
+              _licenseDiskFile = bytes;
+              _licenseDiskFileName = fileName;
               _licenseDiskUrl = null; // Clear URL when a new file is selected
-              widget.onAdminDoc2Selected(selectedFile);
+              widget.onAdminDoc2Selected(bytes, fileName);
               break;
             case 3:
-              _settlementLetterFile = selectedFile;
+              _settlementLetterFile = bytes;
+              _settlementLetterFileName = fileName;
               _settlementLetterUrl = null; // Clear URL when a new file selected
-              widget.onAdminDoc3Selected(selectedFile);
+              widget.onAdminDoc3Selected(bytes, fileName);
               break;
           }
         });
@@ -163,13 +183,13 @@ class AdminEditSectionState extends State<AdminEditSection>
   }
 
   // Helper method to display uploaded files in a Stack with "X" to remove
-  Widget _buildUploadedFile({
-    required File? file,
-    required String? fileUrl,
-    required bool isUploading,
-    required VoidCallback onRemove, // Callback to remove this doc
-    required String docName,
-  }) {
+  Widget _buildUploadedFile(
+      {required Uint8List? file,
+      required String? fileUrl,
+      required bool isUploading,
+      required VoidCallback onRemove, // Callback to remove this doc
+      required String docName,
+      required String fileName}) {
     // If no file or URL, show "No file selected"
     if (file == null && fileUrl == null) {
       return const Text(
@@ -179,24 +199,24 @@ class AdminEditSectionState extends State<AdminEditSection>
     }
 
     // Otherwise, gather file name + extension
-    String fileName;
-    String extension;
-    if (file != null) {
-      fileName = file.path.split('/').last;
-      extension = fileName.split('.').last;
-    } else {
-      fileName = getFileNameFromUrl(fileUrl!);
-      extension = fileName.split('.').last;
-    }
+    // String fileName;
+    // String extension;
+    // if (file != null) {
+    //   fileName = file.path.split('/').last;
+    //   extension = fileName.split('.').last;
+    // } else {
+    //   fileName = getFileNameFromUrl(fileUrl!);
+    //   extension = fileName.split('.').last;
+    // }
 
     // "Main widget" is either an image or an icon
     Widget mainWidget;
     if (file != null) {
       // We have a local file
-      if (_isImageFile(file.path)) {
+      if (_isImageFile(fileName)) {
         mainWidget = ClipRRect(
           borderRadius: BorderRadius.circular(8.0),
-          child: Image.file(
+          child: Image.memory(
             file,
             width: 100,
             height: 100,
@@ -207,7 +227,7 @@ class AdminEditSectionState extends State<AdminEditSection>
         mainWidget = Column(
           children: [
             Icon(
-              _getFileIcon(extension),
+              _getFileIcon(fileName),
               color: Colors.white,
               size: 50.0,
             ),
@@ -246,7 +266,7 @@ class AdminEditSectionState extends State<AdminEditSection>
         mainWidget = Column(
           children: [
             Icon(
-              _getFileIcon(extension),
+              _getFileIcon(fileName),
               color: Colors.white,
               size: 50.0,
             ),
@@ -376,7 +396,8 @@ class AdminEditSectionState extends State<AdminEditSection>
       // Upload documents if new files are selected, otherwise use existing URLs
       String natisRc1Url;
       if (_natisRc1File != null) {
-        natisRc1Url = await _uploadDocument(_natisRc1File!, 'NATIS_RC1');
+        natisRc1Url = await _uploadDocument(
+            _natisRc1File!, 'NATIS_RC1', _natisRc1FileName ?? "");
       } else if (_natisRc1Url != null) {
         natisRc1Url = _natisRc1Url!;
       } else {
@@ -389,8 +410,8 @@ class AdminEditSectionState extends State<AdminEditSection>
 
       String licenseDiskUrl;
       if (_licenseDiskFile != null) {
-        licenseDiskUrl =
-            await _uploadDocument(_licenseDiskFile!, 'LicenseDisk');
+        licenseDiskUrl = await _uploadDocument(
+            _licenseDiskFile!, 'LicenseDisk', _licenseDiskFileName ?? "");
       } else if (_licenseDiskUrl != null) {
         licenseDiskUrl = _licenseDiskUrl!;
       } else {
@@ -403,8 +424,8 @@ class AdminEditSectionState extends State<AdminEditSection>
       String? settlementLetterUrl;
       if (widget.requireToSettleType == 'yes') {
         if (_settlementLetterFile != null) {
-          settlementLetterUrl =
-              await _uploadDocument(_settlementLetterFile!, 'SettlementLetter');
+          settlementLetterUrl = await _uploadDocument(_settlementLetterFile!,
+              'SettlementLetter', _settlementLetterFileName ?? "");
         } else if (_settlementLetterUrl != null) {
           settlementLetterUrl = _settlementLetterUrl!;
         } else {
@@ -451,12 +472,13 @@ class AdminEditSectionState extends State<AdminEditSection>
   }
 
   // Helper method to upload a single document
-  Future<String> _uploadDocument(File file, String docName) async {
-    String extension = file.path.split('.').last;
+  Future<String> _uploadDocument(
+      Uint8List file, String docName, String filesName) async {
+    String extension = filesName.split('.').last;
     String fileName =
         'admin_docs/${widget.vehicle.referenceNumber}_$docName${DateTime.now().millisecondsSinceEpoch}.$extension';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(file);
+    UploadTask uploadTask = storageRef.putData(file);
 
     TaskSnapshot snapshot = await uploadTask;
     String downloadUrl = await snapshot.ref.getDownloadURL();
@@ -464,19 +486,19 @@ class AdminEditSectionState extends State<AdminEditSection>
     return downloadUrl;
   }
 
-  void updateAdminDoc1(File? file) {
+  void updateAdminDoc1(Uint8List? file) {
     setState(() {
       _natisRc1File = file;
     });
   }
 
-  void updateAdminDoc2(File? file) {
+  void updateAdminDoc2(Uint8List? file) {
     setState(() {
       _licenseDiskFile = file;
     });
   }
 
-  void updateAdminDoc3(File? file) {
+  void updateAdminDoc3(Uint8List? file) {
     setState(() {
       _settlementLetterFile = file;
     });
@@ -626,13 +648,14 @@ class AdminEditSectionState extends State<AdminEditSection>
                               file: _natisRc1File,
                               fileUrl: _natisRc1Url,
                               isUploading: _isUploading,
+                              fileName: _natisRc1FileName ?? "",
                               docName: 'NATIS/RC1',
                               onRemove: () {
                                 // Remove NATIS/RC1 doc
                                 setState(() {
                                   _natisRc1File = null;
                                   _natisRc1Url = null;
-                                  widget.onAdminDoc1Selected(null);
+                                  widget.onAdminDoc1Selected(null, null);
                                 });
                               },
                             )
@@ -693,6 +716,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                             _buildUploadedFile(
                               file: _licenseDiskFile,
                               fileUrl: _licenseDiskUrl,
+                              fileName: _licenseDiskFileName ?? "",
                               isUploading: _isUploading,
                               docName: 'License Disk',
                               onRemove: () {
@@ -700,7 +724,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                                 setState(() {
                                   _licenseDiskFile = null;
                                   _licenseDiskUrl = null;
-                                  widget.onAdminDoc2Selected(null);
+                                  widget.onAdminDoc2Selected(null, null);
                                 });
                               },
                             )
@@ -763,6 +787,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                                 _settlementLetterUrl != null)
                               _buildUploadedFile(
                                 file: _settlementLetterFile,
+                                fileName: _settlementLetterFileName ?? "",
                                 fileUrl: _settlementLetterUrl,
                                 isUploading: _isUploading,
                                 docName: 'Settlement Letter',
@@ -771,7 +796,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                                   setState(() {
                                     _settlementLetterFile = null;
                                     _settlementLetterUrl = null;
-                                    widget.onAdminDoc3Selected(null);
+                                    widget.onAdminDoc3Selected(null, null);
                                   });
                                 },
                               )
@@ -843,6 +868,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                                 Navigator.pop(context); // Dismiss loading
                                 if (success) {
                                   Navigator.pop(context); // pop the page
+                                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=>VehiclesListPage()));
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(

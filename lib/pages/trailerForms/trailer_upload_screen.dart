@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:ctp/pages/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -103,22 +104,24 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   final TextEditingController _lengthController = TextEditingController();
 
   // Documents
-  File? _natisRc1File;
-  File? _serviceHistoryFile;
+  Uint8List? _natisRc1File;
+  String? _natisRc1FileName;
+  Uint8List? _serviceHistoryFile;
+  String? _serviceHistoryFileName;
 
   // Main Single Image
-  File? _selectedMainImage;
+  Uint8List? _selectedMainImage;
 
   // Other Single Images
-  File? _frontImage;
-  File? _sideImage;
-  File? _tyresImage;
-  File? _chassisImage;
-  File? _deckImage;
-  File? _makersPlateImage;
+  Uint8List? _frontImage;
+  Uint8List? _sideImage;
+  Uint8List? _tyresImage;
+  Uint8List? _chassisImage;
+  Uint8List? _deckImage;
+  Uint8List? _makersPlateImage;
 
   // Additional Images (multiple)
-  final List<File> _additionalImages = [];
+  final List<Uint8List> _additionalImages = [];
 
   // Damages & Additional Features
   String _damagesCondition = 'no';
@@ -207,62 +210,89 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   // -----------------------------------------------------------------------------
   //                     DIALOG HELPER: SHOW SOURCE (Camera vs. Device)
   // -----------------------------------------------------------------------------
-  void _showSourceDialog({
+  void _pickImageOrFile({
     required String title,
     required bool pickImageOnly,
-    required void Function(File?) callback,
-  }) {
-    showDialog(
-      context: context,
-      builder: (BuildContext ctx) {
-        return AlertDialog(
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 1) Take Photo
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Take Photo'),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  final XFile? pickedFile =
-                      await ImagePicker().pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    callback(File(pickedFile.path));
-                  }
-                },
-              ),
-              // 2) Pick from Device
-              ListTile(
-                leading: const Icon(Icons.folder),
-                title: const Text('Pick from Device'),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  if (pickImageOnly) {
-                    // For images only, open gallery
-                    final XFile? pickedFile = await ImagePicker()
-                        .pickImage(source: ImageSource.gallery);
-                    if (pickedFile != null) {
-                      callback(File(pickedFile.path));
-                    }
-                  } else {
-                    // For documents
-                    FilePickerResult? result =
-                        await FilePicker.platform.pickFiles(
-                      type: FileType.any,
-                    );
-                    if (result != null && result.files.single.path != null) {
-                      callback(File(result.files.single.path!));
-                    }
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    required void Function(Uint8List?, String fileName) callback,
+  }) async {
+    if (pickImageOnly) {
+      // For images only, open gallery
+      final XFile? pickedFile =
+          await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        final fileName = pickedFile.name;
+        final bytes = await pickedFile.readAsBytes();
+        callback(bytes, fileName);
+      }
+    } else {
+      // For documents
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+      );
+      if (result != null) {
+        final fileName = result.xFiles.first.name;
+        final bytes = await result.xFiles.first.readAsBytes();
+        callback(bytes, fileName);
+      }
+    }
+    // showDialog(
+    //   context: context,
+    //   builder: (BuildContext ctx) {
+    //     return AlertDialog(
+    //       title: Text(title),
+    //       content: Column(
+    //         mainAxisSize: MainAxisSize.min,
+    //         children: [
+    //           // 1) Take Photo
+    //           ListTile(
+    //             leading: const Icon(Icons.camera_alt),
+    //             title: const Text('Take Photo'),
+    //             onTap: () async {
+    //               Navigator.of(context).pop();
+    //               final XFile? pickedFile =
+    //                   await ImagePicker().pickImage(source: ImageSource.camera);
+    //               if (pickedFile != null) {
+    //                 final fileName = pickedFile.name;
+    //                 final bytes = await pickedFile.readAsBytes();
+
+    //                 callback(bytes, fileName);
+    //               }
+    //             },
+    //           ),
+    //           // 2) Pick from Device
+    //           ListTile(
+    //             leading: const Icon(Icons.folder),
+    //             title: const Text('Pick from Device'),
+    //             onTap: () async {
+    //               Navigator.of(context).pop();
+    //               if (pickImageOnly) {
+    //                 // For images only, open gallery
+    //                 final XFile? pickedFile = await ImagePicker()
+    //                     .pickImage(source: ImageSource.gallery);
+    //                 if (pickedFile != null) {
+    //                   final fileName = pickedFile.name;
+    //                   final bytes = await pickedFile.readAsBytes();
+    //                   callback(bytes, fileName);
+    //                 }
+    //               } else {
+    //                 // For documents
+    //                 FilePickerResult? result =
+    //                     await FilePicker.platform.pickFiles(
+    //                   type: FileType.any,
+    //                 );
+    //                 if (result != null) {
+    //                   final fileName = result.xFiles.first.name;
+    //                   final bytes = await result.xFiles.first.readAsBytes();
+    //                   callback(bytes, fileName);
+    //                 }
+    //               }
+    //             },
+    //           ),
+    //         ],
+    //       ),
+    //     );
+    //   },
+    // );
   }
 
   // -----------------------------------------------------------------------------
@@ -282,10 +312,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _showSourceDialog(
+                    _pickImageOrFile(
                       title: 'Change Main Image',
                       pickImageOnly: true,
-                      callback: (file) {
+                      callback: (file, fileName) {
                         if (file != null) {
                           setState(() => _selectedMainImage = file);
                         }
@@ -315,10 +345,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           },
         );
       } else {
-        _showSourceDialog(
+        _pickImageOrFile(
           title: 'Select Main Image Source',
           pickImageOnly: true,
-          callback: (file) {
+          callback: (file, fileName) {
             if (file != null) {
               setState(() => _selectedMainImage = file);
             }
@@ -338,7 +368,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             if (_selectedMainImage != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10.0),
-                child: Image.file(
+                child: Image.memory(
                   _selectedMainImage!,
                   width: double.infinity,
                   height: _imageHeight,
@@ -490,12 +520,15 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       TextButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          _showSourceDialog(
+                          _pickImageOrFile(
                             title: 'Select NATIS Document Source',
                             pickImageOnly: false,
-                            callback: (file) {
+                            callback: (file, fileName) {
                               if (file != null) {
-                                setState(() => _natisRc1File = file);
+                                setState(() {
+                                  _natisRc1File = file;
+                                  _natisRc1FileName = fileName;
+                                });
                               }
                             },
                           );
@@ -523,12 +556,15 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 );
               } else {
                 // If no file, ask camera or device
-                _showSourceDialog(
+                _pickImageOrFile(
                   title: 'Select NATIS Document Source',
                   pickImageOnly: false,
-                  callback: (file) {
+                  callback: (file, fileName) {
                     if (file != null) {
-                      setState(() => _natisRc1File = file);
+                      setState(() {
+                        _natisRc1File = file;
+                        _natisRc1FileName = fileName;
+                      });
                     }
                   },
                 );
@@ -564,7 +600,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          _natisRc1File!.path.split('/').last,
+                          _natisRc1FileName!.split('/').last,
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
@@ -649,12 +685,15 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       TextButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          _showSourceDialog(
+                          _pickImageOrFile(
                             title: 'Select Service History',
                             pickImageOnly: false,
-                            callback: (file) {
+                            callback: (file, fileName) {
                               if (file != null) {
-                                setState(() => _serviceHistoryFile = file);
+                                setState(() {
+                                  _serviceHistoryFile = file;
+                                  _serviceHistoryFileName = fileName;
+                                });
                               }
                             },
                           );
@@ -682,12 +721,15 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 );
               } else {
                 // If no file, ask camera or device
-                _showSourceDialog(
+                _pickImageOrFile(
                   title: 'Select Service History',
                   pickImageOnly: false,
-                  callback: (file) {
+                  callback: (file, fileName) {
                     if (file != null) {
-                      setState(() => _serviceHistoryFile = file);
+                      setState(() {
+                        _serviceHistoryFile = file;
+                        _serviceHistoryFileName = fileName;
+                      });
                     }
                   },
                 );
@@ -723,7 +765,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          _serviceHistoryFile!.path.split('/').last,
+                          _serviceHistoryFileName!.split('/').last,
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
@@ -880,8 +922,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   // -----------------------------------------------------------------------------
   Widget _buildImageSectionWithTitle(
     String title,
-    File? image,
-    Function(File?) onImagePicked,
+    Uint8List? image,
+    Function(Uint8List?) onImagePicked,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -905,10 +947,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        _showSourceDialog(
+                        _pickImageOrFile(
                           title: 'Change $title',
                           pickImageOnly: true,
-                          callback: (file) {
+                          callback: (file, fileName) {
                             if (file != null) onImagePicked(file);
                           },
                         );
@@ -934,10 +976,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               );
             } else {
               // No image => pick new
-              _showSourceDialog(
+              _pickImageOrFile(
                 title: title,
                 pickImageOnly: true,
-                callback: (file) {
+                callback: (file, fileName) {
                   if (file != null) onImagePicked(file);
                 },
               );
@@ -948,7 +990,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             child: image != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
+                    child: Image.memory(
                       image,
                       fit: BoxFit.cover,
                       height: 150,
@@ -998,7 +1040,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
+                    child: Image.memory(
                       _additionalImages[i],
                       width: 100,
                       height: 100,
@@ -1027,10 +1069,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               ),
             GestureDetector(
               onTap: () {
-                _showSourceDialog(
+                _pickImageOrFile(
                   title: 'Additional Image',
                   pickImageOnly: true,
-                  callback: (file) {
+                  callback: (file, fileName) {
                     if (file != null) {
                       setState(() {
                         _additionalImages.add(file);
@@ -1213,10 +1255,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                _showSourceDialog(
+                _pickImageOrFile(
                   title: 'Change Damage Image',
                   pickImageOnly: true,
-                  callback: (file) {
+                  callback: (file, fileName) {
                     if (file != null) {
                       setState(() {
                         item['image'] = file;
@@ -1248,10 +1290,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       );
     } else {
       // No image => pick new
-      _showSourceDialog(
+      _pickImageOrFile(
         title: 'Damage Image',
         pickImageOnly: true,
-        callback: (file) {
+        callback: (file, fileName) {
           if (file != null) {
             setState(() {
               item['image'] = file;
@@ -1274,10 +1316,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                _showSourceDialog(
+                _pickImageOrFile(
                   title: 'Change Feature Image',
                   pickImageOnly: true,
-                  callback: (file) {
+                  callback: (file, fileName) {
                     if (file != null) {
                       setState(() {
                         item['image'] = file;
@@ -1308,10 +1350,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         ),
       );
     } else {
-      _showSourceDialog(
+      _pickImageOrFile(
         title: 'Feature Image',
         pickImageOnly: true,
-        callback: (file) {
+        callback: (file, fileName) {
           if (file != null) {
             setState(() {
               item['image'] = file;
@@ -1344,11 +1386,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     try {
       final formData = Provider.of<FormDataProvider>(context, listen: false);
 
-      // Validate required fields
-      if (!_validateRequiredFields(formData)) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      
 
       //======================
       // 0) COMMIT TEXT FIELDS
@@ -1367,7 +1405,13 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       formData.setWarrantyDetails(_warrantyDetailsController.text);
       formData.setVehicleType('trailer');
       if (_selectedMainImage != null) {
-        formData.setSelectedMainImage(_selectedMainImage);
+        formData.setSelectedMainImage(_selectedMainImage, "MainImage");
+      }
+
+      // Validate required fields
+      if (!_validateRequiredFields(formData)) {
+        setState(() => _isLoading = false);
+        return;
       }
 
       //======================
@@ -1453,7 +1497,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       // 2) UPLOAD ADDITIONAL IMAGES
       //======================
       List<String> additionalImagesUrls = [];
-      for (File img in _additionalImages) {
+      for (Uint8List img in _additionalImages) {
         final url = await _uploadFileToFirebaseStorage(img, 'vehicle_images');
         if (url != null) {
           additionalImagesUrls.add(url);
@@ -1466,7 +1510,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       List<Map<String, dynamic>> damagesToSave = [];
       for (Map<String, dynamic> dmg in _damageList) {
         String description = dmg['description'] ?? '';
-        File? dmgFile = dmg['image'];
+        Uint8List? dmgFile = dmg['image'];
         String? dmgUrl;
         if (dmgFile != null) {
           dmgUrl = await _uploadFileToFirebaseStorage(dmgFile, 'damage_images');
@@ -1483,7 +1527,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       List<Map<String, dynamic>> featuresToSave = [];
       for (Map<String, dynamic> feat in _featureList) {
         String description = feat['description'] ?? '';
-        File? featFile = feat['image'];
+        Uint8List? featFile = feat['image'];
         String? featUrl;
         if (featFile != null) {
           featUrl =
@@ -1630,12 +1674,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
 
   /// Reusable method to upload a file to Firebase Storage
   Future<String?> _uploadFileToFirebaseStorage(
-      File file, String folderName) async {
+      Uint8List file, String folderName) async {
     try {
       final fileName = DateTime.now().millisecondsSinceEpoch.toString();
       final storageRef =
           FirebaseStorage.instance.ref().child('$folderName/$fileName');
-      await storageRef.putFile(file);
+      await storageRef.putData(file);
       return await storageRef.getDownloadURL();
     } catch (e) {
       debugPrint('File upload error: $e');

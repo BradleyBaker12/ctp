@@ -10,9 +10,9 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 
 class SetupCollectionPage extends StatefulWidget {
-  final String offerId; // Change from vehicleId to offerId
+  final String vehicleId;
 
-  const SetupCollectionPage({super.key, required this.offerId});
+  const SetupCollectionPage({super.key, required this.vehicleId});
 
   @override
   _SetupCollectionPageState createState() => _SetupCollectionPageState();
@@ -270,41 +270,46 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   }
 
   Future<void> _saveCollectionDetails() async {
-    if (_locations.isEmpty) {
-      _showErrorDialog('Please save at least one location.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Format data according to schema
-      Map<String, dynamic> updateData = {
-        'collectionLocation': _locations[0]['address'], // Primary location
-        'collectionDates': _locations
-            .map((loc) => loc['dates'].map((date) => date.toString()).toList())
-            .toList()
-            .first,
+    if (_locations.isNotEmpty) {
+      Map<String, dynamic> collectionDetails = {
         'collectionDetails': {
-          'locations': _locations,
-          'offerDeliveryService': _offerDeliveryOption,
+          'collectionLocations': {
+            'locations': _locations,
+          },
         },
+        'offerDeliveryService': _offerDeliveryOption,
       };
 
-      // Update offer document
-      await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offerId)
-          .update(updateData);
+      setState(() {
+        _isLoading = true;
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Collection details saved!')),
-      );
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-    } catch (e) {
-      _showErrorDialog('Failed to save collection details: $e');
-    } finally {
-      setState(() => _isLoading = false);
+      try {
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.vehicleId)
+            .update(collectionDetails);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Collection details saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/home', (route) => false);
+      } catch (e) {
+        _showErrorDialog(
+            'Failed to save collection details. Please try again.');
+        print('Error saving collection details: $e');
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } else {
+      _showErrorDialog('Please save at least one location.');
     }
   }
 
@@ -422,52 +427,57 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   }
 
   Future<void> _populateFromInspectionDetails() async {
-    print('Starting _populateFromInspectionDetails');
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offerId)
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
           .get();
 
       if (!doc.exists) {
-        throw Exception('Offer not found');
+        _showErrorDialog('No inspection details found for this vehicle.');
+        setState(() {
+          _useInspectionDetails = false;
+          _isLoading = false;
+        });
+        return;
       }
 
-      final data = doc.data() as Map<String, dynamic>;
-      print('Data structure: ${data['inspectionDetails']}');
+      Map<String, dynamic>? inspectionData =
+          doc.data() as Map<String, dynamic>?;
 
-      // Navigate nested structure correctly
-      final inspectionDetails = data['inspectionDetails']['inspectionDetails']
-          as Map<String, dynamic>?;
-      if (inspectionDetails == null) {
-        throw Exception('Missing inspection details structure');
+      if (inspectionData == null ||
+          inspectionData['inspectionDetails'] == null ||
+          inspectionData['inspectionDetails']['inspectionLocations'] == null ||
+          inspectionData['inspectionDetails']['inspectionLocations']
+                  ['locations'] ==
+              null ||
+          (inspectionData['inspectionDetails']['inspectionLocations']
+                  ['locations'] as List)
+              .isEmpty) {
+        _showErrorDialog('No inspection details available to copy.');
+        setState(() {
+          _useInspectionDetails = false;
+          _isLoading = false;
+        });
+        return;
       }
 
-      final inspectionLocations =
-          inspectionDetails['inspectionLocations'] as Map<String, dynamic>?;
-      if (inspectionLocations == null) {
-        throw Exception('Missing inspection locations');
-      }
+      List locations = inspectionData['inspectionDetails']
+          ['inspectionLocations']['locations'];
 
-      final locations = inspectionLocations['locations'] as List?;
-      if (locations == null || locations.isEmpty) {
-        throw Exception('No locations found');
-      }
-
-      print('Found locations: $locations');
-
-      // Process first location
-      final location = locations[0] as Map<String, dynamic>;
+      Map<String, dynamic> inspectionLocation = locations.first;
 
       _clearFields();
       _locations.clear();
 
-      // Process address
-      String address = location['address'];
+      String address = inspectionLocation['address'];
       List<String> addressParts = address.split(', ');
-      _addressLine1Controller.text = addressParts[0];
+      _addressLine1Controller.text =
+          addressParts.isNotEmpty ? addressParts[0] : '';
       _addressLine2Controller.text =
           addressParts.length > 1 ? addressParts[1] : '';
       _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
@@ -475,38 +485,61 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       _postalCodeController.text =
           addressParts.length > 4 ? addressParts[4] : '';
 
-      // Process dates and times
-      List<String> dates = List<String>.from(location['dates']);
-      _selectedDays = dates.map((d) => _parseDateString(d)).toList();
+      List dates = inspectionLocation['dates'];
+      _selectedDays =
+          dates.map((dateStr) => _parseDateString(dateStr)).toList();
 
       _dateTimeSlots.clear();
-      List<Map<String, dynamic>> timeSlots =
-          List<Map<String, dynamic>>.from(location['timeSlots']);
-
-      for (var slot in timeSlots) {
-        DateTime date = _parseDateString(slot['date']);
-        List<String> times = List<String>.from(slot['times']);
-        _dateTimeSlots[date] = times
-            .map((t) => _parseTimeOfDay(t))
+      for (var timeSlotData in inspectionLocation['timeSlots']) {
+        DateTime date = _parseDateString(timeSlotData['date']);
+        List times = timeSlotData['times'];
+        List<TimeOfDay> parsedTimes = times
+            .map((timeStr) => _parseTimeOfDay(timeStr))
             .whereType<TimeOfDay>()
             .toList();
+
+        // Dynamically add new times to _timeSlots if they don't exist
+        for (var time in parsedTimes) {
+          if (!_timeSlots.contains(time)) {
+            _timeSlots.add(time);
+          }
+        }
+
+        // Sort the _timeSlots list after adding new times
+        _timeSlots.sort((a, b) {
+          if (a.hour != b.hour) {
+            return a.hour.compareTo(b.hour);
+          } else {
+            return a.minute.compareTo(b.minute);
+          }
+        });
+
+        _dateTimeSlots[date] = parsedTimes;
       }
 
-      setState(() {
-        if (_selectedDays.isNotEmpty) {
-          _selectedDay = _selectedDays.first;
-          _selectedTimes =
-              _dateTimeSlots[_selectedDay!]?.map((e) => e).toList() ?? [null];
+      if (_selectedDays.isNotEmpty) {
+        _selectedDay = _selectedDays.first;
+        _selectedTimes =
+            _dateTimeSlots[_selectedDay!]?.map((e) => e).toList() ?? [null];
+
+        // If no time selected, choose the first time slot by default
+        if (_selectedTimes.isEmpty || _selectedTimes.first == null) {
+          _selectedTimes[0] = _timeSlots.first;
         }
-        _isAddingLocation = true;
-        _showBackToFormButton = true;
+      }
+
+      _isAddingLocation = true;
+      _showBackToFormButton = true;
+      setState(() {
+        _isLoading = false;
       });
     } catch (e) {
-      print('Error: $e');
-      _showErrorDialog(e.toString());
-      setState(() => _useInspectionDetails = false);
-    } finally {
-      setState(() => _isLoading = false);
+      print('Error fetching inspection details: $e');
+      _showErrorDialog('Failed to fetch inspection details.');
+      setState(() {
+        _useInspectionDetails = false;
+        _isLoading = false;
+      });
     }
   }
 
