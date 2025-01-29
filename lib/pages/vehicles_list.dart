@@ -14,8 +14,6 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 
-// Nested models (only if still needed)
-
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
 
@@ -34,6 +32,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
@@ -41,6 +40,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
       final currentUserId = userProvider.userId;
 
       if (currentUserId != null) {
+        // Fetch vehicles for the logged-in user
         await vehicleProvider.fetchVehicles(
           userProvider,
           userId: currentUserId,
@@ -81,11 +81,14 @@ class _VehiclesListPageState extends State<VehiclesListPage>
       );
     }
 
+    // Get all vehicles uploaded by the current user
     final userVehicles = vehicleProvider.getVehiclesByUserId(currentUserId);
+
+    // Separate them by status
     final drafts =
         userVehicles.where((v) => v.vehicleStatus == 'Draft').toList();
     final pending =
-        userVehicles.where((v) => v.vehicleStatus == 'Pending').toList();
+        userVehicles.where((v) => v.vehicleStatus == 'pending').toList();
     final live = userVehicles.where((v) => v.vehicleStatus == 'Live').toList();
 
     return GradientBackground(
@@ -94,8 +97,12 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         appBar: CustomAppBar(),
         body: Column(
           children: [
-            if (isLoading) const Center(child: CircularProgressIndicator()),
-            if (userVehicles.isEmpty)
+            if (isLoading)
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (!isLoading && userVehicles.isEmpty)
               Center(
                 child: Text(
                   'No Vehicles Found',
@@ -135,6 +142,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
               ),
             ),
             const SizedBox(height: 24),
+
+            // Tab bar for Draft / Pending / Live
             TabBar(
               controller: _tabController,
               labelColor: const Color(0xFFFF4E00),
@@ -147,10 +156,13 @@ class _VehiclesListPageState extends State<VehiclesListPage>
               ],
             ),
             const SizedBox(height: 16),
+
+            // Tab views
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
+                  // Draft tab
                   drafts.isEmpty
                       ? Center(
                           child: Text(
@@ -159,6 +171,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           ),
                         )
                       : _buildVehiclesList(drafts),
+
+                  // Pending tab
                   pending.isEmpty
                       ? Center(
                           child: Text(
@@ -167,6 +181,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                           ),
                         )
                       : _buildVehiclesList(pending),
+
+                  // Live tab
                   live.isEmpty
                       ? Center(
                           child: Text(
@@ -180,13 +196,15 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             ),
           ],
         ),
+
+        // Bottom nav
         bottomNavigationBar: CustomBottomNavigation(
           selectedIndex: _selectedIndex,
           onItemTapped: (index) {
             _onItemTapped(index);
             final userRole = userProvider.getUserRole.toLowerCase().trim();
 
-            // Example: dealer logic
+            // Example for dealers
             if (userRole == 'dealer') {
               // 0: Home, 1: Vehicles, 2: Offers
               if (index == 0) {
@@ -208,7 +226,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                 );
               }
             }
-            // Example: transporter logic
+            // Example for transporters
             else if (userRole == 'transporter') {
               // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
               if (index == 0) {
@@ -235,7 +253,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                 );
               }
             } else {
-              // handle other roles or undefined roles
+              // Handle other roles if needed
             }
           },
         ),
@@ -243,17 +261,18 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     );
   }
 
+  /// Build a list of vehicles using ListingCard
   Widget _buildVehiclesList(List vehicles) {
     return ListView.builder(
       controller: _scrollController,
       itemCount: vehicles.length,
       itemBuilder: (context, index) {
         final vehicle = vehicles[index];
-
         return ListingCard(
           vehicleId: vehicle.id,
-          vehicleType: vehicle.vehicleType, // "truck" or "trailer"
+          vehicleType: vehicle.vehicleType, // e.g. "truck" or "trailer"
           onTap: () {
+            // Go to details page
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -261,25 +280,18 @@ class _VehiclesListPageState extends State<VehiclesListPage>
               ),
             );
           },
-
           // Common fields
           vehicleImageUrl: vehicle.mainImageUrl,
           referenceNumber: vehicle.referenceNumber,
           vehicleTransmission: vehicle.transmissionType,
           vehicleMileage: vehicle.mileage,
-
-          // For trailers
+          // Trailer fields
           trailerType: vehicle.trailerType,
-          trailerMake: vehicle.brands.isNotEmpty
-              ? vehicle.brands.first
-              : '', // Instead of vehicle.make
-          trailerYear: vehicle.year, // e.g. "2023"
-
-          // For trucks
-          truckBrand: vehicle.brands.isNotEmpty
-              ? vehicle.brands.first
-              : '', // e.g. "Scania"
-          truckModel: vehicle.makeModel, // e.g. "G460"
+          trailerMake: vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
+          trailerYear: vehicle.year,
+          // Truck fields
+          truckBrand: vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
+          truckModel: vehicle.makeModel,
         );
       },
     );

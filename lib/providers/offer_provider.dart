@@ -359,6 +359,11 @@ class OfferProvider with ChangeNotifier {
           .collection('offers')
           .doc(offerId)
           .update({'paymentStatus': newStatus});
+
+      await _firestore
+          .collection('offers')
+          .doc(offerId)
+          .update({'offerStatus': newStatus});
       // await _firestore
       //     .collection('offers')
       //     .doc(offerId)

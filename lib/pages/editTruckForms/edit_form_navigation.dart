@@ -411,41 +411,6 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
               _buildSection(context, 'ADMIN',
                   '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
               const SizedBox(height: 20),
-              if (vehicle?.vehicleStatus == 'Draft')
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                  child: CustomButton(
-                    onPressed: () async {
-                      await FirebaseFirestore.instance
-                          .collection('vehicles')
-                          .doc(vehicle!.id)
-                          .update({'vehicleStatus': 'Live'});
-
-                      // Fetch updated vehicle data
-                      await _fetchVehicleData();
-                    },
-                    text: 'PUSH TO LIVE',
-                    borderColor: Colors.green,
-                  ),
-                )
-              else if (vehicle?.vehicleStatus == 'Live')
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                  child: CustomButton(
-                    onPressed: () async {
-                      await FirebaseFirestore.instance
-                          .collection('vehicles')
-                          .doc(vehicle!.id)
-                          .update({'vehicleStatus': 'Draft'});
-
-                      // Fetch updated vehicle data
-                      await _fetchVehicleData();
-                    },
-                    text: 'MOVE TO DRAFT',
-                    borderColor: Colors.blueAccent,
-                  ),
-                ),
-              const SizedBox(height: 20),
               _buildBottomButtons(),
               const SizedBox(height: 20),
             ],

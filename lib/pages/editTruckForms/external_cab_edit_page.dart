@@ -184,6 +184,28 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
             onChange: _updateAdditionalFeaturesType,
             buildItemSection: _buildAdditionalFeaturesSection,
           ),
+          const SizedBox(height: 16.0),
+          // Center(
+          //   child: Column(
+          //     mainAxisAlignment: MainAxisAlignment.center,
+          //     children: [
+          //       Icon(
+          //         Icons.cloud_upload,
+          //         size: 48,
+          //         color: Colors.grey[600],
+          //       ),
+          //       SizedBox(height: 16),
+          //       Text(
+          //         'Drag and drop files here or click to upload',
+          //         textAlign: TextAlign.center,
+          //         style: TextStyle(
+          //           color: Colors.grey[600],
+          //           fontSize: 16,
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
         ],
       ),
     );
@@ -303,23 +325,32 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         ),
       );
     } else {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (!isDealer)
-            const Icon(Icons.add_circle_outline,
-                color: Colors.white, size: 40.0),
-          const SizedBox(height: 8.0),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
+      return Center(
+        // Added Center widget here
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (!isDealer)
+                const Icon(
+                  Icons.add_circle_outline,
+                  color: Colors.white,
+                  size: 40.0,
+                ),
+              if (!isDealer) const SizedBox(height: 8.0),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-        ],
+        ),
       );
     }
   }

@@ -382,49 +382,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
         child: Stack(
           children: [
             // Existing image logic:
-            if (hasFile)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  _selectedImages[title]!.file!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              )
-            else if (hasUrl)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  _selectedImages[title]!.url!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.error_outline, color: Colors.red);
-                  },
-                ),
-              )
-            else
-              // Placeholder
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!isDealer)
-                    const Icon(Icons.add_circle_outline,
-                        color: Colors.white, size: 40.0),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+            _getImageWidget(_selectedImages[title], title, isDealer),
 
             // The "X" button (only if user is a transporter and there's an image)
             if (!isDealer && (hasFile || hasUrl))
@@ -536,35 +494,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
             child: Stack(
               children: [
                 // Existing image or placeholder
-                if (!hasFile &&
-                    (!hasUrl || !item.imageData.url!.startsWith('http')))
-                  _buildImagePlaceholder()
-                else
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: hasFile
-                        ? Image.file(
-                            item.imageData.file!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          )
-                        : Image.network(
-                            item.imageData.url!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildImagePlaceholder();
-                            },
-                          ),
-                  ),
+                _getImageWidget(
+                    item.imageData, 'Clear Picture of Item', isDealer),
 
                 // The "X" button (only if not dealer and there's an image)
                 if (!isDealer && (hasFile || hasUrl))
@@ -1121,4 +1052,71 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
   @override
   bool get wantKeepAlive => true;
+}
+
+Widget _getImageWidget(ImageData? imageData, String title, bool isDealer) {
+  if (imageData?.file != null) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8.0),
+      child: Image.file(
+        imageData!.file!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      ),
+    );
+  } else if (imageData?.url != null && imageData!.url!.isNotEmpty) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8.0),
+      child: Image.network(
+        imageData.url!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(
+            child: Icon(Icons.error_outline, color: Colors.red, size: 40),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          );
+        },
+      ),
+    );
+  } else {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (!isDealer)
+              const Icon(
+                Icons.add_circle_outline,
+                color: Colors.white,
+                size: 40.0,
+              ),
+            if (!isDealer) const SizedBox(height: 8.0),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

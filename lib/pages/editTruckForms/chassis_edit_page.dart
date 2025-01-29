@@ -326,6 +326,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
         child: Stack(
+          alignment: Alignment.center, // <-- Ensure content is centered
           children: [
             // Main image or placeholder
             if (hasFile)
@@ -663,6 +664,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
             child: Stack(
+              alignment: Alignment.center, // <-- Ensure placeholder is centered
               children: [
                 // Existing image or placeholder
                 if (hasFile)

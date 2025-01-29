@@ -21,7 +21,8 @@ class VehiclesTab extends StatefulWidget {
   _VehiclesTabState createState() => _VehiclesTabState();
 }
 
-class _VehiclesTabState extends State<VehiclesTab> {
+class _VehiclesTabState extends State<VehiclesTab>
+    with SingleTickerProviderStateMixin {
   // --------------------------------------------------------------------
   // 1) Filter State
   // --------------------------------------------------------------------
@@ -136,9 +137,18 @@ class _VehiclesTabState extends State<VehiclesTab> {
   // Store the entire countries.json so we can find provinces:
   List<dynamic> _countriesData = [];
 
+  // --------------------------------------------------------------------
+  // NEW: Tab Controller and Current Tab Status
+  // --------------------------------------------------------------------
+  late TabController _tabController;
+  String _currentTabStatus = 'Draft'; // Default selected tab
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabSelection);
+
     _loadBrandsFromJson();
     _loadCountriesFromJson(); // load countries & provinces
     _fetchVehicles();
@@ -152,6 +162,23 @@ class _VehiclesTabState extends State<VehiclesTab> {
         _fetchVehicles();
       }
     });
+  }
+
+  /// NEW: Handle Tab Selection
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging) return; // Prevent intermediate states
+    setState(() {
+      _currentTabStatus = _tabController.index == 0
+          ? 'Draft'
+          : _tabController.index == 1
+              ? 'pending'
+              : 'Live';
+      _vehicles.clear();
+      _lastDocument = null;
+      _hasMore = true;
+    });
+    debugPrint('--- DEBUG: Selected Tab: $_currentTabStatus ---');
+    _fetchVehicles();
   }
 
   /// Loads distinct brand names from updated_truck_data.json.
@@ -308,6 +335,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -359,18 +387,15 @@ class _VehiclesTabState extends State<VehiclesTab> {
 
     debugPrint('--- DEBUG: Starting _fetchVehicles() ---');
     debugPrint('Current sort field: $_sortField, ascending: $_sortAscending');
+    debugPrint('Current Tab Status: $_currentTabStatus');
     debugPrint('Limit: $_limit, Last Document: ${_lastDocument?.id ?? "None"}');
 
-    // Start by excluding Archived vehicles:
+    // Start by filtering based on the current tab's status
     Query query = FirebaseFirestore.instance
         .collection('vehicles')
-        .where('vehicleStatus', isNotEqualTo: 'Archived');
+        .where('vehicleStatus', isEqualTo: _currentTabStatus);
 
-    // Because Firestore requires that fields used in an inequality filter appear in the orderBy,
-    // if the sort field is not 'vehicleStatus', add an orderBy on 'vehicleStatus' first.
-    if (_sortField != 'vehicleStatus') {
-      query = query.orderBy('vehicleStatus');
-    }
+    // Apply sorting
     query = query.orderBy(_sortField, descending: !_sortAscending);
 
     // ─── Filter for Sales Representatives ──────────────────────────────
@@ -406,12 +431,15 @@ class _VehiclesTabState extends State<VehiclesTab> {
           '--- DEBUG: Filtering by MakeModels: $_selectedMakeModels ---');
       query = query.where('makeModel', whereIn: _selectedMakeModels);
     }
+    // Removed vehicleStatus filter as it's handled by tab
+    /*
     if (_selectedVehicleStatuses.isNotEmpty &&
         !_selectedVehicleStatuses.contains('All')) {
       debugPrint(
           '--- DEBUG: Filtering by Vehicle Statuses: $_selectedVehicleStatuses ---');
       query = query.where('vehicleStatus', whereIn: _selectedVehicleStatuses);
     }
+    */
     if (_selectedTransmissions.isNotEmpty &&
         !_selectedTransmissions.contains('All')) {
       debugPrint(
@@ -502,7 +530,19 @@ class _VehiclesTabState extends State<VehiclesTab> {
       body: GradientBackground(
         child: Column(
           children: [
-            // SEARCH, SORT, and FILTER controls:
+            // --- TAB BAR ---
+            TabBar(
+              controller: _tabController,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              indicatorColor: const Color(0xFFFF4E00),
+              tabs: const [
+                Tab(text: "Draft"),
+                Tab(text: "Pending"),
+                Tab(text: "Live"),
+              ],
+            ),
+            // --- SEARCH, SORT, and FILTER controls:
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
@@ -955,7 +995,12 @@ class _VehiclesTabState extends State<VehiclesTab> {
                     ExpansionTile(
                       title: Text('By Status',
                           style: GoogleFonts.montserrat(color: Colors.white)),
-                      children: _vehicleStatusOptions.map((status) {
+                      children: _vehicleStatusOptions
+                          .where((status) =>
+                              status != 'Draft' &&
+                              status != 'pending' &&
+                              status != 'Live')
+                          .map((status) {
                         return CheckboxListTile(
                           title: Text(status,
                               style:
