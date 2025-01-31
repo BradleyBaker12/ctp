@@ -149,10 +149,10 @@ class _VehiclesListPageState extends State<VehiclesListPage>
               labelColor: const Color(0xFFFF4E00),
               unselectedLabelColor: Colors.white,
               indicatorColor: const Color(0xFFFF4E00),
-              tabs: const [
-                Tab(text: 'Drafts'),
-                Tab(text: 'Pending'),
-                Tab(text: 'Live'),
+              tabs: [
+                Tab(text: 'Drafts (${drafts.length})'),
+                Tab(text: 'Pending (${pending.length})'),
+                Tab(text: 'Live (${live.length})'),
               ],
             ),
             const SizedBox(height: 16),

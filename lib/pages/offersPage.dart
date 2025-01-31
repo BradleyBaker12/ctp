@@ -140,6 +140,11 @@ class OffersPageState extends State<OffersPage> with RouteAware {
     }
   }
 
+  // Add this helper method after _filterOffers
+  int _getFilteredCount(String status) {
+    return _filterOffers(status).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -230,11 +235,17 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                       labelColor: const Color(0xFFFF4E00),
                       unselectedLabelColor: Colors.white,
                       indicatorColor: const Color(0xFFFF4E00),
-                      tabs: const [
-                        Tab(text: 'All'),
-                        Tab(text: 'In Progress'),
-                        Tab(text: 'Successful'),
-                        Tab(text: 'Rejected'),
+                      tabs: [
+                        Tab(text: 'All (${_getFilteredCount("ALL")})'),
+                        Tab(
+                            text:
+                                'In Progress (${_getFilteredCount("IN_PROGRESS")})'),
+                        Tab(
+                            text:
+                                'Successful (${_getFilteredCount("SUCCESSFUL")})'),
+                        Tab(
+                            text:
+                                'Rejected (${_getFilteredCount("REJECTED")})'),
                       ],
                     ),
                     const SizedBox(height: 16),

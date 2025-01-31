@@ -211,72 +211,63 @@ class _OffersTabState extends State<OffersTab> {
 
   /// Matches the search query against offer fields.
   bool _matchesSearch(Offer offer) {
-    if (_searchQuery.isEmpty) {
-      print('DEBUG: Offer ${offer.offerId} matched search (empty query).');
-      return true;
-    }
-    final vehicleMakeModel = (offer.vehicleMakeModel ?? '').toLowerCase();
-    final dealerId = offer.dealerId.toLowerCase();
-    final offerStatus = offer.offerStatus.toLowerCase();
-    final matches = vehicleMakeModel.contains(_searchQuery) ||
-        dealerId.contains(_searchQuery) ||
-        offerStatus.contains(_searchQuery);
-    print(
-        'DEBUG: Offer ${offer.offerId} => match = $matches (search: $_searchQuery)');
-    return matches;
+    if (_searchQuery.isEmpty) return true;
+
+    final query = _searchQuery.toLowerCase();
+
+    // Enhanced search across all relevant fields
+    return (offer.vehicleMakeModel ?? '').toLowerCase().contains(query) ||
+        (offer.dealerId).toLowerCase().contains(query) ||
+        (offer.transporterId ?? '').toLowerCase().contains(query) ||
+        (offer.offerStatus).toLowerCase().contains(query) ||
+        (offer.offerAmount?.toString() ?? '').contains(query);
   }
 
   /// Filter offers by status, sort them, and return the final list.
   List<Offer> _getFilteredAndSortedOffers(List<Offer> offers) {
-    print(
-        'DEBUG: _getFilteredAndSortedOffers => _filterStatus = $_filterStatus');
-    print('DEBUG: Offers before filtering => ${offers.length}');
+    // First apply status filter
+    var filteredOffers = offers.where((offer) {
+      if (_filterStatus == 'All') return true;
 
-    final filteredByStatus = offers.where((offer) {
       final status = offer.offerStatus.toLowerCase();
-      if (_filterStatus == 'All') {
-        return true;
-      } else if (_filterStatus == 'Accepted')
-        return status == 'accepted';
-      else if (_filterStatus == 'Rejected')
-        return status == 'rejected';
-      else if (_filterStatus == 'In-Progress')
-        return status != 'accepted' && status != 'rejected';
-      return true;
+      switch (_filterStatus.toLowerCase()) {
+        case 'accepted':
+          return status == 'accepted';
+        case 'rejected':
+          return status == 'rejected';
+        case 'in-progress':
+          return status != 'accepted' && status != 'rejected';
+        default:
+          return true;
+      }
     }).toList();
 
-    print(
-        'DEBUG: After status filter => ${filteredByStatus.length} offers remain:');
-    for (final offer in filteredByStatus) {
-      print('  -> Offer ${offer.offerId}, status = ${offer.offerStatus}');
-    }
+    // Then apply search
+    filteredOffers = filteredOffers.where(_matchesSearch).toList();
 
-    filteredByStatus.sort((a, b) {
-      if (_sortField == 'createdAt') {
-        return _sortAscending
-            ? (a.createdAt ?? DateTime(0)).compareTo(b.createdAt ?? DateTime(0))
-            : (b.createdAt ?? DateTime(0))
-                .compareTo(a.createdAt ?? DateTime(0));
-      } else if (_sortField == 'offerAmount') {
-        final aAmount = a.offerAmount ?? 0.0;
-        final bAmount = b.offerAmount ?? 0.0;
-        return _sortAscending
-            ? aAmount.compareTo(bAmount)
-            : bAmount.compareTo(aAmount);
-      } else if (_sortField == 'offerStatus') {
-        return _sortAscending
-            ? a.offerStatus.compareTo(b.offerStatus)
-            : b.offerStatus.compareTo(a.offerStatus);
+    // Finally sort
+    filteredOffers.sort((a, b) {
+      switch (_sortField) {
+        case 'createdAt':
+          return _sortAscending
+              ? (a.createdAt ?? DateTime(0))
+                  .compareTo(b.createdAt ?? DateTime(0))
+              : (b.createdAt ?? DateTime(0))
+                  .compareTo(a.createdAt ?? DateTime(0));
+        case 'offerAmount':
+          return _sortAscending
+              ? (a.offerAmount ?? 0).compareTo(b.offerAmount ?? 0)
+              : (b.offerAmount ?? 0).compareTo(a.offerAmount ?? 0);
+        case 'offerStatus':
+          return _sortAscending
+              ? a.offerStatus.compareTo(b.offerStatus)
+              : b.offerStatus.compareTo(a.offerStatus);
+        default:
+          return 0;
       }
-      return 0;
     });
 
-    print('DEBUG: After sorting => ${filteredByStatus.length} offers remain:');
-    for (final offer in filteredByStatus) {
-      print('  -> Offer ${offer.offerId}, status = ${offer.offerStatus}');
-    }
-
-    return filteredByStatus;
+    return filteredOffers;
   }
 
   Widget _buildOfferImage(Offer offer) {

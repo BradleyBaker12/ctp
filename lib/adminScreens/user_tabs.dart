@@ -26,7 +26,7 @@ class _UsersTabState extends State<UsersTab> {
   String _searchQuery = '';
 
   // Pagination variables
-  final int _limit = 10;
+  final int _limit = 20; // Increased from 10 to 20
   DocumentSnapshot? _lastDocument;
   bool _isLoading = false;
   bool _hasMore = true;
@@ -57,16 +57,20 @@ class _UsersTabState extends State<UsersTab> {
     'Has Trading As',
   ];
 
+  // Add a flag to track initial loading
+  bool _isInitialLoading = true;
+
   @override
   void initState() {
     super.initState();
     _initializeSecondaryApp();
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 200 &&
-          !_isLoading &&
-          _hasMore) {
-        _fetchUsers();
+          _scrollController.position.maxScrollExtent - 500) {
+        // Increased threshold
+        if (!_isLoading && _hasMore) {
+          _fetchUsers();
+        }
       }
     });
   }
@@ -148,56 +152,148 @@ class _UsersTabState extends State<UsersTab> {
     }
   }
 
+  bool _matchesFiltersAndSearch(Map<String, dynamic> userData) {
+    // Return true if no filters and no search
+    if (_selectedFilters.isEmpty && _searchQuery.isEmpty) return true;
+
+    // Check search query
+    if (_searchQuery.isNotEmpty) {
+      String firstName = (userData['firstName'] ?? '').toLowerCase();
+      String lastName = (userData['lastName'] ?? '').toLowerCase();
+      String email = (userData['email'] ?? '').toLowerCase();
+      String role = (userData['userRole'] ?? '').toLowerCase();
+      String status = (userData['accountStatus'] ?? '').toLowerCase();
+      String companyName = (userData['companyName'] ?? '').toLowerCase();
+      String tradingAs = (userData['tradingAs'] ?? '').toLowerCase();
+
+      bool matchesSearch = firstName.contains(_searchQuery.toLowerCase()) ||
+          lastName.contains(_searchQuery.toLowerCase()) ||
+          email.contains(_searchQuery.toLowerCase()) ||
+          role.contains(_searchQuery.toLowerCase()) ||
+          status.contains(_searchQuery.toLowerCase()) ||
+          companyName.contains(_searchQuery.toLowerCase()) ||
+          tradingAs.contains(_searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+    }
+
+    // Check filters
+    if (_selectedFilters.isEmpty || _selectedFilters.contains('All Users')) {
+      return true;
+    }
+
+    String role = (userData['userRole'] ?? '').toLowerCase();
+    String status = (userData['accountStatus'] ?? '').toLowerCase();
+    String companyName = (userData['companyName'] ?? '').toLowerCase();
+    String tradingAs = (userData['tradingAs'] ?? '').toLowerCase();
+
+    for (String filter in _selectedFilters) {
+      switch (filter.toLowerCase()) {
+        case 'dealers':
+          if (role == 'dealer') return true;
+          break;
+        case 'transporters':
+          if (role == 'transporter') return true;
+          break;
+        case 'admin':
+          if (role == 'admin') return true;
+          break;
+        case 'active users':
+          if (status == 'active') return true;
+          break;
+        case 'pending users':
+          if (status == 'pending') return true;
+          break;
+        case 'suspended users':
+          if (status == 'suspended') return true;
+          break;
+        case 'has company name':
+          if (companyName.isNotEmpty) return true;
+          break;
+        case 'has trading as':
+          if (tradingAs.isNotEmpty) return true;
+          break;
+      }
+    }
+
+    return false;
+  }
+
   Future<void> _fetchUsers() async {
     if (_isLoading || !_hasMore) return;
+
     setState(() {
       _isLoading = true;
     });
 
-    // Get current user details from provider.
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final String currentUserRole = userProvider.getUserRole;
-    final bool isAdmin = currentUserRole == 'admin';
-    final String? currentUserId = userProvider.userId; // Updated getter
-
-    Query query = usersCollection
-        .orderBy(_sortField, descending: !_sortAscending)
-        .limit(_limit);
-
-    // If current user is a sales rep, only fetch users assigned to them.
-    if (!isAdmin) {
-      query = query.where('assignedSalesRep', isEqualTo: currentUserId);
-    }
-
-    if (_lastDocument != null) {
-      query = query.startAfterDocument(_lastDocument!);
-    }
-
     try {
-      QuerySnapshot querySnapshot = await query.get();
+      // Get current user details from provider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final String currentUserRole = userProvider.getUserRole;
+      final bool isAdmin = currentUserRole == 'admin';
+      final String? currentUserId = userProvider.userId;
 
-      // Debug: print how many documents were fetched.
-      print("Fetched ${querySnapshot.docs.length} users.");
-      for (var doc in querySnapshot.docs) {
-        print("User ID: ${doc.id}");
+      // Start building the query
+      Query query =
+          usersCollection.orderBy(_sortField, descending: !_sortAscending);
+
+      // Apply role filters if any are selected
+      if (_selectedFilters.isNotEmpty &&
+          !_selectedFilters.contains('All Users')) {
+        if (_selectedFilters.contains('Dealers')) {
+          query = query.where('userRole', isEqualTo: 'dealer');
+        } else if (_selectedFilters.contains('Transporters')) {
+          query = query.where('userRole', isEqualTo: 'transporter');
+        } else if (_selectedFilters.contains('Admin')) {
+          query = query.where('userRole', isEqualTo: 'admin');
+        }
+
+        // Apply status filters
+        if (_selectedFilters.contains('Active Users')) {
+          query = query.where('accountStatus', isEqualTo: 'active');
+        } else if (_selectedFilters.contains('Pending Users')) {
+          query = query.where('accountStatus', isEqualTo: 'pending');
+        } else if (_selectedFilters.contains('Suspended Users')) {
+          query = query.where('accountStatus', isEqualTo: 'suspended');
+        }
       }
 
+      // Apply sales rep filter for non-admin users
+      if (!isAdmin) {
+        query = query.where('assignedSalesRep', isEqualTo: currentUserId);
+      }
+
+      // Apply pagination
+      query = query.limit(_limit);
+      if (_lastDocument != null) {
+        query = query.startAfterDocument(_lastDocument!);
+      }
+
+      // Execute the query
+      QuerySnapshot querySnapshot = await query.get();
+
       if (querySnapshot.docs.isNotEmpty) {
-        _lastDocument = querySnapshot.docs.last;
-        _users.addAll(querySnapshot.docs);
-        if (querySnapshot.docs.length < _limit) {
-          _hasMore = false;
-        }
+        setState(() {
+          _lastDocument = querySnapshot.docs.last;
+          _users.addAll(querySnapshot.docs);
+          _hasMore = querySnapshot.docs.length >= _limit;
+          _isLoading = false;
+          _isInitialLoading = false;
+        });
       } else {
-        _hasMore = false;
+        setState(() {
+          _hasMore = false;
+          _isLoading = false;
+          _isInitialLoading = false;
+        });
       }
     } catch (e) {
       print('Error fetching users: $e');
+      setState(() {
+        _isLoading = false;
+        _isInitialLoading = false;
+      });
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   Future<void> _showSortMenu() async {
@@ -318,13 +414,14 @@ class _UsersTabState extends State<UsersTab> {
                   style:
                       GoogleFonts.montserrat(color: const Color(0xFFFF4E00))),
               onPressed: () {
-                Navigator.pop(context);
                 setState(() {
                   _users.clear();
                   _lastDocument = null;
                   _hasMore = true;
+                  _isInitialLoading = true; // Reset loading state
                 });
-                _fetchUsers();
+                Navigator.pop(context);
+                _fetchUsers(); // Fetch users with new filters
               },
             ),
           ],
@@ -337,7 +434,7 @@ class _UsersTabState extends State<UsersTab> {
   Widget build(BuildContext context) {
     List<DocumentSnapshot> filteredUsers = _users.where((doc) {
       var data = doc.data() as Map<String, dynamic>;
-      return _matchesSearch(data);
+      return _matchesFiltersAndSearch(data);
     }).toList();
 
     // Get current user role and id.
@@ -422,90 +519,94 @@ class _UsersTabState extends State<UsersTab> {
             ),
             // Users List.
             Expanded(
-              child: filteredUsers.isEmpty
-                  ? _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : Center(
+              child: _isInitialLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredUsers.isEmpty
+                      ? Center(
                           child: Text(
                             'No users found.',
                             style: GoogleFonts.montserrat(color: Colors.white),
                           ),
                         )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      itemCount: filteredUsers.length + (_hasMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == filteredUsers.length) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        }
-                        var userData =
-                            filteredUsers[index].data() as Map<String, dynamic>;
-                        String userId = filteredUsers[index].id;
-                        String firstName = userData['firstName'] ?? 'No Name';
-                        String lastName = userData['lastName'] ?? '';
-                        String email = userData['email'] ?? 'No Email';
-                        String role = userData['userRole'] ?? 'user';
-                        String companyName =
-                            userData['companyName'] ?? 'No Company';
-                        String tradingAs =
-                            userData['tradingAs'] ?? 'No Trading As';
-                        var accountStatus = userData['accountStatus'];
-                        String status;
-                        if (accountStatus is String) {
-                          status = accountStatus;
-                        } else if (accountStatus is bool) {
-                          status = accountStatus ? 'active' : 'inactive';
-                        } else {
-                          status = 'active';
-                        }
-                        return Card(
-                          color: Colors.grey[900],
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.blueAccent,
-                              child: Text(
-                                firstName.isNotEmpty
-                                    ? firstName[0].toUpperCase()
-                                    : 'U',
-                                style:
-                                    GoogleFonts.montserrat(color: Colors.white),
-                              ),
-                            ),
-                            title: Text(
-                              '$firstName $lastName',
-                              style: GoogleFonts.montserrat(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white70),
-                            ),
-                            isThreeLine: false,
-                            trailing: const Icon(Icons.arrow_forward_ios,
-                                color: Colors.white),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      UserDetailPage(userId: userId),
+                      : ListView.builder(
+                          controller: _scrollController,
+                          itemCount: filteredUsers.length + (_hasMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == filteredUsers.length) {
+                              if (_isLoading) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            }
+                            var userData = filteredUsers[index].data()
+                                as Map<String, dynamic>;
+                            String userId = filteredUsers[index].id;
+                            String firstName =
+                                userData['firstName'] ?? 'No Name';
+                            String lastName = userData['lastName'] ?? '';
+                            String email = userData['email'] ?? 'No Email';
+                            String role = userData['userRole'] ?? 'user';
+                            String companyName =
+                                userData['companyName'] ?? 'No Company';
+                            String tradingAs =
+                                userData['tradingAs'] ?? 'No Trading As';
+                            var accountStatus = userData['accountStatus'];
+                            String status;
+                            if (accountStatus is String) {
+                              status = accountStatus;
+                            } else if (accountStatus is bool) {
+                              status = accountStatus ? 'active' : 'inactive';
+                            } else {
+                              status = 'active';
+                            }
+                            return Card(
+                              color: Colors.grey[900],
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.blueAccent,
+                                  child: Text(
+                                    firstName.isNotEmpty
+                                        ? firstName[0].toUpperCase()
+                                        : 'U',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                  ),
                                 ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
+                                title: Text(
+                                  '$firstName $lastName',
+                                  style: GoogleFonts.montserrat(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white70),
+                                ),
+                                isThreeLine: false,
+                                trailing: const Icon(Icons.arrow_forward_ios,
+                                    color: Colors.white),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          UserDetailPage(userId: userId),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),

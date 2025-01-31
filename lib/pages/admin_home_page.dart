@@ -17,6 +17,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Import the ProfilePage for navigation
 import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/providers/complaints_provider.dart'; // Note the plural form
+import 'package:ctp/providers/vehicles_provider.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -28,32 +30,99 @@ class AdminHomePage extends StatefulWidget {
 class _AdminHomePageState extends State<AdminHomePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int userCount = 0;
+  int offerCount = 0;
+  int complaintCount = 0;
+  int vehicleCount = 0;
+
   final Key _offersTabKey = UniqueKey(); // Add this line
 
-  final List<Tab> myTabs = <Tab>[
-    const Tab(text: 'Users'),
-    const Tab(text: 'Offers'),
-    const Tab(text: 'Complaints'),
-    const Tab(text: 'Vehicles'),
-  ];
+  // Replace the existing myTabs with a method
+  List<Tab> getTabs() {
+    return <Tab>[
+      Tab(text: 'Users ($userCount)'),
+      Tab(text: 'Offers ($offerCount)'),
+      Tab(text: 'Complaints ($complaintCount)'),
+      Tab(text: 'Vehicles ($vehicleCount)'),
+    ];
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: myTabs.length, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
 
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final offerProvider = Provider.of<OfferProvider>(context, listen: false);
-
+    // Initialize all providers
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+      final complaintProvider =
+          Provider.of<ComplaintsProvider>(context, listen: false);
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+
+      // Initialize providers
       offerProvider.initialize(
           userProvider.userId ?? 'unknown', userProvider.userRole);
+      await userProvider.fetchDealers(); // Fetch users
+      await offerProvider.fetchOffers(userProvider.userId ?? 'unknown',
+          userProvider.userRole); // Fetch offers
+      await complaintProvider.fetchAllComplaints(); // Fetch complaints
+      await vehicleProvider.fetchAllVehicles(); // Fetch vehicles
+
+      _updateCounts(); // Update counts after initial fetch
     });
 
+    // Listen to tab changes
     _tabController.addListener(() {
-      if (_tabController.index == 1) {
-        Provider.of<OfferProvider>(context, listen: false).refreshOffers();
+      if (_tabController.indexIsChanging) {
+        _refreshCurrentTab(_tabController.index);
       }
+    });
+  }
+
+  // Add method to refresh current tab data
+  void _refreshCurrentTab(int index) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+    final complaintProvider =
+        Provider.of<ComplaintsProvider>(context, listen: false);
+    final vehicleProvider =
+        Provider.of<VehicleProvider>(context, listen: false);
+
+    switch (index) {
+      case 0: // Users tab
+        await userProvider.fetchDealers();
+        break;
+      case 1: // Offers tab
+        await offerProvider.refreshOffers();
+        break;
+      case 2: // Complaints tab
+        await complaintProvider.refreshComplaints();
+        break;
+      case 3: // Vehicles tab
+        await vehicleProvider.fetchAllVehicles();
+        break;
+    }
+    _updateCounts();
+  }
+
+  // Update the _updateCounts method to run asynchronously
+  Future<void> _updateCounts() async {
+    if (!mounted) return;
+
+    setState(() {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+      final complaintProvider =
+          Provider.of<ComplaintsProvider>(context, listen: false);
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+
+      userCount = userProvider.getUserCount();
+      offerCount = offerProvider.getOfferCount();
+      complaintCount = complaintProvider.getComplaintCount();
+      vehicleCount = vehicleProvider.getVehicleCount();
     });
   }
 
@@ -141,7 +210,7 @@ class _AdminHomePageState extends State<AdminHomePage>
           ],
           bottom: TabBar(
             controller: _tabController,
-            tabs: myTabs,
+            tabs: getTabs(),
             indicatorColor: Colors.white,
             indicatorWeight: 3,
             labelStyle: GoogleFonts.montserrat(
@@ -152,8 +221,11 @@ class _AdminHomePageState extends State<AdminHomePage>
             ),
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
+            isScrollable: true,
+            tabAlignment:
+                TabAlignment.center, // Add this line to center the tabs
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             labelPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-            isScrollable: false, // Force tabs to fill width
           ),
         ),
         body: TabBarView(

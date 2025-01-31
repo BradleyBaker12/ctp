@@ -91,29 +91,31 @@ class _VehiclesTabState extends State<VehiclesTab>
   List<String> _provinceOptions = ['All'];
 
   final List<String> _applicationOfUseOptions = [
-    'Bowser Trucks',
-    'Cage Body',
-    'Roll Back',
-    'Cattle Body',
-    'Chassis Cab',
-    'Cherry Picker',
-    'Compactor',
-    'Concrete Mixer',
-    'Crane Truck',
-    'Curtain Side',
-    'Diesel Tanker',
-    'Drop side',
-    'Fire Truck',
-    'Flatbed',
-    'Honey Sucker',
-    'Hook lift',
-    'Insulated Body',
-    'Mass side',
-    'Petrol Tanker',
-    'Refrigerated body',
-    'Side Tipper',
-    'Tipper',
-    'Volume Body',
+    'Bowser Body Trucks',
+    'Cage Body Trucks',
+    'Cattle Body Trucks',
+    'Chassis Cab Trucks',
+    'Cherry Picker Trucks',
+    'Compactor Body Trucks',
+    'Concrete Mixer Body Trucks',
+    'Crane Body Trucks',
+    'Curtain Body Trucks',
+    'Fuel Tanker Body Trucks',
+    'Dropside Body Trucks',
+    'Fire Fighting Body Trucks',
+    'Flatbed Body Trucks',
+    'Honey Sucker Body Trucks',
+    'Hooklift Body Trucks',
+    'Insulated Body Trucks',
+    'Mass Side Body Trucks',
+    'Pantechnicon Body Trucks',
+    'Refrigerated Body Trucks',
+    'Roll Back Body Trucks',
+    'Side Tipper Body Trucks',
+    'Skip Loader Body Trucks',
+    'Tanker Body Trucks',
+    'Tipper Body Trucks',
+    'Volume Body Trucks',
   ];
 
   final List<String> _configOptions = [
@@ -143,6 +145,11 @@ class _VehiclesTabState extends State<VehiclesTab>
   late TabController _tabController;
   String _currentTabStatus = 'Draft'; // Default selected tab
 
+  // Add these new variables at the start of the class
+  late Stream<int> _draftCountStream;
+  late Stream<int> _pendingCountStream;
+  late Stream<int> _liveCountStream;
+
   @override
   void initState() {
     super.initState();
@@ -162,6 +169,37 @@ class _VehiclesTabState extends State<VehiclesTab>
         _fetchVehicles();
       }
     });
+
+    // Initialize the count streams
+    _initializeCountStreams();
+  }
+
+  void _initializeCountStreams() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    String currentUserRole = userProvider.userRole;
+    String? currentUserId = userProvider.userId;
+
+    Query baseQuery = FirebaseFirestore.instance.collection('vehicles');
+
+    if (currentUserRole == 'sales representative') {
+      baseQuery =
+          baseQuery.where('assignedSalesRepId', isEqualTo: currentUserId);
+    }
+
+    _draftCountStream = baseQuery
+        .where('vehicleStatus', isEqualTo: 'Draft')
+        .snapshots()
+        .map((snap) => snap.size);
+
+    _pendingCountStream = baseQuery
+        .where('vehicleStatus', isEqualTo: 'pending')
+        .snapshots()
+        .map((snap) => snap.size);
+
+    _liveCountStream = baseQuery
+        .where('vehicleStatus', isEqualTo: 'Live')
+        .snapshots()
+        .map((snap) => snap.size);
   }
 
   /// NEW: Handle Tab Selection
@@ -345,14 +383,17 @@ class _VehiclesTabState extends State<VehiclesTab>
   // 4) Client-Side Searching
   // --------------------------------------------------------------------
   bool _matchesSearch(Map<String, dynamic> vehicleData) {
+    // Return true if no search query
     if (_searchQuery.isEmpty) return true;
+
     final query = _searchQuery.toLowerCase();
 
+    // Extract all searchable fields with null safety
     List<dynamic> brandList = vehicleData['brands'] ?? [];
     String brandConcat = brandList.join(' ').toLowerCase();
     String makeModel = (vehicleData['makeModel'] ?? '').toLowerCase();
     String variant = (vehicleData['variant'] ?? '').toLowerCase();
-    String yearStr = (vehicleData['year'] ?? '').toLowerCase();
+    String yearStr = (vehicleData['year']?.toString() ?? '').toLowerCase();
     String statusStr = (vehicleData['vehicleStatus'] ?? '').toLowerCase();
     String transmissionStr =
         (vehicleData['transmissionType'] ?? '').toLowerCase();
@@ -360,8 +401,9 @@ class _VehiclesTabState extends State<VehiclesTab>
     String provinceStr = (vehicleData['province'] ?? '').toLowerCase();
     String applicationStr = (vehicleData['vehicleType'] ?? '').toLowerCase();
     String configStr = (vehicleData['config'] ?? '').toLowerCase();
-    String catStr = (vehicleData['vehicleType'] ?? '').toLowerCase();
+    String vehicleTypeStr = (vehicleData['vehicleType'] ?? '').toLowerCase();
 
+    // Check if any field contains the search query
     return brandConcat.contains(query) ||
         makeModel.contains(query) ||
         variant.contains(query) ||
@@ -372,7 +414,7 @@ class _VehiclesTabState extends State<VehiclesTab>
         provinceStr.contains(query) ||
         applicationStr.contains(query) ||
         configStr.contains(query) ||
-        catStr.contains(query);
+        vehicleTypeStr.contains(query);
   }
 
   // --------------------------------------------------------------------
@@ -385,128 +427,152 @@ class _VehiclesTabState extends State<VehiclesTab>
       _isLoading = true;
     });
 
-    debugPrint('--- DEBUG: Starting _fetchVehicles() ---');
-    debugPrint('Current sort field: $_sortField, ascending: $_sortAscending');
-    debugPrint('Current Tab Status: $_currentTabStatus');
-    debugPrint('Limit: $_limit, Last Document: ${_lastDocument?.id ?? "None"}');
-
-    // Start by filtering based on the current tab's status
-    Query query = FirebaseFirestore.instance
-        .collection('vehicles')
-        .where('vehicleStatus', isEqualTo: _currentTabStatus);
-
-    // Apply sorting
-    query = query.orderBy(_sortField, descending: !_sortAscending);
-
-    // ─── Filter for Sales Representatives ──────────────────────────────
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    String currentUserRole =
-        userProvider.userRole; // e.g. "sales representative" or "admin"
-    String? currentUserId = userProvider.userId;
-
-    debugPrint(
-        '--- DEBUG: Current User Role: $currentUserRole, UID: $currentUserId');
-
-    if (currentUserRole == 'sales representative') {
-      debugPrint(
-          '--- DEBUG: Filtering: Only vehicles with assignedSalesRepId equal to $currentUserId ---');
-      query = query.where('assignedSalesRepId', isEqualTo: currentUserId);
-    } else {
-      debugPrint(
-          '--- DEBUG: No filtering for assignedSalesRepId (user is admin or other role) ---');
-    }
-
-    // ─── Apply Other Filters ─────────────────────────────────────────────
-    if (_selectedYears.isNotEmpty && !_selectedYears.contains('All')) {
-      debugPrint('--- DEBUG: Filtering by Years: $_selectedYears ---');
-      query = query.where('year', whereIn: _selectedYears);
-    }
-    if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
-      debugPrint('--- DEBUG: Filtering by Brands: $_selectedBrands ---');
-      query = query.where('brands', arrayContainsAny: _selectedBrands);
-    }
-    if (_selectedMakeModels.isNotEmpty &&
-        !_selectedMakeModels.contains('All')) {
-      debugPrint(
-          '--- DEBUG: Filtering by MakeModels: $_selectedMakeModels ---');
-      query = query.where('makeModel', whereIn: _selectedMakeModels);
-    }
-    // Removed vehicleStatus filter as it's handled by tab
-    /*
-    if (_selectedVehicleStatuses.isNotEmpty &&
-        !_selectedVehicleStatuses.contains('All')) {
-      debugPrint(
-          '--- DEBUG: Filtering by Vehicle Statuses: $_selectedVehicleStatuses ---');
-      query = query.where('vehicleStatus', whereIn: _selectedVehicleStatuses);
-    }
-    */
-    if (_selectedTransmissions.isNotEmpty &&
-        !_selectedTransmissions.contains('All')) {
-      debugPrint(
-          '--- DEBUG: Filtering by Transmissions: $_selectedTransmissions ---');
-      query = query.where('transmissionType', whereIn: _selectedTransmissions);
-    }
-    if (_selectedCountries.isNotEmpty && !_selectedCountries.contains('All')) {
-      debugPrint('--- DEBUG: Filtering by Countries: $_selectedCountries ---');
-      query = query.where('country', whereIn: _selectedCountries);
-    }
-    if (_selectedProvinces.isNotEmpty && !_selectedProvinces.contains('All')) {
-      debugPrint('--- DEBUG: Filtering by Provinces: $_selectedProvinces ---');
-      query = query.where('province', whereIn: _selectedProvinces);
-    }
-    if (_selectedApplicationOfUse.isNotEmpty &&
-        !_selectedApplicationOfUse.contains('All')) {
-      debugPrint(
-          '--- DEBUG: Filtering by Application Of Use: $_selectedApplicationOfUse ---');
-      query = query.where('vehicleType', whereIn: _selectedApplicationOfUse);
-    }
-    if (_selectedConfigs.isNotEmpty && !_selectedConfigs.contains('All')) {
-      debugPrint('--- DEBUG: Filtering by Configs: $_selectedConfigs ---');
-      query = query.where('config', whereIn: _selectedConfigs);
-    }
-    if (_selectedVehicleType.isNotEmpty &&
-        !_selectedVehicleType.contains('All')) {
-      debugPrint(
-          '--- DEBUG: Filtering by VehicleType (Truck/Trailer): $_selectedVehicleType ---');
-      query = query.where('vehicleType', whereIn: _selectedVehicleType);
-    }
-
-    // Pagination
-    query = query.limit(_limit);
-    if (_lastDocument != null) {
-      query = query.startAfterDocument(_lastDocument!);
-    }
-
     try {
-      QuerySnapshot querySnapshot = await query.get();
+      // Base query
+      Query query = FirebaseFirestore.instance.collection('vehicles');
 
-      debugPrint(
-          '--- DEBUG: Firestore returned ${querySnapshot.docs.length} documents ---');
-      if (querySnapshot.docs.isNotEmpty) {
-        _lastDocument = querySnapshot.docs.last;
-        _vehicles.addAll(querySnapshot.docs);
-        for (var doc in querySnapshot.docs) {
-          debugPrint(
-              '--- DEBUG: Fetched Document ID: ${doc.id}, Data: ${doc.data()}');
-        }
-        if (querySnapshot.docs.length < _limit) {
-          _hasMore = false;
-          debugPrint(
-              '--- DEBUG: Fewer docs returned than limit; _hasMore set to false ---');
-        }
-      } else {
-        _hasMore = false;
-        debugPrint('--- DEBUG: No documents returned ---');
+      // First apply status filter (this must be first for query optimization)
+      query = query.where('vehicleStatus', isEqualTo: _currentTabStatus);
+
+      // User role filtering
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (userProvider.userRole == 'sales representative') {
+        query =
+            query.where('assignedSalesRepId', isEqualTo: userProvider.userId);
       }
-    } catch (e) {
-      debugPrint('--- DEBUG: Error fetching vehicles: $e ---');
-    }
 
+      // Build filter conditions map
+      Map<String, dynamic> filterConditions = {};
+
+      // Add year filter
+      if (_selectedYears.isNotEmpty && !_selectedYears.contains('All')) {
+        filterConditions['year'] = _selectedYears;
+      }
+
+      // Add brand filter (needs special handling for array contains)
+      if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
+        // We can only use one arrayContainsAny per query
+        // So we'll handle additional brand filtering in memory
+        query = query.where('brands', arrayContainsAny: _selectedBrands);
+      }
+
+      // Add model filter
+      if (_selectedMakeModels.isNotEmpty &&
+          !_selectedMakeModels.contains('All')) {
+        filterConditions['makeModel'] = _selectedMakeModels;
+      }
+
+      // Add transmission filter (fix field name)
+      if (_selectedTransmissions.isNotEmpty &&
+          !_selectedTransmissions.contains('All')) {
+        filterConditions['transmissionType'] = _selectedTransmissions;
+      }
+
+      // Add location filters
+      if (_selectedCountries.isNotEmpty &&
+          !_selectedCountries.contains('All')) {
+        filterConditions['country'] = _selectedCountries;
+      }
+
+      if (_selectedProvinces.isNotEmpty &&
+          !_selectedProvinces.contains('All')) {
+        filterConditions['province'] = _selectedProvinces;
+      }
+
+      // FIX: Application of Use filter - use the correct field name 'applicationOfUse'
+      if (_selectedApplicationOfUse.isNotEmpty &&
+          !_selectedApplicationOfUse.contains('All')) {
+        filterConditions['applicationOfUse'] =
+            _selectedApplicationOfUse; // Changed from bodyType
+      }
+
+      // FIX: Config filter - use the correct field name 'configuration'
+      if (_selectedConfigs.isNotEmpty && !_selectedConfigs.contains('All')) {
+        filterConditions['config'] = _selectedConfigs; // Changed from config
+      }
+
+      // Add vehicle type filter
+      if (_selectedVehicleType.isNotEmpty &&
+          !_selectedVehicleType.contains('All')) {
+        filterConditions['vehicleType'] = _selectedVehicleType;
+      }
+
+      // Apply all whereIn filters
+      filterConditions.forEach((field, values) {
+        query = query.where(field, whereIn: values);
+      });
+
+      // Apply sorting
+      query = query.orderBy(_sortField, descending: !_sortAscending);
+
+      // Apply pagination
+      query = query.limit(_limit);
+      if (_lastDocument != null) {
+        query = query.startAfterDocument(_lastDocument!);
+      }
+
+      debugPrint('Executing query with filters: $filterConditions');
+
+      final QuerySnapshot querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // Additional in-memory filtering for complex conditions
+        final filteredDocs = querySnapshot.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+
+          // Apply additional brand filtering if needed
+          if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
+            final docBrands = List<String>.from(data['brands'] ?? []);
+            if (!_selectedBrands.any((brand) => docBrands.contains(brand))) {
+              return false;
+            }
+          }
+
+          return true;
+        }).toList();
+
+        setState(() {
+          if (filteredDocs.isNotEmpty) {
+            _lastDocument = filteredDocs.last;
+            _vehicles.addAll(filteredDocs);
+          }
+          _hasMore = filteredDocs.length >= _limit;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _hasMore = false;
+          _isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error fetching vehicles: $e\n$stackTrace');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Update filter clear method
+  void _clearFilters() {
     setState(() {
-      _isLoading = false;
-      debugPrint(
-          '--- DEBUG: _fetchVehicles() complete. Total vehicles in memory: ${_vehicles.length} ---');
+      _selectedYears.clear();
+      _selectedBrands.clear();
+      _selectedMakeModels.clear();
+      _selectedVehicleStatuses.clear();
+      _selectedTransmissions.clear();
+      _selectedCountries.clear();
+      _selectedProvinces.clear();
+      _selectedApplicationOfUse.clear();
+      _selectedConfigs.clear();
+      _selectedVehicleType.clear();
+      _vehicles.clear();
+      _lastDocument = null;
+      _hasMore = true;
+      _searchQuery = '';
+      _searchController.clear();
     });
+    _fetchVehicles();
   }
 
   // --------------------------------------------------------------------
@@ -531,17 +597,7 @@ class _VehiclesTabState extends State<VehiclesTab>
         child: Column(
           children: [
             // --- TAB BAR ---
-            TabBar(
-              controller: _tabController,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: const Color(0xFFFF4E00),
-              tabs: const [
-                Tab(text: "Draft"),
-                Tab(text: "Pending"),
-                Tab(text: "Live"),
-              ],
-            ),
+            _buildTabBarWithCounts(),
             // --- SEARCH, SORT, and FILTER controls:
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -1283,6 +1339,81 @@ class _VehiclesTabState extends State<VehiclesTab>
           ],
         );
       },
+    );
+  }
+
+  // Replace the existing TabBar in the build method with this:
+  Widget _buildTabBarWithCounts() {
+    return TabBar(
+      controller: _tabController,
+      labelColor: Colors.white,
+      unselectedLabelColor: Colors.white70,
+      indicatorColor: const Color(0xFFFF4E00),
+      tabs: [
+        StreamBuilder<int>(
+          stream: _draftCountStream,
+          builder: (context, snapshot) {
+            return Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Draft"),
+                  const SizedBox(width: 4),
+                  Text(
+                    '(${snapshot.data ?? 0})',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        StreamBuilder<int>(
+          stream: _pendingCountStream,
+          builder: (context, snapshot) {
+            return Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Pending"),
+                  const SizedBox(width: 4),
+                  Text(
+                    '(${snapshot.data ?? 0})',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        StreamBuilder<int>(
+          stream: _liveCountStream,
+          builder: (context, snapshot) {
+            return Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Live"),
+                  const SizedBox(width: 4),
+                  Text(
+                    '(${snapshot.data ?? 0})',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

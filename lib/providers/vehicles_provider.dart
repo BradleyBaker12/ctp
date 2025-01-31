@@ -406,4 +406,9 @@ class VehicleProvider with ChangeNotifier {
       print("Error cleaning up drafts: $e");
     }
   }
+
+  // Add this method to get the total count of vehicles
+  int getVehicleCount() {
+    return _vehicles.length;
+  }
 }

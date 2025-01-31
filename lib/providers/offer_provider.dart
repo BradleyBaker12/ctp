@@ -511,6 +511,10 @@ class OfferProvider with ChangeNotifier {
     }
   }
 
+  int getOfferCount() {
+    return _offers.length;
+  }
+
   @override
   void dispose() {
     _offersController.close();

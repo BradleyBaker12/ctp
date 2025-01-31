@@ -7,6 +7,7 @@ import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
 import 'package:ctp/models/external_cab.dart';
 import 'package:ctp/models/internal_cab.dart';
+import 'package:ctp/models/maintenance.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
@@ -14,7 +15,8 @@ import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
-import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
+import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart'
+    as truck_upload;
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -81,6 +83,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     super.initState();
     _vehicle = widget.vehicle;
 
+    // Clear image cache to prevent stale images
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+
     // 1. Check if the vehicle is accepted => can or cannot make an offer
     _checkOfferAvailability();
 
@@ -100,8 +106,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _preparePhotos());
     _pageController = PageController();
 
-    // Check if vehicle is liked
-    _checkIfLiked();
+    // Remove the _checkIfLiked() call since we'll use UserProvider instead
+    // _checkIfLiked();
   }
 
   // ---------------------------------------------------------------------------
@@ -651,110 +657,142 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   void _navigateToDuplicatePage() {
-    Vehicle dup = Vehicle(
-      id: '',
-      isAccepted: vehicle.isAccepted,
-      acceptedOfferId: vehicle.acceptedOfferId,
-      brands: vehicle.brands,
-      makeModel: vehicle.makeModel,
-      year: vehicle.year,
-      mileage: '',
-      config: vehicle.config,
-      application: vehicle.application,
-      transmissionType: vehicle.transmissionType,
-      hydraluicType: vehicle.hydraluicType,
-      suspensionType: vehicle.suspensionType,
-      warrentyType: vehicle.warrentyType,
-      maintenance: vehicle.maintenance,
-      vinNumber: '',
-      registrationNumber: '',
-      engineNumber: '',
-      mainImageUrl: '',
-      damagePhotos: [],
-      damageDescription: '',
-      expectedSellingPrice: '',
-      userId: FirebaseAuth.instance.currentUser?.uid ?? '',
-      referenceNumber: '',
-      dashboardPhoto: '',
-      faultCodesPhoto: '',
-      licenceDiskUrl: '',
-      mileageImage: '',
-      photos: [],
-      rc1NatisFile: '',
-      vehicleType: '',
-      warrantyDetails: '',
-      createdAt: DateTime.now(),
-      vehicleStatus: '',
-      vehicleAvailableImmediately: 'false',
-      availableDate: DateTime.now().toIso8601String(),
-      trailerType: '',
-      axles: '',
-      trailerLength: '',
-      adminData: AdminData(
-        settlementAmount: '',
-        natisRc1Url: '',
-        licenseDiskUrl: '',
-        settlementLetterUrl: '',
-      ),
-      truckConditions: TruckConditions(
-        externalCab: ExternalCab(
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          images: {},
-          damages: [],
-          additionalFeatures: [],
-        ),
-        internalCab: InternalCab(
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          faultCodesCondition: '',
-          viewImages: {},
-          damages: [],
-          additionalFeatures: [],
-          faultCodes: [],
-        ),
-        chassis: Chassis(
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          images: {},
-          damages: [],
-          additionalFeatures: [],
-        ),
-        driveTrain: DriveTrain(
-          condition: '',
-          oilLeakConditionEngine: '',
-          waterLeakConditionEngine: '',
-          blowbyCondition: '',
-          oilLeakConditionGearbox: '',
-          retarderCondition: '',
-          lastUpdated: DateTime.now(),
-          images: {},
-          damages: [],
-          additionalFeatures: [],
-          faultCodes: [],
-        ),
-        tyres: {},
-      ),
-      country: '',
-      province: '',
-      length: '',
-      vinTrailer: '',
-      damagesDescription: '',
-      additionalFeatures: '',
-    );
+    try {
+      debugPrint('=== Starting Vehicle Duplication ===');
+      debugPrint('Source Vehicle ID: ${vehicle.id}');
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => VehicleUploadScreen(
-          vehicle: dup,
-          isDuplicating: true,
+      // Create duplicate vehicle with only the specified fields
+      Vehicle dup = Vehicle(
+        // Required empty/new fields
+        id: '',
+        isAccepted: false,
+        acceptedOfferId: '',
+        mileage: '',
+        vinNumber: '',
+        engineNumber: '',
+        registrationNumber: '',
+        mainImageUrl: '',
+        damagePhotos: [],
+        damageDescription: '',
+        expectedSellingPrice: '',
+        userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+        referenceNumber: '',
+        dashboardPhoto: '',
+        faultCodesPhoto: '',
+        licenceDiskUrl: '',
+        mileageImage: '',
+        photos: [],
+        rc1NatisFile: '',
+        vehicleType: '',
+        warrantyDetails: '',
+        createdAt: DateTime.now(),
+        vehicleStatus: '',
+        vehicleAvailableImmediately: 'false',
+        availableDate: DateTime.now().toIso8601String(),
+        trailerType: '',
+        axles: '',
+        trailerLength: '',
+        warrentyType: '',
+        maintenance: Maintenance(
+          maintenanceSelection: '',
+          warrantySelection: '',
+          oemInspectionType: '',
+          oemReason: '',
+          maintenanceDocUrl: '',
+          warrantyDocUrl: '',
+          vehicleId: '',
         ),
-      ),
-    );
+        length: '',
+        vinTrailer: '',
+        damagesDescription: '',
+        additionalFeatures: '',
+
+        // Fields to copy for duplication
+        application: vehicle.application,
+        brands: vehicle.brands,
+        config: vehicle.config,
+        country: vehicle.country,
+        hydraluicType: vehicle.hydraluicType,
+        makeModel: vehicle.makeModel,
+        province: vehicle.province,
+        suspensionType: vehicle.suspensionType,
+        transmissionType: vehicle.transmissionType,
+        year: vehicle.year,
+
+        // Required model objects
+        adminData: AdminData(
+          settlementAmount: '',
+          natisRc1Url: '',
+          licenseDiskUrl: '',
+          settlementLetterUrl: '',
+        ),
+        truckConditions: TruckConditions(
+          externalCab: ExternalCab(
+            condition: '',
+            damagesCondition: '',
+            additionalFeaturesCondition: '',
+            images: {},
+            damages: [],
+            additionalFeatures: [],
+          ),
+          internalCab: InternalCab(
+            condition: '',
+            damagesCondition: '',
+            additionalFeaturesCondition: '',
+            faultCodesCondition: '',
+            viewImages: {},
+            damages: [],
+            additionalFeatures: [],
+            faultCodes: [],
+          ),
+          chassis: Chassis(
+            condition: '',
+            damagesCondition: '',
+            additionalFeaturesCondition: '',
+            images: {},
+            damages: [],
+            additionalFeatures: [],
+          ),
+          driveTrain: DriveTrain(
+            condition: '',
+            oilLeakConditionEngine: '',
+            waterLeakConditionEngine: '',
+            blowbyCondition: '',
+            oilLeakConditionGearbox: '',
+            retarderCondition: '',
+            lastUpdated: DateTime.now(),
+            images: {},
+            damages: [],
+            additionalFeatures: [],
+            faultCodes: [],
+          ),
+          tyres: {},
+        ),
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => truck_upload.VehicleUploadScreen(
+            vehicle: dup,
+            isDuplicating: true,
+          ),
+        ),
+      );
+
+      debugPrint('=== Duplication Complete ===');
+    } catch (e, stackTrace) {
+      debugPrint('=== Error During Duplication ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error duplicating vehicle'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1291,8 +1329,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       return const SizedBox.shrink();
     }
 
+    bool isLiked = userProvider.getLikedVehicles.contains(vehicle.id);
+
     // Only show close button if liked
-    if (icon == Icons.close && !_isLiked) {
+    if (icon == Icons.close && !isLiked) {
       return const SizedBox.shrink();
     }
 
@@ -1305,46 +1345,28 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           if (icon == Icons.close) {
             // Remove from favorites
             try {
-              await FirebaseFirestore.instance
-                  .collection('favorites')
-                  .doc('${userId}_${vehicle.id}')
-                  .delete();
-
-              setState(() => _isLiked = false);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Removed from favorites'),
-                  backgroundColor: Color(0xFFFF4E00),
-                ),
-              );
+              await userProvider.unlikeVehicle(vehicle.id);
+              // ScaffoldMessenger.of(context).showSnackBar(
+              //   const SnackBar(
+              //     content: Text('Removed from favorites'),
+              //     backgroundColor: Color(0xFFFF4E00),
+              //   ),
+              // );
             } catch (e) {
               debugPrint('Error removing from favorites: $e');
             }
-          } else if (icon == Icons.favorite) {
+          } else if (icon == Icons.favorite && !isLiked) {
             // Add to favorites if not already liked
-            if (!_isLiked) {
-              try {
-                await FirebaseFirestore.instance
-                    .collection('favorites')
-                    .doc('${userId}_${vehicle.id}')
-                    .set({
-                  'userId': userId,
-                  'vehicleId': vehicle.id,
-                  'createdAt': DateTime.now(),
-                });
-
-                setState(() => _isLiked = true);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Added to favorites'),
-                    backgroundColor: Color(0xFFFF4E00),
-                  ),
-                );
-              } catch (e) {
-                debugPrint('Error adding to favorites: $e');
-              }
+            try {
+              await userProvider.likeVehicle(vehicle.id);
+              // ScaffoldMessenger.of(context).showSnackBar(
+              //   const SnackBar(
+              //     content: Text('Added to favorites'),
+              //     backgroundColor: Color(0xFFFF4E00),
+              //   ),
+              // );
+            } catch (e) {
+              debugPrint('Error adding to favorites: $e');
             }
           }
         },
@@ -1355,7 +1377,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
-            icon == Icons.favorite && _isLiked ? Icons.favorite : icon,
+            icon == Icons.favorite && isLiked ? Icons.favorite : icon,
             color: Colors.black,
             size: 24,
           ),
@@ -1439,6 +1461,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: size.height * 0.32,
+                                  // Add cacheWidth to optimize memory usage
+                                  cacheWidth:
+                                      (MediaQuery.of(context).size.width * 2)
+                                          .toInt(),
+                                  // Add key to force rebuild when URL changes
+                                  key: ValueKey(allPhotos[index].url),
                                   errorBuilder: (ctx, error, st) {
                                     return Image.asset(
                                       'assets/default_vehicle_image.png',

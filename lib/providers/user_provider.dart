@@ -915,6 +915,11 @@ class UserProvider extends ChangeNotifier {
     _statusSubscription?.cancel();
     super.dispose();
   }
+
+  // Add this method
+  int getUserCount() {
+    return _dealers.length;
+  }
 }
 
 class Dealer {

@@ -141,9 +141,9 @@ class _WishlistPageState extends State<WishlistPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildTabButton('Trucks', 'Trucks'),
+        _buildTabButton('Trucks (${_trucks.length})', 'Trucks'),
         SizedBox(width: screenSize.width * 0.02),
-        _buildTabButton('Trailers', 'Trailers'),
+        _buildTabButton('Trailers (${_trailers.length})', 'Trailers'),
       ],
     );
   }
@@ -155,7 +155,8 @@ class _WishlistPageState extends State<WishlistPage> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedTab = tab;
+          _selectedTab =
+              tab.split(' ')[0]; // Extract the tab name without count
         });
       },
       child: Container(
@@ -170,8 +171,6 @@ class _WishlistPageState extends State<WishlistPage> {
         ),
         child: Row(
           children: [
-            // Colored block (if any) can be customized here
-            // Removed the dot as per your request
             Text(
               title.toUpperCase(),
               style: TextStyle(

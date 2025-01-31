@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
 
 // Define the FilterOperation enum to handle various filter operations
 enum FilterOperation {
@@ -58,12 +60,101 @@ class _TruckPageState extends State<TruckPage> {
   bool _isLoading = true; // Track loading state
   bool _isFiltering = false; // Track filtering state
 
-  // List to hold dynamic filter criteria
-  List<FilterCriterion> filterCriteria = [];
+  // --------------------------------------------------------------------
+  // 1) Filter State
+  // --------------------------------------------------------------------
+  final List<String> _selectedYears = [];
+  final List<String> _selectedBrands = [];
+  final List<String> _selectedMakeModels = [];
+  final List<String> _selectedVehicleStatuses = [];
+  final List<String> _selectedTransmissions = [];
 
-  // Map to hold filter options for each field
-  Map<String, List<dynamic>> filterOptions = {};
+  // We'll load countries/provinces from JSON:
+  final List<String> _selectedCountries = [];
+  final List<String> _selectedProvinces = [];
 
+  final List<String> _selectedApplicationOfUse = [];
+  final List<String> _selectedConfigs = [];
+
+  // NEW: For vehicle type with only 2 real options ("Truck" or "Trailer")
+  final List<String> _selectedVehicleType = [];
+
+  // --------------------------------------------------------------------
+  // 2) Hard-coded filter lists for other fields
+  // --------------------------------------------------------------------
+  final List<String> _yearOptions = [
+    'All',
+    '2015',
+    '2016',
+    '2017',
+    '2018',
+    '2019',
+    '2020',
+    '2021',
+    '2022',
+    '2023',
+    '2024'
+  ];
+
+  final List<String> _vehicleStatusOptions = ['All', 'Live', 'Sold', 'Draft'];
+  final List<String> _transmissionOptions = ['All', 'manual', 'automatic'];
+
+  // Dynamically loaded country and province options:
+  final List<String> _countryOptions = ['All'];
+  List<String> _provinceOptions = ['All'];
+
+  final List<String> _applicationOfUseOptions = [
+    'Bowser Body Trucks',
+    'Cage Body Trucks',
+    'Cattle Body Trucks',
+    'Chassis Cab Trucks',
+    'Cherry Picker Trucks',
+    'Compactor Body Trucks',
+    'Concrete Mixer Body Trucks',
+    'Crane Body Trucks',
+    'Curtain Body Trucks',
+    'Fuel Tanker Body Trucks',
+    'Dropside Body Trucks',
+    'Fire Fighting Body Trucks',
+    'Flatbed Body Trucks',
+    'Honey Sucker Body Trucks',
+    'Hooklift Body Trucks',
+    'Insulated Body Trucks',
+    'Mass Side Body Trucks',
+    'Pantechnicon Body Trucks',
+    'Refrigerated Body Trucks',
+    'Roll Back Body Trucks',
+    'Side Tipper Body Trucks',
+    'Skip Loader Body Trucks',
+    'Tanker Body Trucks',
+    'Tipper Body Trucks',
+    'Volume Body Trucks',
+  ];
+
+  final List<String> _configOptions = [
+    'All',
+    '4x2',
+    '6x4',
+    '6x2',
+    '8x4',
+    '10x4'
+  ];
+
+  // NEW: Only 2 real options: "Truck" or "Trailer" (plus "All")
+  final List<String> _vehicleTypeOptions = ['All', 'truck', 'trailer'];
+
+  // --------------------------------------------------------------------
+  // 3) Dynamic brand & model loading from JSON
+  // --------------------------------------------------------------------
+  final List<String> _brandOptions = ['All']; // Populated from JSON
+  List<String> _makeModelOptions = ['All']; // Populated from JSON
+
+  // Store the entire countries.json so we can find provinces:
+  List<dynamic> _countriesData = [];
+
+  // --------------------------------------------------------------------
+  // 4) Initialization and Data Loading
+  // --------------------------------------------------------------------
   @override
   void initState() {
     super.initState();
@@ -72,6 +163,8 @@ class _TruckPageState extends State<TruckPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialVehicles();
     });
+    _loadBrandsFromJson();
+    _loadCountriesFromJson();
   }
 
   @override
@@ -89,6 +182,142 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
+  Future<void> _loadBrandsFromJson() async {
+    try {
+      final String response =
+          await rootBundle.loadString('lib/assets/updated_truck_data.json');
+      final Map<String, dynamic> jsonData = json.decode(response);
+
+      Set<String> uniqueBrands = {};
+
+      jsonData.forEach((year, yearData) {
+        if (yearData is Map<String, dynamic>) {
+          yearData.forEach((brandName, _) {
+            final String normalized = brandName.trim();
+            uniqueBrands.add(normalized);
+          });
+        }
+      });
+
+      List<String> sortedBrands = uniqueBrands.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+      setState(() {
+        _brandOptions.clear();
+        _brandOptions.add('All');
+        _brandOptions.addAll(sortedBrands);
+      });
+    } catch (e) {
+      debugPrint('Error loading brands from JSON: $e');
+    }
+  }
+
+  Future<void> _loadCountriesFromJson() async {
+    try {
+      final String response =
+          await rootBundle.loadString('lib/assets/countries.json');
+      final data = json.decode(response);
+
+      if (data is List) {
+        setState(() {
+          _countriesData = data;
+          _countryOptions.clear();
+          _countryOptions.add('All');
+          for (var item in data) {
+            if (item is Map<String, dynamic>) {
+              final countryName = item['name'];
+              if (countryName != null) {
+                _countryOptions.add(countryName);
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading countries from JSON: $e');
+    }
+  }
+
+  void _updateProvincesForCountry(String countryName) {
+    if (countryName == 'All') {
+      setState(() {
+        _provinceOptions = ['All'];
+      });
+      return;
+    }
+
+    final country = _countriesData.firstWhere(
+      (element) =>
+          (element is Map<String, dynamic>) && (element['name'] == countryName),
+      orElse: () => null,
+    );
+
+    if (country == null || country['states'] == null) {
+      setState(() {
+        _provinceOptions = ['All'];
+      });
+    } else {
+      final statesList = country['states'] as List<dynamic>;
+      final provinceNames = <String>[];
+      for (var s in statesList) {
+        if (s is Map<String, dynamic>) {
+          final provinceName = s['name'];
+          if (provinceName != null) {
+            provinceNames.add(provinceName);
+          }
+        }
+      }
+      provinceNames.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      setState(() {
+        _provinceOptions = ['All', ...provinceNames];
+      });
+    }
+  }
+
+  void _updateModelsForBrand(String brand) async {
+    try {
+      if (brand == 'All') {
+        setState(() {
+          _makeModelOptions = ['All'];
+        });
+        return;
+      }
+
+      final String response =
+          await rootBundle.loadString('lib/assets/updated_truck_data.json');
+      final Map<String, dynamic> jsonData = json.decode(response);
+
+      Set<String> models = {};
+
+      jsonData.forEach((year, yearData) {
+        if (yearData is Map<String, dynamic>) {
+          yearData.forEach((dataBrand, modelList) {
+            if (dataBrand.trim().toLowerCase() == brand.trim().toLowerCase()) {
+              if (modelList is List) {
+                for (var m in modelList) {
+                  models.add(m.toString().trim());
+                }
+              }
+            }
+          });
+        }
+      });
+
+      List<String> sortedModels = models.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+      setState(() {
+        _makeModelOptions = ['All', ...sortedModels];
+      });
+    } catch (e, stackTrace) {
+      debugPrint('Error loading models for brand $brand: $e');
+      debugPrint(stackTrace.toString());
+    }
+  }
+
+  // --------------------------------------------------------------------
+  // 5) Data Loading with Filtering
+  // --------------------------------------------------------------------
   void _loadInitialVehicles() async {
     try {
       final vehicleProvider =
@@ -96,7 +325,7 @@ class _TruckPageState extends State<TruckPage> {
       await vehicleProvider.fetchAllVehicles();
 
       setState(() {
-        // Filter to show only Live vehicles (not Sold)
+        // Start with only Live vehicles
         var filteredVehicles = vehicleProvider.vehicles
             .where((vehicle) => vehicle.vehicleStatus == 'Live');
 
@@ -106,13 +335,13 @@ class _TruckPageState extends State<TruckPage> {
               (vehicle) => vehicle.brands.contains(widget.selectedBrand));
         }
 
+        // Apply selected filters
+        filteredVehicles = _applySelectedFilters(filteredVehicles);
+
         displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
         _currentPage = 1;
         _isLoading = false;
         loadedVehicleIndex = displayedVehicles.length;
-
-        // Initialize filter options
-        _initializeFilterOptions(vehicleProvider.vehicles);
       });
     } catch (e) {
       print('Error in _loadInitialVehicles: $e');
@@ -136,14 +365,18 @@ class _TruckPageState extends State<TruckPage> {
       int startIndex = _currentPage * _itemsPerPage;
       int endIndex = startIndex + _itemsPerPage;
 
-      // Apply both Live status and brand filters
+      // Start with only Live vehicles
       var filteredVehicles = vehicleProvider.vehicles
           .where((vehicle) => vehicle.vehicleStatus == 'Live');
 
+      // Add brand filter if selectedBrand is specified
       if (widget.selectedBrand != null) {
         filteredVehicles = filteredVehicles
             .where((vehicle) => vehicle.brands.contains(widget.selectedBrand));
       }
+
+      // Apply selected filters
+      filteredVehicles = _applySelectedFilters(filteredVehicles);
 
       List<Vehicle> moreVehicles =
           filteredVehicles.skip(startIndex).take(_itemsPerPage).toList();
@@ -168,84 +401,488 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
-  void _initializeFilterOptions(List<Vehicle> vehicles) {
-    // Collect distinct values for each filterable field
-    filterOptions = {
-      'application': vehicles
-          .map((v) => v.application)
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .toList(),
-      'expectedSellingPrice': _getPriceRanges(vehicles),
-      'hydraluicType': vehicles
-          .map((v) => v.hydraluicType)
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .toList(),
-      'makeModel': vehicles
-          .map((v) => v.makeModel)
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .toList(),
-      'mileage': _getMileageRanges(vehicles),
-      'transmissionType': vehicles
-          .map((v) => v.transmissionType)
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .toList(),
-      'configuration': vehicles
-          .map((v) => v.config)
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .toList(),
-      'vehicleType': vehicles
-          .map((v) => v.vehicleType)
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .toList(),
-      'year': vehicles
-          .map((v) => v.year)
-          .where((value) => value.isNotEmpty)
-          .toSet()
-          .map((year) => int.tryParse(year.toString()) ?? 0)
-          .toSet()
-          .toList()
-        ..sort(),
-      'adminData.settlementAmount': _getSettlementAmountRanges(vehicles),
-      'maintenance.oemInspectionType': vehicles
-          .map((v) => v.maintenance.oemInspectionType)
-          .where((value) => value!.isNotEmpty)
-          .toSet()
-          .toList(),
-    };
-  }
+  // Helper method to apply all selected filters
+  Iterable<Vehicle> _applySelectedFilters(Iterable<Vehicle> vehicles) {
+    return vehicles.where((vehicle) {
+      // Year Filter
+      if (_selectedYears.isNotEmpty && !_selectedYears.contains('All')) {
+        if (!_selectedYears.contains(vehicle.year)) return false;
+      }
 
-  List<String> _getPriceRanges(List<Vehicle> vehicles) {
-    // You can define your own price ranges
-    return [
-      '< 100,000',
-      '100,000 - 500,000',
-      '500,000 - 1,000,000',
-      '> 1,000,000'
-    ];
-  }
+      // Brand Filter
+      if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
+        if (!vehicle.brands.any((brand) => _selectedBrands.contains(brand)))
+          return false;
+      }
 
-  List<String> _getMileageRanges(List<Vehicle> vehicles) {
-    // Define mileage ranges
-    return ['< 50,000', '50,000 - 100,000', '100,000 - 200,000', '> 200,000'];
-  }
+      // Make Model Filter
+      if (_selectedMakeModels.isNotEmpty &&
+          !_selectedMakeModels.contains('All')) {
+        if (!_selectedMakeModels.contains(vehicle.makeModel)) return false;
+      }
 
-  List<String> _getSettlementAmountRanges(List<Vehicle> vehicles) {
-    // Define settlement amount ranges
-    return ['< 50,000', '50,000 - 100,000', '100,000 - 200,000', '> 200,000'];
-  }
+      // Vehicle Status Filter
+      if (_selectedVehicleStatuses.isNotEmpty &&
+          !_selectedVehicleStatuses.contains('All')) {
+        if (!_selectedVehicleStatuses.contains(vehicle.vehicleStatus))
+          return false;
+      }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+      // Transmission Filter
+      if (_selectedTransmissions.isNotEmpty &&
+          !_selectedTransmissions.contains('All')) {
+        if (!_selectedTransmissions.contains(vehicle.transmissionType))
+          return false;
+      }
+
+      // Country Filter
+      if (_selectedCountries.isNotEmpty &&
+          !_selectedCountries.contains('All')) {
+        if (!_selectedCountries.contains(vehicle.country)) return false;
+      }
+
+      // Province Filter
+      if (_selectedProvinces.isNotEmpty &&
+          !_selectedProvinces.contains('All')) {
+        if (!_selectedProvinces.contains(vehicle.province)) return false;
+      }
+
+      // Application Of Use Filter
+      if (_selectedApplicationOfUse.isNotEmpty &&
+          !_selectedApplicationOfUse.contains('All')) {
+        if (!_selectedApplicationOfUse.contains(vehicle.application))
+          return false;
+      }
+
+      // Config Filter
+      if (_selectedConfigs.isNotEmpty && !_selectedConfigs.contains('All')) {
+        if (!_selectedConfigs.contains(vehicle.config)) return false;
+      }
+
+      // Vehicle Type Filter
+      if (_selectedVehicleType.isNotEmpty &&
+          !_selectedVehicleType.contains('All')) {
+        if (!_selectedVehicleType.contains(vehicle.vehicleType)) return false;
+      }
+
+      return true;
     });
   }
 
+  // --------------------------------------------------------------------
+  // 6) Filter Dialog
+  // --------------------------------------------------------------------
+  Future<void> _showFilterDialog() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: Text('Filter Vehicles',
+              style: GoogleFonts.montserrat(color: Colors.white)),
+          content: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setDialogState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // YEAR
+                    ExpansionTile(
+                      title: Text('By Year',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _yearOptions.map((year) {
+                        return CheckboxListTile(
+                          title: Text(year,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedYears.contains(year),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (year == 'All') {
+                                  _selectedYears.clear();
+                                }
+                                if (_selectedYears.contains('All')) {
+                                  _selectedYears.remove('All');
+                                }
+                                _selectedYears.add(year);
+                              } else {
+                                _selectedYears.remove(year);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // BRAND
+                    ExpansionTile(
+                      title: Text('By Brand',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _brandOptions.map((brand) {
+                        return CheckboxListTile(
+                          title: Text(brand,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedBrands.contains(brand),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (brand == 'All') {
+                                  _selectedBrands.clear();
+                                }
+                                if (_selectedBrands.contains('All')) {
+                                  _selectedBrands.remove('All');
+                                }
+                                _selectedBrands.add(brand);
+                                if (_selectedBrands.length == 1) {
+                                  _updateModelsForBrand(brand);
+                                }
+                              } else {
+                                _selectedBrands.remove(brand);
+                                if (_selectedBrands.isEmpty) {
+                                  _makeModelOptions = ['All'];
+                                }
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // MODEL
+                    ExpansionTile(
+                      title: Text('By Model',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _makeModelOptions.map((model) {
+                        return CheckboxListTile(
+                          title: Text(model,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedMakeModels.contains(model),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (model == 'All') {
+                                  _selectedMakeModels.clear();
+                                }
+                                if (_selectedMakeModels.contains('All')) {
+                                  _selectedMakeModels.remove('All');
+                                }
+                                _selectedMakeModels.add(model);
+                              } else {
+                                _selectedMakeModels.remove(model);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // VEHICLE STATUS
+                    ExpansionTile(
+                      title: Text('By Status',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _vehicleStatusOptions
+                          .where((status) =>
+                              status != 'Draft' &&
+                              status != 'pending' &&
+                              status != 'Live')
+                          .map((status) {
+                        return CheckboxListTile(
+                          title: Text(status,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedVehicleStatuses.contains(status),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (status == 'All') {
+                                  _selectedVehicleStatuses.clear();
+                                }
+                                if (_selectedVehicleStatuses.contains('All')) {
+                                  _selectedVehicleStatuses.remove('All');
+                                }
+                                _selectedVehicleStatuses.add(status);
+                              } else {
+                                _selectedVehicleStatuses.remove(status);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // TRANSMISSION
+                    ExpansionTile(
+                      title: Text('By Transmission',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _transmissionOptions.map((trans) {
+                        return CheckboxListTile(
+                          title: Text(trans,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedTransmissions.contains(trans),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (trans == 'All') {
+                                  _selectedTransmissions.clear();
+                                }
+                                if (_selectedTransmissions.contains('All')) {
+                                  _selectedTransmissions.remove('All');
+                                }
+                                _selectedTransmissions.add(trans);
+                              } else {
+                                _selectedTransmissions.remove(trans);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // COUNTRY
+                    ExpansionTile(
+                      title: Text('By Country',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _countryOptions.map((ctry) {
+                        return CheckboxListTile(
+                          title: Text(ctry,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedCountries.contains(ctry),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (ctry == 'All') {
+                                  _selectedCountries.clear();
+                                }
+                                if (_selectedCountries.contains('All')) {
+                                  _selectedCountries.remove('All');
+                                }
+                                _selectedCountries.add(ctry);
+                                if (_selectedCountries.length == 1 &&
+                                    ctry != 'All') {
+                                  _updateProvincesForCountry(ctry);
+                                } else {
+                                  _provinceOptions = ['All'];
+                                }
+                              } else {
+                                _selectedCountries.remove(ctry);
+                                if (_selectedCountries.isEmpty) {
+                                  _provinceOptions = ['All'];
+                                } else if (_selectedCountries.length == 1) {
+                                  final onlyCtry = _selectedCountries.first;
+                                  if (onlyCtry != 'All') {
+                                    _updateProvincesForCountry(onlyCtry);
+                                  }
+                                }
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // PROVINCE
+                    ExpansionTile(
+                      title: Text('By Province',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _provinceOptions.map((prov) {
+                        return CheckboxListTile(
+                          title: Text(prov,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedProvinces.contains(prov),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (prov == 'All') {
+                                  _selectedProvinces.clear();
+                                }
+                                if (_selectedProvinces.contains('All')) {
+                                  _selectedProvinces.remove('All');
+                                }
+                                _selectedProvinces.add(prov);
+                              } else {
+                                _selectedProvinces.remove(prov);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // APPLICATION OF USE
+                    ExpansionTile(
+                      title: Text('By Application Of Use',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _applicationOfUseOptions.map((vtype) {
+                        return CheckboxListTile(
+                          title: Text(vtype,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedApplicationOfUse.contains(vtype),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (vtype == 'All') {
+                                  _selectedApplicationOfUse.clear();
+                                }
+                                if (_selectedApplicationOfUse.contains('All')) {
+                                  _selectedApplicationOfUse.remove('All');
+                                }
+                                _selectedApplicationOfUse.add(vtype);
+                              } else {
+                                _selectedApplicationOfUse.remove(vtype);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // CONFIG
+                    ExpansionTile(
+                      title: Text('By Config',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _configOptions.map((cfg) {
+                        return CheckboxListTile(
+                          title: Text(cfg,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedConfigs.contains(cfg),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (cfg == 'All') {
+                                  _selectedConfigs.clear();
+                                }
+                                if (_selectedConfigs.contains('All')) {
+                                  _selectedConfigs.remove('All');
+                                }
+                                _selectedConfigs.add(cfg);
+                              } else {
+                                _selectedConfigs.remove(cfg);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                    // VEHICLE TYPE
+                    ExpansionTile(
+                      title: Text('By Vehicle Type',
+                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      children: _vehicleTypeOptions.map((type) {
+                        return CheckboxListTile(
+                          title: Text(type,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          value: _selectedVehicleType.contains(type),
+                          onChanged: (bool? value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                if (type == 'All') {
+                                  _selectedVehicleType.clear();
+                                }
+                                if (_selectedVehicleType.contains('All')) {
+                                  _selectedVehicleType.remove('All');
+                                }
+                                _selectedVehicleType.add(type);
+                              } else {
+                                _selectedVehicleType.remove(type);
+                              }
+                            });
+                          },
+                          checkColor: Colors.black,
+                          activeColor: const Color(0xFFFF4E00),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: Text('Clear All',
+                  style: GoogleFonts.montserrat(color: Colors.white)),
+              onPressed: () {
+                setState(() {
+                  _selectedYears.clear();
+                  _selectedBrands.clear();
+                  _selectedMakeModels.clear();
+                  _selectedVehicleStatuses.clear();
+                  _selectedTransmissions.clear();
+                  _selectedCountries.clear();
+                  _selectedProvinces.clear();
+                  _selectedApplicationOfUse.clear();
+                  _selectedConfigs.clear();
+                  _selectedVehicleType.clear();
+                  _provinceOptions = ['All'];
+                });
+                Navigator.pop(context);
+                _loadInitialVehicles();
+              },
+            ),
+            TextButton(
+              child: Text('Apply',
+                  style: GoogleFonts.montserrat(color: Color(0xFFFF4E00))),
+              onPressed: () {
+                Navigator.pop(context);
+                _loadInitialVehicles();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --------------------------------------------------------------------
+  // 7) Clear Liked and Disliked Vehicles (For Testing)
+  // --------------------------------------------------------------------
+  void _clearLikedAndDislikedVehicles() async {
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      await userProvider.clearDislikedVehicles();
+      await userProvider
+          .clearLikedVehicles(); // Assuming you want to clear liked as well
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Liked and disliked vehicles have been cleared.'),
+        ),
+      );
+
+      _loadInitialVehicles();
+    } catch (e) {
+      print('Error in _clearLikedAndDislikedVehicles: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to clear vehicles. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  // --------------------------------------------------------------------
+  // 8) UI Helpers and Build Methods
+  // --------------------------------------------------------------------
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
     return GoogleFonts.montserrat(
       fontSize: fontSize,
@@ -311,371 +948,10 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
-  void _applyFilters(List<FilterCriterion> filters) {
-    final vehicleProvider =
-        Provider.of<VehicleProvider>(context, listen: false);
-
+  void _onItemTapped(int index) {
     setState(() {
-      _isFiltering = true;
+      _selectedIndex = index;
     });
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      setState(() {
-        // Start with only Live vehicles
-        displayedVehicles = vehicleProvider.vehicles
-            .where((vehicle) => vehicle.vehicleStatus == 'Live')
-            .where((vehicle) {
-          // Then apply all filter criteria
-          return filters.every((filter) {
-            dynamic fieldValue = _getFieldValue(vehicle, filter.fieldName);
-            return _evaluateFilter(fieldValue, filter);
-          });
-        }).toList();
-
-        loadedVehicleIndex = displayedVehicles.length;
-        _isFiltering = false;
-      });
-    });
-  }
-
-  // Helper method to retrieve field value from Vehicle based on field name
-  dynamic _getFieldValue(Vehicle vehicle, String fieldName) {
-    switch (fieldName) {
-      case 'application':
-        return vehicle.application;
-      case 'expectedSellingPrice':
-        return double.tryParse(vehicle.expectedSellingPrice
-                .replaceAll(',', '')
-                .replaceAll(' ', '')) ??
-            0.0;
-      case 'expectedSellingPriceRange':
-        return vehicle.expectedSellingPrice; // We will handle ranges in filter
-      case 'hydraluicType':
-        return vehicle.hydraluicType;
-      case 'makeModel':
-        return vehicle.makeModel;
-      case 'mileage':
-        return int.tryParse(
-                vehicle.mileage.replaceAll(',', '').replaceAll(' ', '')) ??
-            0;
-      case 'mileageRange':
-        return vehicle.mileage; // Handle ranges
-      case 'transmissionType':
-        return vehicle.transmissionType;
-      case 'config':
-        return vehicle.config;
-      case 'vehicleType':
-        return vehicle.vehicleType;
-      case 'year':
-        return int.tryParse(vehicle.year.replaceAll(' ', '')) ?? 0;
-      case 'adminData.settlementAmount':
-        return double.tryParse(vehicle.adminData.settlementAmount
-                .replaceAll(',', '')
-                .replaceAll(' ', '')) ??
-            0.0;
-      case 'settlementAmountRange':
-        return vehicle.adminData.settlementAmount; // Handle ranges
-      case 'maintenance.oemInspectionType':
-        return vehicle.maintenance.oemInspectionType;
-      // Add more cases for additional fields
-      default:
-        return null;
-    }
-  }
-
-  // Helper method to evaluate a single filter criterion
-  bool _evaluateFilter(dynamic fieldValue, FilterCriterion filter) {
-    switch (filter.operation) {
-      case FilterOperation.equals:
-        return fieldValue == filter.value;
-      case FilterOperation.contains:
-        if (fieldValue is String && filter.value is String) {
-          return fieldValue.toLowerCase() == filter.value.toLowerCase();
-        }
-        return false;
-      // Since we're using predefined values, we might not need greaterThan, lessThan
-      default:
-        return false;
-    }
-  }
-
-  void _clearFilters() {
-    setState(() {
-      _isFiltering = true; // Start filtering
-      filterCriteria.clear();
-    });
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _loadInitialVehicles();
-      setState(() {
-        _isFiltering = false; // End filtering
-      });
-    });
-  }
-
-  Future<void> _showFilterDialog() async {
-    final vehicleProvider =
-        Provider.of<VehicleProvider>(context, listen: false);
-
-    // Define all filterable fields along with their data types
-    final List<Map<String, dynamic>> filterableFields = [
-      {'name': 'Application', 'field': 'application', 'type': 'String'},
-      {
-        'name': 'Expected Selling Price',
-        'field': 'expectedSellingPriceRange',
-        'type': 'range'
-      },
-      {'name': 'Hydraulic Type', 'field': 'hydraluicType', 'type': 'String'},
-      {'name': 'Make Model', 'field': 'makeModel', 'type': 'String'},
-      {'name': 'Mileage', 'field': 'mileageRange', 'type': 'range'},
-      {'name': 'Transmission', 'field': 'transmissionType', 'type': 'String'},
-      {'name': 'Config', 'field': 'config', 'type': 'String'},
-      {'name': 'Vehicle Type', 'field': 'vehicleType', 'type': 'String'},
-      {'name': 'Year', 'field': 'year', 'type': 'int'},
-      {
-        'name': 'Settlement Amount',
-        'field': 'settlementAmountRange',
-        'type': 'range'
-      },
-      {
-        'name': 'OEM Inspection Type',
-        'field': 'maintenance.oemInspectionType',
-        'type': 'String'
-      },
-      // Add more fields as needed
-    ];
-
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Filter Vehicles'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Display existing filter criteria
-                    ...filterCriteria.map((criterion) {
-                      // Find the field details
-                      final fieldDetails = filterableFields.firstWhere(
-                          (field) => field['field'] == criterion.fieldName,
-                          orElse: () => {});
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Field Selection Dropdown
-                          DropdownButtonFormField<String>(
-                            decoration:
-                                const InputDecoration(labelText: 'Field'),
-                            value: criterion.fieldName,
-                            items: filterableFields.map((field) {
-                              return DropdownMenuItem<String>(
-                                value: field['field'],
-                                child: Text(field['name']),
-                              );
-                            }).toList(),
-                            onChanged: (newField) {
-                              setStateDialog(() {
-                                criterion.fieldName = newField!;
-                                // Optionally reset operation and value
-                                criterion.operation = FilterOperation.equals;
-                                criterion.value = null;
-                              });
-                            },
-                          ),
-                          SizedBox(height: 8),
-                          // Value Selection
-                          _buildValueDropdown(fieldDetails['field'] as String,
-                              criterion, setStateDialog),
-                          SizedBox(height: 8),
-                          // Remove Button aligned to the right
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: IconButton(
-                              icon:
-                                  Icon(Icons.remove_circle, color: Colors.red),
-                              onPressed: () {
-                                setStateDialog(() {
-                                  filterCriteria.remove(criterion);
-                                });
-                              },
-                            ),
-                          ),
-                          Divider(), // Optional: add a divider between filters
-                        ],
-                      );
-                    }),
-                    SizedBox(height: 10),
-                    // Button to add a new filter criterion
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        setStateDialog(() {
-                          filterCriteria.add(
-                            FilterCriterion(
-                              fieldName: filterableFields.first['field'],
-                              operation: FilterOperation.equals,
-                              value: null,
-                            ),
-                          );
-                        });
-                      },
-                      icon: Icon(Icons.add),
-                      label: Text('Add Filter'),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    _applyFilters(filterCriteria);
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Apply'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Helper method to build value dropdown based on field
-  Widget _buildValueDropdown(
-      String fieldName, FilterCriterion criterion, StateSetter setStateDialog) {
-    List<dynamic> options = filterOptions[fieldName] ?? [];
-
-    return DropdownButtonFormField<dynamic>(
-      decoration: const InputDecoration(labelText: 'Value'),
-      value: criterion.value,
-      items: options.map((option) {
-        return DropdownMenuItem<dynamic>(
-          value: option,
-          child: Text(option.toString()),
-        );
-      }).toList(),
-      onChanged: (newValue) {
-        setStateDialog(() {
-          criterion.value = newValue;
-        });
-      },
-    );
-  }
-
-  void _clearLikedAndDislikedVehicles() async {
-    try {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-      await userProvider.clearDislikedVehicles();
-      await userProvider
-          .clearLikedVehicles(); // Assuming you want to clear liked as well
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Liked and disliked vehicles have been cleared.'),
-        ),
-      );
-
-      _loadInitialVehicles();
-    } catch (e) {
-      print('Error in _clearLikedAndDislikedVehicles: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to clear vehicles. Please try again.'),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    return Scaffold(
-      appBar: CustomAppBar(),
-      backgroundColor: Colors.black,
-      body: Column(
-        children: [
-          // Move the filter controls here
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Filter Icon Button
-                IconButton(
-                  icon: const Icon(
-                    Icons.tune,
-                    color: Colors.white,
-                  ),
-                  onPressed: _showFilterDialog,
-                ),
-                // Clear Filters Button
-                if (filterCriteria.isNotEmpty)
-                  TextButton(
-                    onPressed: _clearFilters,
-                    child: const Text(
-                      "Clear Filters",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _isLoading || _isFiltering
-                ? Center(
-                    child: Image.asset(
-                      'lib/assets/Loading_Logo_CTP.gif',
-                      width: 100,
-                      height: 100,
-                    ),
-                  )
-                : displayedVehicles.isNotEmpty
-                    ? NotificationListener<ScrollNotification>(
-                        onNotification: (ScrollNotification notification) {
-                          if (notification is ScrollEndNotification) {
-                            _scrollListener();
-                          }
-                          return false;
-                        },
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          itemCount:
-                              displayedVehicles.length + 1, // +1 for the loader
-                          itemBuilder: (context, index) {
-                            if (index < displayedVehicles.length) {
-                              return _buildTruckCard(
-                                  context, displayedVehicles[index]);
-                            } else {
-                              // Loader at the bottom
-                              return _isLoadingMore
-                                  ? Center(child: CircularProgressIndicator())
-                                  : SizedBox.shrink();
-                            }
-                          },
-                        ),
-                      )
-                    : _buildNoVehiclesAvailable(),
-          ),
-        ],
-      ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-      ),
-    );
   }
 
   Widget _buildTruckCard(BuildContext context, Vehicle vehicle) {
@@ -850,16 +1126,11 @@ class _TruckPageState extends State<TruckPage> {
   void _markAsInterested(Vehicle vehicle) async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      print('Before action - Liked vehicles: ${userProvider.getLikedVehicles}');
-      print('Current vehicle ID: ${vehicle.id}');
 
       if (userProvider.getLikedVehicles.contains(vehicle.id)) {
         await userProvider.unlikeVehicle(vehicle.id);
-        print(
-            'After unlike - Liked vehicles: ${userProvider.getLikedVehicles}');
       } else {
         await userProvider.likeVehicle(vehicle.id);
-        print('After like - Liked vehicles: ${userProvider.getLikedVehicles}');
       }
       setState(() {});
     } catch (e) {
@@ -900,10 +1171,128 @@ class _TruckPageState extends State<TruckPage> {
       ),
     );
   }
+
+  // --------------------------------------------------------------------
+  // 9) Build Method
+  // --------------------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
+    return Scaffold(
+      appBar: CustomAppBar(),
+      backgroundColor: Colors.black,
+      body: Column(
+        children: [
+          // Add vehicle count display
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'All Vehicles Total: ${displayedVehicles.length}',
+                  style: _customFont(16, FontWeight.bold, Colors.white),
+                ),
+                Row(
+                  children: [
+                    // Filter Icon Button
+                    IconButton(
+                      icon: const Icon(
+                        Icons.tune,
+                        color: Colors.white,
+                      ),
+                      onPressed: _showFilterDialog,
+                    ),
+                    // Clear Filters Button
+                    if (_selectedYears.isNotEmpty ||
+                        _selectedBrands.isNotEmpty ||
+                        _selectedMakeModels.isNotEmpty ||
+                        _selectedVehicleStatuses.isNotEmpty ||
+                        _selectedTransmissions.isNotEmpty ||
+                        _selectedCountries.isNotEmpty ||
+                        _selectedProvinces.isNotEmpty ||
+                        _selectedApplicationOfUse.isNotEmpty ||
+                        _selectedConfigs.isNotEmpty ||
+                        _selectedVehicleType.isNotEmpty)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedYears.clear();
+                            _selectedBrands.clear();
+                            _selectedMakeModels.clear();
+                            _selectedVehicleStatuses.clear();
+                            _selectedTransmissions.clear();
+                            _selectedCountries.clear();
+                            _selectedProvinces.clear();
+                            _selectedApplicationOfUse.clear();
+                            _selectedConfigs.clear();
+                            _selectedVehicleType.clear();
+                            _provinceOptions = ['All'];
+                          });
+                          _loadInitialVehicles();
+                        },
+                        child: const Text(
+                          "Clear Filters",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _isLoading || _isFiltering
+                ? Center(
+                    child: Image.asset(
+                      'lib/assets/Loading_Logo_CTP.gif',
+                      width: 100,
+                      height: 100,
+                    ),
+                  )
+                : displayedVehicles.isNotEmpty
+                    ? NotificationListener<ScrollNotification>(
+                        onNotification: (ScrollNotification notification) {
+                          if (notification is ScrollEndNotification) {
+                            _scrollListener();
+                          }
+                          return false;
+                        },
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          itemCount:
+                              displayedVehicles.length + 1, // +1 for the loader
+                          itemBuilder: (context, index) {
+                            if (index < displayedVehicles.length) {
+                              return _buildTruckCard(
+                                  context, displayedVehicles[index]);
+                            } else {
+                              // Loader at the bottom
+                              return _isLoadingMore
+                                  ? Center(child: CircularProgressIndicator())
+                                  : SizedBox.shrink();
+                            }
+                          },
+                        ),
+                      )
+                    : _buildNoVehiclesAvailable(),
+          ),
+        ],
+      ),
+      bottomNavigationBar: CustomBottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
+      ),
+    );
+  }
 }
 
+// Extension to capitalize the first letter of a string
 extension StringExtension on String {
   String capitalize() {
+    if (this.isEmpty) return this;
     return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

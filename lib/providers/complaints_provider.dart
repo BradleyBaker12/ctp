@@ -256,4 +256,8 @@ class ComplaintsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  int getComplaintCount() {
+    return _complaints.length;
+  }
 }

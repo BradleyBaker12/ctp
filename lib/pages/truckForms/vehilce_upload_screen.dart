@@ -19,11 +19,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
+import 'package:shared_preferences/shared_preferences.dart';
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'image_picker_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
@@ -132,6 +134,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // Instead of a dummy list, we'll fetch from UserProvider's dealers.
   String? _selectedSalesRep;
 
+  // Add new fields for caching
+  final Map<String, String> _cachedImagePaths = {};
+  bool _isRestoringImages = false;
+
   Future<void> _loadYearOptions() async {
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
@@ -148,22 +154,32 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final data = json.decode(response);
     setState(() {
       _brandOptions = data[year]?.keys.toList() ?? [];
-      formData.setBrands(null);
-      formData.setMakeModel(null);
-      formData.setVariant(null);
+      // Don't clear brands if we're duplicating
+      if (!widget.isDuplicating) {
+        formData.setBrands(null);
+        formData.setMakeModel(null);
+        formData.setVariant(null);
+      }
     });
   }
 
   Future<void> _loadModelsForBrand(String brand) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
+    if (year == null) return;
+
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
     setState(() {
-      final models = data[year][brand] as List<dynamic>;
-      _makeModelOptions = {brand: models.cast<String>()};
-      formData.setMakeModel(null);
+      if (data[year] != null && data[year][brand] != null) {
+        final models = data[year][brand] as List<dynamic>;
+        _makeModelOptions = {brand: models.cast<String>()};
+        // Don't clear makeModel if we're duplicating
+        if (!widget.isDuplicating) {
+          formData.setMakeModel(null);
+        }
+      }
     });
   }
 
@@ -211,14 +227,19 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _updateProvinceOptions('South Africa');
     _loadTruckData();
     _loadYearOptions();
+    _restoreCachedImages();
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.isNewUpload) {
         _clearAllData(formData);
-      } else if (widget.vehicle != null && !widget.isDuplicating) {
-        _vehicleId = widget.vehicle!.id;
-        _populateVehicleData();
+      } else if (widget.vehicle != null) {
+        if (widget.isDuplicating) {
+          _populateDuplicatedData(formData);
+        } else {
+          _vehicleId = widget.vehicle!.id;
+          _populateVehicleData();
+        }
       }
       _initializeTextControllers(formData);
       _addControllerListeners(formData);
@@ -238,12 +259,19 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response) as Map<String, dynamic>;
     setState(() {
-      _makeModelOptions = Map<String, List<String>>.from(
-        data.map((key, value) => MapEntry(
-              key,
-              (value as List).map((item) => item.toString()).toList(),
-            )),
-      );
+      // Fix: Properly handle the nested structure
+      _makeModelOptions = {};
+      for (var year in data.keys) {
+        for (var brand in (data[year] as Map<String, dynamic>).keys) {
+          if (!_makeModelOptions.containsKey(brand)) {
+            _makeModelOptions[brand] = [];
+          }
+          final models = data[year][brand];
+          if (models is List) {
+            _makeModelOptions[brand]!.addAll(models.map((m) => m.toString()));
+          }
+        }
+      }
     });
   }
 
@@ -380,6 +408,55 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       _vehicleId = null;
     } else {
       _vehicleId = widget.vehicle!.id;
+    }
+  }
+
+  void _populateDuplicatedData(FormDataProvider formData) {
+    if (widget.vehicle != null) {
+      debugPrint('=== Populating Duplicated Data ===');
+
+      // Set year first
+      formData.setYear(widget.vehicle!.year);
+
+      // Then load brands for that year
+      if (widget.vehicle!.year != null) {
+        _loadBrandsForYear(widget.vehicle!.year!).then((_) {
+          // After brands are loaded, set the brand and load models
+          if (widget.vehicle!.brands?.isNotEmpty == true) {
+            formData.setBrands(widget.vehicle!.brands);
+            _loadModelsForBrand(widget.vehicle!.brands!.first).then((_) {
+              // Finally set the makeModel
+              formData.setMakeModel(widget.vehicle!.makeModel);
+            });
+          }
+        });
+      }
+
+      // Set other fields
+      formData.setConfig(widget.vehicle!.config);
+      formData.setCountry(widget.vehicle!.country);
+      formData.setHydraulics(widget.vehicle!.hydraluicType);
+      formData.setProvince(widget.vehicle!.province);
+      formData.setSuspension(widget.vehicle!.suspensionType);
+      formData.setTransmissionType(widget.vehicle!.transmissionType);
+
+      // Handle application field
+      if (widget.vehicle!.application != null) {
+        if (widget.vehicle!.application is String) {
+          formData.setApplication(widget.vehicle!.application as String);
+        } else if (widget.vehicle!.application is List) {
+          final List appList = widget.vehicle!.application as List;
+          formData.setApplication(
+              appList.isNotEmpty ? appList.first.toString() : '');
+        }
+      }
+
+      // Update province options based on country
+      if (widget.vehicle!.country != null) {
+        _updateProvinceOptions(widget.vehicle!.country!);
+      }
+
+      debugPrint('=== Duplication Data Population Complete ===');
     }
   }
 
@@ -526,6 +603,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _applicationController.dispose();
     _countryController.dispose();
     _scrollController.dispose();
+    if (widget.isNewUpload) {
+      _clearCache();
+    }
     super.dispose();
   }
 
@@ -1490,12 +1570,128 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     });
   }
 
+  // Method to get the cache directory path
+  Future<String> get _cacheDir async {
+    final dir = await getTemporaryDirectory();
+    final cacheDir = Directory('${dir.path}/vehicle_upload_cache');
+    if (!await cacheDir.exists()) {
+      await cacheDir.create();
+    }
+    return cacheDir.path;
+  }
+
+  // Method to cache an image
+  Future<String> _cacheImage(File imageFile) async {
+    final cacheDir = await _cacheDir;
+    final fileName =
+        '${DateTime.now().millisecondsSinceEpoch}_${imageFile.path.split('/').last}';
+    final cachedFile = await imageFile.copy('$cacheDir/$fileName');
+    return cachedFile.path;
+  }
+
+  // Method to restore cached images
+  Future<void> _restoreCachedImages() async {
+    if (_isRestoringImages) return;
+    _isRestoringImages = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final vehicleId = _vehicleId ?? 'draft';
+      final cachedPaths = prefs.getStringList('cached_images_$vehicleId') ?? [];
+
+      for (String pathData in cachedPaths) {
+        final parts = pathData.split('::');
+        if (parts.length == 2) {
+          final imageType = parts[0];
+          final path = parts[1];
+
+          final file = File(path);
+          if (await file.exists()) {
+            switch (imageType) {
+              case 'main':
+                final formData =
+                    Provider.of<FormDataProvider>(context, listen: false);
+                formData.setSelectedMainImage(file);
+                break;
+              // Add cases for other image types as needed
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error restoring cached images: $e');
+    } finally {
+      _isRestoringImages = false;
+    }
+  }
+
+  // Method to save image paths to persistent storage
+  Future<void> _saveCachedImagePaths() async {
+    final prefs = await SharedPreferences.getInstance();
+    final vehicleId = _vehicleId ?? 'draft';
+    final pathsList =
+        _cachedImagePaths.entries.map((e) => '${e.key}::${e.value}').toList();
+    await prefs.setStringList('cached_images_$vehicleId', pathsList);
+  }
+
+  // Modified image picking method
   Future<void> _pickImage(ImageSource source) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: source);
+
     if (image != null) {
-      formData.setSelectedMainImage(File(image.path));
+      final File imageFile = File(image.path);
+      // Cache the image
+      final cachedPath = await _cacheImage(imageFile);
+      _cachedImagePaths['main'] = cachedPath;
+      await _saveCachedImagePaths();
+
+      // Update the UI
+      formData.setSelectedMainImage(File(cachedPath));
+
+      // Progressively upload if we have a vehicle ID
+      if (_vehicleId != null) {
+        _uploadAndUpdateMainImage(File(cachedPath));
+      }
+    }
+  }
+
+  // Method to upload and update main image
+  Future<void> _uploadAndUpdateMainImage(File imageFile) async {
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('vehicle_images')
+          .child('${DateTime.now().toIso8601String()}.jpg');
+
+      await ref.putFile(imageFile);
+      final imageUrl = await ref.getDownloadURL();
+
+      // Update Firestore with the new image URL
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(_vehicleId)
+          .update({'mainImageUrl': imageUrl});
+
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      formData.setMainImageUrl(imageUrl);
+    } catch (e) {
+      debugPrint('Error uploading main image: $e');
+    }
+  }
+
+  Future<void> _clearCache() async {
+    try {
+      final dir = Directory(await _cacheDir);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final vehicleId = _vehicleId ?? 'draft';
+      await prefs.remove('cached_images_$vehicleId');
+    } catch (e) {
+      debugPrint('Error clearing cache: $e');
     }
   }
 
