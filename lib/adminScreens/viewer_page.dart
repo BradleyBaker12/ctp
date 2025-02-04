@@ -1,7 +1,13 @@
+// IMPORTANT: The import for 'dart:html' below is only needed on the web.
+// If you experience issues when building for mobile, consider using conditional imports.
 import 'dart:io';
+import 'dart:html' as html;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
@@ -17,7 +23,7 @@ class ViewerPage extends StatefulWidget {
 
 class _ViewerPageState extends State<ViewerPage> {
   bool _isLoading = true;
-  String? _localPDFPath; // For storing the local path of the downloaded PDF
+  String? _localPDFPath; // Used on mobile after downloading the PDF
 
   @override
   void initState() {
@@ -26,15 +32,25 @@ class _ViewerPageState extends State<ViewerPage> {
     _prepareFile();
   }
 
-  /// If the file is a PDF, download it to a local temp directory; otherwise skip.
+  /// Prepares the file for viewing.
+  ///
+  /// On mobile, if the file is a PDF, it downloads it to a temporary directory.
+  /// On the web, no download is needed and the file is loaded directly from the network.
   Future<void> _prepareFile() async {
+    if (kIsWeb) {
+      // On the web, simply mark as loaded.
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
     try {
-      // Strip query parameters, then check if it ends with .pdf
+      // Remove any query parameters and check if the file is a PDF.
       final sanitizedUrl = widget.url.split('?').first.toLowerCase();
       final isPDF = sanitizedUrl.endsWith('.pdf');
       debugPrint(
-        'DEBUG: _prepareFile -> isPDF: $isPDF (sanitizedUrl=$sanitizedUrl)',
-      );
+          'DEBUG: _prepareFile -> isPDF: $isPDF (sanitizedUrl=$sanitizedUrl)');
 
       if (isPDF) {
         debugPrint('DEBUG: Attempting to download PDF from: ${widget.url}');
@@ -45,8 +61,6 @@ class _ViewerPageState extends State<ViewerPage> {
           final bytes = response.bodyBytes;
           final tempDir = await getTemporaryDirectory();
           final fileName = p.basename(sanitizedUrl);
-          // Or just p.basename(widget.url); either is fine
-
           final filePath = p.join(tempDir.path, fileName);
           final file = File(filePath);
 
@@ -59,13 +73,14 @@ class _ViewerPageState extends State<ViewerPage> {
           });
         } else {
           throw Exception(
-            'HTTP Error: ${response.statusCode} for ${widget.url}',
-          );
+              'HTTP Error: ${response.statusCode} for ${widget.url}');
         }
       } else {
-        // If not a PDF, just mark as finished loading
+        // For non-PDF files, no downloading is necessary.
         debugPrint('DEBUG: File is not PDF, skipping download...');
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e, stackTrace) {
       debugPrint('ERROR: _prepareFile -> $e');
@@ -85,13 +100,11 @@ class _ViewerPageState extends State<ViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Again, strip query params in case .pdf is at the end
+    // Remove query parameters for the purpose of file type detection.
     final sanitizedUrl = widget.url.split('?').first.toLowerCase();
     final isPDF = sanitizedUrl.endsWith('.pdf');
 
-    debugPrint(
-      'DEBUG: build -> isPDF: $isPDF, _isLoading: $_isLoading',
-    );
+    debugPrint('DEBUG: build -> isPDF: $isPDF, _isLoading: $_isLoading');
 
     return Scaffold(
       appBar: AppBar(
@@ -100,16 +113,20 @@ class _ViewerPageState extends State<ViewerPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : isPDF
-              // ---- PDF Mode ----
-              ? (_localPDFPath != null)
-                  ? _buildPDFView()
-                  : const Center(child: Text('Failed to load PDF.'))
-              // ---- Image Mode ----
+              // ----- PDF Mode -----
+              ? kIsWeb
+                  // On web, load the PDF directly from the network.
+                  ? SfPdfViewer.network(widget.url)
+                  // On mobile, use the downloaded local PDF file.
+                  : (_localPDFPath != null
+                      ? _buildPDFView()
+                      : const Center(child: Text('Failed to load PDF.')))
+              // ----- Image Mode -----
               : _buildImageView(),
     );
   }
 
-  /// Builds the PDF viewer widget.
+  /// Builds the PDF viewer widget for mobile.
   Widget _buildPDFView() {
     debugPrint('DEBUG: _buildPDFView -> using PDFView with $_localPDFPath');
     return PDFView(
@@ -133,8 +150,7 @@ class _ViewerPageState extends State<ViewerPage> {
   /// Builds the image viewer widget.
   Widget _buildImageView() {
     debugPrint(
-      'DEBUG: _buildImageView -> using PhotoView with URL: ${widget.url}',
-    );
+        'DEBUG: _buildImageView -> using PhotoView with URL: ${widget.url}');
     return PhotoView(
       imageProvider: NetworkImage(widget.url),
       loadingBuilder: (context, event) {

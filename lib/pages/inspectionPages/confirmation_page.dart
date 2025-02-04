@@ -11,6 +11,8 @@ import 'final_inspection_approval_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_back_button.dart'; // Import your custom back button
 import 'package:intl/intl.dart'; // Import the intl package
+import 'package:flutter/foundation.dart';
+import 'package:ctp/components/web_navigation_bar.dart';
 
 class ConfirmationPage extends StatefulWidget {
   final String offerId;
@@ -41,6 +43,12 @@ class ConfirmationPage extends StatefulWidget {
 }
 
 class _ConfirmationPageState extends State<ConfirmationPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
+
   int _selectedIndex =
       1; // Variable to keep track of the selected bottom nav item
   bool _inspectionCompleteClicked =
@@ -132,210 +140,305 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     });
   }
 
+  /// Helper function to provide different font sizes for phone vs. tablet.
+  double _adaptiveTextSize(
+      BuildContext context, double phoneSize, double tabletSize) {
+    bool isTablet = MediaQuery.of(context).size.width >= 600;
+    return isTablet ? tabletSize : phoneSize;
+  }
+
+  TextStyle _getTextStyle({
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.normal,
+    Color color = Colors.white,
+  }) {
+    return GoogleFonts.montserrat(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    var screenSize = MediaQuery.of(context).size;
-    final userProvider = Provider.of<UserProvider>(context);
-    final profilePictureUrl = userProvider.getProfileImageUrl.isNotEmpty
-        ? userProvider.getProfileImageUrl
-        : 'lib/assets/default_profile_picture.png';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool isTablet = constraints.maxWidth >= 600;
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+        const bool isWeb = kIsWeb;
 
-    // Fetch the user role to determine whether to show the reschedule button
-    final userRole = userProvider.getUserRole;
+        final userProvider = Provider.of<UserProvider>(context);
+        final profilePictureUrl = userProvider.getProfileImageUrl.isNotEmpty
+            ? userProvider.getProfileImageUrl
+            : 'lib/assets/default_profile_picture.png';
+        final userRole = userProvider.getUserRole;
 
-    return Scaffold(
-      body: GradientBackground(
-        child: SizedBox.expand(
-          // Ensures the child takes up the full height
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: CustomBackButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ),
-                      SizedBox(
-                          child: Image.asset('lib/assets/CTPLogo.png',
-                              width: screenSize.width * 0.22,
-                              height: screenSize.height * 0.22)),
-                      Text(
-                        'WAITING ON FINAL INSPECTION',
-                        style: GoogleFonts.montserrat(
-                          fontSize: screenSize.height * 0.023,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: NetworkImage(profilePictureUrl),
-                      ),
-                      const SizedBox(height: 32),
-                      Text(
-                        widget.makeModel.toUpperCase(),
-                        style: GoogleFonts.montserrat(
-                          fontSize: screenSize.height * 0.023,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      Text(
-                        'OFFER',
-                        style: GoogleFonts.montserrat(
-                            fontSize: screenSize.height * 0.02,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      // Offer Amount Box
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Text(
-                          widget.offerAmount,
-                          style: GoogleFonts.montserrat(
-                            fontSize: screenSize.height * 0.023,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Date Box
-                      Container(
-                        width: double.infinity,
-                        constraints: BoxConstraints(
-                          minHeight:
-                              screenSize.height * 0.05, // Set a minimum height
-                        ),
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Text(
-                          'DATE: ${DateFormat('d MMMM yyyy').format(widget.date)}',
-                          style: GoogleFonts.montserrat(
-                              fontSize: screenSize.height * 0.018,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Time Box
-                      Container(
-                        width: double.infinity,
-                        constraints: BoxConstraints(
-                          minHeight:
-                              screenSize.height * 0.05, // Set a minimum height
-                        ),
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Text(
-                          'TIME: ${widget.time}',
-                          style: GoogleFonts.montserrat(
-                              fontSize: screenSize.height * 0.018,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Location Box
-                      Container(
-                        width: double.infinity,
-                        constraints: BoxConstraints(
-                          minHeight:
-                              screenSize.height * 0.05, // Set a minimum height
-                        ),
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Text(
-                          widget.address,
-                          style: GoogleFonts.montserrat(
-                            fontSize: screenSize.height * 0.018,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
+        List<NavigationItem> navigationItems = userRole == 'dealer'
+            ? [
+                NavigationItem(title: 'Home', route: '/home'),
+                NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+                NavigationItem(title: 'Wishlist', route: '/wishlist'),
+                NavigationItem(title: 'Pending Offers', route: '/offers'),
+              ]
+            : [
+                NavigationItem(title: 'Home', route: '/home'),
+                NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+                NavigationItem(title: 'Your Offers', route: '/offers'),
+                NavigationItem(title: 'In-Progress', route: '/in-progress'),
+              ];
+
+        return Scaffold(
+          key: _scaffoldKey,
+          appBar: isWeb
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(70),
+                  child: WebNavigationBar(
+                    isCompactNavigation: _isCompactNavigation(context),
+                    currentRoute: '/offers',
+                    onMenuPressed: () =>
+                        _scaffoldKey.currentState?.openDrawer(),
                   ),
-                  const SizedBox(
-                      height: 16), // Added spacing for bottom buttons
-                  Column(
-                    children: [
-                      // Only show the "Reschedule" button for dealers
-                      if (userRole == 'dealer')
-                        CustomButton(
-                          text: 'RESCHEDULE',
-                          borderColor: Colors.blue,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => InspectionDetailsPage(
-                                  offerId: widget.offerId,
-                                  makeModel: widget.makeModel,
-                                  offerAmount: widget.offerAmount,
-                                  vehicleId: widget.vehicleId,
+                )
+              : null,
+          drawer: _isCompactNavigation(context) && isWeb
+              ? Drawer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: const [Colors.black, Color(0xFF2F7FFD)],
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        DrawerHeader(
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom:
+                                  BorderSide(color: Colors.white24, width: 1),
+                            ),
+                          ),
+                          child: Center(
+                            child: Image.network(
+                              'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                              height: 50,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 50,
+                                  width: 50,
+                                  color: Colors.grey[900],
+                                  child: const Icon(Icons.local_shipping,
+                                      color: Colors.white),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView(
+                            children: navigationItems.map((item) {
+                              bool isActive = '/offers' == item.route;
+                              return ListTile(
+                                title: Text(
+                                  item.title,
+                                  style: TextStyle(
+                                    color: isActive
+                                        ? const Color(0xFFFF4E00)
+                                        : Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                                selected: isActive,
+                                selectedTileColor: Colors.black12,
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  if (!isActive) {
+                                    Navigator.pushNamed(context, item.route);
+                                  }
+                                },
+                              );
+                            }).toList(),
+                          ),
                         ),
-                      CustomButton(
-                        text: 'INSPECTION COMPLETE',
-                        borderColor: const Color(0xFFFF4E00),
-                        onPressed: () {
-                          _completeInspection(userRole);
-                        },
+                      ],
+                    ),
+                  ),
+                )
+              : null,
+          body: GradientBackground(
+            child: SizedBox.expand(
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: EdgeInsets.all(screenWidth * 0.04),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: CustomBackButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
+                          ),
+                          SizedBox(
+                            child: Image.asset(
+                              'lib/assets/CTPLogo.png',
+                              width: isTablet
+                                  ? screenWidth * 0.15
+                                  : screenWidth * 0.22,
+                              height: isTablet
+                                  ? screenHeight * 0.15
+                                  : screenHeight * 0.22,
+                            ),
+                          ),
+                          Text(
+                            'WAITING ON FINAL INSPECTION',
+                            style: _getTextStyle(
+                              fontSize: _adaptiveTextSize(context, 22, 32),
+                              fontWeight: FontWeight.w900,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: screenHeight * 0.04),
+                          CircleAvatar(
+                            radius: isTablet ? 60 : 40,
+                            backgroundImage: NetworkImage(profilePictureUrl),
+                          ),
+                          SizedBox(height: screenHeight * 0.04),
+                          Text(
+                            widget.makeModel.toUpperCase(),
+                            style: _getTextStyle(
+                              fontSize: _adaptiveTextSize(context, 20, 28),
+                              fontWeight: FontWeight.w800,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: screenHeight * 0.04),
+                          Text(
+                            'OFFER',
+                            style: _getTextStyle(
+                              fontSize: _adaptiveTextSize(context, 18, 24),
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: screenHeight * 0.01),
+
+                          // Info containers with consistent scaling
+                          _buildInfoContainer(
+                            widget.offerAmount,
+                            context,
+                            isLarge: true,
+                          ),
+                          SizedBox(height: screenHeight * 0.01),
+                          _buildInfoContainer(
+                            'DATE: ${DateFormat('d MMMM yyyy').format(widget.date)}',
+                            context,
+                          ),
+                          SizedBox(height: screenHeight * 0.01),
+                          _buildInfoContainer(
+                            'TIME: ${widget.time}',
+                            context,
+                          ),
+                          SizedBox(height: screenHeight * 0.01),
+                          _buildInfoContainer(
+                            widget.address,
+                            context,
+                          ),
+                        ],
                       ),
-                      CustomButton(
-                        text: 'BACK TO HOME',
-                        borderColor: const Color(0xFFFF4E00),
-                        onPressed: () {
-                          _navigateToHomePage(context);
-                        },
+                      SizedBox(height: screenHeight * 0.04),
+
+                      // Buttons section
+                      Column(
+                        children: [
+                          if (userRole == 'dealer')
+                            Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: screenHeight * 0.02),
+                              child: CustomButton(
+                                text: 'RESCHEDULE',
+                                borderColor: Colors.blue,
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          InspectionDetailsPage(
+                                        offerId: widget.offerId,
+                                        makeModel: widget.makeModel,
+                                        offerAmount: widget.offerAmount,
+                                        vehicleId: widget.vehicleId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          Padding(
+                            padding:
+                                EdgeInsets.only(bottom: screenHeight * 0.02),
+                            child: CustomButton(
+                              text: 'INSPECTION COMPLETE',
+                              borderColor: const Color(0xFFFF4E00),
+                              onPressed: () => _completeInspection(userRole),
+                            ),
+                          ),
+                          CustomButton(
+                            text: 'BACK TO HOME',
+                            borderColor: const Color(0xFFFF4E00),
+                            onPressed: () => _navigateToHomePage(context),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-      ),
+          bottomNavigationBar: (!kIsWeb)
+              ? CustomBottomNavigation(
+                  selectedIndex: _selectedIndex,
+                  onItemTapped: _onItemTapped,
+                )
+              : null,
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoContainer(String text, BuildContext context,
+      {bool isLarge = false}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool isTablet = constraints.maxWidth >= 600;
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(constraints.maxWidth * 0.02),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: Text(
+            text,
+            style: _getTextStyle(
+              fontSize: _adaptiveTextSize(
+                context,
+                isLarge ? 20 : 16,
+                isLarge ? 28 : 20,
+              ),
+              fontWeight: isLarge ? FontWeight.bold : FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        );
+      },
     );
   }
 }

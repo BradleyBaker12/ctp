@@ -24,6 +24,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:ctp/components/web_navigation_bar.dart';
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -42,6 +44,12 @@ class VehicleDetailsPage extends StatefulWidget {
 }
 
 class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
+
   Vehicle? _vehicle;
   Vehicle get vehicle => _vehicle ?? widget.vehicle;
   set vehicle(Vehicle value) {
@@ -346,7 +354,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // ---------------------------------------------------------------------------
   Future<void> _toggleVehicleStatus() async {
     try {
-      final currentStatus = vehicle.vehicleStatus?.toLowerCase() ?? 'draft';
+      final currentStatus = vehicle.vehicleStatus.toLowerCase() ?? 'draft';
       String newStatus = currentStatus;
 
       if (currentStatus == 'draft') {
@@ -1126,7 +1134,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // === COLUMN for TRANSPORTER
   Widget _buildTransporterActionButtonsColumn() {
     const Color orangeColor = Color(0xFFFF4E00);
-    final String? vehicleStatus = vehicle.vehicleStatus?.toLowerCase();
+    final String? vehicleStatus = vehicle.vehicleStatus.toLowerCase();
     bool isPending = (vehicleStatus == 'pending');
     bool isDraft = (vehicleStatus == 'draft');
     bool isLive = (vehicleStatus == 'live');
@@ -1227,7 +1235,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // If live => push to draft
   // If draft => no extra button
   Widget _buildAdminActionButtonsColumn() {
-    final String? vehicleStatus = vehicle.vehicleStatus?.toLowerCase();
+    final String? vehicleStatus = vehicle.vehicleStatus.toLowerCase();
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isAdmin = (userProvider.getUserRole == 'admin');
 
@@ -1392,49 +1400,133 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final bool isAdmin = (userProvider.getUserRole == 'admin');
-    final bool isSalesRep =
-        (userProvider.getUserRole == 'sales representative');
-    final bool isAdminOrSalesRep = isAdmin || isSalesRep;
-    final bool isDealer = (userProvider.getUserRole == 'dealer');
-    final bool isTransporter = (userProvider.getUserRole == 'transporter');
+    // ...existing user role definitions...
 
     final size = MediaQuery.of(context).size;
     final bool isTrailer = (vehicle.vehicleType.toLowerCase() == 'trailer');
+    const bool isWeb = kIsWeb;
 
-    var blue = const Color(0xFF2F7FFF);
+    List<NavigationItem> navigationItems = userProvider.getUserRole == 'dealer'
+        ? [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ]
+        : [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios,
-              color: Color(0xFFFF4E00), size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${vehicle.brands.join(', ')} '
-                '${vehicle.makeModel.toUpperCase()} '
-                '${vehicle.year}',
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: blue,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+      appBar: isWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: WebNavigationBar(
+                isCompactNavigation: _isCompactNavigation(context),
+                currentRoute: '/offers',
+                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+            )
+          : AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios,
+                    color: Color(0xFFFF4E00), size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${vehicle.brands.join(', ')} '
+                      '${vehicle.makeModel.toUpperCase()} '
+                      '${vehicle.year}',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2F7FFF),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.verified,
+                      color: Color(0xFFFF4E00), size: 24),
+                ],
               ),
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.verified, color: Color(0xFFFF4E00), size: 24),
-          ],
-        ),
-      ),
+      drawer: _isCompactNavigation(context) && isWeb
+          ? Drawer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const [Colors.black, Color(0xFF2F7FFD)],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    DrawerHeader(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white24, width: 1),
+                        ),
+                      ),
+                      child: Center(
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          height: 50,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 50,
+                              width: 50,
+                              color: Colors.grey[900],
+                              child: const Icon(Icons.local_shipping,
+                                  color: Colors.white),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: navigationItems.map((item) {
+                          bool isActive = '/offers' == item.route;
+                          return ListTile(
+                            title: Text(
+                              item.title,
+                              style: TextStyle(
+                                color: isActive
+                                    ? const Color(0xFFFF4E00)
+                                    : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            selected: isActive,
+                            selectedTileColor: Colors.black12,
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (!isActive) {
+                                Navigator.pushNamed(context, item.route);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -1531,19 +1623,23 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       const SizedBox(height: 16),
 
                       // === TRANSPORTER Buttons (stacked) if isTransporter
-                      if (isTransporter) ...[
+                      if (userProvider.getUserRole == 'transporter') ...[
                         _buildTransporterActionButtonsColumn(),
                         const SizedBox(height: 20),
                       ],
 
                       // === ADMIN/SALES => special actions
-                      if (isAdminOrSalesRep) ...[
+                      if (userProvider.getUserRole == 'admin' ||
+                          userProvider.getUserRole ==
+                              'sales representative') ...[
                         _buildAdminActionButtonsColumn(),
                         const SizedBox(height: 20),
                       ],
 
                       // ========== If Admin/Sales/Dealer, handle offer logic
-                      if (isAdminOrSalesRep || isDealer) ...[
+                      if (userProvider.getUserRole == 'admin' ||
+                          userProvider.getUserRole == 'sales representative' ||
+                          userProvider.getUserRole == 'dealer') ...[
                         if (vehicle.isAccepted) ...[
                           if (_isAcceptedOfferMine) ...[
                             // If it's MY accepted offer => show normal Offer Status
@@ -1598,12 +1694,16 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ] else ...[
                           // If not accepted + not made an offer or was rejected => Make an Offer
                           // Hide X and Heart if user is admin
-                          if (!(isAdminOrSalesRep &&
-                              isAdmin)) // or just isAdmin
+                          if (!(userProvider.getUserRole == 'admin' ||
+                              userProvider.getUserRole ==
+                                      'sales representative' &&
+                                  userProvider.getUserRole ==
+                                      'admin')) // or just isAdmin
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildActionButton(Icons.close, blue),
+                                _buildActionButton(
+                                    Icons.close, const Color(0xFF2F7FFF)),
                                 const SizedBox(width: 16),
                                 _buildActionButton(
                                     Icons.favorite, const Color(0xFFFF4E00)),
@@ -1620,7 +1720,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           const SizedBox(height: 8),
 
                           // If Admin/Sales => pick a dealer
-                          if (isAdminOrSalesRep) ...[
+                          if (userProvider.getUserRole == 'admin' ||
+                              userProvider.getUserRole ==
+                                  'sales representative') ...[
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
@@ -1807,7 +1909,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                 .doc(userProvider.userId)
                                 .snapshots(),
                             builder: (ctx, snapshot) {
-                              if (snapshot.hasData && isDealer) {
+                              if (snapshot.hasData &&
+                                  userProvider.getUserRole == 'dealer') {
                                 Map<String, dynamic> userData = snapshot.data!
                                     .data() as Map<String, dynamic>;
                                 bool hasDocuments = userData[
@@ -1868,22 +1971,31 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       const SizedBox(height: 40),
 
                       // If it's a trailer & user is a dealer => single trailer block
-                      if (isTrailer && isDealer)
+                      if (isTrailer && userProvider.getUserRole == 'dealer')
                         _buildTrailerSection()
                       else ...[
-                        if (isAdminOrSalesRep || isDealer)
+                        if (userProvider.getUserRole == 'admin' ||
+                            userProvider.getUserRole ==
+                                'sales representative' ||
+                            userProvider.getUserRole == 'dealer')
                           _buildSection(
                             context,
                             'BASIC INFORMATION',
                             '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED',
                           ),
-                        if (isAdminOrSalesRep || isDealer)
+                        if (userProvider.getUserRole == 'admin' ||
+                            userProvider.getUserRole ==
+                                'sales representative' ||
+                            userProvider.getUserRole == 'dealer')
                           _buildSection(
                             context,
                             'TRUCK CONDITIONS',
                             '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED',
                           ),
-                        if (isAdminOrSalesRep || isDealer)
+                        if (userProvider.getUserRole == 'admin' ||
+                            userProvider.getUserRole ==
+                                'sales representative' ||
+                            userProvider.getUserRole == 'dealer')
                           _buildSection(
                             context,
                             'MAINTENANCE AND WARRANTY',
@@ -1894,7 +2006,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       const SizedBox(height: 30),
 
                       // If transporter => Show the offers
-                      if (isTransporter) ...[
+                      if (userProvider.getUserRole == 'transporter') ...[
                         Text(
                           'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
                           style: _customFont(
@@ -1927,16 +2039,18 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       ),
 
       // Only show bottom nav if not admin/sales
-      bottomNavigationBar: (isAdminOrSalesRep)
-          ? null
-          : (isDealer)
-              ? CustomBottomNavigation(
-                  selectedIndex: 1,
-                  onItemTapped: (index) {
-                    setState(() {});
-                  },
-                )
-              : null,
+      bottomNavigationBar: (!kIsWeb &&
+              !(userProvider.getUserRole == 'admin' ||
+                  userProvider.getUserRole == 'sales representative') &&
+              userProvider.getUserRole == 'dealer')
+          ? CustomBottomNavigation(
+              selectedIndex: 1,
+              onItemTapped: (index) {
+                setState(() {});
+              },
+            )
+          : null,
     );
   }
+  // ...existing code...
 }

@@ -108,14 +108,14 @@ class _TransporterOfferDetailsPageState
             .get();
 
         // Update the accepted offer
-        await transaction.update(
+        transaction.update(
             FirebaseFirestore.instance
                 .collection('offers')
                 .doc(widget.offer.offerId),
             {'offerStatus': 'accepted'});
 
         // Update vehicle status
-        await transaction.update(
+        transaction.update(
             FirebaseFirestore.instance
                 .collection('vehicles')
                 .doc(widget.vehicle.id),
@@ -127,7 +127,7 @@ class _TransporterOfferDetailsPageState
         // Update all other offers for this vehicle to rejected
         for (var doc in offersQuery.docs) {
           if (doc.id != widget.offer.offerId) {
-            await transaction.update(
+            transaction.update(
                 FirebaseFirestore.instance.collection('offers').doc(doc.id),
                 {'offerStatus': 'rejected'});
           }
@@ -495,7 +495,7 @@ class _TransporterOfferDetailsPageState
                           _buildInfoRow(
                               'Make/Model',
                               _safeCapitalize(
-                                  widget.vehicle.makeModel?.toString() ??
+                                  widget.vehicle.makeModel.toString() ??
                                       'N/A')),
                           _buildInfoRow('Year', widget.vehicle.year.toString()),
                         ],

@@ -1,24 +1,31 @@
-import 'package:ctp/models/admin_data.dart';
-import 'package:ctp/models/chassis.dart';
-import 'package:ctp/models/drive_train.dart';
-import 'package:ctp/models/external_cab.dart';
-import 'package:ctp/models/internal_cab.dart';
-import 'package:ctp/models/maintenance.dart';
-import 'package:ctp/models/truck_conditions.dart';
-import 'package:ctp/models/tyres.dart';
-import 'package:ctp/models/vehicle.dart';
-import 'package:flutter/material.dart';
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ctp/components/wish_card.dart';
-import 'vehicle_details_page.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/components/wish_card.dart';
+import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+
+/// Simple data class for navigation items.
+class NavigationItem {
+  final String title;
+  final String route;
+
+  NavigationItem({
+    required this.title,
+    required this.route,
+  });
+}
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
@@ -28,135 +35,384 @@ class WishlistPage extends StatefulWidget {
 }
 
 class _WishlistPageState extends State<WishlistPage> {
-  final List<DocumentSnapshot> _wishlistVehicles = [];
-  String profileImageUrl = '';
-  late Future<void> _fetchOffersFuture;
-  late OfferProvider _offerProvider;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // State variable to manage selected tab
+  // Lists of wishlist vehicles (as Vehicle objects)
+  List<Vehicle> wishlistVehicles = [];
+  List<Vehicle> trucks = [];
+  List<Vehicle> trailers = [];
+
+  // Tab state: either "Trucks" or "Trailers"
   String _selectedTab = 'Trucks';
 
-  // Lists to hold filtered vehicles
-  List<DocumentSnapshot> _trucks = [];
-  List<DocumentSnapshot> _trailers = [];
+  // Add getter for current list based on selected tab
+  List<Vehicle> get currentList => _selectedTab == 'Trucks' ? trucks : trailers;
+
+  bool _isLoading = true;
+
+  late OfferProvider _offerProvider;
+  // Removed the dedicated ScrollController since the whole page scrolls now.
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
 
   @override
   void initState() {
     super.initState();
     _offerProvider = Provider.of<OfferProvider>(context, listen: false);
-    _fetchOffersFuture =
-        Future.wait([_fetchUserProfile(), _fetchWishlist(), _fetchOffers()]);
+    _fetchWishlist();
   }
 
-  Future<void> _fetchUserProfile() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      if (userDoc.exists && userDoc.data() != null) {
-        setState(() {
-          profileImageUrl = userDoc.get('profileImageUrl') ?? '';
-        });
-      }
-    }
-  }
-
+  /// Fetch the wishlist vehicles for the current user.
   Future<void> _fetchWishlist() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      if (userDoc.exists) {
-        List<String> wishlistItems =
-            List<String>.from(userDoc['likedVehicles'] ?? []);
-        if (wishlistItems.isNotEmpty) {
-          // Firestore's 'whereIn' can handle a maximum of 10 items. Handle accordingly.
-          // Split the wishlistItems into chunks of 10.
-          List<List<String>> chunks = [];
-          const int chunkSize = 10;
-          for (var i = 0; i < wishlistItems.length; i += chunkSize) {
-            chunks.add(
-                wishlistItems.skip(i).take(chunkSize).toList(growable: false));
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          List<String> likedVehicleIds =
+              List<String>.from(userDoc['likedVehicles'] ?? []);
+          if (likedVehicleIds.isNotEmpty) {
+            // Firestore's whereIn accepts a maximum of 10 items per query.
+            List<List<String>> chunks = [];
+            const int chunkSize = 10;
+            for (var i = 0; i < likedVehicleIds.length; i += chunkSize) {
+              chunks.add(likedVehicleIds
+                  .skip(i)
+                  .take(chunkSize)
+                  .toList(growable: false));
+            }
+
+            List<Vehicle> fetchedVehicles = [];
+            for (var chunk in chunks) {
+              QuerySnapshot snapshot = await FirebaseFirestore.instance
+                  .collection('vehicles')
+                  .where(FieldPath.documentId, whereIn: chunk)
+                  .get();
+              for (var doc in snapshot.docs) {
+                Vehicle vehicle = Vehicle.fromFirestore(
+                    doc.id, doc.data() as Map<String, dynamic>);
+                fetchedVehicles.add(vehicle);
+                // Optionally add to the VehicleProvider.
+                Provider.of<VehicleProvider>(context, listen: false)
+                    .addVehicle(vehicle);
+              }
+            }
+
+            setState(() {
+              wishlistVehicles = fetchedVehicles;
+              // Separate vehicles into Trucks and Trailers based on vehicleType.
+              trucks = wishlistVehicles.where((v) {
+                String type = v.vehicleType.toLowerCase();
+                return type == 'truck' || type == 'pickup' || type == 'lorry';
+              }).toList();
+              trailers = wishlistVehicles.where((v) {
+                String type = v.vehicleType.toLowerCase();
+                return type == 'trailer' || type == 'semi-trailer';
+              }).toList();
+              _isLoading = false;
+            });
+          } else {
+            setState(() {
+              _isLoading = false;
+            });
           }
-
-          List<DocumentSnapshot> allDocs = [];
-
-          for (var chunk in chunks) {
-            QuerySnapshot snapshot = await FirebaseFirestore.instance
-                .collection('vehicles')
-                .where(FieldPath.documentId, whereIn: chunk)
-                .get();
-            allDocs.addAll(snapshot.docs);
-          }
-
-          final vehicleProvider =
-              Provider.of<VehicleProvider>(context, listen: false);
-
-          for (var doc in allDocs) {
-            Vehicle vehicle = Vehicle.fromFirestore(
-                doc.id, doc.data() as Map<String, dynamic>);
-            vehicleProvider.addVehicle(vehicle);
-          }
-
-          setState(() {
-            _wishlistVehicles.addAll(allDocs);
-            _trucks = _wishlistVehicles.where((vehicleDoc) {
-              Map<String, dynamic>? data =
-                  vehicleDoc.data() as Map<String, dynamic>?;
-              return data != null &&
-                  (data['vehicleType'] == 'truck' ||
-                      data['vehicleType'] == 'pickup' ||
-                      data['vehicleType'] == 'lorry');
-            }).toList();
-
-            _trailers = _wishlistVehicles.where((vehicleDoc) {
-              Map<String, dynamic>? data =
-                  vehicleDoc.data() as Map<String, dynamic>?;
-              return data != null &&
-                  (data['vehicleType'] == 'trailer' ||
-                      data['vehicleType'] == 'semi-trailer');
-            }).toList();
-          });
         }
       }
+    } catch (e) {
+      print("Error fetching wishlist: $e");
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _fetchOffers() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final userRole = userProvider.getUserRole;
-
-      await _offerProvider.fetchOffers(user.uid, userRole);
+  /// Computes the number of columns for the grid view based on screen width.
+  int _calculateCrossAxisCount(BuildContext context) {
+    double width = MediaQuery.of(context).size.width;
+    if (width >= 1200) {
+      return 4;
+    } else if (width >= 900) {
+      return 3;
+    } else if (width >= 600) {
+      return 2;
+    } else {
+      return 1;
     }
   }
 
-  // Method to build the custom tabs with black and blue blocks
-  Widget _buildCustomTabs(Size screenSize) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildTabButton('Trucks (${_trucks.length})', 'Trucks'),
-        SizedBox(width: screenSize.width * 0.02),
-        _buildTabButton('Trailers (${_trailers.length})', 'Trailers'),
-      ],
+  /// Builds the WishCard for a given vehicle.
+  Widget _buildWishCard(Vehicle vehicle, Size screenSize) {
+    bool hasOffer =
+        _offerProvider.offers.any((offer) => offer.vehicleId == vehicle.id);
+    return WishCard(
+      vehicleMakeModel: "${vehicle.makeModel} ${vehicle.year}",
+      vehicleImageUrl:
+          (vehicle.mainImageUrl != null && vehicle.mainImageUrl!.isNotEmpty)
+              ? vehicle.mainImageUrl!
+              : 'lib/assets/default_vehicle_image.png',
+      size: screenSize,
+      customFont: (double fontSize, FontWeight fontWeight, Color color) {
+        return TextStyle(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          color: color,
+          fontFamily: 'Montserrat',
+        );
+      },
+      hasOffer: hasOffer,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VehicleDetailsPage(vehicle: vehicle),
+          ),
+        );
+      },
+      onDelete: () async {
+        User? user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update({
+            'likedVehicles': FieldValue.arrayRemove([vehicle.id])
+          });
+          setState(() {
+            wishlistVehicles.remove(vehicle);
+            trucks.remove(vehicle);
+            trailers.remove(vehicle);
+          });
+        }
+      },
+      vehicleId: vehicle.id,
+      vehicle: vehicle,
     );
   }
 
-  // Helper method to create a custom tab button
+  // Determine if the screen is considered large.
+  bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
+
+  // Determines if compact navigation should be used.
+
+  /// The build method now uses a CustomScrollView so that the header and the tab bar
+  /// scroll together. The tab bar is implemented as a sticky (pinned) sliver.
+  @override
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final bool showBottomNav = !_isLargeScreen && !kIsWeb;
+    final userProvider = Provider.of<UserProvider>(context);
+    final userRole = userProvider.getUserRole;
+
+    List<NavigationItem> navigationItems = userRole == 'dealer'
+        ? [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ]
+        : [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
+
+    return GradientBackground(
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: (_isLargeScreen || kIsWeb)
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(70),
+                child: WebNavigationBar(
+                  isCompactNavigation: _isCompactNavigation(context),
+                  currentRoute: '/wishlist',
+                  onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+              )
+            : CustomAppBar(),
+        drawer: _isCompactNavigation(context)
+            ? Drawer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: const [Colors.black, Color(0xFF2F7FFD)],
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      DrawerHeader(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.white24, width: 1),
+                          ),
+                        ),
+                        child: Center(
+                          child: Image.network(
+                            'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                            height: 50,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 50,
+                                width: 50,
+                                color: Colors.grey[900],
+                                child: const Icon(Icons.local_shipping, color: Colors.white),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          children: navigationItems.map((item) {
+                            bool isActive = '/wishlist' == item.route;
+                            return ListTile(
+                              title: Text(
+                                item.title,
+                                style: TextStyle(
+                                  color: isActive ? const Color(0xFFFF4E00) : Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              selected: isActive,
+                              selectedTileColor: Colors.black12,
+                              onTap: () {
+                                Navigator.pop(context);
+                                if (!isActive) {
+                                  Navigator.pushNamed(context, item.route);
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : null,
+        backgroundColor: Colors.transparent,
+        body: CustomScrollView(
+          slivers: [
+            // Header section with the Wishlist title and image.
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    SizedBox(height: screenSize.height * 0.05),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'lib/assets/HeartVector.png',
+                          width: 30,
+                          height: 30,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'WISHLIST',
+                          style: TextStyle(
+                            color: Color(0xFFFF4E00),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: screenSize.height * 0.03),
+                  ],
+                ),
+              ),
+            ),
+            // Sticky tab bar – using SliverPersistentHeader.
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SliverTabBarDelegate(
+                minHeight: 60,
+                maxHeight: 60,
+                child: Container(
+                  color: Colors.transparent,
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildTabButton('Trucks (${trucks.length})', 'Trucks'),
+                      SizedBox(width: screenSize.width * 0.02),
+                      _buildTabButton(
+                          'Trailers (${trailers.length})', 'Trailers'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Display either a loading indicator, a "No vehicles found" message, or the grid.
+            if (_isLoading)
+              SliverFillRemaining(
+                child: Center(
+                  child: Image.asset(
+                    'lib/assets/Loading_Logo_CTP.gif',
+                    width: 100,
+                    height: 100,
+                  ),
+                ),
+              )
+            else if (currentList.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Text(
+                    "No vehicles found.",
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _calculateCrossAxisCount(context),
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.8, // Adjust this value as needed.
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      Vehicle vehicle = currentList[index];
+                      return _buildWishCard(vehicle, screenSize);
+                    },
+                    childCount: currentList.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        bottomNavigationBar: showBottomNav
+            ? CustomBottomNavigation(
+                selectedIndex: 3, // Adjust this index as needed.
+                onItemTapped: (index) {
+                  // Handle bottom navigation taps.
+                },
+              )
+            : null,
+      ),
+    );
+  }
+
+  /// Helper to build a tab button.
   Widget _buildTabButton(String title, String tab) {
     bool isSelected = _selectedTab == tab;
-
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedTab =
-              tab.split(' ')[0]; // Extract the tab name without count
+          _selectedTab = tab;
         });
       },
       child: Container(
@@ -169,322 +425,47 @@ class _WishlistPageState extends State<WishlistPage> {
             width: 1.0,
           ),
         ),
-        child: Row(
-          children: [
-            Text(
-              title.toUpperCase(),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        child: Text(
+          title.toUpperCase(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
+}
 
-  // Method to build the list of vehicles based on the selected tab
-  Widget _buildVehicleList(
-    List<DocumentSnapshot> vehicles,
-    VehicleProvider vehicleProvider,
-    OfferProvider offerProvider,
-    Size screenSize,
-  ) {
-    if (vehicles.isEmpty) {
-      return Center(
-        child: Text(
-          'No vehicles found.',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-          ),
-        ),
-      );
-    }
+/// A custom SliverPersistentHeader delegate for the sticky tab bar.
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
 
-    return ListView.builder(
-      itemCount: vehicles.length,
-      itemBuilder: (context, index) {
-        DocumentSnapshot vehicleDoc = vehicles[index];
-        Map<String, dynamic>? data = vehicleDoc.data() as Map<String, dynamic>?;
-        Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
-          (v) => v.id == vehicleDoc.id,
-          orElse: () => Vehicle(
-            id: vehicleDoc.id,
-            application: data != null && data['application'] != null
-                ? (data['application'] is String
-                    ? [data['application']]
-                    : List<String>.from(data['application']))
-                : [],
-            warrantyDetails: 'N/A',
-            isAccepted: false,
-            acceptedOfferId: 'N/A',
-            damageDescription: '',
-            damagePhotos: [],
-            engineNumber: 'N/A',
-            expectedSellingPrice: 'N/A',
-            hydraluicType: 'N/A',
-            makeModel: data != null && data['makeModel'] != null
-                ? data['makeModel']
-                : 'Unknown',
-            mileage: 'N/A',
-            mainImageUrl: null,
-            photos: [],
-            registrationNumber: 'N/A',
-            suspensionType: 'N/A',
-            transmissionType: 'N/A',
-            userId: 'N/A',
-            vehicleType:
-                data != null ? data['vehicleType'].toLowerCase() : 'unknown',
-            vinNumber: 'N/A',
-            warrentyType: 'N/A',
-            year:
-                data != null && data['year'] != null ? data['year'] : 'Unknown',
-            createdAt: (vehicleDoc['createdAt'] as Timestamp).toDate(),
-            vehicleAvailableImmediately: 'N/A',
-            availableDate: 'N/A',
-            trailerType: 'N/A',
-            axles: 'N/A',
-            trailerLength: 'N/A',
-            dashboardPhoto: '',
-            faultCodesPhoto: '',
-            licenceDiskUrl: '',
-            mileageImage: '',
-            rc1NatisFile: '',
-            config: '',
-            referenceNumber: '',
-            brands: [],
-            country: '',
-            province: '',
-            adminData: AdminData(
-              settlementAmount: '0',
-              natisRc1Url: '',
-              licenseDiskUrl: '',
-              settlementLetterUrl: '',
-            ),
-            maintenance: Maintenance(
-              vehicleId: vehicleDoc.id,
-              oemInspectionType: '',
-              maintenanceDocUrl: '',
-              warrantyDocUrl: '',
-              maintenanceSelection: '',
-              warrantySelection: '',
-              lastUpdated: DateTime.now(),
-            ),
-            truckConditions: TruckConditions(
-              externalCab: ExternalCab(
-                damages: [],
-                additionalFeatures: [],
-                condition: '',
-                damagesCondition: '',
-                additionalFeaturesCondition: '',
-                images: {},
-              ),
-              internalCab: InternalCab(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  faultCodesCondition: '',
-                  viewImages: {},
-                  damages: [],
-                  additionalFeatures: [],
-                  faultCodes: []),
-              chassis: Chassis(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  images: {},
-                  damages: [],
-                  additionalFeatures: []),
-              driveTrain: DriveTrain(
-                condition: '',
-                oilLeakConditionEngine: '',
-                waterLeakConditionEngine: '',
-                blowbyCondition: '',
-                oilLeakConditionGearbox: '',
-                retarderCondition: '',
-                lastUpdated: DateTime.now(),
-                images: {
-                  'Right Brake': '',
-                  'Left Brake': '',
-                  'Front Axel': '',
-                  'Suspension': '',
-                  'Fuel Tank': '',
-                  'Battery': '',
-                  'Cat Walk': '',
-                  'Electrical Cable Black': '',
-                  'Air Cable Yellow': '',
-                  'Air Cable Red': '',
-                  'Tail Board': '',
-                  '5th Wheel': '',
-                  'Left Brake Rear Axel': '',
-                  'Right Brake Rear Axel': '',
-                },
-                damages: [],
-                additionalFeatures: [],
-                faultCodes: [],
-              ),
-              tyres: {
-                'default': Tyres(
-                  lastUpdated: DateTime.now(),
-                  positions: {},
-                ),
-              },
-            ),
-            vehicleStatus: '',
-            length: '',
-            vinTrailer: '',
-            damagesDescription: '',
-            additionalFeatures: '',
-          ),
-        );
+  _SliverTabBarDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
 
-        bool hasOffer =
-            offerProvider.offers.any((offer) => offer.vehicleId == vehicle.id);
+  @override
+  double get minExtent => minHeight;
 
-        return WishCard(
-          vehicleMakeModel: "${vehicle.makeModel} ${vehicle.year}",
-          vehicleImageUrl: vehicle.mainImageUrl != null
-              ? vehicle.mainImageUrl!
-              : 'lib/assets/default_vehicle_image.png',
-          size: screenSize,
-          customFont: (double fontSize, FontWeight fontWeight, Color color) {
-            return TextStyle(
-              fontSize: fontSize,
-              fontWeight: fontWeight,
-              color: color,
-              fontFamily: 'Montserrat',
-            );
-          },
-          hasOffer: hasOffer,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-              ),
-            );
-          },
-          onDelete: () async {
-            User? user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .update({
-                'likedVehicles': FieldValue.arrayRemove([vehicle.id])
-              });
-              setState(() {
-                _wishlistVehicles.remove(vehicleDoc);
-                if (_selectedTab == 'Trucks') {
-                  _trucks.remove(vehicleDoc);
-                } else {
-                  _trailers.remove(vehicleDoc);
-                }
-              });
-            }
-          },
-          vehicleId: vehicle.id,
-          vehicle: vehicle,
-        );
-      },
-    );
+  @override
+  double get maxExtent => max(maxHeight, minHeight);
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
   }
 
   @override
-  Widget build(BuildContext context) {
-    var screenSize = MediaQuery.of(context).size;
-    final vehicleProvider = Provider.of<VehicleProvider>(context);
-    final offerProvider = _offerProvider;
-
-    // Determine which list to display based on the selected tab
-    List<DocumentSnapshot> currentList =
-        _selectedTab == 'Trucks' ? _trucks : _trailers;
-
-    return GradientBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: const CustomAppBar(),
-        body: Column(
-          children: [
-            // Header Section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(height: screenSize.height * 0.05),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'lib/assets/HeartVector.png',
-                        width: 30,
-                        height: 30,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'WISHLIST',
-                        style: TextStyle(
-                          color: Color(0xFFFF4E00),
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: screenSize.height * 0.03),
-                  // Custom Tabs
-                  _buildCustomTabs(screenSize),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Vehicle List Section
-            Expanded(
-              child: FutureBuilder<void>(
-                future: _fetchOffersFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: Image.asset(
-                        'lib/assets/Loading_Logo_CTP.gif',
-                        width: 100,
-                        height: 100,
-                      ),
-                    );
-                  } else if (snapshot.hasError) {
-                    return const Center(
-                      child: Text(
-                        'Error fetching wishlist',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    );
-                  } else {
-                    return _buildVehicleList(
-                      currentList,
-                      vehicleProvider,
-                      offerProvider,
-                      screenSize,
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: CustomBottomNavigation(
-          selectedIndex: 3,
-          onItemTapped: (index) {
-            setState(() {
-              // Handle navigation here
-            });
-          },
-        ),
-      ),
-    );
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }

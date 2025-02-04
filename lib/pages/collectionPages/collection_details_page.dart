@@ -1,3 +1,4 @@
+import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -8,18 +9,36 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:provider/provider.dart'; // Add this import
+import 'package:ctp/providers/user_provider.dart'; // Add this import
+import 'package:flutter/foundation.dart' show kIsWeb; // Add this import
+
+class NavigationItem {
+  final String title;
+  final String route;
+
+  NavigationItem({required this.title, required this.route});
+}
 
 class CollectionDetailsPage extends StatefulWidget {
   final String offerId;
 
-  const CollectionDetailsPage({Key? key, required this.offerId})
-      : super(key: key);
+  const CollectionDetailsPage({super.key, required this.offerId});
 
   @override
   _CollectionDetailsPageState createState() => _CollectionDetailsPageState();
 }
 
 class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Add getter for compact navigation
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
+
+  // Add getter for large screen
+  bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
+
   int _selectedLocation = 0;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -59,7 +78,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
 
     try {
       // 1) Fetch the offer doc
-      final DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
           .get();
@@ -1144,8 +1163,105 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       'December'
     ];
 
+    // Get user role for navigation items
+    final userProvider = Provider.of<UserProvider>(context);
+    final userRole = userProvider.getUserRole;
+
+    // Define navigation items based on user role
+    List<NavigationItem> navigationItems = userRole == 'dealer'
+        ? [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ]
+        : [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
+
     return GradientBackground(
       child: Scaffold(
+        key: _scaffoldKey,
+        // Add web navigation bar
+        appBar: kIsWeb
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(70),
+                child: WebNavigationBar(
+                  isCompactNavigation: _isCompactNavigation(context),
+                  currentRoute: '/offers',
+                  onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+              )
+            : null,
+        // Add drawer for compact web navigation
+        drawer: _isCompactNavigation(context) && kIsWeb
+            ? Drawer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: const [Colors.black, Color(0xFF2F7FFD)],
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      DrawerHeader(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.white24, width: 1),
+                          ),
+                        ),
+                        child: Center(
+                          child: Image.network(
+                            'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                            height: 50,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 50,
+                                width: 50,
+                                color: Colors.grey[900],
+                                child: const Icon(Icons.local_shipping,
+                                    color: Colors.white),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          children: navigationItems.map((item) {
+                            bool isActive = '/offers' == item.route;
+                            return ListTile(
+                              title: Text(
+                                item.title,
+                                style: TextStyle(
+                                  color: isActive
+                                      ? const Color(0xFFFF4E00)
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              selected: isActive,
+                              selectedTileColor: Colors.black12,
+                              onTap: () {
+                                Navigator.pop(context); // Close drawer
+                                if (!isActive) {
+                                  Navigator.pushNamed(context, item.route);
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : null,
         backgroundColor: Colors.transparent,
         body: Builder(
           builder: (context) {

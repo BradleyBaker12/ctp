@@ -10,6 +10,8 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:ctp/components/web_navigation_bar.dart';
 
 class FinalInspectionApprovalPage extends StatefulWidget {
   final String offerId;
@@ -30,8 +32,13 @@ class FinalInspectionApprovalPage extends StatefulWidget {
 
 class _FinalInspectionApprovalPageState
     extends State<FinalInspectionApprovalPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 1;
   bool _isLoading = false;
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
 
   @override
   void initState() {
@@ -151,12 +158,102 @@ class _FinalInspectionApprovalPageState
     final screenSize = MediaQuery.of(context).size;
     final padding = screenSize.width * 0.05;
     final spacing = screenSize.height * 0.02;
+    const bool isWeb = kIsWeb;
 
-    // Fetch the user role to determine whether to show the adjust offer button
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
+    List<NavigationItem> navigationItems = userRole == 'dealer'
+        ? [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ]
+        : [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
+
     return Scaffold(
+      key: _scaffoldKey,
+      appBar: isWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: WebNavigationBar(
+                isCompactNavigation: _isCompactNavigation(context),
+                currentRoute: '/offers',
+                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+            )
+          : null,
+      drawer: _isCompactNavigation(context) && isWeb
+          ? Drawer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const [Colors.black, Color(0xFF2F7FFD)],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    DrawerHeader(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white24, width: 1),
+                        ),
+                      ),
+                      child: Center(
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          height: 50,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 50,
+                              width: 50,
+                              color: Colors.grey[900],
+                              child: const Icon(Icons.local_shipping,
+                                  color: Colors.white),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: navigationItems.map((item) {
+                          bool isActive = '/offers' == item.route;
+                          return ListTile(
+                            title: Text(
+                              item.title,
+                              style: TextStyle(
+                                color: isActive
+                                    ? const Color(0xFFFF4E00)
+                                    : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            selected: isActive,
+                            selectedTileColor: Colors.black12,
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (!isActive) {
+                                Navigator.pushNamed(context, item.route);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           GradientBackground(
@@ -266,10 +363,12 @@ class _FinalInspectionApprovalPageState
             ),
         ],
       ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-      ),
+      bottomNavigationBar: (!kIsWeb)
+          ? CustomBottomNavigation(
+              selectedIndex: _selectedIndex,
+              onItemTapped: _onItemTapped,
+            )
+          : null,
     );
   }
 }

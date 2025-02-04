@@ -10,9 +10,17 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_back_button.dart'; // Import the Custom Back Button
+import 'package:ctp/components/web_navigation_bar.dart';
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  ProfilePage({super.key});
+
+  // Add scaffold key for drawer
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
 
   Widget _buildProfileAction(String title, IconData icon, VoidCallback onTap) {
     return Padding(
@@ -47,6 +55,20 @@ class ProfilePage extends StatelessWidget {
     final bool isDealer = userRole.toLowerCase() == 'dealer';
     final bool isTransporter = userRole.toLowerCase() == 'transporter';
 
+    List<NavigationItem> navigationItems = userRole == 'dealer'
+        ? [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ]
+        : [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
+
     var screenSize = MediaQuery.of(context).size;
     const Color borderColor = Color(0xFFFF4E00);
     final Color backgroundColor = borderColor.withOpacity(0.6);
@@ -62,6 +84,85 @@ class ProfilePage extends StatelessWidget {
     }
 
     return Scaffold(
+      key: _scaffoldKey,
+      appBar: kIsWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: WebNavigationBar(
+                isCompactNavigation: _isCompactNavigation(context),
+                currentRoute: '/profile',
+                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+            )
+          : null,
+      drawer: _isCompactNavigation(context)
+          ? Drawer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const [Colors.black, Color(0xFF2F7FFD)],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    DrawerHeader(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.white24,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Center(
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          height: 50,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 50,
+                              width: 50,
+                              color: Colors.grey[900],
+                              child: const Icon(Icons.local_shipping,
+                                  color: Colors.white),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: navigationItems.map((item) {
+                          bool isActive = '/profile' == item.route;
+                          return ListTile(
+                            title: Text(
+                              item.title,
+                              style: TextStyle(
+                                color: isActive
+                                    ? const Color(0xFFFF4E00)
+                                    : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            selected: isActive,
+                            selectedTileColor: Colors.black12,
+                            onTap: () {
+                              Navigator.pop(context); // Close drawer
+                              if (!isActive) {
+                                Navigator.pushNamed(context, item.route);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       // Wrap the entire body inside a Stack so we can add the back button on top of the page
       body: Stack(
         children: [
@@ -317,7 +418,7 @@ class ProfilePage extends StatelessWidget {
         ],
       ),
       // Only show the bottom navigation bar if the user is NOT an admin or a sales rep.
-      bottomNavigationBar: (isAdmin || isSalesRep)
+      bottomNavigationBar: (isAdmin || isSalesRep || kIsWeb)
           ? null
           : CustomBottomNavigation(
               selectedIndex: 5, // Index for the profile tab

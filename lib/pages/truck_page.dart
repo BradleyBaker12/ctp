@@ -1,16 +1,32 @@
 // lib/pages/truck_page.dart
 
+import 'dart:math';
+import 'dart:convert';
+
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/truck_card.dart';
+import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
+
+// Add the NavigationItem class definition near the top of the file
+class NavigationItem {
+  final String title;
+  final String route;
+
+  NavigationItem({
+    required this.title,
+    required this.route,
+  });
+}
 
 // Define the FilterOperation enum to handle various filter operations
 enum FilterOperation {
@@ -47,18 +63,29 @@ class TruckPage extends StatefulWidget {
 }
 
 class _TruckPageState extends State<TruckPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Add missing getter for large screen
+  bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
+
+  // Remove the custom web navigation bar methods and keep only the build method
+
   late ScrollController _scrollController;
   bool _isLoadingMore = false;
-  final int _itemsPerPage = 10; // Number of items to load per page
+  final int _itemsPerPage = 10; // Number of items per page
   int _currentPage = 0; // Current page index
-  int _selectedIndex = 1; // Set initial selected index to the trucks tab
+  int _selectedIndex = 1; // Initial selected index (trucks tab)
   List<Vehicle> swipedVehicles = []; // Track swiped vehicles
   List<Vehicle> displayedVehicles = []; // Vehicles currently displayed
   List<String> swipedDirections = []; // Track swipe directions for undo
-  int loadedVehicleIndex = 0; // Index to track loaded vehicles
-  bool _hasReachedEnd = false; // Track if all cards are swiped
-  bool _isLoading = true; // Track loading state
-  bool _isFiltering = false; // Track filtering state
+  int loadedVehicleIndex = 0; // Track loaded vehicles index
+  bool _hasReachedEnd = false; // Track if all cards are loaded
+  bool _isLoading = true; // Loading state
+  final bool _isFiltering = false; // Filtering state
 
   // --------------------------------------------------------------------
   // 1) Filter State
@@ -68,19 +95,14 @@ class _TruckPageState extends State<TruckPage> {
   final List<String> _selectedMakeModels = [];
   final List<String> _selectedVehicleStatuses = [];
   final List<String> _selectedTransmissions = [];
-
-  // We'll load countries/provinces from JSON:
   final List<String> _selectedCountries = [];
   final List<String> _selectedProvinces = [];
-
   final List<String> _selectedApplicationOfUse = [];
   final List<String> _selectedConfigs = [];
-
-  // NEW: For vehicle type with only 2 real options ("Truck" or "Trailer")
   final List<String> _selectedVehicleType = [];
 
   // --------------------------------------------------------------------
-  // 2) Hard-coded filter lists for other fields
+  // 2) Hard-coded Filter Lists
   // --------------------------------------------------------------------
   final List<String> _yearOptions = [
     'All',
@@ -95,14 +117,10 @@ class _TruckPageState extends State<TruckPage> {
     '2023',
     '2024'
   ];
-
   final List<String> _vehicleStatusOptions = ['All', 'Live', 'Sold', 'Draft'];
   final List<String> _transmissionOptions = ['All', 'manual', 'automatic'];
-
-  // Dynamically loaded country and province options:
   final List<String> _countryOptions = ['All'];
   List<String> _provinceOptions = ['All'];
-
   final List<String> _applicationOfUseOptions = [
     'Bowser Body Trucks',
     'Cage Body Trucks',
@@ -130,7 +148,6 @@ class _TruckPageState extends State<TruckPage> {
     'Tipper Body Trucks',
     'Volume Body Trucks',
   ];
-
   final List<String> _configOptions = [
     'All',
     '4x2',
@@ -139,17 +156,13 @@ class _TruckPageState extends State<TruckPage> {
     '8x4',
     '10x4'
   ];
-
-  // NEW: Only 2 real options: "Truck" or "Trailer" (plus "All")
   final List<String> _vehicleTypeOptions = ['All', 'truck', 'trailer'];
 
   // --------------------------------------------------------------------
-  // 3) Dynamic brand & model loading from JSON
+  // 3) Dynamic Brand & Model Loading
   // --------------------------------------------------------------------
-  final List<String> _brandOptions = ['All']; // Populated from JSON
-  List<String> _makeModelOptions = ['All']; // Populated from JSON
-
-  // Store the entire countries.json so we can find provinces:
+  final List<String> _brandOptions = ['All']; // From JSON
+  List<String> _makeModelOptions = ['All']; // From JSON
   List<dynamic> _countriesData = [];
 
   // --------------------------------------------------------------------
@@ -187,9 +200,7 @@ class _TruckPageState extends State<TruckPage> {
       final String response =
           await rootBundle.loadString('lib/assets/updated_truck_data.json');
       final Map<String, dynamic> jsonData = json.decode(response);
-
       Set<String> uniqueBrands = {};
-
       jsonData.forEach((year, yearData) {
         if (yearData is Map<String, dynamic>) {
           yearData.forEach((brandName, _) {
@@ -198,10 +209,8 @@ class _TruckPageState extends State<TruckPage> {
           });
         }
       });
-
       List<String> sortedBrands = uniqueBrands.toList()
         ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-
       setState(() {
         _brandOptions.clear();
         _brandOptions.add('All');
@@ -217,7 +226,6 @@ class _TruckPageState extends State<TruckPage> {
       final String response =
           await rootBundle.loadString('lib/assets/countries.json');
       final data = json.decode(response);
-
       if (data is List) {
         setState(() {
           _countriesData = data;
@@ -245,13 +253,11 @@ class _TruckPageState extends State<TruckPage> {
       });
       return;
     }
-
     final country = _countriesData.firstWhere(
       (element) =>
           (element is Map<String, dynamic>) && (element['name'] == countryName),
       orElse: () => null,
     );
-
     if (country == null || country['states'] == null) {
       setState(() {
         _provinceOptions = ['All'];
@@ -282,13 +288,10 @@ class _TruckPageState extends State<TruckPage> {
         });
         return;
       }
-
       final String response =
           await rootBundle.loadString('lib/assets/updated_truck_data.json');
       final Map<String, dynamic> jsonData = json.decode(response);
-
       Set<String> models = {};
-
       jsonData.forEach((year, yearData) {
         if (yearData is Map<String, dynamic>) {
           yearData.forEach((dataBrand, modelList) {
@@ -302,10 +305,8 @@ class _TruckPageState extends State<TruckPage> {
           });
         }
       });
-
       List<String> sortedModels = models.toList()
         ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-
       setState(() {
         _makeModelOptions = ['All', ...sortedModels];
       });
@@ -323,21 +324,14 @@ class _TruckPageState extends State<TruckPage> {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       await vehicleProvider.fetchAllVehicles();
-
       setState(() {
-        // Start with only Live vehicles
         var filteredVehicles = vehicleProvider.vehicles
             .where((vehicle) => vehicle.vehicleStatus == 'Live');
-
-        // Add brand filter if selectedBrand is specified
         if (widget.selectedBrand != null) {
           filteredVehicles = filteredVehicles.where(
               (vehicle) => vehicle.brands.contains(widget.selectedBrand));
         }
-
-        // Apply selected filters
         filteredVehicles = _applySelectedFilters(filteredVehicles);
-
         displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
         _currentPage = 1;
         _isLoading = false;
@@ -347,8 +341,7 @@ class _TruckPageState extends State<TruckPage> {
       print('Error in _loadInitialVehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to load vehicles. Please try again later.'),
-        ),
+            content: Text('Failed to load vehicles. Please try again later.')),
       );
     }
   }
@@ -357,30 +350,20 @@ class _TruckPageState extends State<TruckPage> {
     setState(() {
       _isLoadingMore = true;
     });
-
     try {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
-
       int startIndex = _currentPage * _itemsPerPage;
       int endIndex = startIndex + _itemsPerPage;
-
-      // Start with only Live vehicles
       var filteredVehicles = vehicleProvider.vehicles
           .where((vehicle) => vehicle.vehicleStatus == 'Live');
-
-      // Add brand filter if selectedBrand is specified
       if (widget.selectedBrand != null) {
         filteredVehicles = filteredVehicles
             .where((vehicle) => vehicle.brands.contains(widget.selectedBrand));
       }
-
-      // Apply selected filters
       filteredVehicles = _applySelectedFilters(filteredVehicles);
-
       List<Vehicle> moreVehicles =
           filteredVehicles.skip(startIndex).take(_itemsPerPage).toList();
-
       if (moreVehicles.isNotEmpty) {
         setState(() {
           displayedVehicles.addAll(moreVehicles);
@@ -401,70 +384,54 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
-  // Helper method to apply all selected filters
+  // Helper method to apply all selected filters.
   Iterable<Vehicle> _applySelectedFilters(Iterable<Vehicle> vehicles) {
     return vehicles.where((vehicle) {
-      // Year Filter
       if (_selectedYears.isNotEmpty && !_selectedYears.contains('All')) {
         if (!_selectedYears.contains(vehicle.year)) return false;
       }
-
-      // Brand Filter
       if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
-        if (!vehicle.brands.any((brand) => _selectedBrands.contains(brand)))
+        if (!vehicle.brands.any((brand) => _selectedBrands.contains(brand))) {
           return false;
+        }
       }
-
-      // Make Model Filter
       if (_selectedMakeModels.isNotEmpty &&
           !_selectedMakeModels.contains('All')) {
         if (!_selectedMakeModels.contains(vehicle.makeModel)) return false;
       }
-
-      // Vehicle Status Filter
       if (_selectedVehicleStatuses.isNotEmpty &&
           !_selectedVehicleStatuses.contains('All')) {
-        if (!_selectedVehicleStatuses.contains(vehicle.vehicleStatus))
+        if (!_selectedVehicleStatuses.contains(vehicle.vehicleStatus)) {
           return false;
+        }
       }
-
-      // Transmission Filter
       if (_selectedTransmissions.isNotEmpty &&
           !_selectedTransmissions.contains('All')) {
-        if (!_selectedTransmissions.contains(vehicle.transmissionType))
+        if (!_selectedTransmissions.contains(vehicle.transmissionType)) {
           return false;
+        }
       }
-
-      // Country Filter
       if (_selectedCountries.isNotEmpty &&
           !_selectedCountries.contains('All')) {
         if (!_selectedCountries.contains(vehicle.country)) return false;
       }
-
-      // Province Filter
       if (_selectedProvinces.isNotEmpty &&
           !_selectedProvinces.contains('All')) {
         if (!_selectedProvinces.contains(vehicle.province)) return false;
       }
-
-      // Application Of Use Filter
       if (_selectedApplicationOfUse.isNotEmpty &&
           !_selectedApplicationOfUse.contains('All')) {
-        if (!_selectedApplicationOfUse.contains(vehicle.application))
+        if (!_selectedApplicationOfUse.contains(vehicle.application)) {
           return false;
+        }
       }
-
-      // Config Filter
       if (_selectedConfigs.isNotEmpty && !_selectedConfigs.contains('All')) {
         if (!_selectedConfigs.contains(vehicle.config)) return false;
       }
-
-      // Vehicle Type Filter
       if (_selectedVehicleType.isNotEmpty &&
           !_selectedVehicleType.contains('All')) {
         if (!_selectedVehicleType.contains(vehicle.vehicleType)) return false;
       }
-
       return true;
     });
   }
@@ -499,9 +466,7 @@ class _TruckPageState extends State<TruckPage> {
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (year == 'All') {
-                                  _selectedYears.clear();
-                                }
+                                if (year == 'All') _selectedYears.clear();
                                 if (_selectedYears.contains('All')) {
                                   _selectedYears.remove('All');
                                 }
@@ -529,9 +494,7 @@ class _TruckPageState extends State<TruckPage> {
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (brand == 'All') {
-                                  _selectedBrands.clear();
-                                }
+                                if (brand == 'All') _selectedBrands.clear();
                                 if (_selectedBrands.contains('All')) {
                                   _selectedBrands.remove('All');
                                 }
@@ -565,9 +528,7 @@ class _TruckPageState extends State<TruckPage> {
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (model == 'All') {
-                                  _selectedMakeModels.clear();
-                                }
+                                if (model == 'All') _selectedMakeModels.clear();
                                 if (_selectedMakeModels.contains('All')) {
                                   _selectedMakeModels.remove('All');
                                 }
@@ -660,9 +621,7 @@ class _TruckPageState extends State<TruckPage> {
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (ctry == 'All') {
-                                  _selectedCountries.clear();
-                                }
+                                if (ctry == 'All') _selectedCountries.clear();
                                 if (_selectedCountries.contains('All')) {
                                   _selectedCountries.remove('All');
                                 }
@@ -704,9 +663,7 @@ class _TruckPageState extends State<TruckPage> {
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (prov == 'All') {
-                                  _selectedProvinces.clear();
-                                }
+                                if (prov == 'All') _selectedProvinces.clear();
                                 if (_selectedProvinces.contains('All')) {
                                   _selectedProvinces.remove('All');
                                 }
@@ -764,9 +721,7 @@ class _TruckPageState extends State<TruckPage> {
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (cfg == 'All') {
-                                  _selectedConfigs.clear();
-                                }
+                                if (cfg == 'All') _selectedConfigs.clear();
                                 if (_selectedConfigs.contains('All')) {
                                   _selectedConfigs.remove('All');
                                 }
@@ -794,9 +749,7 @@ class _TruckPageState extends State<TruckPage> {
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (type == 'All') {
-                                  _selectedVehicleType.clear();
-                                }
+                                if (type == 'All') _selectedVehicleType.clear();
                                 if (_selectedVehicleType.contains('All')) {
                                   _selectedVehicleType.remove('All');
                                 }
@@ -840,7 +793,8 @@ class _TruckPageState extends State<TruckPage> {
             ),
             TextButton(
               child: Text('Apply',
-                  style: GoogleFonts.montserrat(color: Color(0xFFFF4E00))),
+                  style:
+                      GoogleFonts.montserrat(color: const Color(0xFFFF4E00))),
               onPressed: () {
                 Navigator.pop(context);
                 _loadInitialVehicles();
@@ -858,24 +812,18 @@ class _TruckPageState extends State<TruckPage> {
   void _clearLikedAndDislikedVehicles() async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-
       await userProvider.clearDislikedVehicles();
-      await userProvider
-          .clearLikedVehicles(); // Assuming you want to clear liked as well
-
+      await userProvider.clearLikedVehicles();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Liked and disliked vehicles have been cleared.'),
-        ),
+            content: Text('Liked and disliked vehicles have been cleared.')),
       );
-
       _loadInitialVehicles();
     } catch (e) {
       print('Error in _clearLikedAndDislikedVehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to clear vehicles. Please try again.'),
-        ),
+            content: Text('Failed to clear vehicles. Please try again.')),
       );
     }
   }
@@ -885,248 +833,12 @@ class _TruckPageState extends State<TruckPage> {
   // --------------------------------------------------------------------
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
     return GoogleFonts.montserrat(
-      fontSize: fontSize,
-      fontWeight: fontWeight,
-      color: color,
-    );
-  }
-
-  double _calculateHonestyPercentage(Vehicle vehicle) {
-    int totalFields = 35 + 18; // Total fields and photos
-    int filledFields = 0;
-
-    try {
-      final fieldsToCheck = [
-        vehicle.application.toString(),
-        vehicle.damageDescription,
-        vehicle.engineNumber,
-        vehicle.expectedSellingPrice,
-        vehicle.hydraluicType,
-        vehicle.makeModel,
-        vehicle.mileage,
-        vehicle.registrationNumber,
-        vehicle.suspensionType,
-        vehicle.transmissionType,
-        vehicle.userId,
-        vehicle.vinNumber,
-        vehicle.warrentyType,
-        vehicle.year,
-        vehicle.vehicleType,
-      ];
-
-      for (var field in fieldsToCheck) {
-        if (field.isNotEmpty) {
-          filledFields++;
-        }
-      }
-
-      final nullableFieldsToCheck = [
-        vehicle.dashboardPhoto,
-        vehicle.faultCodesPhoto,
-        vehicle.licenceDiskUrl,
-        vehicle.mileageImage,
-        vehicle.rc1NatisFile,
-      ];
-
-      for (var field in nullableFieldsToCheck) {
-        if (field.isNotEmpty) {
-          filledFields++;
-        }
-      }
-
-      for (var photo in vehicle.photos) {
-        if (photo != null && photo.isNotEmpty) {
-          filledFields++;
-        }
-      }
-
-      double honestyPercentage = (filledFields / totalFields) * 100;
-
-      return honestyPercentage;
-    } catch (e) {
-      return 0.0;
-    }
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  Widget _buildTruckCard(BuildContext context, Vehicle vehicle) {
-    final size = MediaQuery.of(context).size;
-
-    return GestureDetector(
-      onTap: () {
-        try {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-            ),
-          );
-        } catch (e) {
-          print('Error in onTap: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('Failed to load vehicle details. Please try again.'),
-            ),
-          );
-        }
-      },
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.black, // Set card background to black
-        shape: RoundedRectangleBorder(
-          side: BorderSide(
-              color: Colors.deepOrange, width: 2), // Deep orange border
-          borderRadius: BorderRadius.circular(8), // Optional: add border radius
-        ),
-        child: SizedBox(
-          height: size.height * 0.245, // Increased height to 0.25
-          child: Row(
-            children: [
-              // Image on the left with rounded corners
-              Expanded(
-                flex: 1,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(8),
-                    bottomLeft: Radius.circular(8),
-                  ),
-                  child: vehicle.mainImageUrl != null &&
-                          vehicle.mainImageUrl!.isNotEmpty
-                      ? Image.network(
-                          vehicle.mainImageUrl!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                              'lib/assets/default_vehicle_image.png',
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                            );
-                          },
-                        )
-                      : Image.asset(
-                          'lib/assets/default_vehicle_image.png',
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-                ),
-              ),
-              // Information on the right
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      // Title and IconButton in the same Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              "${vehicle.brands.join(" ")} ${vehicle.makeModel.toString().toUpperCase()}",
-                              style: _customFont(
-                                size.height * 0.025,
-                                FontWeight.bold,
-                                Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis, // Add this line
-                              maxLines:
-                                  2, // Optionally add this to limit to single line
-                            ),
-                          ),
-                          Consumer<UserProvider>(
-                            builder: (context, userProvider, child) {
-                              return TweenAnimationBuilder(
-                                duration: Duration(milliseconds: 200),
-                                tween: Tween<double>(
-                                  begin: userProvider.getLikedVehicles
-                                          .contains(vehicle.id)
-                                      ? 0.0
-                                      : 1.0,
-                                  end: userProvider.getLikedVehicles
-                                          .contains(vehicle.id)
-                                      ? 1.0
-                                      : 0.0,
-                                ),
-                                builder: (context, double value, child) {
-                                  return Transform.scale(
-                                    scale: 1 + (value * 0.2),
-                                    child: IconButton(
-                                      icon: Icon(
-                                        userProvider.getLikedVehicles
-                                                .contains(vehicle.id)
-                                            ? Icons.favorite
-                                            : Icons.favorite_border,
-                                        color: userProvider.getLikedVehicles
-                                                .contains(vehicle.id)
-                                            ? Colors.red
-                                            : Colors.white,
-                                      ),
-                                      onPressed: () =>
-                                          _markAsInterested(vehicle),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          )
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      // Info rows in a simple Column
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildInfoRow('Year', vehicle.year.toString()),
-                          _buildInfoRow('Mileage', vehicle.mileage),
-                          _buildInfoRow('Gearbox', vehicle.transmissionType),
-                          _buildInfoRow('Config', vehicle.config),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String title, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: Row(
-        children: [
-          Text(
-            '${title.capitalize()}: ',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          Expanded(
-            child: Text(value ?? 'N/A', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+        fontSize: fontSize, fontWeight: fontWeight, color: color);
   }
 
   void _markAsInterested(Vehicle vehicle) async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-
       if (userProvider.getLikedVehicles.contains(vehicle.id)) {
         await userProvider.unlikeVehicle(vehicle.id);
       } else {
@@ -1143,10 +855,8 @@ class _TruckPageState extends State<TruckPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            "No Vehicles Available",
-            style: _customFont(16, FontWeight.normal, Colors.white),
-          ),
+          Text("No Vehicles Available",
+              style: _customFont(16, FontWeight.normal, Colors.white)),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -1159,17 +869,28 @@ class _TruckPageState extends State<TruckPage> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _clearLikedAndDislikedVehicles,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: Text(
-              'Clear Liked & Disliked Vehicles',
-              style: _customFont(14, FontWeight.bold, Colors.white),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('Clear Liked & Disliked Vehicles',
+                style: _customFont(14, FontWeight.bold, Colors.white)),
           ),
         ],
       ),
     );
+  }
+
+  // --------------------------------------------------------------------
+  // Helper: Calculate cross-axis count based on screen width.
+  int _calculateCrossAxisCount(BuildContext context) {
+    double width = MediaQuery.of(context).size.width;
+    if (width >= 1200) {
+      return 4;
+    } else if (width >= 900) {
+      return 3;
+    } else if (width >= 600) {
+      return 2;
+    } else {
+      return 1;
+    }
   }
 
   // --------------------------------------------------------------------
@@ -1178,34 +899,119 @@ class _TruckPageState extends State<TruckPage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final bool showBottomNav = !_isLargeScreen && !kIsWeb;
+    final userProvider = Provider.of<UserProvider>(context);
+    final userRole = userProvider.getUserRole;
+
+    List<NavigationItem> navigationItems = userRole == 'dealer'
+        ? [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ]
+        : [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
 
     return Scaffold(
-      appBar: CustomAppBar(),
+      key: _scaffoldKey,
+      appBar: (_isLargeScreen || kIsWeb)
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: WebNavigationBar(
+                isCompactNavigation: _isCompactNavigation(context),
+                currentRoute: '/truckPage',
+                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+            )
+          : CustomAppBar(),
+      drawer: _isCompactNavigation(context)
+          ? Drawer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const [Colors.black, Color(0xFF2F7FFD)],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    DrawerHeader(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white24, width: 1),
+                        ),
+                      ),
+                      child: Center(
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          height: 50,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 50,
+                              width: 50,
+                              color: Colors.grey[900],
+                              child: const Icon(Icons.local_shipping,
+                                  color: Colors.white),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: navigationItems.map((item) {
+                          bool isActive = '/truckPage' == item.route;
+                          return ListTile(
+                            title: Text(
+                              item.title,
+                              style: TextStyle(
+                                color: isActive
+                                    ? const Color(0xFFFF4E00)
+                                    : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            selected: isActive,
+                            selectedTileColor: Colors.black12,
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (!isActive) {
+                                Navigator.pushNamed(context, item.route);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       backgroundColor: Colors.black,
       body: Column(
         children: [
-          // Add vehicle count display
+          // Vehicle count display and filter actions
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'All Vehicles Total: ${displayedVehicles.length}',
-                  style: _customFont(16, FontWeight.bold, Colors.white),
-                ),
+                Text('All Vehicles Total: ${displayedVehicles.length}',
+                    style: _customFont(16, FontWeight.bold, Colors.white)),
                 Row(
                   children: [
-                    // Filter Icon Button
                     IconButton(
-                      icon: const Icon(
-                        Icons.tune,
-                        color: Colors.white,
-                      ),
+                      icon: const Icon(Icons.tune, color: Colors.white),
                       onPressed: _showFilterDialog,
                     ),
-                    // Clear Filters Button
                     if (_selectedYears.isNotEmpty ||
                         _selectedBrands.isNotEmpty ||
                         _selectedMakeModels.isNotEmpty ||
@@ -1233,10 +1039,8 @@ class _TruckPageState extends State<TruckPage> {
                           });
                           _loadInitialVehicles();
                         },
-                        child: const Text(
-                          "Clear Filters",
-                          style: TextStyle(color: Colors.white),
-                        ),
+                        child: const Text("Clear Filters",
+                            style: TextStyle(color: Colors.white)),
                       ),
                   ],
                 ),
@@ -1260,19 +1064,28 @@ class _TruckPageState extends State<TruckPage> {
                           }
                           return false;
                         },
-                        child: ListView.builder(
+                        child: GridView.builder(
                           controller: _scrollController,
-                          itemCount:
-                              displayedVehicles.length + 1, // +1 for the loader
+                          padding: const EdgeInsets.all(16),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: _calculateCrossAxisCount(context),
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio:
+                                0.8, // Adjust as needed for card aspect
+                          ),
+                          itemCount: displayedVehicles.length +
+                              (_isLoadingMore ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index < displayedVehicles.length) {
-                              return _buildTruckCard(
-                                  context, displayedVehicles[index]);
+                              return TruckCard(
+                                vehicle: displayedVehicles[index],
+                                onInterested: _markAsInterested,
+                              );
                             } else {
-                              // Loader at the bottom
-                              return _isLoadingMore
-                                  ? Center(child: CircularProgressIndicator())
-                                  : SizedBox.shrink();
+                              return const Center(
+                                  child: CircularProgressIndicator());
                             }
                           },
                         ),
@@ -1281,10 +1094,16 @@ class _TruckPageState extends State<TruckPage> {
           ),
         ],
       ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-      ),
+      bottomNavigationBar: showBottomNav
+          ? CustomBottomNavigation(
+              selectedIndex: _selectedIndex,
+              onItemTapped: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            )
+          : null,
     );
   }
 }
@@ -1292,7 +1111,7 @@ class _TruckPageState extends State<TruckPage> {
 // Extension to capitalize the first letter of a string
 extension StringExtension on String {
   String capitalize() {
-    if (this.isEmpty) return this;
+    if (isEmpty) return this;
     return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

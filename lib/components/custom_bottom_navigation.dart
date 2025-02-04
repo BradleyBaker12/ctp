@@ -64,7 +64,7 @@ class CustomBottomNavigation extends StatelessWidget {
         } else if (index == 5 && userRole != 'dealer') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const ProfilePage()),
+            MaterialPageRoute(builder: (context) => ProfilePage()),
           );
         }
 

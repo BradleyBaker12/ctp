@@ -3,12 +3,18 @@ import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:ctp/services/geocoding_service.dart';
+import 'package:ctp/components/web_navigation_bar.dart'; // Add this import
 
 class LocationConfirmationPage extends StatefulWidget {
   final String offerId;
@@ -38,32 +44,59 @@ class LocationConfirmationPage extends StatefulWidget {
 }
 
 class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final String currentRoute = '/offers'; // Add this line
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
+
   bool _isLoading = false;
   LatLng? _latLng;
   int _selectedIndex = 0;
+  bool _isInitialized = false;
+  static const int _maxRetries = 3;
 
   @override
   void initState() {
     super.initState();
     _updateOfferStatus();
-    _getCoordinatesFromAddress();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      _getCoordinatesFromAddress();
+      _isInitialized = true;
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    });
   }
 
   Future<void> _updateOfferStatus() async {
     try {
-      // Update the offer status to "confirm location" when the page loads
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
           .update({'offerStatus': 'confirm location'});
-
       print('Offer status updated to "confirm location"');
     } catch (e) {
       print('Failed to update offer status: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update offer status: $e')),
-      );
+      _showSnackBar('Failed to update offer status: $e');
     }
+  }
+
+  String _formatAddress(String address) {
+    // Remove any special characters and format address
+    return address.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 
   Future<void> _getCoordinatesFromAddress() async {
@@ -73,25 +106,25 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
 
     try {
       print('Getting coordinates for address: ${widget.address}');
-      List<Location> locations = await locationFromAddress(widget.address);
-      if (locations.isNotEmpty) {
-        final location = locations.first;
+      final coordinates = await GeocodingService.getCoordinates(widget.address);
+
+      if (coordinates != null) {
         setState(() {
-          _latLng = LatLng(location.latitude, location.longitude);
+          _latLng = coordinates;
           print('Coordinates found: $_latLng');
         });
       } else {
-        throw 'No locations found for the provided address';
+        _showSnackBar('Unable to find location. Please verify the address.');
       }
     } catch (e) {
       print('Error getting coordinates: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to get coordinates: $e')),
-      );
+      _showSnackBar('Failed to get coordinates: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -175,137 +208,322 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
     });
   }
 
+  /// Helper function to provide different sizes for phone vs. tablet
+  double _adaptiveSize(
+      BuildContext context, double phoneSize, double tabletSize) {
+    bool isTablet = MediaQuery.of(context).size.width >= 600;
+    return isTablet ? tabletSize : phoneSize;
+  }
+
+  /// Helper function for text styles
+  TextStyle _getTextStyle({
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.normal,
+    Color color = Colors.white,
+  }) {
+    return TextStyle(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    print(
-        'Navigated to LocationConfirmationPage with offerId: ${widget.offerId}');
-    print('Location: ${widget.location}, Address: ${widget.address}');
-    print('Date: ${widget.date}, Time: ${widget.time}');
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final screenSize = MediaQuery.of(context).size;
+    final bool isTablet = screenSize.width >= 600;
+    const bool isWeb = kIsWeb; // Change to use kIsWeb directly
+    final double contentWidth =
+        isTablet ? screenSize.width * 1 : screenSize.width;
+    final double horizontalPadding =
+        isTablet ? (screenSize.width - contentWidth) / 2 : 16;
+
+    List<NavigationItem> navigationItems = userRole == 'dealer'
+        ? [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ]
+        : [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
 
     return Scaffold(
+      key: _scaffoldKey,
+      appBar: isWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: WebNavigationBar(
+                isCompactNavigation: _isCompactNavigation(context),
+                currentRoute: '/offers',
+                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+            )
+          : null,
+      drawer: _isCompactNavigation(context) && isWeb
+          ? Drawer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const [Colors.black, Color(0xFF2F7FFD)],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    DrawerHeader(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.white24,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Center(
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          height: 50,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 50,
+                              width: 50,
+                              color: Colors.grey[900],
+                              child: const Icon(Icons.local_shipping,
+                                  color: Colors.white),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: navigationItems.map((item) {
+                          bool isActive = currentRoute == item.route;
+                          return ListTile(
+                            title: Text(
+                              item.title,
+                              style: TextStyle(
+                                color: isActive
+                                    ? const Color(0xFFFF4E00)
+                                    : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            selected: isActive,
+                            selectedTileColor: Colors.black12,
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (!isActive) {
+                                Navigator.pushNamed(context, item.route);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: GradientBackground(
         child: SafeArea(
           child: Stack(
             children: [
-              SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: CustomBackButton(
-                            onPressed: () => Navigator.of(context).pop()),
-                      ),
-                      const SizedBox(height: 50),
-                      SizedBox(
-                          width: 100,
-                          height: 100,
-                          child: Image.asset('lib/assets/CTPLogo.png')),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'LOCATION CONFIRMATION',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Meeting information:',
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      Text(
-                        widget.address,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      Text(
-                        '${widget.date.day} ${_getMonthName(widget.date.month)} ${widget.date.year}',
-                        style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.time,
-                        style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      if (_latLng != null)
-                        Container(
-                          height: 300,
-                          margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
-                            child: GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: _latLng!,
-                                zoom: 14.0,
-                              ),
-                              markers: {
-                                Marker(
-                                  markerId: MarkerId(widget.location),
-                                  position: _latLng!,
-                                ),
-                              },
-                            ),
+              Column(
+                // Wrap SingleChildScrollView with Column
+                children: [
+                  Expanded(
+                    // Wrap SingleChildScrollView with Expanded
+                    child: SingleChildScrollView(
+                      child: Center(
+                        // Center the content for web
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxWidth: isTablet ? 800 : double.infinity,
                           ),
-                        )
-                      else if (_isLoading)
-                        const Center(child: CircularProgressIndicator())
-                      else
-                        const Text(
-                          'No location available',
-                          style: TextStyle(color: Colors.red),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: horizontalPadding,
+                            vertical: 16,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (!isWeb) // Add this condition
+                                Align(
+                                  alignment: Alignment.topLeft,
+                                  child: CustomBackButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                  ),
+                                ),
+                              SizedBox(height: _adaptiveSize(context, 50, 60)),
+                              SizedBox(
+                                width: _adaptiveSize(context, 100, 120),
+                                height: _adaptiveSize(context, 100, 120),
+                                child: Image.asset('lib/assets/CTPLogo.png'),
+                              ),
+                              SizedBox(height: _adaptiveSize(context, 32, 40)),
+                              Text(
+                                'LOCATION CONFIRMATION',
+                                style: _getTextStyle(
+                                  fontSize: _adaptiveSize(context, 24, 32),
+                                  fontWeight: FontWeight.w900,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: _adaptiveSize(context, 32, 40)),
+                              Text(
+                                'Meeting information:',
+                                style: _getTextStyle(
+                                  fontSize: _adaptiveSize(context, 18, 24),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: _adaptiveSize(context, 32, 40)),
+
+                              // Address
+                              Container(
+                                width: isTablet
+                                    ? contentWidth * 0.8
+                                    : double.infinity,
+                                padding: EdgeInsets.all(
+                                    _adaptiveSize(context, 16, 24)),
+                                decoration: BoxDecoration(
+                                  color: Colors.black26,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  widget.address,
+                                  style: _getTextStyle(
+                                    fontSize: _adaptiveSize(context, 16, 20),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+
+                              SizedBox(height: _adaptiveSize(context, 32, 40)),
+
+                              // Date and Time
+                              Container(
+                                width: isTablet
+                                    ? contentWidth * 0.6
+                                    : double.infinity,
+                                padding: EdgeInsets.all(
+                                    _adaptiveSize(context, 16, 24)),
+                                decoration: BoxDecoration(
+                                  color: Colors.black26,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '${widget.date.day} ${_getMonthName(widget.date.month)} ${widget.date.year}',
+                                      style: _getTextStyle(
+                                        fontSize:
+                                            _adaptiveSize(context, 16, 20),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    SizedBox(
+                                        height: _adaptiveSize(context, 8, 12)),
+                                    Text(
+                                      widget.time,
+                                      style: _getTextStyle(
+                                        fontSize:
+                                            _adaptiveSize(context, 16, 20),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              SizedBox(height: _adaptiveSize(context, 32, 40)),
+
+                              // Map
+                              if (_latLng != null)
+                                Container(
+                                  height: _adaptiveSize(context, 300, 400),
+                                  width: isTablet
+                                      ? contentWidth * 0.8
+                                      : double.infinity,
+                                  margin: EdgeInsets.symmetric(
+                                    horizontal: _adaptiveSize(context, 16, 24),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(15),
+                                    child: GoogleMap(
+                                      initialCameraPosition: CameraPosition(
+                                        target: _latLng!,
+                                        zoom: 14.0,
+                                      ),
+                                      markers: {
+                                        Marker(
+                                          markerId: MarkerId(widget.location),
+                                          position: _latLng!,
+                                        ),
+                                      },
+                                    ),
+                                  ),
+                                ),
+
+                              // Buttons
+                              SizedBox(height: _adaptiveSize(context, 16, 24)),
+                              SizedBox(
+                                width: isTablet
+                                    ? contentWidth * 0.4
+                                    : double.infinity,
+                                child: Column(
+                                  children: [
+                                    CustomButton(
+                                      text: 'COPY ADDRESS',
+                                      borderColor: Colors.blue,
+                                      onPressed: () {
+                                        Clipboard.setData(ClipboardData(
+                                            text: widget.address));
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'Address copied to clipboard')),
+                                        );
+                                      },
+                                    ),
+                                    CustomButton(
+                                      text: 'OPEN IN GOOGLE MAPS',
+                                      borderColor: Colors.blue,
+                                      onPressed: _openInGoogleMaps,
+                                    ),
+                                    CustomButton(
+                                      text: 'DONE',
+                                      borderColor: const Color(0xFFFF4E00),
+                                      onPressed: _saveInspectionDetails,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      const SizedBox(height: 16),
-                      CustomButton(
-                        text: 'COPY ADDRESS',
-                        borderColor: Colors.blue,
-                        onPressed: () {
-                          Clipboard.setData(
-                              ClipboardData(text: widget.address));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Address copied to clipboard')),
-                          );
-                        },
                       ),
-                      CustomButton(
-                        text: 'OPEN IN GOOGLE MAPS',
-                        borderColor: Colors.blue,
-                        onPressed: _openInGoogleMaps,
-                      ),
-                      CustomButton(
-                        text: 'DONE',
-                        borderColor: const Color(0xFFFF4E00),
-                        onPressed: _saveInspectionDetails,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
+              // Loading overlay
               if (_isLoading)
                 Container(
                   color: Colors.black54,
@@ -319,10 +537,13 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
           ),
         ),
       ),
-      bottomNavigationBar: CustomBottomNavigation(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-      ),
+      bottomNavigationBar:
+          (!kIsWeb && !isTablet) // Change this line to check for kIsWeb
+              ? CustomBottomNavigation(
+                  selectedIndex: _selectedIndex,
+                  onItemTapped: _onItemTapped,
+                )
+              : null,
     );
   }
 

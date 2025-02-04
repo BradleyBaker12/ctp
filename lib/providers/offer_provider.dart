@@ -482,12 +482,12 @@ class OfferProvider with ChangeNotifier {
             .get();
 
         // Update the accepted offer
-        await transaction.update(
+        transaction.update(
             FirebaseFirestore.instance.collection('offers').doc(offerId),
             {'offerStatus': 'accepted'});
 
         // Update vehicle status
-        await transaction.update(
+        transaction.update(
             FirebaseFirestore.instance.collection('vehicles').doc(vehicleId), {
           'isAccepted': true,
           'acceptedOfferId': offerId,
@@ -496,7 +496,7 @@ class OfferProvider with ChangeNotifier {
         // Update all other offers for this vehicle to rejected
         for (var doc in offersQuery.docs) {
           if (doc.id != offerId) {
-            await transaction.update(
+            transaction.update(
                 FirebaseFirestore.instance.collection('offers').doc(doc.id),
                 {'offerStatus': 'rejected'});
           }

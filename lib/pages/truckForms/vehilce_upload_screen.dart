@@ -419,19 +419,17 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       formData.setYear(widget.vehicle!.year);
 
       // Then load brands for that year
-      if (widget.vehicle!.year != null) {
-        _loadBrandsForYear(widget.vehicle!.year!).then((_) {
-          // After brands are loaded, set the brand and load models
-          if (widget.vehicle!.brands?.isNotEmpty == true) {
-            formData.setBrands(widget.vehicle!.brands);
-            _loadModelsForBrand(widget.vehicle!.brands!.first).then((_) {
-              // Finally set the makeModel
-              formData.setMakeModel(widget.vehicle!.makeModel);
-            });
-          }
-        });
-      }
-
+      _loadBrandsForYear(widget.vehicle!.year!).then((_) {
+        // After brands are loaded, set the brand and load models
+        if (widget.vehicle!.brands?.isNotEmpty == true) {
+          formData.setBrands(widget.vehicle!.brands);
+          _loadModelsForBrand(widget.vehicle!.brands!.first).then((_) {
+            // Finally set the makeModel
+            formData.setMakeModel(widget.vehicle!.makeModel);
+          });
+        }
+      });
+    
       // Set other fields
       formData.setConfig(widget.vehicle!.config);
       formData.setCountry(widget.vehicle!.country);
@@ -441,21 +439,17 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       formData.setTransmissionType(widget.vehicle!.transmissionType);
 
       // Handle application field
-      if (widget.vehicle!.application != null) {
-        if (widget.vehicle!.application is String) {
-          formData.setApplication(widget.vehicle!.application as String);
-        } else if (widget.vehicle!.application is List) {
-          final List appList = widget.vehicle!.application as List;
-          formData.setApplication(
-              appList.isNotEmpty ? appList.first.toString() : '');
-        }
+      if (widget.vehicle!.application is String) {
+        formData.setApplication(widget.vehicle!.application as String);
+      } else if (widget.vehicle!.application is List) {
+        final List appList = widget.vehicle!.application as List;
+        formData.setApplication(
+            appList.isNotEmpty ? appList.first.toString() : '');
       }
-
+    
       // Update province options based on country
-      if (widget.vehicle!.country != null) {
-        _updateProvinceOptions(widget.vehicle!.country!);
-      }
-
+      _updateProvinceOptions(widget.vehicle!.country!);
+    
       debugPrint('=== Duplication Data Population Complete ===');
     }
   }

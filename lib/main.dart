@@ -25,7 +25,9 @@ import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/tutorial_page.dart';
 import 'package:ctp/pages/tutorial_started.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/pages/waiting_for_approval.dart';
+import 'package:ctp/pages/wish_list_page.dart';
 import 'package:ctp/providers/complaints_provider.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -40,6 +42,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
+import 'package:url_strategy/url_strategy.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
@@ -60,6 +63,7 @@ void main() async {
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
   }
 
+  setPathUrlStrategy();
   runApp(
     MultiProvider(
       providers: [
@@ -120,11 +124,13 @@ class MyApp extends StatelessWidget {
         '/pendingOffers': (context) => const PendingOffersPage(),
         '/truckPage': (context) => const TruckPage(),
         '/offers': (context) => const OffersPage(),
-        '/profile': (context) => const ProfilePage(),
+        '/profile': (context) => ProfilePage(),
         '/waiting-for-approval': (context) => const AccountStatusPage(),
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
+        '/wishlist': (context) => const WishlistPage(),
+        '/transporterList': (context) => const VehiclesListPage(),
         '/error': (context) => ErrorPage(), // Create a basic error page
       },
       onGenerateRoute: (settings) {

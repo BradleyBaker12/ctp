@@ -42,7 +42,7 @@ dependencies:
   firebase_storage: ^12.1.2
   flutter:
     sdk: flutter
-  flutter_image_compress: ^2.3.0
+  flutter_image_compress: ^2.4.0
   flutter_launcher_icons: ^0.14.1
   flutter_pdfview: ^1.3.4
   flutter_svg: ^2.0.10+1
@@ -50,10 +50,11 @@ dependencies:
   google_fonts: ^6.2.1
   google_maps_flutter: ^2.8.0
   google_sign_in: ^6.2.1
-  http: any
+  http: ^1.1.0
   image: ^4.3.0
   image_cropper: ^8.0.1
   image_picker: ^1.1.2
+  image_zoomer: ^0.0.3
   intl: ^0.19.0
   path: any
   path_provider: ^2.1.5
@@ -64,8 +65,11 @@ dependencies:
   provider: ^6.1.2
   share_plus: ^10.0.0
   shared_preferences: ^2.5.1
+  syncfusion_flutter_pdfviewer: ^27.2.5
   table_calendar: ^3.1.2
+  ulid: ^2.0.1
   url_launcher: ^6.3.0
+  url_strategy: ^0.3.0
   webview_flutter: ^4.10.0
 dev_dependencies:
   flutter_lints: ^4.0.0
@@ -89,8 +93,8 @@ flutter:
     - lib/assets/tutorialImage.png
     - lib/assets/HomePageHero.png
     - lib/assets/default-profile-photo.jpg
-    - lib/assets/trailer_image.png
-    - lib/assets/truck_image.png
+    - lib/assets/trailer_image.jpeg
+    - lib/assets/truck_image.jpeg
     - lib/assets/default_vehicle_image.png
     - lib/assets/verified_Icon.png
     - lib/assets/shaking_hands.png

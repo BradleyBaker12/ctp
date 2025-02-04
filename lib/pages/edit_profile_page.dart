@@ -1,6 +1,9 @@
 // lib/screens/edit_profile_page.dart
 
+import 'dart:developer';
 import 'dart:io';
+import 'package:ctp/pages/profile_page.dart';
+import 'package:flutter/foundation.dart'; // for kIsWeb checks
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -23,6 +26,8 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
+
+  // Text controllers
   late TextEditingController _firstNameController;
   late TextEditingController _middleNameController;
   late TextEditingController _lastNameController;
@@ -35,22 +40,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _cityController;
   late TextEditingController _stateController;
   late TextEditingController _postalCodeController;
+
+  // Existing Firestore document URLs
   String? _profileImageUrl;
   String? _bankConfirmationUrl;
   String? _cipcCertificateUrl;
   String? _proxyUrl;
   String? _brncUrl;
-  File? _profileImageFile;
-  File? _bankConfirmationFile;
-  File? _cipcCertificateFile;
-  File? _proxyFile;
-  File? _brncFile;
+
+  // In-memory files (Uint8List) + filenames for new uploads
+  Uint8List? _profileImageFile;
+  Uint8List? _bankConfirmationFile;
+  Uint8List? _cipcCertificateFile;
+  Uint8List? _proxyFile;
+  Uint8List? _brncFile;
+
+  String? _profileImageFileName;
+  String? _bankConfirmationFileName;
+  String? _cipcCertificateFileName;
+  String? _proxyFileName;
+  String? _brncFileName;
+
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    // Pre-fill text fields from existing user data
     _firstNameController =
         TextEditingController(text: userProvider.getFirstName);
     _middleNameController =
@@ -71,6 +89,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _stateController = TextEditingController(text: userProvider.getState);
     _postalCodeController =
         TextEditingController(text: userProvider.getPostalCode);
+
+    // Existing file URLs (if any)
     _profileImageUrl = userProvider.getProfileImageUrl;
     _bankConfirmationUrl = userProvider.getBankConfirmationUrl;
     _cipcCertificateUrl = userProvider.getCipcCertificateUrl;
@@ -80,6 +100,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
+    // Dispose all controllers
     _firstNameController.dispose();
     _middleNameController.dispose();
     _lastNameController.dispose();
@@ -95,7 +116,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.dispose();
   }
 
-  /// Picks a document file based on the field type.
+  /// Allows the user to pick a PDF/image/doc as a Uint8List in memory.
   Future<void> _pickFile(String field) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -111,62 +132,68 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ],
     );
 
-    if (result != null && result.files.single.path != null) {
-      File selectedFile = File(result.files.single.path!);
+    if (result != null && result.files.single.bytes != null) {
+      String fileName = result.files.single.name;
+      Uint8List fileBytes = result.files.single.bytes!;
+
       setState(() {
         switch (field) {
           case 'bankConfirmation':
-            _bankConfirmationFile = selectedFile;
-            _bankConfirmationUrl = null; // Reset existing URL
+            _bankConfirmationFile = fileBytes;
+            _bankConfirmationFileName = fileName;
+            _bankConfirmationUrl = null; // Clear old URL
             break;
           case 'cipcCertificate':
-            _cipcCertificateFile = selectedFile;
-            _cipcCertificateUrl = null; // Reset existing URL
+            _cipcCertificateFile = fileBytes;
+            _cipcCertificateFileName = fileName;
+            _cipcCertificateUrl = null;
             break;
           case 'proxy':
-            _proxyFile = selectedFile;
-            _proxyUrl = null; // Reset existing URL
+            _proxyFile = fileBytes;
+            _proxyFileName = fileName;
+            _proxyUrl = null;
             break;
           case 'brnc':
-            _brncFile = selectedFile;
-            _brncUrl = null; // Reset existing URL
+            _brncFile = fileBytes;
+            _brncFileName = fileName;
+            _brncUrl = null;
             break;
         }
       });
     }
   }
 
-  /// Picks and processes the profile image.
+  /// Allows the user to pick a profile image from gallery, then crop and compress it.
   Future<void> _pickProfileImage() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? pickedFile =
           await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        File? croppedFile = await _cropImage(File(pickedFile.path));
-        if (croppedFile != null) {
-          final compressedFile = await _compressImageFile(croppedFile);
-          setState(() {
-            _profileImageFile = compressedFile;
-            _profileImageUrl = null; // Reset existing URL
-          });
+        _profileImageFileName = pickedFile.name;
+        // Crop as a File, then read as bytes
+        Uint8List? croppedBytes = await _cropImage(File(pickedFile.path));
+        if (croppedBytes != null) {
+          final Uint8List? compressedBytes =
+              await _compressImageFile(croppedBytes);
+          if (compressedBytes != null) {
+            setState(() {
+              _profileImageFile = compressedBytes;
+              _profileImageUrl = null; // Clear old URL
+            });
+          }
         }
       }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  /// Crops the selected image to a square aspect ratio.
-  Future<File?> _cropImage(File imageFile) async {
-    CroppedFile? croppedFile = await ImageCropper().cropImage(
+  /// Crops the selected image to a square aspect ratio; returns Uint8List on success.
+  Future<Uint8List?> _cropImage(File imageFile) async {
+    CroppedFile? cropped = await ImageCropper().cropImage(
       sourcePath: imageFile.path,
       aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
       uiSettings: [
@@ -174,35 +201,49 @@ class _EditProfilePageState extends State<EditProfilePage> {
           toolbarTitle: 'Crop and Fit',
           toolbarColor: Colors.deepOrange,
           toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.original,
           lockAspectRatio: true,
         ),
         IOSUiSettings(
           title: 'Crop and Fit',
         ),
+        // Web fix to ensure cropping works in browser.
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: const CropperSize(width: 200, height: 200),
+          initialAspectRatio: 1, // square
+          dragMode: WebDragMode.crop,
+          center: true,
+          highlight: true,
+          cropBoxResizable: false,
+        ),
       ],
     );
 
-    if (croppedFile != null) {
-      return File(croppedFile.path);
+    if (cropped != null) {
+      return await cropped.readAsBytes();
     }
     return null;
   }
 
-  /// Compresses the image file to reduce its size.
-  Future<File> _compressImageFile(File file) async {
-    final compressedFile = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      file.absolute.path.replaceAll('.jpg', '_compressed.jpg'),
+  /// Compresses an in‑memory image's bytes, returning a smaller Uint8List.
+  Future<Uint8List?> _compressImageFile(Uint8List imageBytes) async {
+    return await FlutterImageCompress.compressWithList(
+      imageBytes,
+      minWidth: 800,
+      minHeight: 600,
       quality: 70,
+      format: CompressFormat.jpeg,
     );
-
-    return compressedFile != null ? File(compressedFile.path) : file;
   }
 
-  /// Determines the appropriate icon based on the file type.
+  /// Returns an icon for the file type (e.g., PDF vs. PNG).
+  /// Also trims query strings from the extension if present.
   IconData _getIconForFileType(String fileName) {
-    final extension = path.extension(fileName).toLowerCase();
+    final extension =
+        path.extension(fileName).toLowerCase().trim().split('?').first.trim();
+    log("Extensions are $extension");
+
     switch (extension) {
       case '.pdf':
         return Icons.picture_as_pdf;
@@ -221,28 +262,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  /// Extracts the file name from a given URL or path.
+  /// Gets just the basename of a URL path, e.g. "myfile.pdf"
   String _getFileNameFromUrl(String url) {
     try {
       Uri uri = Uri.parse(url);
       return path.basename(uri.path);
-    } catch (e) {
-      // If parsing fails, fall back to the original file path
+    } catch (_) {
       return path.basename(url);
     }
   }
 
-  /// Builds a text form field with validation.
-  Widget _buildTextField(String label, TextEditingController controller,
-      {bool isRequired = true}) {
+  /// Builds a text form field with default validation for required fields.
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    bool isRequired = true,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
         controller: controller,
+        style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.white),
           hintText: label,
+          labelStyle: const TextStyle(color: Colors.white),
           hintStyle: const TextStyle(color: Colors.white70),
           filled: true,
           fillColor: Colors.black.withOpacity(0.3),
@@ -251,7 +295,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             borderSide: BorderSide.none,
           ),
         ),
-        style: const TextStyle(color: Colors.white),
         validator: (value) {
           if (isRequired && (value == null || value.isEmpty)) {
             return 'Please enter $label';
@@ -262,7 +305,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  /// Builds a label for the upload section.
+  /// A smaller label heading for each file upload section.
   Widget _buildUploadLabel(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -276,15 +319,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  /// Builds an upload button for documents.
-  Widget _buildUploadButton(String field, String? fileUrl, File? file) {
+  /// Renders either an "open folder" icon or an icon + the file name.
+  /// On tap, user can pick a new file. A close button clears the file.
+  Widget _buildUploadButton(String field, String? fileUrl, String? fileName) {
     String? displayName;
     IconData iconData = Icons.folder_open;
 
-    if (file != null) {
-      displayName = path.basename(file.path);
-      iconData = _getIconForFileType(file.path);
+    if (fileName != null) {
+      // We have a newly picked file in memory
+      displayName = fileName;
+      iconData = _getIconForFileType(fileName);
     } else if (fileUrl != null && fileUrl.isNotEmpty) {
+      // Using existing URL from Firestore
       displayName = _getFileNameFromUrl(fileUrl);
       iconData = _getIconForFileType(fileUrl);
     }
@@ -303,7 +349,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             child: Center(
               child: displayName == null
-                  ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
+                  ? const Icon(
+                      Icons.folder_open,
+                      color: Colors.blue,
+                      size: 40,
+                    )
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -318,6 +368,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             displayName,
                             style: const TextStyle(color: Colors.white),
                             textAlign: TextAlign.center,
+                            maxLines: 2, // allow wrapping
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -336,18 +387,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   switch (field) {
                     case 'bankConfirmation':
                       _bankConfirmationFile = null;
+                      _bankConfirmationFileName = null;
                       _bankConfirmationUrl = null;
                       break;
                     case 'cipcCertificate':
                       _cipcCertificateFile = null;
+                      _cipcCertificateFileName = null;
                       _cipcCertificateUrl = null;
                       break;
                     case 'proxy':
                       _proxyFile = null;
+                      _proxyFileName = null;
                       _proxyUrl = null;
                       break;
                     case 'brnc':
                       _brncFile = null;
+                      _brncFileName = null;
                       _brncUrl = null;
                       break;
                   }
@@ -364,113 +419,119 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  /// Saves the profile by uploading files to Firebase Storage and updating Firestore.
+  /// Saves profile changes to Firestore and/or Storage.
   Future<void> _saveProfile() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isLoading = true;
-      });
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      String? profileImageUrl;
+    setState(() => _isLoading = true);
 
-      // Upload Profile Image if a new one is selected
-      if (_profileImageFile != null) {
-        try {
-          profileImageUrl = await userProvider.uploadFile(_profileImageFile!);
-        } catch (e) {
-          debugPrint('Error uploading profile image: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error uploading profile image: $e')),
-          );
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
-      }
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-      // Upload Documents and get their download URLs
-      String? bankConfirmationDownloadUrl;
-      String? cipcCertificateDownloadUrl;
-      String? proxyDownloadUrl;
-      String? brncDownloadUrl;
-
+    // 1) Upload new profile image if selected
+    String? profileImageUrl;
+    if (_profileImageFile != null && _profileImageFileName != null) {
       try {
-        if (_bankConfirmationFile != null) {
-          bankConfirmationDownloadUrl =
-              await userProvider.uploadFile(_bankConfirmationFile!);
-        }
-
-        if (_cipcCertificateFile != null) {
-          cipcCertificateDownloadUrl =
-              await userProvider.uploadFile(_cipcCertificateFile!);
-        }
-
-        if (_proxyFile != null) {
-          proxyDownloadUrl = await userProvider.uploadFile(_proxyFile!);
-        }
-
-        if (_brncFile != null) {
-          brncDownloadUrl = await userProvider.uploadFile(_brncFile!);
-        }
-      } catch (e) {
-        debugPrint('Error uploading documents: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading documents: $e')),
+        profileImageUrl = await userProvider.uploadFile(
+          _profileImageFile! as File,
         );
-        setState(() {
-          _isLoading = false;
-        });
+      } catch (e) {
+        debugPrint('Error uploading profile image: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading profile image: $e')),
+        );
+        setState(() => _isLoading = false);
         return;
       }
+    }
 
-      try {
-        await userProvider.updateUserProfile(
-          firstName: _firstNameController.text,
-          middleName: _middleNameController.text,
-          lastName: _lastNameController.text,
-          email: _emailController.text,
-          phoneNumber: _phoneNumberController.text,
-          companyName: _companyNameController.text,
-          tradingName: _tradingNameController.text,
-          addressLine1: _addressLine1Controller.text,
-          addressLine2: _addressLine2Controller.text,
-          city: _cityController.text,
-          state: _stateController.text,
-          postalCode: _postalCodeController.text,
-          profileImageUrl: profileImageUrl ?? _profileImageUrl,
-          bankConfirmationUrl:
-              bankConfirmationDownloadUrl ?? _bankConfirmationUrl,
-          cipcCertificateUrl: cipcCertificateDownloadUrl ?? _cipcCertificateUrl,
-          proxyUrl: proxyDownloadUrl ?? _proxyUrl,
-          brncUrl: brncDownloadUrl ?? _brncUrl,
-        );
+    // 2) Upload documents if newly selected
+    String? bankConfirmationDownloadUrl;
+    String? cipcCertificateDownloadUrl;
+    String? proxyDownloadUrl;
+    String? brncDownloadUrl;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+    try {
+      if (_bankConfirmationFile != null && _bankConfirmationFileName != null) {
+        bankConfirmationDownloadUrl = await userProvider.uploadFile(
+          _bankConfirmationFile! as File,
         );
-        Navigator.pop(context);
-      } catch (e) {
-        debugPrint('Error saving profile: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile: $e')),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
       }
+      if (_cipcCertificateFile != null && _cipcCertificateFileName != null) {
+        cipcCertificateDownloadUrl = await userProvider.uploadFile(
+          _cipcCertificateFile! as File,
+        );
+      }
+      if (_proxyFile != null && _proxyFileName != null) {
+        proxyDownloadUrl = await userProvider.uploadFile(
+          _proxyFile! as File,
+        );
+      }
+      if (_brncFile != null && _brncFileName != null) {
+        brncDownloadUrl = await userProvider.uploadFile(
+          _brncFile! as File,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error uploading documents: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading documents: $e')),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // 3) Update user data in Firestore
+    try {
+      await userProvider.updateUserProfile(
+        firstName: _firstNameController.text,
+        middleName: _middleNameController.text,
+        lastName: _lastNameController.text,
+        email: _emailController.text,
+        phoneNumber: _phoneNumberController.text,
+        companyName: _companyNameController.text,
+        tradingName: _tradingNameController.text,
+        addressLine1: _addressLine1Controller.text,
+        addressLine2: _addressLine2Controller.text,
+        city: _cityController.text,
+        state: _stateController.text,
+        postalCode: _postalCodeController.text,
+        profileImageUrl: profileImageUrl ?? _profileImageUrl,
+        bankConfirmationUrl:
+            bankConfirmationDownloadUrl ?? _bankConfirmationUrl,
+        cipcCertificateUrl: cipcCertificateDownloadUrl ?? _cipcCertificateUrl,
+        proxyUrl: proxyDownloadUrl ?? _proxyUrl,
+        brncUrl: brncDownloadUrl ?? _brncUrl,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+
+      // Navigate to ProfilePage instead of popping
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error saving profile: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    var orange = const Color(0xFFFF4E00);
+    final orange = const Color(0xFFFF4E00);
 
     return Scaffold(
       body: Stack(
         children: [
+          // Gradient background
           GradientBackground(
             child: Column(
               children: [
@@ -479,13 +540,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 8.0),
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
                       child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             const SizedBox(height: 20),
+                            // Profile pic
                             Stack(
                               children: [
                                 GestureDetector(
@@ -493,14 +557,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   child: CircleAvatar(
                                     radius: 60,
                                     backgroundImage: _profileImageFile != null
-                                        ? FileImage(_profileImageFile!)
+                                        ? MemoryImage(_profileImageFile!)
                                         : (_profileImageUrl != null
                                             ? NetworkImage(_profileImageUrl!)
                                             : null),
-                                    child: _profileImageFile == null &&
-                                            _profileImageUrl == null
-                                        ? const Icon(Icons.camera_alt,
-                                            size: 60, color: Colors.white)
+                                    child: (_profileImageFile == null &&
+                                            _profileImageUrl == null)
+                                        ? const Icon(
+                                            Icons.camera_alt,
+                                            size: 60,
+                                            color: Colors.white,
+                                          )
                                         : null,
                                   ),
                                 ),
@@ -512,8 +579,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     child: const CircleAvatar(
                                       backgroundColor: Colors.white,
                                       radius: 18,
-                                      child:
-                                          Icon(Icons.edit, color: Colors.black),
+                                      child: Icon(
+                                        Icons.edit,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -522,8 +591,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             const SizedBox(height: 20),
                             _buildTextField('First Name', _firstNameController),
                             _buildTextField(
-                                'Middle Name', _middleNameController,
-                                isRequired: false),
+                              'Middle Name',
+                              _middleNameController,
+                              isRequired: false,
+                            ),
                             _buildTextField('Last Name', _lastNameController),
                             _buildTextField('Email', _emailController),
                             _buildTextField(
@@ -535,13 +606,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             _buildTextField(
                                 'Address Line 1', _addressLine1Controller),
                             _buildTextField(
-                                'Address Line 2', _addressLine2Controller,
-                                isRequired: false),
+                              'Address Line 2',
+                              _addressLine2Controller,
+                              isRequired: false,
+                            ),
                             _buildTextField('City', _cityController),
                             _buildTextField(
-                                'State/Province/Region', _stateController),
+                              'State/Province/Region',
+                              _stateController,
+                            ),
                             _buildTextField(
-                                'Postal Code', _postalCodeController),
+                              'Postal Code',
+                              _postalCodeController,
+                            ),
                             const SizedBox(height: 20),
                             const Text(
                               'Upload Documents',
@@ -553,23 +630,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             ),
                             const SizedBox(height: 10),
                             _buildUploadLabel('Bank Confirmation'),
-                            _buildUploadButton('bankConfirmation',
-                                _bankConfirmationUrl, _bankConfirmationFile),
+                            _buildUploadButton(
+                              'bankConfirmation',
+                              _bankConfirmationUrl,
+                              _bankConfirmationFileName,
+                            ),
                             const SizedBox(height: 15),
                             _buildUploadLabel('CIPC Certificate'),
-                            _buildUploadButton('cipcCertificate',
-                                _cipcCertificateUrl, _cipcCertificateFile),
+                            _buildUploadButton(
+                              'cipcCertificate',
+                              _cipcCertificateUrl,
+                              _cipcCertificateFileName,
+                            ),
                             const SizedBox(height: 15),
                             _buildUploadLabel('Proxy'),
-                            _buildUploadButton('proxy', _proxyUrl, _proxyFile),
+                            _buildUploadButton(
+                              'proxy',
+                              _proxyUrl,
+                              _proxyFileName,
+                            ),
                             const SizedBox(height: 15),
                             _buildUploadLabel('BRNC'),
-                            _buildUploadButton('brnc', _brncUrl, _brncFile),
+                            _buildUploadButton(
+                              'brnc',
+                              _brncUrl,
+                              _brncFileName,
+                            ),
                             const SizedBox(height: 30),
                             CustomButton(
                               text: _isLoading ? 'Saving...' : 'Save',
                               borderColor: orange,
-                              onPressed: _isLoading ? () {} : _saveProfile,
+                              onPressed: _isLoading ? null : _saveProfile,
                             ),
                             const SizedBox(height: 30),
                           ],
@@ -581,11 +672,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ],
             ),
           ),
+          // Custom back button
           const Positioned(
             top: 40,
             left: 16,
             child: CustomBackButton(),
           ),
+          // Loading overlay
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),

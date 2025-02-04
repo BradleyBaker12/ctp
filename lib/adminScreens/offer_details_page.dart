@@ -550,26 +550,26 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// ACCEPTED SECTION: Setup Inspection/Collection
   Widget _buildAcceptedSection() {
-    debugText('_buildAcceptedSection: streaming vehicle data...');
+    debugText('_buildAcceptedSection: streaming offer data...');
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.offer.vehicleId)
+          .collection('offers')
+          .doc(widget.offer.offerId)
           .snapshots(),
-      builder: (context, vehicleSnapshot) {
-        if (!vehicleSnapshot.hasData) {
+      builder: (context, offerSnapshot) {
+        if (!offerSnapshot.hasData) {
           return const CircularProgressIndicator();
         }
 
-        final vehicleData =
-            vehicleSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+        final offerData =
+            offerSnapshot.data!.data() as Map<String, dynamic>? ?? {};
 
         final inspectionLocations = _parseLocations(
-          vehicleData['inspectionDetails']?['inspectionLocations']?['locations']
+          offerData['inspectionDetails']?['inspectionLocations']?['locations']
               as List<dynamic>?,
         );
         final collectionLocations = _parseLocations(
-          vehicleData['collectionDetails']?['collectionLocations']?['locations']
+          offerData['collectionDetails']?['collectionLocations']?['locations']
               as List<dynamic>?,
         );
 

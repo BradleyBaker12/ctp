@@ -1,5 +1,3 @@
-// lib/components/offer_card.dart
-
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
@@ -22,14 +20,16 @@ import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/complaints_provider.dart';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 class OfferCard extends StatefulWidget {
   final Offer offer;
 
   const OfferCard({
-    Key? key,
+    super.key,
     required this.offer,
-  }) : super(key: key);
+  });
 
   @override
   _OfferCardState createState() => _OfferCardState();
@@ -39,12 +39,18 @@ class _OfferCardState extends State<OfferCard> {
   final TextEditingController _editController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // State variables for transmission, config, mileage, and vehicleYear.
+  String? transmissionType;
+  String? vehicleConfig;
+  String? mileage;
+  String? vehicleYear; // New state variable for the year
+
   @override
   void initState() {
     super.initState();
-    // Schedule the complaint check after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForResolvedComplaints();
+      _fetchVehicleDetails();
     });
   }
 
@@ -55,7 +61,6 @@ class _OfferCardState extends State<OfferCard> {
     final resolvedComplaint =
         complaintsProvider.getResolvedComplaint(widget.offer.offerId);
 
-    // Check if there is a resolved complaint and update the status accordingly
     if (resolvedComplaint != null &&
         widget.offer.offerStatus == 'Issue reported') {
       if (mounted) {
@@ -63,6 +68,28 @@ class _OfferCardState extends State<OfferCard> {
           widget.offer.offerStatus = resolvedComplaint.previousStep;
         });
       }
+    }
+  }
+
+  /// Fetch basic vehicle details from Firestore (including the year).
+  Future<void> _fetchVehicleDetails() async {
+    try {
+      final vehicleDoc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.offer.vehicleId)
+          .get();
+
+      if (vehicleDoc.exists && mounted) {
+        setState(() {
+          transmissionType = vehicleDoc.data()?['transmissionType'];
+          vehicleConfig = vehicleDoc.data()?['config'];
+          mileage = vehicleDoc.data()?['mileage'];
+          // Retrieve the year from the vehicle document.
+          vehicleYear = vehicleDoc.data()?['year']?.toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching vehicle details: $e');
     }
   }
 
@@ -75,56 +102,99 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   Color getStatusColor(String? status) {
-    switch (status) {
+    switch ((status ?? '').toLowerCase()) {
+      // Success states - Green
       case 'accepted':
+      case 'done':
+      case 'paid':
+      case 'successful':
+      case 'completed':
+      case 'inspection done':
         return Colors.green;
-      case 'in-progress':
-        return Colors.deepOrange;
+
+      // Failed states - Red
       case 'rejected':
         return Colors.red;
-      case 'Done':
-        return Colors.green;
-      case 'Issue reported':
+
+      // Warning states - Orange
+      case 'issue reported':
         return Colors.orange;
-      case 'resolved':
+
+      // Payment states - Purple
+      case 'payment pending':
+      case 'payment options':
+        return Colors.purple;
+
+      // Location states - Blue
+      case 'set location and time':
+      case 'confirm location':
+      case 'collection location confirmation':
+      case 'collection details':
+      case 'confirm collection':
         return Colors.blue;
-      default:
+
+      // In-progress state - Gray
+      case 'in-progress':
         return Colors.grey;
+
+      // Default state - Light Blue
+      case 'inspection pending':
+      default:
+        return const Color(0xFF2F7FFF);
     }
   }
 
   String formatOfferAmount(double? amount) {
     if (amount == null) return 'Unknown';
-
     final formattedAmount = NumberFormat.currency(
       locale: 'en_ZA',
       symbol: 'R',
       decimalDigits: 0,
     ).format(amount);
-
-    // Remove commas if desired (R1,234 -> R1 234)
     return formattedAmount.replaceAll(',', ' ');
   }
 
-  IconData getIcon() {
-    switch (widget.offer.offerStatus) {
-      case 'in-progress':
-      case 'inspection pending':
-      case 'set location and time':
-        return Icons.access_time;
-      case '1/4':
-      case '2/4':
-      case '3/4':
-        return Icons.access_time;
-      case 'paid':
-        return Icons.check_circle;
-      case 'Done':
+  IconData getStatusIcon(String? status) {
+    switch ((status ?? '').toLowerCase()) {
+      // Completed/Success states
       case 'accepted':
-        return Icons.check;
-      case 'resolved':
-        return Icons.thumb_up;
+      case 'done':
+      case 'paid':
+      case 'successful':
+      case 'completed':
+        return Icons.check_circle;
+
+      // Rejected/Failed states
+      case 'rejected':
+        return Icons.cancel;
+
+      // Warning/Issue states
+      case 'issue reported':
+        return Icons.report_problem;
+
+      // Payment states
+      case 'payment pending':
+      case 'payment options':
+        return Icons.payments;
+
+      // Inspection states
+      case 'inspection pending':
+      case 'inspection done':
+        return Icons.check_box;
+
+      // Location/Collection states
+      case 'set location and time':
+      case 'confirm location':
+      case 'collection location confirmation':
+      case 'collection details':
+      case 'confirm collection':
+        return Icons.location_on;
+
+      // In-progress/Default state
+      case 'in-progress':
+        return Icons.sync; // Changed from Icons.refresh to Icons.sync
       default:
-        return Icons.info;
+        return Icons.sync; // Changed default icon as well
     }
   }
 
@@ -132,9 +202,19 @@ class _OfferCardState extends State<OfferCard> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? '';
 
-    // ---------------------------------------
-    // Transporter Navigation
-    // ---------------------------------------
+    // Handle Payment Approved status for both roles
+    if (widget.offer.offerStatus?.toLowerCase() == 'payment approved') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentApprovedPage(
+            offerId: widget.offer.offerId,
+          ),
+        ),
+      );
+      return;
+    }
+
     if (userRole == 'transporter') {
       switch (widget.offer.offerStatus) {
         case 'inspection pending':
@@ -160,7 +240,6 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
         case 'Inspection Done':
           Navigator.push(
             context,
@@ -173,7 +252,6 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
         case 'payment pending':
           Navigator.push(
             context,
@@ -184,8 +262,7 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
-        case 'Collection Location Confirmation': // Ensure status matches Firestore
+        case 'Collection Location Confirmation':
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -206,16 +283,7 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-
-        // ---------------------------------------
-        // Transporter should NOT go to CollectionDetailsPage:
-        // so do NOT handle "collection details" here.
-        // If offerStatus == "collection details", it just falls through
-        // or do a "default" with no special navigation.
-        // ---------------------------------------
-
         default:
-          // If no recognized status for transporter, fallback:
           _getVehicle().then((vehicle) {
             if (vehicle != null) {
               Navigator.push(
@@ -240,9 +308,7 @@ class _OfferCardState extends State<OfferCard> {
       }
     }
 
-    // ---------------------------------------
-    // Dealer Navigation
-    // ---------------------------------------
+    // Dealer Navigation.
     switch (widget.offer.offerStatus) {
       case 'set location and time':
         Navigator.push(
@@ -257,7 +323,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'confirm location':
         Navigator.push(
           context,
@@ -277,7 +342,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'Confirm Collection':
       case 'Collection Location Confirmation':
         Navigator.push(
@@ -300,7 +364,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'payment options':
         Navigator.push(
           context,
@@ -311,7 +374,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'accepted':
         Navigator.push(
           context,
@@ -325,13 +387,11 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'inspection pending':
       case 'Inspection Done':
       case 'payment pending':
         _navigateToRespectivePage(userRole);
         break;
-
       case 'paid':
         Navigator.push(
           context,
@@ -342,10 +402,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
-      // ---------------------------------------
-      // DEALER "collection details"
-      // ---------------------------------------
       case 'collection details':
         Navigator.push(
           context,
@@ -356,28 +412,25 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       default:
-        print(
-            "Offer status not handled for dealer: ${widget.offer.offerStatus}");
+        debugPrint("Dealer - unhandled status: ${widget.offer.offerStatus}");
         break;
     }
   }
 
+  /// Fallback to loading the vehicle if not found in the provider.
   Future<Vehicle?> _getVehicle() async {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
     Vehicle? vehicle;
 
     try {
-      // 1) Try to get from provider
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.id == widget.offer.vehicleId,
         orElse: () => throw Exception('Vehicle not found in provider'),
       );
     } catch (e) {
       try {
-        // 2) If not in provider, fetch from Firestore
         DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
             .collection('vehicles')
             .doc(widget.offer.vehicleId)
@@ -403,7 +456,6 @@ class _OfferCardState extends State<OfferCard> {
         );
       }
     }
-
     return vehicle;
   }
 
@@ -432,7 +484,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'Inspection Done':
         Navigator.push(
           context,
@@ -446,7 +497,6 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       case 'payment pending':
         Navigator.push(
           context,
@@ -457,361 +507,295 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-
       default:
-        print(
-            "Offer status not handled in _navigateToRespectivePage: ${widget.offer.offerStatus}");
+        debugPrint(
+          "Dealer - unhandled status in _navigateToRespectivePage: ${widget.offer.offerStatus}",
+        );
         break;
     }
   }
 
-  Future<bool> acceptOffer(String offerId, String vehicleId) async {
-    try {
-      return await _firestore.runTransaction((transaction) async {
-        // Check if vehicle already has an accepted offer
-        final vehicleDoc = await transaction
-            .get(_firestore.collection('vehicles').doc(vehicleId));
-
-        if (vehicleDoc.data()?['isAccepted'] == true) {
-          throw Exception('Vehicle already has an accepted offer');
-        }
-
-        // Get all offers for this vehicle
-        final offersQuery = await _firestore
-            .collection('offers')
-            .where('vehicleId', isEqualTo: vehicleId)
-            .get();
-
-        // Update the accepted offer
-        transaction.update(
-          _firestore.collection('offers').doc(offerId),
-          {'offerStatus': 'accepted'},
-        );
-
-        // Update vehicle status
-        transaction.update(vehicleDoc.reference, {
-          'isAccepted': true,
-          'acceptedOfferId': offerId,
-        });
-
-        // Update all other offers for this vehicle
-        for (var doc in offersQuery.docs) {
-          if (doc.id != offerId) {
-            transaction.update(
-              _firestore.collection('offers').doc(doc.id),
-              {'offerStatus': 'another_offer_accepted'},
-            );
-          }
-        }
-
-        return true;
-      });
-    } catch (e) {
-      print('Error accepting offer: $e');
-      return false;
+  /// Updated helper that only builds a spec box when data is available.
+  Widget _buildSpecBox(String value) {
+    // If the value is empty (or equals "N/A"), return an empty widget.
+    if (value.trim().isEmpty || value.toUpperCase() == 'N/A') {
+      return const SizedBox.shrink();
     }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          value.toUpperCase(),
+          style: GoogleFonts.montserrat(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  /// The main Offer Card layout with fixed dimensions like TruckCard
+  Widget _buildWebCard(Color statusColor, BoxConstraints constraints) {
+    // Determine if we're on web
+    const bool isWeb = kIsWeb;
+
+    // Use different dimensions for web vs mobile
+    final double cardWidth = isWeb ? 400 : constraints.maxWidth;
+    final double cardHeight =
+        isWeb ? 500 : cardWidth * 1.2; // Keep aspect ratio on mobile
+
+    // Get brand/model and year
+    final String brandModel = [
+      widget.offer.vehicleBrand,
+      widget.offer.vehicleMakeModel,
+    ].where((element) => element != null && element.isNotEmpty).join(' ');
+    final String year = vehicleYear ?? 'N/A';
+
+    return Center(
+      child: Container(
+        width: cardWidth,
+        height: cardHeight,
+        margin: EdgeInsets.all(isWeb ? 8 : 4), // Smaller margin on mobile
+        decoration: BoxDecoration(
+          color: const Color(0xFF2F7FFF).withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF2F7FFF),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: LayoutBuilder(
+          builder: (context, cardConstraints) {
+            // Calculate relative sizes based on container width
+            double cardW = cardConstraints.maxWidth;
+            double cardH = cardConstraints.maxHeight;
+
+            // Adjust font sizes for mobile
+            double titleFontSize = isWeb ? cardW * 0.045 : cardW * 0.04;
+            double subtitleFontSize = isWeb ? cardW * 0.04 : cardW * 0.035;
+            double paddingVal = isWeb ? cardW * 0.04 : cardW * 0.03;
+            double specFontSize = isWeb ? cardW * 0.03 : cardW * 0.025;
+
+            // ...rest of your existing layout code...
+            return Column(
+              children: [
+                // Image section with status badge
+                SizedBox(
+                  height: cardH * 0.55,
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(10)),
+                        child: Image.network(
+                          widget.offer.vehicleMainImage ?? '',
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Image.asset(
+                            'lib/assets/default_vehicle_image.png',
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: paddingVal * 0.75,
+                        right: paddingVal * 0.75,
+                        child:
+                            _buildStatusBadge(widget.offer.offerStatus ?? ''),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Details section
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.all(paddingVal),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Vehicle details
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Brand/model
+                              Text(
+                                brandModel.isEmpty
+                                    ? 'LOADING...'
+                                    : brandModel.toUpperCase(),
+                                style: GoogleFonts.montserrat(
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: paddingVal * 0.25),
+
+                              // Year
+                              Text(
+                                year,
+                                style: GoogleFonts.montserrat(
+                                  fontSize: subtitleFontSize,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              SizedBox(height: paddingVal * 0.5),
+
+                              // Offer amount
+                              Text(
+                                'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+
+                              // Specs row
+                              if (_buildSpecBoxes(cardW).isNotEmpty) ...[
+                                SizedBox(height: paddingVal * 0.5),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: _buildSpecBoxes(cardW),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        // View Details Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => navigateBasedOnStatus(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2F7FFF),
+                              padding: EdgeInsets.symmetric(
+                                  vertical: paddingVal * 0.75),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(paddingVal * 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              'VIEW MORE DETAILS',
+                              style: GoogleFonts.montserrat(
+                                fontSize: specFontSize + 2,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // Helper method to build spec boxes
+  List<Widget> _buildSpecBoxes(double cardWidth) {
+    List<Widget> specBoxes = [];
+    double spacing = cardWidth * 0.015;
+
+    if (mileage != null &&
+        mileage!.trim().isNotEmpty &&
+        mileage!.toUpperCase() != 'N/A') {
+      specBoxes.add(Expanded(child: _buildSpecBox('${mileage!} km')));
+    }
+    if (transmissionType != null &&
+        transmissionType!.trim().isNotEmpty &&
+        transmissionType!.toUpperCase() != 'N/A') {
+      if (specBoxes.isNotEmpty) specBoxes.add(SizedBox(width: spacing));
+      specBoxes.add(Expanded(child: _buildSpecBox(transmissionType!)));
+    }
+    if (vehicleConfig != null &&
+        vehicleConfig!.trim().isNotEmpty &&
+        vehicleConfig!.toUpperCase() != 'N/A') {
+      if (specBoxes.isNotEmpty) specBoxes.add(SizedBox(width: spacing));
+      specBoxes.add(Expanded(child: _buildSpecBox(vehicleConfig!)));
+    }
+
+    return specBoxes;
+  }
+
+  Widget _buildStatusBadge(String status) {
+    final icon = getStatusIcon(status);
+    final bgColor = getStatusColor(status);
+    final displayText = status.isEmpty ? 'UNKNOWN' : status.toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            displayText,
+            style: GoogleFonts.montserrat(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context);
-    final userRole = userProvider.getUserRole ?? '';
-    final userId = userProvider.userId;
-
-    print('''
-=== OFFER CARD DEBUG ===
-Rendering Offer:
-  OfferID: ${widget.offer.offerId}
-  Current UserID: $userId
-  Current UserRole: $userRole
-  Offer DealerId: ${widget.offer.dealerId}
-  Offer TransporterId: ${widget.offer.transporterId}
-''');
-
-    Color statusColor = getStatusColor(widget.offer.offerStatus);
+    final statusColor = getStatusColor(widget.offer.offerStatus);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        var screenSize = MediaQuery.of(context).size;
-        double cardHeight = screenSize.height * 0.13;
-
-        return GestureDetector(
-          onTap: () => navigateBasedOnStatus(context),
-          child: Card(
-            elevation: 5,
-            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(15),
-              child: userRole == 'transporter'
-                  ? _buildTransporterCard(statusColor, constraints)
-                  : _buildDealerCard(statusColor, constraints),
-            ),
+        return Center(
+          child: _buildWebCard(
+            statusColor,
+            constraints,
           ),
         );
       },
-    );
-  }
-
-  Widget _buildDealerCard(Color statusColor, BoxConstraints constraints) {
-    var screenSize = MediaQuery.of(context).size;
-    double cardHeight = screenSize.height * 0.14;
-    // Format vehicle info consistently
-    String vehicleInfo = [
-      widget.offer.vehicleBrand,
-      widget.offer.vehicleMakeModel,
-      widget.offer.vehicleYear
-    ].where((element) => element != null && element.isNotEmpty).join(' ');
-
-    // If vehicleInfo is empty, try to get it from the vehicle details
-    if (vehicleInfo.isEmpty) {
-      _getVehicle().then((vehicle) {
-        if (vehicle != null && mounted) {
-          setState(() {
-            widget.offer.vehicleBrand =
-                vehicle.brands.isNotEmpty ? vehicle.brands[0] : null;
-            widget.offer.vehicleMakeModel = vehicle.makeModel;
-            widget.offer.vehicleYear = vehicle.year;
-          });
-        }
-      });
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () => navigateBasedOnStatus(context),
-              child: Container(
-                width: constraints.maxWidth * 0.06,
-                height: cardHeight,
-                color: statusColor,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => navigateToVehicleDetails(),
-              child: Container(
-                width: constraints.maxWidth * 0.22,
-                height: cardHeight,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: widget.offer.vehicleMainImage != null
-                        ? NetworkImage(widget.offer.vehicleMainImage!)
-                        : const AssetImage(
-                                'lib/assets/default_vehicle_image.png')
-                            as ImageProvider,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => navigateToVehicleDetails(),
-                child: Container(
-                  color: Colors.blue,
-                  padding: const EdgeInsets.all(10.0),
-                  height: cardHeight,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        vehicleInfo.isEmpty
-                            ? 'Loading...'
-                            : vehicleInfo.toUpperCase(),
-                        style: customFont(
-                          screenSize.width * 0.03,
-                          FontWeight.w800,
-                          Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        'Offer of ${formatOfferAmount(widget.offer.offerAmount)}'
-                            .toUpperCase(),
-                        style: customFont(
-                          screenSize.width * 0.028,
-                          FontWeight.w800,
-                          Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => navigateBasedOnStatus(context),
-              child: Container(
-                width: constraints.maxWidth * 0.23,
-                height: cardHeight,
-                color: statusColor,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          getIcon(),
-                          color: Colors.white,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          getDisplayStatus(widget.offer.offerStatus),
-                          style: customFont(
-                            screenSize.height * 0.012,
-                            FontWeight.bold,
-                            Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTransporterCard(Color statusColor, BoxConstraints constraints) {
-    var screenSize = MediaQuery.of(context).size;
-    double cardHeight = screenSize.height * 0.14;
-    // Format vehicle info consistently
-    String vehicleInfo = [
-      widget.offer.vehicleBrand,
-      widget.offer.vehicleMakeModel,
-      widget.offer.vehicleYear
-    ].where((element) => element != null && element.isNotEmpty).join(' ');
-
-    // If vehicleInfo is empty, try to get it from the vehicle details
-    if (vehicleInfo.isEmpty) {
-      _getVehicle().then((vehicle) {
-        if (vehicle != null && mounted) {
-          setState(() {
-            widget.offer.vehicleBrand =
-                vehicle.brands.isNotEmpty ? vehicle.brands[0] : null;
-            widget.offer.vehicleMakeModel = vehicle.makeModel;
-            widget.offer.vehicleYear = vehicle.year;
-          });
-        }
-      });
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () => navigateBasedOnStatus(context),
-              child: Container(
-                width: constraints.maxWidth * 0.06,
-                height: cardHeight,
-                color: Colors.green,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => navigateToVehicleDetails(),
-              child: Container(
-                width: constraints.maxWidth * 0.22,
-                height: cardHeight,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: widget.offer.vehicleMainImage != null
-                        ? NetworkImage(widget.offer.vehicleMainImage!)
-                        : const AssetImage(
-                                'lib/assets/default_vehicle_image.png')
-                            as ImageProvider,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => navigateToVehicleDetails(),
-                child: Container(
-                  color: Colors.blue,
-                  padding: const EdgeInsets.all(10.0),
-                  height: cardHeight,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        vehicleInfo.isEmpty
-                            ? 'Loading...'
-                            : vehicleInfo.toUpperCase(),
-                        style: customFont(
-                          screenSize.height * 0.016,
-                          FontWeight.w800,
-                          Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        'Offer of ${formatOfferAmount(widget.offer.offerAmount)}'
-                            .toUpperCase(),
-                        style: customFont(
-                          screenSize.height * 0.015,
-                          FontWeight.w800,
-                          Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => navigateBasedOnStatus(context),
-              child: Container(
-                width: constraints.maxWidth * 0.23,
-                height: cardHeight,
-                color: statusColor,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          getIcon(),
-                          color: Colors.white,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          getDisplayStatus(widget.offer.offerStatus),
-                          style: customFont(
-                            screenSize.height * 0.012,
-                            FontWeight.bold,
-                            Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -821,14 +805,12 @@ Rendering Offer:
     Vehicle? vehicle;
 
     try {
-      // First, try the provider
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.id == widget.offer.vehicleId,
         orElse: () => throw Exception('Vehicle not found in provider'),
       );
     } catch (e) {
       try {
-        // If not in provider, fetch from Firestore
         DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
             .collection('vehicles')
             .doc(widget.offer.vehicleId)
@@ -836,16 +818,14 @@ Rendering Offer:
 
         if (vehicleSnapshot.exists) {
           vehicle = Vehicle.fromDocument(vehicleSnapshot);
-          vehicleProvider.addVehicle(vehicle); // Add for future use
-
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
-              ),
-            );
-          }
+          vehicleProvider.addVehicle(vehicle);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Vehicle details not found.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       } catch (err) {
         if (mounted) {
@@ -857,10 +837,7 @@ Rendering Offer:
           );
         }
       }
-      return;
     }
-
-    // If the vehicle was found in provider, navigate
     if (mounted && vehicle != null) {
       Navigator.push(
         context,
@@ -868,47 +845,6 @@ Rendering Offer:
           builder: (context) => VehicleDetailsPage(vehicle: vehicle!),
         ),
       );
-    }
-  }
-
-  String getDisplayStatus(String? offerStatus) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userRole = userProvider.getUserRole ?? '';
-
-    // If transporter and status is payment (pending or paid) -> "Payment Processing"
-    if (userRole == 'transporter' &&
-        (offerStatus == 'payment pending' || offerStatus == 'paid')) {
-      return 'Payment Processing';
-    }
-
-    switch (offerStatus) {
-      case 'in-progress':
-        return 'Offer Made';
-      case 'select location and time':
-        return 'Set Location and Time';
-      case 'accepted':
-        return 'Accepted';
-      case 'set location and time':
-        return 'Setup Inspection';
-      case 'confirm location':
-        return 'Confirm Location';
-      case 'inspection pending':
-        return 'Inspection Pending';
-      case '3/4':
-        return 'Step 3 of 4';
-      case 'paid':
-        return 'Paid';
-      case 'payment pending':
-        return 'Payment Pending';
-      case 'Issue reported':
-        return 'Issue Reported';
-      case 'resolved':
-        return 'Resolved';
-      case 'done':
-      case 'Done':
-        return 'Done';
-      default:
-        return offerStatus ?? 'Unknown';
     }
   }
 }

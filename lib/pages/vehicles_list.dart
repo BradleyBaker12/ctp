@@ -249,7 +249,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
               } else if (index == 3) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                  MaterialPageRoute(builder: (context) => ProfilePage()),
                 );
               }
             } else {

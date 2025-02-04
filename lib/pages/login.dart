@@ -180,7 +180,16 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return kIsWeb ? _buildWebLoginPage() : _buildMobileLoginPage();
+    // Use a breakpoint where devices with a screen width of 900 pixels or less
+    // (tablets and smaller) will show the mobile layout.
+    final screenWidth = MediaQuery.of(context).size.width;
+    const desktopThreshold = 900.0; // Adjust this value as needed
+
+    if (screenWidth > desktopThreshold) {
+      return _buildWebLoginPage();
+    } else {
+      return _buildMobileLoginPage();
+    }
   }
 
   Widget _buildWebLoginPage() {
@@ -287,12 +296,8 @@ class _LoginPageState extends State<LoginPage> {
     const orange = Color(0xFFFF4E00);
     return Column(
       children: [
-        // _buildAuthButton('Sign In with Apple', Colors.grey[850]!, () {}),
-        // const SizedBox(height: 10),
-        // _buildAuthButton('Sign In with Facebook', Colors.grey[850]!, () {}),
-        // const SizedBox(height: 10),
-        // _buildAuthButton(
-        //     'Sign In with Google', const Color(0xFF2F7FFF), _signInWithGoogle),
+        // Example for other auth providers:
+        // _buildAuthButton('Sign In with Google', const Color(0xFF2F7FFF), _signInWithGoogle),
         // const SizedBox(height: 10),
         _buildAuthButton('Sign In with Email', orange, () {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -377,7 +382,7 @@ class _LoginPageState extends State<LoginPage> {
               SizedBox(height: constraints.maxHeight * 0.025),
               _buildMobileSignInButtons(),
               SizedBox(height: constraints.maxHeight * 0.02),
-              // _buildMobileBottomRow(orange),
+              // Additional mobile layout widgets can be added here.
             ],
           ),
         ),
@@ -424,21 +429,7 @@ class _LoginPageState extends State<LoginPage> {
     const orange = Color(0xFFFF4E00);
     return Column(
       children: [
-        // SignInButton(
-        //   text: 'Sign In with Apple',
-        //   onPressed: () {},
-        //   borderColor: Colors.white,
-        // ),
-        // SignInButton(
-        //   text: 'Sign In with Facebook',
-        //   onPressed: () {},
-        //   borderColor: Colors.white,
-        // ),
-        // SignInButton(
-        //   text: 'Sign In with Google',
-        //   onPressed: _signInWithGoogle,
-        //   borderColor: const Color(0xFF2F7FFF),
-        // ),
+        // Example: Other social sign-in buttons can be added here.
         SignInButton(
           text: 'Sign In with Email',
           onPressed: () {
@@ -448,7 +439,7 @@ class _LoginPageState extends State<LoginPage> {
           },
           borderColor: orange,
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         Text(
           'Trouble Signing In?',
           style: GoogleFonts.montserrat(
@@ -456,7 +447,7 @@ class _LoginPageState extends State<LoginPage> {
             fontWeight: FontWeight.w500,
           ),
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         SignInButton(
           text: 'Sign Up',
           onPressed: () {
@@ -465,28 +456,6 @@ class _LoginPageState extends State<LoginPage> {
             });
           },
           borderColor: Colors.white,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileBottomRow(Color orange) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        GestureDetector(
-          onTap: () {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.pushNamed(context, '/signup');
-            });
-          },
-          child: Text(
-            'Sign Up',
-            style: GoogleFonts.montserrat(
-              color: orange,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
         ),
       ],
     );

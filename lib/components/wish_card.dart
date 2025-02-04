@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class WishCard extends StatelessWidget {
   final String vehicleMakeModel;
@@ -13,7 +17,7 @@ class WishCard extends StatelessWidget {
   final VoidCallback onDelete;
   final bool hasOffer;
   final String vehicleId;
-  final Vehicle vehicle; // Add Vehicle model
+  final Vehicle vehicle; // The vehicle model
 
   const WishCard({
     super.key,
@@ -25,197 +29,250 @@ class WishCard extends StatelessWidget {
     required this.onDelete,
     required this.hasOffer,
     required this.vehicleId,
-    required this.vehicle, // Add to constructor
+    required this.vehicle,
   });
+
+  /// Builds one of the spec boxes (for mileage, transmission, config).
+  Widget _buildSpecBox(String value, double fontSize) {
+    if (value.trim().isEmpty || value.toUpperCase() == 'N/A') {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: fontSize * 0.5,
+        vertical: fontSize * 0.5,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(fontSize * 0.4),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          value.toUpperCase(),
+          style: customFont(fontSize, FontWeight.bold, Colors.white),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Here we use a fixed width and height similar to your TruckCard.
+    // (You can adjust these numbers or make them responsive as needed.)
+    const double fixedWidth = 400;
+    const double fixedHeight = 500;
+
     return Dismissible(
       key: Key(vehicleId),
       direction: DismissDirection.endToStart,
-      onDismissed: (direction) {
-        onDelete();
-      },
+      onDismissed: (direction) => onDelete(),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         color: Colors.red,
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: 32,
-        ),
+        child: const Icon(Icons.delete, color: Colors.white, size: 32),
       ),
       child: GestureDetector(
         onTap: onTap,
-        child: Card(
-          elevation: 5,
-          margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                double imageWidth = constraints.maxWidth * 0.25;
-                double cardHeight = 120.0;
-
-                return Row(
-                  children: [
-                    Container(
-                      width: constraints.maxWidth * 0.06,
-                      height: cardHeight,
-                      color: Colors.blue,
-                    ),
-                    Container(
-                      width: imageWidth,
-                      height: cardHeight,
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: vehicle.mainImageUrl != null &&
-                                  vehicle.mainImageUrl!.isNotEmpty
-                              ? NetworkImage(vehicle.mainImageUrl!)
-                              : const AssetImage(
-                                      'lib/assets/default_vehicle_image.png')
-                                  as ImageProvider,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        color: Colors.blue,
-                        padding: const EdgeInsets.all(10.0),
-                        height: cardHeight,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${vehicle.brands.join("")} ${vehicle.makeModel} ${vehicle.year}',
-                              style:
-                                  customFont(15, FontWeight.w800, Colors.white),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 5),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: constraints.maxWidth * 0.24,
-                      height: cardHeight,
-                      color: hasOffer ? const Color(0xFFFF4E00) : Colors.green,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              hasOffer ? 'Offer Made' : 'Make Offer',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
-                      ),
+        child: Center(
+          child: Stack(
+            children: [
+              Container(
+                width: fixedWidth,
+                height: fixedHeight,
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  // Use a background color and border similar to TruckCard.
+                  color: const Color(0xFF2F7FFF).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF2F7FFF), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
-                );
-              },
-            ),
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    double cardW = constraints.maxWidth;
+                    double cardH = constraints.maxHeight;
+                    double paddingVal = cardW * 0.04;
+                    double titleFontSize = cardW * 0.045;
+                    double specFontSize = cardW * 0.03;
+                    double buttonFontSize = cardW * 0.035;
+
+                    // Prepare the title from the vehicle's brands, make/model, and year.
+                    final String brandModel = [
+                      vehicle.brands.join(" "),
+                      vehicle.makeModel
+                    ].where((element) => element.isNotEmpty).join(" ");
+                    final String year = vehicle.year.toString();
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Image Section (occupies 55% of the card's height).
+                        SizedBox(
+                          height: cardH * 0.55,
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(10)),
+                            child: (vehicle.mainImageUrl != null &&
+                                    vehicle.mainImageUrl!.isNotEmpty)
+                                ? Image.network(
+                                    vehicle.mainImageUrl!,
+                                    width: cardW,
+                                    height: cardH * 0.55,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Image.asset(
+                                      'lib/assets/default_vehicle_image.png',
+                                      width: cardW,
+                                      height: cardH * 0.55,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Image.asset(
+                                    'lib/assets/default_vehicle_image.png',
+                                    width: cardW,
+                                    height: cardH * 0.55,
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                        ),
+                        // Details Section: Vehicle title (brand, make/model, year).
+                        Padding(
+                          padding: EdgeInsets.all(paddingVal),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  brandModel.isEmpty
+                                      ? 'LOADING...'
+                                      : brandModel.toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                ),
+                              ),
+                              SizedBox(height: paddingVal * 0.25),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  year,
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: titleFontSize * 0.9,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.white70,
+                                  ),
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Row of Spec Boxes.
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: paddingVal),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Expanded(
+                                child: _buildSpecBox(
+                                    '${vehicle.mileage ?? "N/A"} km',
+                                    specFontSize),
+                              ),
+                              SizedBox(width: paddingVal * 0.3),
+                              Expanded(
+                                child: _buildSpecBox(
+                                    vehicle.transmissionType ?? 'N/A',
+                                    specFontSize),
+                              ),
+                              SizedBox(width: paddingVal * 0.3),
+                              Expanded(
+                                child: _buildSpecBox(
+                                    vehicle.config ?? 'N/A', specFontSize),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        // Action Button Section.
+                        Padding(
+                          padding: EdgeInsets.only(
+                            left: paddingVal,
+                            right: paddingVal,
+                            bottom: paddingVal,
+                          ),
+                          child: ElevatedButton(
+                            onPressed: onTap,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: hasOffer
+                                  ? const Color(0xFFFF4E00)
+                                  : Colors.green,
+                              padding: EdgeInsets.symmetric(
+                                  vertical: paddingVal * 0.75),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(paddingVal * 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              hasOffer ? 'OFFER MADE' : 'MAKE OFFER',
+                              style: GoogleFonts.montserrat(
+                                fontSize: buttonFontSize,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              // Add delete button for web version
+              if (kIsWeb)
+                Positioned(
+                  top: 15,
+                  right: 15,
+                  child: InkWell(
+                    onTap: onDelete,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
-}
-
-// A FutureBuilder implementation that fetches the offer status
-FutureBuilder buildWishCard(
-    String vehicleId,
-    BuildContext context,
-    Size size,
-    TextStyle Function(double, FontWeight, Color) customFont,
-    VoidCallback onDelete) {
-  return FutureBuilder<Vehicle?>(
-    future: getVehicleFromProvider(
-        context, vehicleId), // Fetch vehicle details from provider
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.done) {
-        if (snapshot.hasData && snapshot.data != null) {
-          Vehicle vehicle = snapshot.data!;
-
-          return WishCard(
-            vehicleMakeModel: vehicle.makeModel, // Use makeModel from vehicle
-            vehicleImageUrl:
-                vehicle.mainImageUrl ?? '', // Use mainImageUrl from vehicle
-            size: size,
-            customFont: customFont,
-            onTap: () {
-              // Define onTap here
-            },
-            onDelete: onDelete,
-            hasOffer: false, // You can modify this to check for offer status
-            vehicleId: vehicleId, vehicle: vehicle,
-          );
-        } else {
-          return const Center(child: Text('Vehicle not found.'));
-        }
-      } else {
-        return const Center(
-            child: CircularProgressIndicator()); // Loading indicator
-      }
-    },
-  );
-}
-
-Future<Vehicle?> getVehicleFromProvider(
-    BuildContext context, String vehicleId) async {
-  final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
-  try {
-    // Check if vehicle is already in the provider
-    Vehicle vehicle = vehicleProvider.vehicles.firstWhere(
-      (v) => v.id == vehicleId,
-      orElse: () => throw Exception('Vehicle not found in provider'),
-    );
-    return vehicle;
-  } catch (e) {
-    // If not found, try fetching the vehicle from Firebase
-    try {
-      DocumentSnapshot vehicleSnapshot = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(vehicleId)
-          .get();
-
-      if (vehicleSnapshot.exists && vehicleSnapshot.data() != null) {
-        Vehicle vehicle = Vehicle.fromFirestore(
-          vehicleSnapshot.id,
-          vehicleSnapshot.data() as Map<String, dynamic>,
-        );
-        vehicleProvider.addVehicle(vehicle); // Add to provider
-        return vehicle;
-      } else {
-        print('Vehicle data is null for ID $vehicleId');
-        return null;
-      }
-    } catch (e) {
-      print('Error fetching vehicle: $e');
-      return null;
-    }
-  }
-}
-
-// Example function to fetch offer status
-Future<bool> getOfferStatus(String vehicleId) async {
-  QuerySnapshot offerSnapshot = await FirebaseFirestore.instance
-      .collection('offers')
-      .where('vehicleId', isEqualTo: vehicleId)
-      .limit(1)
-      .get();
-
-  return offerSnapshot.docs.isNotEmpty;
 }
