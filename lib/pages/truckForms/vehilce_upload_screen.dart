@@ -429,7 +429,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           });
         }
       });
-    
+
       // Set other fields
       formData.setConfig(widget.vehicle!.config);
       formData.setCountry(widget.vehicle!.country);
@@ -443,13 +443,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         formData.setApplication(widget.vehicle!.application as String);
       } else if (widget.vehicle!.application is List) {
         final List appList = widget.vehicle!.application as List;
-        formData.setApplication(
-            appList.isNotEmpty ? appList.first.toString() : '');
+        formData
+            .setApplication(appList.isNotEmpty ? appList.first.toString() : '');
       }
-    
+
       // Update province options based on country
       _updateProvinceOptions(widget.vehicle!.country!);
-    
+
       debugPrint('=== Duplication Data Population Complete ===');
     }
   }
