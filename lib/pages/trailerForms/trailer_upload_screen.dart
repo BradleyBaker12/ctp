@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data'; // Added for Uint8List
 import 'package:ctp/pages/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -107,9 +108,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   File? _serviceHistoryFile;
 
   // Main Single Image
-  File? _selectedMainImage;
+  // --- FIX APPLIED: Change type from File? to Uint8List? ---
+  Uint8List? _selectedMainImage;
 
-  // Other Single Images
+  // Other Single Images remain as File?
   File? _frontImage;
   File? _sideImage;
   File? _tyresImage;
@@ -240,14 +242,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 onTap: () async {
                   Navigator.of(context).pop();
                   if (pickImageOnly) {
-                    // For images only, open gallery
                     final XFile? pickedFile = await ImagePicker()
                         .pickImage(source: ImageSource.gallery);
                     if (pickedFile != null) {
                       callback(File(pickedFile.path));
                     }
                   } else {
-                    // For documents
                     FilePickerResult? result =
                         await FilePicker.platform.pickFiles(
                       type: FileType.any,
@@ -287,7 +287,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       pickImageOnly: true,
                       callback: (file) {
                         if (file != null) {
-                          setState(() => _selectedMainImage = file);
+                          file.readAsBytes().then((bytes) {
+                            setState(() {
+                              _selectedMainImage = bytes;
+                            });
+                          });
                         }
                       },
                     );
@@ -320,7 +324,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           pickImageOnly: true,
           callback: (file) {
             if (file != null) {
-              setState(() => _selectedMainImage = file);
+              file.readAsBytes().then((bytes) {
+                setState(() {
+                  _selectedMainImage = bytes;
+                });
+              });
             }
           },
         );
@@ -338,7 +346,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             if (_selectedMainImage != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10.0),
-                child: Image.file(
+                child: Image.memory(
                   _selectedMainImage!,
                   width: double.infinity,
                   height: _imageHeight,
@@ -479,7 +487,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           InkWell(
             onTap: () {
               if (_natisRc1File != null) {
-                // If there's already a file, let them change or remove
                 showDialog(
                   context: context,
                   builder: (_) => AlertDialog(
@@ -522,7 +529,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   ),
                 );
               } else {
-                // If no file, ask camera or device
                 _showSourceDialog(
                   title: 'Select NATIS Document Source',
                   pickImageOnly: false,
@@ -681,7 +687,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   ),
                 );
               } else {
-                // If no file, ask camera or device
                 _showSourceDialog(
                   title: 'Select Service History',
                   pickImageOnly: false,
@@ -895,7 +900,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         InkWell(
           onTap: () {
             if (image != null) {
-              // Already have an image => ask to change or remove
               showDialog(
                 context: context,
                 builder: (_) => AlertDialog(
@@ -933,7 +937,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 ),
               );
             } else {
-              // No image => pick new
               _showSourceDialog(
                 title: title,
                 pickImageOnly: true,
@@ -1203,7 +1206,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   // For a damage item, we call the same `_showSourceDialog` but always pick images.
   void _showDamageImageSourceDialog(Map<String, dynamic> item) {
     if (item['image'] != null) {
-      // Already has an image => change or remove
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -1247,7 +1249,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         ),
       );
     } else {
-      // No image => pick new
       _showSourceDialog(
         title: 'Damage Image',
         pickImageOnly: true,
@@ -1373,10 +1374,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       //======================
       // 1) UPLOAD SINGLE IMAGES
       //======================
-      // main image
+      // main image: use the new upload function for Uint8List
       String? mainImageUrl;
       if (_selectedMainImage != null) {
-        mainImageUrl = await _uploadFileToFirebaseStorage(
+        mainImageUrl = await _uploadDataToFirebaseStorage(
           _selectedMainImage!,
           'vehicle_images',
         );
@@ -1569,7 +1570,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   bool _validateRequiredFields(FormDataProvider formData) {
-    // your existing validations
     if (formData.selectedMainImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a main image')),
@@ -1628,7 +1628,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     return true;
   }
 
-  /// Reusable method to upload a file to Firebase Storage
+  /// Reusable method to upload a file to Firebase Storage (for File objects)
   Future<String?> _uploadFileToFirebaseStorage(
       File file, String folderName) async {
     try {
@@ -1639,6 +1639,21 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       return await storageRef.getDownloadURL();
     } catch (e) {
       debugPrint('File upload error: $e');
+      return null;
+    }
+  }
+
+  /// New helper to upload raw data (Uint8List) to Firebase Storage
+  Future<String?> _uploadDataToFirebaseStorage(
+      Uint8List data, String folderName) async {
+    try {
+      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      final storageRef =
+          FirebaseStorage.instance.ref().child('$folderName/$fileName.jpg');
+      await storageRef.putData(data);
+      return await storageRef.getDownloadURL();
+    } catch (e) {
+      debugPrint('Data upload error: $e');
       return null;
     }
   }

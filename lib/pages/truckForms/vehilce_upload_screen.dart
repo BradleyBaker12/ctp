@@ -1,9 +1,8 @@
-// lib/pages/truckForms/vehilce_upload_screen.dart
-
 import 'dart:io';
 import 'dart:convert'; // For JSON decoding
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/services.dart'; // For loading assets
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -19,13 +18,11 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
-import 'package:shared_preferences/shared_preferences.dart';
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'image_picker_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path_provider/path_provider.dart';
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
@@ -111,7 +108,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   final Map<String, List<String>> _modelVariants = {};
 
   // Variable to hold selected RC1/NATIS file
-  File? _natisRc1File;
+  // --- FIX APPLIED: Store file bytes and file name separately
+  Uint8List? _natisRc1File;
+  String? _natisRc1FileName;
 
   // --- Added Missing Fields ---
   String? _existingNatisRc1Url;
@@ -134,9 +133,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // Instead of a dummy list, we'll fetch from UserProvider's dealers.
   String? _selectedSalesRep;
 
-  // Add new fields for caching
-  final Map<String, String> _cachedImagePaths = {};
-  bool _isRestoringImages = false;
+  Uint8List? _selectedMainImage;
+  String? _selectedMainImageFileName;
 
   Future<void> _loadYearOptions() async {
     final String response =
@@ -154,7 +152,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final data = json.decode(response);
     setState(() {
       _brandOptions = data[year]?.keys.toList() ?? [];
-      // Don't clear brands if we're duplicating
       if (!widget.isDuplicating) {
         formData.setBrands(null);
         formData.setMakeModel(null);
@@ -167,7 +164,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
     if (year == null) return;
-
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
@@ -175,7 +171,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       if (data[year] != null && data[year][brand] != null) {
         final models = data[year][brand] as List<dynamic>;
         _makeModelOptions = {brand: models.cast<String>()};
-        // Don't clear makeModel if we're duplicating
         if (!widget.isDuplicating) {
           formData.setMakeModel(null);
         }
@@ -227,7 +222,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _updateProvinceOptions('South Africa');
     _loadTruckData();
     _loadYearOptions();
-    _restoreCachedImages();
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -414,31 +408,21 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   void _populateDuplicatedData(FormDataProvider formData) {
     if (widget.vehicle != null) {
       debugPrint('=== Populating Duplicated Data ===');
-
-      // Set year first
       formData.setYear(widget.vehicle!.year);
-
-      // Then load brands for that year
       _loadBrandsForYear(widget.vehicle!.year!).then((_) {
-        // After brands are loaded, set the brand and load models
         if (widget.vehicle!.brands?.isNotEmpty == true) {
           formData.setBrands(widget.vehicle!.brands);
           _loadModelsForBrand(widget.vehicle!.brands!.first).then((_) {
-            // Finally set the makeModel
             formData.setMakeModel(widget.vehicle!.makeModel);
           });
         }
       });
-
-      // Set other fields
       formData.setConfig(widget.vehicle!.config);
       formData.setCountry(widget.vehicle!.country);
       formData.setHydraulics(widget.vehicle!.hydraluicType);
       formData.setProvince(widget.vehicle!.province);
       formData.setSuspension(widget.vehicle!.suspensionType);
       formData.setTransmissionType(widget.vehicle!.transmissionType);
-
-      // Handle application field
       if (widget.vehicle!.application is String) {
         formData.setApplication(widget.vehicle!.application as String);
       } else if (widget.vehicle!.application is List) {
@@ -446,10 +430,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         formData
             .setApplication(appList.isNotEmpty ? appList.first.toString() : '');
       }
-
-      // Update province options based on country
       _updateProvinceOptions(widget.vehicle!.country!);
-
       debugPrint('=== Duplication Data Population Complete ===');
     }
   }
@@ -462,12 +443,32 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Future<void> _pickNatisRc1File() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
       );
-      if (result != null && result.files.single.path != null) {
+      if (result != null) {
+        Uint8List? bytes;
+        if (result.files.single.bytes != null) {
+          bytes = result.files.single.bytes;
+        } else if (result.files.single.path != null) {
+          final file = File(result.files.single.path!);
+          bytes = await file.readAsBytes();
+        }
+        final fileName = result.files.single.name;
         setState(() {
-          _natisRc1File = File(result.files.single.path!);
+          _natisRc1File = bytes;
+          _natisRc1FileName = fileName;
         });
+        debugPrint("Picked NATIS/RC1 file: $_natisRc1FileName");
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -507,21 +508,23 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     return imageExtensions.contains(extension);
   }
 
-  Widget _buildUploadedFile(File? file, bool isUploading) {
+  // Build the uploaded file widget for NATIS/RC1 preview.
+  Widget _buildUploadedFile(
+      Uint8List? file, String fileName, bool isUploading) {
     if (file == null) {
       return const Text(
         'No file selected',
         style: TextStyle(color: Colors.white70),
       );
     } else {
-      String fileName = file.path.split('/').last;
-      String extension = fileName.split('.').last;
+      String _fileName = fileName;
+      String extension = _fileName.split('.').last;
       return Column(
         children: [
-          if (_isImageFile(file.path))
+          if (_isImageFile(_fileName))
             ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
-              child: Image.file(
+              child: Image.memory(
                 file,
                 width: 100,
                 height: 100,
@@ -538,12 +541,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  fileName,
+                  _fileName,
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500),
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                 ),
@@ -567,13 +569,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
-  // --- Updated Helper Method to Pull Sales Reps via UserProvider (Dealers) ---
   Future<List<Map<String, String>>> _getSalesReps() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    // Ensure dealers are fetched
     await userProvider.fetchAdmins();
     return userProvider.dealers.map((dealer) {
-      // Use tradingName if available; otherwise, use firstName + lastName
       String displayName =
           dealer.tradingName ?? '${dealer.firstName} ${dealer.lastName}'.trim();
       return {'id': dealer.id, 'display': displayName};
@@ -582,7 +581,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   @override
   void dispose() {
-    // Removed _searchController disposal because it is not defined in this class.
     _sellingPriceController.dispose();
     _vinNumberController.dispose();
     _mileageController.dispose();
@@ -597,15 +595,15 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _applicationController.dispose();
     _countryController.dispose();
     _scrollController.dispose();
-    if (widget.isNewUpload) {
-      _clearCache();
-    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final formData = Provider.of<FormDataProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWebView = screenWidth > 600; // Threshold for web view
+
     return WillPopScope(
       onWillPop: () async {
         if (widget.isNewUpload) {
@@ -631,27 +629,52 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               centerTitle: true,
             ),
             body: GradientBackground(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (scrollNotification) {
-                  if (scrollNotification.metrics.axis == Axis.vertical) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      setState(() {
-                        double offset = scrollNotification.metrics.pixels;
-                        if (offset < 0) offset = 0;
-                        if (offset > 150.0) offset = 150.0;
-                        _imageHeight = 300.0 - offset;
-                      });
-                    });
-                  }
-                  return true;
-                },
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  child: Column(
-                    children: [
-                      _buildImageSection(),
-                      _buildMandatorySection(),
-                    ],
+              child: Center(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: isWebView ? 800 : double.infinity,
+                  ),
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (scrollNotification) {
+                      if (scrollNotification.metrics.axis == Axis.vertical) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          setState(() {
+                            double offset = scrollNotification.metrics.pixels;
+                            if (offset < 0) offset = 0;
+                            if (offset > 150.0) offset = 150.0;
+                            _imageHeight = 300.0 - offset;
+                          });
+                        });
+                      }
+                      return true;
+                    },
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isWebView ? 40.0 : 16.0,
+                          vertical: 8.0,
+                        ),
+                        child: Column(
+                          children: [
+                            // Constrain image section for web
+                            Container(
+                              constraints: BoxConstraints(
+                                maxWidth: isWebView ? 600 : double.infinity,
+                              ),
+                              child: _buildImageSection(),
+                            ),
+                            // Constrain form section for web
+                            Container(
+                              constraints: BoxConstraints(
+                                maxWidth: isWebView ? 600 : double.infinity,
+                              ),
+                              child: _buildMandatorySection(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -677,7 +700,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   Widget _buildImageSection() {
     final formData = Provider.of<FormDataProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWebView = screenWidth > 600;
+    final imageWidth = isWebView ? 600.0 : screenWidth;
+    final calculatedHeight = isWebView ? 400.0 : _imageHeight;
+
     void showImagePickerDialog() {
+      debugPrint("showImagePickerDialog triggered");
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -690,6 +719,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   leading: const Icon(Icons.camera_alt),
                   title: const Text('Take Photo'),
                   onTap: () {
+                    debugPrint("Take Photo tapped");
                     Navigator.pop(context);
                     _pickImage(ImageSource.camera);
                   },
@@ -698,6 +728,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   leading: const Icon(Icons.photo_library),
                   title: const Text('Choose from Gallery'),
                   onTap: () {
+                    debugPrint("Choose from Gallery tapped");
                     Navigator.pop(context);
                     _pickImage(ImageSource.gallery);
                   },
@@ -710,9 +741,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
 
     void handleImageTap() {
+      debugPrint("handleImageTap triggered");
       if (formData.selectedMainImage != null ||
           (formData.mainImageUrl != null &&
               formData.mainImageUrl!.isNotEmpty)) {
+        debugPrint("Image exists, showing options dialog");
         showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -722,6 +755,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    debugPrint("Change Image selected");
                     Navigator.pop(context);
                     showImagePickerDialog();
                   },
@@ -729,6 +763,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 ),
                 TextButton(
                   onPressed: () {
+                    debugPrint("Remove Image selected");
                     Navigator.pop(context);
                     setState(() {
                       formData.setSelectedMainImage(null);
@@ -741,7 +776,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    debugPrint("Cancel selected in image options dialog");
+                    Navigator.pop(context);
+                  },
                   child: const Text('Cancel'),
                 ),
               ],
@@ -749,57 +787,93 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           },
         );
       } else {
+        debugPrint("No image exists, showing image picker dialog");
         showImagePickerDialog();
       }
     }
 
+    debugPrint("Building image section");
     return GestureDetector(
-      onTap: handleImageTap,
+      behavior: HitTestBehavior.opaque, // Entire container is clickable
+      onTap: () {
+        debugPrint("GestureDetector onTap triggered");
+        handleImageTap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 0),
-        height: _imageHeight,
-        width: double.infinity,
+        height: calculatedHeight,
+        width: imageWidth,
         child: Stack(
           children: [
             if (formData.selectedMainImage != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10.0),
-                child: Image.file(
-                  formData.selectedMainImage!,
-                  width: double.infinity,
-                  height: _imageHeight,
-                  fit: BoxFit.cover,
+              _buildStyledContainer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10.0),
+                  child: Image.memory(
+                    formData.selectedMainImage!,
+                    width: double.infinity,
+                    height: calculatedHeight,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               )
             else if (formData.mainImageUrl != null &&
                 formData.mainImageUrl!.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10.0),
-                child: Image.network(
-                  formData.mainImageUrl!,
-                  width: double.infinity,
-                  height: _imageHeight,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
-                    );
-                  },
+              _buildStyledContainer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10.0),
+                  child: Image.network(
+                    formData.mainImageUrl!,
+                    width: double.infinity,
+                    height: calculatedHeight,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               )
             else
-              ImagePickerWidget(
-                onImagePicked: (File? image) {
-                  if (image != null) {
-                    formData.setSelectedMainImage(image);
-                  }
-                },
+              _buildStyledContainer(
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                    ),
+                    const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 50.0,
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            'Tap here to upload main image',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             Positioned(
               bottom: 8,
@@ -810,9 +884,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  'Tap to modify image',
-                  style: TextStyle(
+                child: Text(
+                  kIsWeb ? 'Click to modify image' : 'Tap to modify image',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                   ),
@@ -825,8 +899,63 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     );
   }
 
+  Widget _buildVehicleTypeRadios(FormDataProvider formData) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Vehicle Type',
+          style: TextStyle(fontSize: 14, color: Colors.white),
+        ),
+        const SizedBox(height: 15),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Truck',
+              value: 'truck',
+              groupValue: formData.vehicleType,
+              onChanged: (value) {
+                formData.setVehicleType(value);
+              },
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'Trailer',
+              value: 'trailer',
+              groupValue: formData.vehicleType,
+              onChanged: (value) {
+                formData.setVehicleType(value);
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // This "old style" container used to style the main image preview.
+  Widget _buildStyledContainer({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E4CAF).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10.0),
+        border: Border.all(
+          color: const Color(0xFF0E4CAF),
+          width: 2.0,
+        ),
+      ),
+      child: child,
+    );
+  }
+
   Widget _buildMandatorySection() {
     final formData = Provider.of<FormDataProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWebView = screenWidth > 600;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
@@ -837,10 +966,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             child: Text(
               'TRUCK/TRAILER FORM'.toUpperCase(),
               style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
               textAlign: TextAlign.center,
             ),
           ),
@@ -863,504 +991,553 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Reference Number Field
-          CustomTextField(
-            controller: _referenceNumberController,
-            hintText: 'Reference Number',
-            inputFormatter: [UpperCaseTextFormatter()],
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter the reference number';
-              }
-              return null;
-            },
-          ),
-          // --- For Admins: Sales Rep Dropdown using UserProvider (dealers) ---
-          if (widget.isAdminUpload) ...[
-            const SizedBox(height: 15),
-            FutureBuilder<List<Map<String, String>>>(
-              future: _getSalesReps(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+          // Wrap the Reference Number field to fill the width.
+          SizedBox(
+            width: double.infinity,
+            child: CustomTextField(
+              controller: _referenceNumberController,
+              hintText: 'Reference Number',
+              inputFormatter: [UpperCaseTextFormatter()],
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter the reference number';
                 }
-                final salesReps = snapshot.data!;
-                return DropdownButtonFormField<String>(
-                  dropdownColor: Colors.grey[900],
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.grey[800],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  hint: Text(
-                    'Select Sales Rep',
-                    style: GoogleFonts.montserrat(color: Colors.white),
-                  ),
-                  value: _selectedSalesRep,
-                  items: salesReps.map((rep) {
-                    return DropdownMenuItem<String>(
-                      value: rep['id'],
-                      child: Text(
-                        rep['display']!,
-                        style: GoogleFonts.montserrat(color: Colors.white),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedSalesRep = value;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a Sales Rep';
-                    }
-                    return null;
-                  },
-                );
+                return null;
               },
             ),
-          ],
-          const SizedBox(height: 15),
-          _buildNatisRc1Section(),
-          const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CustomRadioButton(
-                label: 'Truck',
-                value: 'truck',
-                groupValue: formData.vehicleType,
-                onChanged: (value) {
-                  formData.setVehicleType(value);
-                },
-              ),
-              const SizedBox(width: 15),
-              CustomRadioButton(
-                label: 'Trailer',
-                value: 'trailer',
-                groupValue: formData.vehicleType,
-                onChanged: (value) {
-                  formData.setVehicleType(value);
-                },
-              ),
-            ],
           ),
           const SizedBox(height: 15),
-          Form(
-            key: _formKeys[0],
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                CustomDropdown(
-                  hintText: 'Year',
-                  value: formData.year,
-                  items: _yearOptions,
-                  onChanged: (value) {
-                    formData.setYear(value);
-                    _loadBrandsForYear(value!);
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Manufacturer',
-                  value: formData.brands?.isNotEmpty == true
-                      ? formData.brands![0]
-                      : null,
-                  items: _brandOptions,
-                  onChanged: (value) {
-                    if (value != null) {
-                      formData.setBrands([value]);
-                      _loadModelsForBrand(value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Model',
-                  value: formData.makeModel,
-                  items: _makeModelOptions[formData.brands?.isNotEmpty == true
-                          ? formData.brands![0]
-                          : ''] ??
-                      [],
-                  onChanged: (value) {
-                    formData.setMakeModel(value);
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _variantController,
-                  hintText: 'Variant',
-                  inputFormatter: [UpperCaseTextFormatter()],
-                  onChanged: (value) {
-                    formData.setVariant(value);
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Select Country',
-                  value: formData.country?.isNotEmpty == true
-                      ? formData.country
-                      : null,
-                  items: _countryOptions,
-                  onChanged: (value) {
-                    formData.setCountry(value);
-                    if (value != null) {
-                      _updateProvinceOptions(value);
-                      formData.setProvince(null);
-                    }
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a country';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Select Province/State',
-                  value: formData.province,
-                  items: _provinceOptions,
-                  onChanged: (value) {
-                    formData.setProvince(value);
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a province/state';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _mileageController,
-                  hintText: 'Mileage',
-                  keyboardType: TextInputType.number,
-                  inputFormatter: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter the mileage';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Configuration',
-                  value: formData.config?.isNotEmpty == true
-                      ? formData.config
-                      : null,
-                  items: _configurationOptions,
-                  onChanged: (value) {
-                    formData.setConfig(value);
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select the configuration';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Application of Use',
-                  value: formData.application?.isNotEmpty == true
-                      ? formData.application
-                      : null,
-                  items: _applicationOptions,
-                  onChanged: (value) {
-                    formData.setApplication(value);
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select the application of use';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _vinNumberController,
-                  hintText: 'VIN Number',
-                  inputFormatter: [UpperCaseTextFormatter()],
-                  onChanged: (value) async {
-                    if (value.length >= 17) {
-                      bool isUnique = await _isVinNumberUnique(value);
-                      if (!isUnique) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Warning: This VIN number is already registered in the system'),
-                            backgroundColor: Colors.orange,
-                            duration: Duration(seconds: 5),
-                            action: SnackBarAction(
-                              label: 'Dismiss',
-                              textColor: Colors.white,
-                              onPressed: () {},
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter the VIN number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _engineNumberController,
-                  hintText: 'Engine No.',
-                  inputFormatter: [UpperCaseTextFormatter()],
-                ),
-                const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _registrationNumberController,
-                  hintText: 'Registration No.',
-                  inputFormatter: [UpperCaseTextFormatter()],
-                ),
-                const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _sellingPriceController,
-                  hintText: 'Expected Selling Price',
-                  isCurrency: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatter: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    ThousandsSeparatorInputFormatter(),
-                  ],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter the expected selling price';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                Center(
-                  child: Text(
-                    'Suspension',
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CustomRadioButton(
-                      label: 'Spring',
-                      value: 'spring',
-                      groupValue: formData.suspension,
-                      onChanged: (value) {
-                        formData.setSuspension(value);
-                      },
+          // For Admins: Sales Rep Dropdown
+          if (widget.isAdminUpload) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FutureBuilder<List<Map<String, String>>>(
+                future: _getSalesReps(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final salesReps = snapshot.data!;
+                  return DropdownButtonFormField<String>(
+                    dropdownColor: Colors.grey[900],
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.grey[800],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                    const SizedBox(width: 15),
-                    CustomRadioButton(
-                      label: 'Air',
-                      value: 'air',
-                      groupValue: formData.suspension,
-                      onChanged: (value) {
-                        formData.setSuspension(value);
-                      },
+                    hint: Text(
+                      'Select Sales Rep',
+                      style: GoogleFonts.montserrat(color: Colors.white),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                Divider(),
-                const SizedBox(height: 15),
-                Center(
-                  child: Text(
-                    'Transmission',
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CustomRadioButton(
-                      label: 'Automatic',
-                      value: 'automatic',
-                      groupValue: formData.transmissionType,
-                      onChanged: (value) {
-                        formData.setTransmissionType(value);
-                      },
-                    ),
-                    const SizedBox(width: 15),
-                    CustomRadioButton(
-                      label: 'Manual',
-                      value: 'manual',
-                      groupValue: formData.transmissionType,
-                      onChanged: (value) {
-                        formData.setTransmissionType(value);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                Divider(),
-                const SizedBox(height: 15),
-                Center(
-                  child: Text(
-                    'Hydraulics',
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CustomRadioButton(
-                      label: 'Yes',
-                      value: 'yes',
-                      groupValue: formData.hydraulics,
-                      onChanged: (value) {
-                        formData.setHydraulics(value);
-                      },
-                    ),
-                    const SizedBox(width: 15),
-                    CustomRadioButton(
-                      label: 'No',
-                      value: 'no',
-                      groupValue: formData.hydraulics,
-                      onChanged: (value) {
-                        formData.setHydraulics(value);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                Divider(),
-                const SizedBox(height: 15),
-                Center(
-                  child: Text(
-                    'Maintenance',
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CustomRadioButton(
-                      label: 'Yes',
-                      value: 'yes',
-                      groupValue: formData.maintenance,
-                      onChanged: (value) {
-                        formData.setMaintenance(value);
-                      },
-                    ),
-                    const SizedBox(width: 15),
-                    CustomRadioButton(
-                      label: 'No',
-                      value: 'no',
-                      groupValue: formData.maintenance,
-                      onChanged: (value) {
-                        formData.setMaintenance(value);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                Divider(),
-                const SizedBox(height: 15),
-                Center(
-                  child: Text(
-                    'Warranty',
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CustomRadioButton(
-                      label: 'Yes',
-                      value: 'yes',
-                      groupValue: formData.warranty,
-                      onChanged: (value) {
-                        formData.setWarranty(value);
-                      },
-                    ),
-                    const SizedBox(width: 15),
-                    CustomRadioButton(
-                      label: 'No',
-                      value: 'no',
-                      groupValue: formData.warranty,
-                      onChanged: (value) {
-                        formData.setWarranty(value);
-                      },
-                    ),
-                  ],
-                ),
-                if (formData.warranty == 'yes') ...[
-                  const SizedBox(height: 15),
-                  CustomTextField(
-                    controller: _warrantyDetailsController,
-                    hintText: 'WHAT MAIN WARRANTY IS THE VEHICLE ON',
+                    value: _selectedSalesRep,
+                    items: salesReps.map((rep) {
+                      return DropdownMenuItem<String>(
+                        value: rep['id'],
+                        child: Text(
+                          rep['display']!,
+                          style: GoogleFonts.montserrat(color: Colors.white),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedSalesRep = value;
+                      });
+                    },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter the warranty details';
+                        return 'Please select a Sales Rep';
                       }
                       return null;
                     },
-                  ),
-                ],
-                const SizedBox(height: 15),
-                Divider(),
-                const SizedBox(height: 15),
-                Center(
-                  child: Text(
-                    'DO YOU REQUIRE THE TRUCK TO BE SETTLED BEFORE SELLING',
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CustomRadioButton(
-                      label: 'Yes',
-                      value: 'yes',
-                      groupValue: formData.requireToSettleType,
-                      onChanged: (value) {
-                        formData.setRequireToSettleType(value);
-                      },
-                    ),
-                    const SizedBox(width: 15),
-                    CustomRadioButton(
-                      label: 'No',
-                      value: 'no',
-                      groupValue: formData.requireToSettleType,
-                      onChanged: (value) {
-                        formData.setRequireToSettleType(value);
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                  );
+                },
+              ),
             ),
+            const SizedBox(height: 15),
+          ],
+          // NATIS/RC1 Section
+          _buildNatisRc1Section(),
+          const SizedBox(height: 15),
+          Wrap(
+            spacing: isWebView ? 20.0 : 0.0,
+            runSpacing: 15.0,
+            alignment: WrapAlignment.center,
+            children: [
+              // Vehicle Type Radios
+              SizedBox(
+                width: isWebView ? (screenWidth * 0.4) : double.infinity,
+                child: _buildVehicleTypeRadios(formData),
+              ),
+              // The rest of the fields are wrapped in a Form and each field in a SizedBox
+              SizedBox(
+                width: isWebView ? (screenWidth * 0.4) : double.infinity,
+                child: Form(
+                  key: _formKeys[0],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomDropdown(
+                          hintText: 'Year',
+                          value: formData.year,
+                          items: _yearOptions,
+                          onChanged: (value) {
+                            formData.setYear(value);
+                            _loadBrandsForYear(value!);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomDropdown(
+                          hintText: 'Manufacturer',
+                          value: formData.brands?.isNotEmpty == true
+                              ? formData.brands![0]
+                              : null,
+                          items: _brandOptions,
+                          onChanged: (value) {
+                            if (value != null) {
+                              formData.setBrands([value]);
+                              _loadModelsForBrand(value);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomDropdown(
+                          hintText: 'Model',
+                          value: formData.makeModel,
+                          items: _makeModelOptions[
+                                  formData.brands?.isNotEmpty == true
+                                      ? formData.brands![0]
+                                      : ''] ??
+                              [],
+                          onChanged: (value) {
+                            formData.setMakeModel(value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomTextField(
+                          controller: _variantController,
+                          hintText: 'Variant',
+                          inputFormatter: [UpperCaseTextFormatter()],
+                          onChanged: (value) {
+                            formData.setVariant(value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomDropdown(
+                          hintText: 'Select Country',
+                          value: formData.country?.isNotEmpty == true
+                              ? formData.country
+                              : null,
+                          items: _countryOptions,
+                          onChanged: (value) {
+                            formData.setCountry(value);
+                            if (value != null) {
+                              _updateProvinceOptions(value);
+                              formData.setProvince(null);
+                            }
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select a country';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomDropdown(
+                          hintText: 'Select Province/State',
+                          value: formData.province,
+                          items: _provinceOptions,
+                          onChanged: (value) {
+                            formData.setProvince(value);
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select a province/state';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomTextField(
+                          controller: _mileageController,
+                          hintText: 'Mileage',
+                          keyboardType: TextInputType.number,
+                          inputFormatter: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter the mileage';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomDropdown(
+                          hintText: 'Configuration',
+                          value: formData.config?.isNotEmpty == true
+                              ? formData.config
+                              : null,
+                          items: _configurationOptions,
+                          onChanged: (value) {
+                            formData.setConfig(value);
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select the configuration';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomDropdown(
+                          hintText: 'Application of Use',
+                          value: formData.application?.isNotEmpty == true
+                              ? formData.application
+                              : null,
+                          items: _applicationOptions,
+                          onChanged: (value) {
+                            formData.setApplication(value);
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select the application of use';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomTextField(
+                          controller: _vinNumberController,
+                          hintText: 'VIN Number',
+                          inputFormatter: [UpperCaseTextFormatter()],
+                          onChanged: (value) async {
+                            if (value.length >= 17) {
+                              bool isUnique = await _isVinNumberUnique(value);
+                              if (!isUnique) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Warning: This VIN number is already registered in the system'),
+                                    backgroundColor: Colors.orange,
+                                    duration: Duration(seconds: 5),
+                                    action: SnackBarAction(
+                                      label: 'Dismiss',
+                                      textColor: Colors.white,
+                                      onPressed: () {},
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter the VIN number';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomTextField(
+                          controller: _engineNumberController,
+                          hintText: 'Engine No.',
+                          inputFormatter: [UpperCaseTextFormatter()],
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomTextField(
+                          controller: _registrationNumberController,
+                          hintText: 'Registration No.',
+                          inputFormatter: [UpperCaseTextFormatter()],
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        child: CustomTextField(
+                          controller: _sellingPriceController,
+                          hintText: 'Expected Selling Price',
+                          isCurrency: true,
+                          keyboardType: TextInputType.number,
+                          inputFormatter: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            ThousandsSeparatorInputFormatter(),
+                          ],
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter the expected selling price';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: Text(
+                          'Suspension',
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CustomRadioButton(
+                            label: 'Spring',
+                            value: 'spring',
+                            groupValue: formData.suspension,
+                            onChanged: (value) {
+                              formData.setSuspension(value);
+                            },
+                          ),
+                          const SizedBox(width: 15),
+                          CustomRadioButton(
+                            label: 'Air',
+                            value: 'air',
+                            groupValue: formData.suspension,
+                            onChanged: (value) {
+                              formData.setSuspension(value);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      Divider(),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: Text(
+                          'Transmission',
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CustomRadioButton(
+                            label: 'Automatic',
+                            value: 'automatic',
+                            groupValue: formData.transmissionType,
+                            onChanged: (value) {
+                              formData.setTransmissionType(value);
+                            },
+                          ),
+                          const SizedBox(width: 15),
+                          CustomRadioButton(
+                            label: 'Manual',
+                            value: 'manual',
+                            groupValue: formData.transmissionType,
+                            onChanged: (value) {
+                              formData.setTransmissionType(value);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      Divider(),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: Text(
+                          'Hydraulics',
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CustomRadioButton(
+                            label: 'Yes',
+                            value: 'yes',
+                            groupValue: formData.hydraulics,
+                            onChanged: (value) {
+                              formData.setHydraulics(value);
+                            },
+                          ),
+                          const SizedBox(width: 15),
+                          CustomRadioButton(
+                            label: 'No',
+                            value: 'no',
+                            groupValue: formData.hydraulics,
+                            onChanged: (value) {
+                              formData.setHydraulics(value);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      Divider(),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: Text(
+                          'Maintenance',
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CustomRadioButton(
+                            label: 'Yes',
+                            value: 'yes',
+                            groupValue: formData.maintenance,
+                            onChanged: (value) {
+                              formData.setMaintenance(value);
+                            },
+                          ),
+                          const SizedBox(width: 15),
+                          CustomRadioButton(
+                            label: 'No',
+                            value: 'no',
+                            groupValue: formData.maintenance,
+                            onChanged: (value) {
+                              formData.setMaintenance(value);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      Divider(),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: Text(
+                          'Warranty',
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CustomRadioButton(
+                            label: 'Yes',
+                            value: 'yes',
+                            groupValue: formData.warranty,
+                            onChanged: (value) {
+                              formData.setWarranty(value);
+                            },
+                          ),
+                          const SizedBox(width: 15),
+                          CustomRadioButton(
+                            label: 'No',
+                            value: 'no',
+                            groupValue: formData.warranty,
+                            onChanged: (value) {
+                              formData.setWarranty(value);
+                            },
+                          ),
+                        ],
+                      ),
+                      if (formData.warranty == 'yes') ...[
+                        const SizedBox(height: 15),
+                        SizedBox(
+                          width: double.infinity,
+                          child: CustomTextField(
+                            controller: _warrantyDetailsController,
+                            hintText: 'WHAT MAIN WARRANTY IS THE VEHICLE ON',
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the warranty details';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 15),
+                      Divider(),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: Text(
+                          'DO YOU REQUIRE THE TRUCK TO BE SETTLED BEFORE SELLING',
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CustomRadioButton(
+                            label: 'Yes',
+                            value: 'yes',
+                            groupValue: formData.requireToSettleType,
+                            onChanged: (value) {
+                              formData.setRequireToSettleType(value);
+                            },
+                          ),
+                          const SizedBox(width: 15),
+                          CustomRadioButton(
+                            label: 'No',
+                            value: 'no',
+                            groupValue: formData.requireToSettleType,
+                            onChanged: (value) {
+                              formData.setRequireToSettleType(value);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                      _buildNextButton(),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          _buildNextButton(),
-          const SizedBox(height: 30),
         ],
       ),
     );
@@ -1380,59 +1557,52 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           return null;
         }
       } else {
-        // For non-admin uploads, validate required fields.
         if (!_validateRequiredFields(formData)) {
           return null;
         }
       }
 
       debugPrint("=== _saveSection1Data START ===");
-      // Upload the main image, if provided.
       String? imageUrl;
       if (formData.selectedMainImage != null) {
         final ref = FirebaseStorage.instance
             .ref()
             .child('vehicle_images')
             .child('${DateTime.now().toIso8601String()}.jpg');
-        await ref.putFile(formData.selectedMainImage!);
+        await ref.putData(formData.selectedMainImage!);
         imageUrl = await ref.getDownloadURL();
         debugPrint("Main image uploaded. URL: $imageUrl");
       } else {
         debugPrint("No main image selected.");
       }
 
-      // Upload the NATIS/RC1 file if one was picked.
       String? natisRc1Url;
       if (_natisRc1File != null) {
-        final fileName = _natisRc1File!.path.split('/').last;
+        final fileName = _natisRc1FileName ?? 'document';
         final ref = FirebaseStorage.instance
             .ref()
             .child('vehicle_documents')
             .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
-        await ref.putFile(_natisRc1File!);
+        await ref.putData(_natisRc1File!);
         natisRc1Url = await ref.getDownloadURL();
         debugPrint("NATIS/RC1 file uploaded. URL: $natisRc1Url");
       } else {
         debugPrint("No NATIS/RC1 file selected.");
       }
 
-      // Determine the assigned Sales Rep.
       final currentUser = FirebaseAuth.instance.currentUser;
       debugPrint(
           "Current Firebase user: ${currentUser?.uid ?? 'No user found'}");
       String? assignedSalesRepId;
       if (widget.isAdminUpload) {
-        // For admin uploads, use the selected Sales Rep from the dropdown.
         assignedSalesRepId = _selectedSalesRep;
         debugPrint(
             "Admin upload selected. Using Sales Rep: $assignedSalesRepId");
       } else {
-        // For regular Sales Rep uploads, assign the current user's UID.
         assignedSalesRepId = currentUser?.uid;
       }
       debugPrint("Assigned Sales Rep ID to be saved: $assignedSalesRepId");
 
-      // Build the vehicle data map.
       final vehicleData = {
         'year': formData.year,
         'makeModel': formData.makeModel,
@@ -1460,9 +1630,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'province': formData.province,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        // Always store current user's UID as userId.
         'userId': currentUser?.uid,
-        // Assigned Sales Rep ID based on selection or current user.
         'assignedSalesRepId': assignedSalesRepId,
         'vehicleStatus': 'Draft',
       };
@@ -1512,7 +1680,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         onPressed: () async {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);
-          // For admin uploads, Sales Rep selection has been validated already.
           if (!widget.isAdminUpload &&
               widget.isNewUpload &&
               !_validateRequiredFields(formData)) {
@@ -1564,102 +1731,36 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     });
   }
 
-  // Method to get the cache directory path
-  Future<String> get _cacheDir async {
-    final dir = await getTemporaryDirectory();
-    final cacheDir = Directory('${dir.path}/vehicle_upload_cache');
-    if (!await cacheDir.exists()) {
-      await cacheDir.create();
-    }
-    return cacheDir.path;
-  }
-
-  // Method to cache an image
-  Future<String> _cacheImage(File imageFile) async {
-    final cacheDir = await _cacheDir;
-    final fileName =
-        '${DateTime.now().millisecondsSinceEpoch}_${imageFile.path.split('/').last}';
-    final cachedFile = await imageFile.copy('$cacheDir/$fileName');
-    return cachedFile.path;
-  }
-
-  // Method to restore cached images
-  Future<void> _restoreCachedImages() async {
-    if (_isRestoringImages) return;
-    _isRestoringImages = true;
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final vehicleId = _vehicleId ?? 'draft';
-      final cachedPaths = prefs.getStringList('cached_images_$vehicleId') ?? [];
-
-      for (String pathData in cachedPaths) {
-        final parts = pathData.split('::');
-        if (parts.length == 2) {
-          final imageType = parts[0];
-          final path = parts[1];
-
-          final file = File(path);
-          if (await file.exists()) {
-            switch (imageType) {
-              case 'main':
-                final formData =
-                    Provider.of<FormDataProvider>(context, listen: false);
-                formData.setSelectedMainImage(file);
-                break;
-              // Add cases for other image types as needed
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error restoring cached images: $e');
-    } finally {
-      _isRestoringImages = false;
-    }
-  }
-
-  // Method to save image paths to persistent storage
-  Future<void> _saveCachedImagePaths() async {
-    final prefs = await SharedPreferences.getInstance();
-    final vehicleId = _vehicleId ?? 'draft';
-    final pathsList =
-        _cachedImagePaths.entries.map((e) => '${e.key}::${e.value}').toList();
-    await prefs.setStringList('cached_images_$vehicleId', pathsList);
-  }
-
-  // Modified image picking method
+  // Modified image picking method – pass only the image bytes.
   Future<void> _pickImage(ImageSource source) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: source);
 
     if (image != null) {
-      final File imageFile = File(image.path);
-      // Cache the image
-      final cachedPath = await _cacheImage(imageFile);
-      _cachedImagePaths['main'] = cachedPath;
-      await _saveCachedImagePaths();
+      final bytes = await image.readAsBytes();
+      _selectedMainImageFileName = image.name;
+      setState(() {
+        _selectedMainImage = bytes;
+      });
+      debugPrint("Picked main image: $_selectedMainImageFileName");
+      formData.setSelectedMainImage(bytes);
 
-      // Update the UI
-      formData.setSelectedMainImage(File(cachedPath));
-
-      // Progressively upload if we have a vehicle ID
       if (_vehicleId != null) {
-        _uploadAndUpdateMainImage(File(cachedPath));
+        _uploadAndUpdateMainImage(bytes);
       }
+    } else {
+      debugPrint("No image selected from source: $source");
     }
   }
 
   // Method to upload and update main image
-  Future<void> _uploadAndUpdateMainImage(File imageFile) async {
+  Future<void> _uploadAndUpdateMainImage(Uint8List imageBytes) async {
     try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('vehicle_images')
-          .child('${DateTime.now().toIso8601String()}.jpg');
+      final ref = FirebaseStorage.instance.ref().child('vehicle_images').child(
+          '${DateTime.now().toIso8601String()}_${_selectedMainImageFileName ?? "image.jpg"}');
 
-      await ref.putFile(imageFile);
+      await ref.putData(imageBytes);
       final imageUrl = await ref.getDownloadURL();
 
       // Update Firestore with the new image URL
@@ -1670,22 +1771,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
       final formData = Provider.of<FormDataProvider>(context, listen: false);
       formData.setMainImageUrl(imageUrl);
+      debugPrint("Main image URL updated: $imageUrl");
     } catch (e) {
       debugPrint('Error uploading main image: $e');
-    }
-  }
-
-  Future<void> _clearCache() async {
-    try {
-      final dir = Directory(await _cacheDir);
-      if (await dir.exists()) {
-        await dir.delete(recursive: true);
-      }
-      final prefs = await SharedPreferences.getInstance();
-      final vehicleId = _vehicleId ?? 'draft';
-      await prefs.remove('cached_images_$vehicleId');
-    } catch (e) {
-      debugPrint('Error clearing cache: $e');
     }
   }
 
@@ -1748,6 +1836,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         const SizedBox(height: 15),
         InkWell(
           onTap: () {
+            debugPrint("NATIS/RC1 section tapped");
             if (_existingNatisRc1Url != null || _natisRc1File != null) {
               _showDocumentOptions();
             } else {
@@ -1769,7 +1858,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             child: Column(
               children: [
                 if (_natisRc1File != null)
-                  _buildUploadedFile(_natisRc1File, _isLoading)
+                  _buildUploadedFile(_natisRc1File,
+                      _natisRc1FileName ?? 'Document', _isLoading)
                 else if (_existingNatisRc1Url != null)
                   Column(
                     children: [
@@ -1813,6 +1903,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   void _showDocumentOptions() {
+    debugPrint("Showing document options dialog");
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -1825,6 +1916,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 leading: const Icon(Icons.remove_red_eye),
                 title: const Text('View Document'),
                 onTap: () {
+                  debugPrint("View Document option selected");
                   Navigator.pop(context);
                   _viewDocument();
                 },
@@ -1833,6 +1925,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 leading: const Icon(Icons.upload_file),
                 title: const Text('Replace Document'),
                 onTap: () {
+                  debugPrint("Replace Document option selected");
                   Navigator.pop(context);
                   _pickNatisRc1File();
                 },
@@ -1842,6 +1935,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 title: const Text('Remove Document',
                     style: TextStyle(color: Colors.red)),
                 onTap: () {
+                  debugPrint("Remove Document option selected");
                   Navigator.pop(context);
                   _removeDocument();
                 },
@@ -1850,7 +1944,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                debugPrint("Cancel pressed in document options dialog");
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
           ],
@@ -1862,16 +1959,19 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   void _viewDocument() async {
     final url = _natisRc1File != null ? null : _existingNatisRc1Url;
     if (url != null) {
+      debugPrint("View document: URL = $url");
       // Implement document viewing logic here (e.g., using url_launcher)
     }
   }
 
   void _removeDocument() {
+    debugPrint("Removing NATIS/RC1 document");
     setState(() {
       _natisRc1File = null;
       _existingNatisRc1Url = null;
       _existingNatisRc1Name = null;
     });
+    debugPrint("NATIS/RC1 document removed");
   }
 }
 

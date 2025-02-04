@@ -544,6 +544,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  font_awesome_flutter:
+    dependency: "direct main"
+    description:
+      name: font_awesome_flutter
+      sha256: d3a89184101baec7f4600d58840a764d2ef760fe1c5a20ef9e6b0e9b24a07a3a
+      url: "https://pub.dev"
+    source: hosted
+    version: "10.8.0"
   geocoding:
     dependency: "direct main"
     description:
@@ -688,6 +696,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.15.5"
+  html_view:
+    dependency: "direct main"
+    description:
+      name: html_view
+      sha256: "02b620902ae57ec097beb4969f2788a550a5f3fba196d4476a17271a3fd6d760"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.3"
   http:
     dependency: "direct main"
     description:

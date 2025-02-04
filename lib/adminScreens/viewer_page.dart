@@ -1,9 +1,9 @@
 // IMPORTANT: The import for 'dart:html' below is only needed on the web.
 // If you experience issues when building for mobile, consider using conditional imports.
 import 'dart:io';
-import 'dart:html' as html;
-
 import 'package:flutter/foundation.dart';
+// import 'html_stub.dart' if (dart.library.html) 'dart:html' as html;
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';

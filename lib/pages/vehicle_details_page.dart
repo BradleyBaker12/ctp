@@ -26,6 +26,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/components/web_footer.dart'; // Add this import
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -1527,518 +1528,608 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               ),
             )
           : null,
-      body: Stack(
+      body: Column(
+        // Wrap the body in a Column
         children: [
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                // === Image Gallery
-                Stack(
+          Expanded(
+            // Wrap the main content in Expanded
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Stack(
                   children: [
-                    SizedBox(
-                      height: size.height * 0.32,
-                      child: PageView.builder(
-                        controller: _pageController,
-                        itemCount: allPhotos.length,
-                        onPageChanged: (index) {
-                          setState(() => _currentImageIndex = index);
-                        },
-                        itemBuilder: (context, index) {
-                          return GestureDetector(
-                            onTap: () => _showFullScreenImage(context, index),
-                            child: Stack(
-                              children: [
-                                Image.network(
-                                  allPhotos[index].url,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: size.height * 0.32,
-                                  // Add cacheWidth to optimize memory usage
-                                  cacheWidth:
-                                      (MediaQuery.of(context).size.width * 2)
-                                          .toInt(),
-                                  // Add key to force rebuild when URL changes
-                                  key: ValueKey(allPhotos[index].url),
-                                  errorBuilder: (ctx, error, st) {
-                                    return Image.asset(
-                                      'assets/default_vehicle_image.png',
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: size.height * 0.32,
+                    SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // === Image Gallery
+                          Stack(
+                            children: [
+                              SizedBox(
+                                height: size.height * 0.32,
+                                child: PageView.builder(
+                                  controller: _pageController,
+                                  itemCount: allPhotos.length,
+                                  onPageChanged: (index) {
+                                    setState(() => _currentImageIndex = index);
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return GestureDetector(
+                                      onTap: () =>
+                                          _showFullScreenImage(context, index),
+                                      child: Stack(
+                                        children: [
+                                          Image.network(
+                                            allPhotos[index].url,
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: size.height * 0.32,
+                                            // Add cacheWidth to optimize memory usage
+                                            cacheWidth: (MediaQuery.of(context)
+                                                        .size
+                                                        .width *
+                                                    2)
+                                                .toInt(),
+                                            // Add key to force rebuild when URL changes
+                                            key: ValueKey(allPhotos[index].url),
+                                            errorBuilder: (ctx, error, st) {
+                                              return Image.asset(
+                                                'assets/default_vehicle_image.png',
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                height: size.height * 0.32,
+                                              );
+                                            },
+                                          ),
+                                          IgnorePointer(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Colors.black
+                                                        .withOpacity(0.3),
+                                                    Colors.black.withOpacity(1),
+                                                  ],
+                                                  stops: const [0.5, 1.0],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     );
                                   },
                                 ),
-                                IgnorePointer(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.black.withOpacity(0.3),
-                                          Colors.black.withOpacity(1),
+                              ),
+                              Positioned(
+                                bottom: 10,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child:
+                                      _buildImageIndicators(allPhotos.length),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // === Details and Offer Info
+                          Container(
+                            width: double.infinity,
+                            constraints: const BoxConstraints(maxWidth: 800),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 8),
+                                  // Basic specs row
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      _buildInfoContainer('Year', vehicle.year),
+                                      const SizedBox(width: 5),
+                                      _buildInfoContainer(
+                                          'Mileage', vehicle.mileage),
+                                      const SizedBox(width: 5),
+                                      _buildInfoContainer(
+                                          'Gearbox', vehicle.transmissionType),
+                                      const SizedBox(width: 5),
+                                      _buildInfoContainer(
+                                          'Config', vehicle.config),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // === TRANSPORTER Buttons (stacked) if isTransporter
+                                  if (userProvider.getUserRole ==
+                                      'transporter') ...[
+                                    _buildTransporterActionButtonsColumn(),
+                                    const SizedBox(height: 20),
+                                  ],
+
+                                  // === ADMIN/SALES => special actions
+                                  if (userProvider.getUserRole == 'admin' ||
+                                      userProvider.getUserRole ==
+                                          'sales representative') ...[
+                                    _buildAdminActionButtonsColumn(),
+                                    const SizedBox(height: 20),
+                                  ],
+
+                                  // ========== If Admin/Sales/Dealer, handle offer logic
+                                  if (userProvider.getUserRole == 'admin' ||
+                                      userProvider.getUserRole ==
+                                          'sales representative' ||
+                                      userProvider.getUserRole == 'dealer') ...[
+                                    if (vehicle.isAccepted) ...[
+                                      if (_isAcceptedOfferMine) ...[
+                                        // If it's MY accepted offer => show normal Offer Status
+                                        Center(
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'Offer Status: ',
+                                                style: _customFont(
+                                                    20,
+                                                    FontWeight.bold,
+                                                    Colors.white),
+                                              ),
+                                              Text(
+                                                'Accepted',
+                                                style: _customFont(
+                                                    20,
+                                                    FontWeight.bold,
+                                                    Color(0xFFFF4E00)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        // Another dealer's offer is accepted
+                                        Center(
+                                          child: Text(
+                                            'Another dealer’s offer has already been accepted.\n'
+                                            'No new offers can be made.',
+                                            style: _customFont(18,
+                                                FontWeight.normal, Colors.red),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ],
+                                    ] else if (_hasMadeOffer &&
+                                        _offerStatus != 'rejected') ...[
+                                      Center(
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Offer Status: ',
+                                              style: _customFont(
+                                                  20,
+                                                  FontWeight.bold,
+                                                  Colors.white),
+                                            ),
+                                            Text(
+                                              getDisplayStatus(_offerStatus),
+                                              style: _customFont(
+                                                  20,
+                                                  FontWeight.bold,
+                                                  Color(0xFFFF4E00)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      // If not accepted + not made an offer or was rejected => Make an Offer
+                                      // Hide X and Heart if user is admin
+                                      if (!(userProvider.getUserRole ==
+                                              'admin' ||
+                                          userProvider.getUserRole ==
+                                                  'sales representative' &&
+                                              userProvider.getUserRole ==
+                                                  'admin')) // or just isAdmin
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            _buildActionButton(Icons.close,
+                                                const Color(0xFF2F7FFF)),
+                                            const SizedBox(width: 16),
+                                            _buildActionButton(Icons.favorite,
+                                                const Color(0xFFFF4E00)),
+                                          ],
+                                        ),
+                                      const SizedBox(height: 16),
+                                      Center(
+                                        child: Text(
+                                          'Make an Offer',
+                                          style: _customFont(20,
+                                              FontWeight.bold, Colors.white),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // If Admin/Sales => pick a dealer
+                                      if (userProvider.getUserRole == 'admin' ||
+                                          userProvider.getUserRole ==
+                                              'sales representative') ...[
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Select Dealer',
+                                            style: _customFont(16,
+                                                FontWeight.bold, Colors.white),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Consumer<UserProvider>(
+                                          builder: (ctx, userProv, child) {
+                                            if (userProv.dealers.isEmpty) {
+                                              return const Text(
+                                                'No dealers available.',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 16,
+                                                ),
+                                              );
+                                            }
+                                            return DropdownButtonFormField<
+                                                Dealer>(
+                                              value: _selectedDealer,
+                                              isExpanded: true,
+                                              items: userProv.dealers
+                                                  .map((Dealer dealer) {
+                                                return DropdownMenuItem<Dealer>(
+                                                  value: dealer,
+                                                  child: Text(dealer.email),
+                                                );
+                                              }).toList(),
+                                              onChanged: (Dealer? newDealer) {
+                                                setState(() => _selectedDealer =
+                                                    newDealer);
+                                              },
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.grey[800],
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          8.0),
+                                                  borderSide: BorderSide.none,
+                                                ),
+                                                hintText: 'Choose a dealer',
+                                                hintStyle: _customFont(
+                                                    16,
+                                                    FontWeight.normal,
+                                                    Colors.grey),
+                                              ),
+                                              dropdownColor: Colors.grey[800],
+                                              style: _customFont(
+                                                  16,
+                                                  FontWeight.normal,
+                                                  Colors.white),
+                                            );
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+                                      ],
+
+                                      // TextField for offer
+                                      TextField(
+                                        controller: _controller,
+                                        cursorColor: const Color(0xFFFF4E00),
+                                        decoration: InputDecoration(
+                                          hintText: 'R 102 000 000',
+                                          hintStyle: _customFont(24,
+                                              FontWeight.normal, Colors.grey),
+                                          enabledBorder:
+                                              const OutlineInputBorder(
+                                            borderSide:
+                                                BorderSide(color: Colors.white),
+                                          ),
+                                          focusedBorder:
+                                              const OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: Color(0xFFFF4E00)),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  vertical: 15.0),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        style: _customFont(
+                                            20, FontWeight.bold, Colors.white),
+                                        keyboardType: TextInputType.number,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
                                         ],
-                                        stops: const [0.5, 1.0],
+                                        onChanged: (value) {
+                                          setState(() {
+                                            if (value.isNotEmpty) {
+                                              try {
+                                                String numericValue = value
+                                                    .replaceAll(' ', '')
+                                                    .replaceAll('R', '');
+                                                _offerAmount =
+                                                    double.parse(numericValue);
+                                                _totalCost =
+                                                    _calculateTotalCost(
+                                                        _offerAmount);
+
+                                                String formattedValue =
+                                                    'R${_formatNumberWithSpaces(numericValue)}';
+                                                _controller.value =
+                                                    _controller.value.copyWith(
+                                                  text: formattedValue,
+                                                  selection:
+                                                      TextSelection.collapsed(
+                                                    offset:
+                                                        formattedValue.length,
+                                                  ),
+                                                );
+                                              } catch (e) {
+                                                debugPrint('Error: $e');
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Invalid Offer Amount. '
+                                                      'Please Enter a Valid Number.',
+                                                    ),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            } else {
+                                              _offerAmount = 0.0;
+                                              _totalCost = 0.0;
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Breakdown
+                                      Center(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'R${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}',
+                                              style: _customFont(
+                                                  18,
+                                                  FontWeight.bold,
+                                                  Colors.white),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Including Commission and VAT',
+                                              style: _customFont(
+                                                  15,
+                                                  FontWeight.normal,
+                                                  Colors.white),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Breakdown:',
+                                              style: _customFont(
+                                                  16,
+                                                  FontWeight.bold,
+                                                  Colors.white),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Base Price: R ${_formatNumberWithSpaces(_offerAmount.toStringAsFixed(0))}',
+                                              style: _customFont(
+                                                  14,
+                                                  FontWeight.normal,
+                                                  Colors.white),
+                                            ),
+                                            Text(
+                                              'Flat Rate Fee: R 12 500',
+                                              style: _customFont(
+                                                  14,
+                                                  FontWeight.normal,
+                                                  Colors.white),
+                                            ),
+                                            Text(
+                                              'Subtotal: R ${_formatNumberWithSpaces(
+                                                (_offerAmount + 12500.0)
+                                                    .toStringAsFixed(0),
+                                              )}',
+                                              style: _customFont(
+                                                  14,
+                                                  FontWeight.normal,
+                                                  Colors.white),
+                                            ),
+                                            Text(
+                                              'VAT (15%): R ${_formatNumberWithSpaces(
+                                                (((_offerAmount + 12500.0) *
+                                                        0.15)
+                                                    .toStringAsFixed(0)),
+                                              )}',
+                                              style: _customFont(
+                                                  14,
+                                                  FontWeight.normal,
+                                                  Colors.white),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Total Cost: R ${_formatNumberWithSpaces(
+                                                _totalCost.toStringAsFixed(0),
+                                              )}',
+                                              style: _customFont(
+                                                  14,
+                                                  FontWeight.bold,
+                                                  Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+
+                                      // If dealer => doc check
+                                      StreamBuilder<DocumentSnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('users')
+                                            .doc(userProvider.userId)
+                                            .snapshots(),
+                                        builder: (ctx, snapshot) {
+                                          if (snapshot.hasData &&
+                                              userProvider.getUserRole ==
+                                                  'dealer') {
+                                            Map<String, dynamic> userData =
+                                                snapshot.data!.data()
+                                                    as Map<String, dynamic>;
+                                            bool hasDocuments = userData[
+                                                            'cipcCertificateUrl']
+                                                        ?.isNotEmpty ==
+                                                    true &&
+                                                userData['brncUrl']
+                                                        ?.isNotEmpty ==
+                                                    true &&
+                                                userData['bankConfirmationUrl']
+                                                        ?.isNotEmpty ==
+                                                    true &&
+                                                userData['proxyUrl']
+                                                        ?.isNotEmpty ==
+                                                    true;
+                                            bool isVerified =
+                                                userData['isVerified'] ?? false;
+                                            bool isApproved = isVerified;
+
+                                            if (!hasDocuments || !isApproved) {
+                                              return Padding(
+                                                padding:
+                                                    const EdgeInsets.all(16.0),
+                                                child: Text(
+                                                  'Please upload all required documents '
+                                                  '(CIPC, BRNC, Bank Confirmation, Proxy) '
+                                                  'and wait for account approval before making offers.',
+                                                  style: _customFont(
+                                                      16,
+                                                      FontWeight.normal,
+                                                      Colors.red),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              );
+                                            }
+                                          }
+                                          return Container();
+                                        },
+                                      ),
+
+                                      // MAKE AN OFFER button
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: _makeOffer,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFFFF4E00),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 10.0),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'MAKE AN OFFER',
+                                            style: _customFont(20,
+                                                FontWeight.bold, Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+
+                                  // Spacing
+                                  const SizedBox(height: 40),
+
+                                  // If it's a trailer & user is a dealer => single trailer block
+                                  if (isTrailer &&
+                                      userProvider.getUserRole == 'dealer')
+                                    _buildTrailerSection()
+                                  else ...[
+                                    if (userProvider.getUserRole == 'admin' ||
+                                        userProvider.getUserRole ==
+                                            'sales representative' ||
+                                        userProvider.getUserRole == 'dealer')
+                                      _buildSection(
+                                        context,
+                                        'BASIC INFORMATION',
+                                        '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED',
+                                      ),
+                                    if (userProvider.getUserRole == 'admin' ||
+                                        userProvider.getUserRole ==
+                                            'sales representative' ||
+                                        userProvider.getUserRole == 'dealer')
+                                      _buildSection(
+                                        context,
+                                        'TRUCK CONDITIONS',
+                                        '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED',
+                                      ),
+                                    if (userProvider.getUserRole == 'admin' ||
+                                        userProvider.getUserRole ==
+                                            'sales representative' ||
+                                        userProvider.getUserRole == 'dealer')
+                                      _buildSection(
+                                        context,
+                                        'MAINTENANCE AND WARRANTY',
+                                        '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
+                                      ),
+                                  ],
+
+                                  const SizedBox(height: 30),
+
+                                  // If transporter => Show the offers
+                                  if (userProvider.getUserRole ==
+                                      'transporter') ...[
+                                    Text(
+                                      'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
+                                      style: _customFont(
+                                        20,
+                                        FontWeight.bold,
+                                        const Color(0xFFFF4E00),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 10,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: _buildImageIndicators(allPhotos.length),
-                      ),
-                    ),
-                  ],
-                ),
+                                    const SizedBox(height: 10),
+                                    _buildOffersList(),
+                                  ],
 
-                // === Details and Offer Info
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 8),
-                      // Basic specs row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildInfoContainer('Year', vehicle.year),
-                          const SizedBox(width: 5),
-                          _buildInfoContainer('Mileage', vehicle.mileage),
-                          const SizedBox(width: 5),
-                          _buildInfoContainer(
-                              'Gearbox', vehicle.transmissionType),
-                          const SizedBox(width: 5),
-                          _buildInfoContainer('Config', vehicle.config),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // === TRANSPORTER Buttons (stacked) if isTransporter
-                      if (userProvider.getUserRole == 'transporter') ...[
-                        _buildTransporterActionButtonsColumn(),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // === ADMIN/SALES => special actions
-                      if (userProvider.getUserRole == 'admin' ||
-                          userProvider.getUserRole ==
-                              'sales representative') ...[
-                        _buildAdminActionButtonsColumn(),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // ========== If Admin/Sales/Dealer, handle offer logic
-                      if (userProvider.getUserRole == 'admin' ||
-                          userProvider.getUserRole == 'sales representative' ||
-                          userProvider.getUserRole == 'dealer') ...[
-                        if (vehicle.isAccepted) ...[
-                          if (_isAcceptedOfferMine) ...[
-                            // If it's MY accepted offer => show normal Offer Status
-                            Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Offer Status: ',
-                                    style: _customFont(
-                                        20, FontWeight.bold, Colors.white),
-                                  ),
-                                  Text(
-                                    'Accepted',
-                                    style: _customFont(
-                                        20, FontWeight.bold, Color(0xFFFF4E00)),
-                                  ),
+                                  const SizedBox(height: 24),
                                 ],
                               ),
                             ),
-                          ] else ...[
-                            // Another dealer's offer is accepted
-                            Center(
-                              child: Text(
-                                'Another dealer’s offer has already been accepted.\n'
-                                'No new offers can be made.',
-                                style: _customFont(
-                                    18, FontWeight.normal, Colors.red),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ] else if (_hasMadeOffer &&
-                            _offerStatus != 'rejected') ...[
-                          Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Offer Status: ',
-                                  style: _customFont(
-                                      20, FontWeight.bold, Colors.white),
-                                ),
-                                Text(
-                                  getDisplayStatus(_offerStatus),
-                                  style: _customFont(
-                                      20, FontWeight.bold, Color(0xFFFF4E00)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ] else ...[
-                          // If not accepted + not made an offer or was rejected => Make an Offer
-                          // Hide X and Heart if user is admin
-                          if (!(userProvider.getUserRole == 'admin' ||
-                              userProvider.getUserRole ==
-                                      'sales representative' &&
-                                  userProvider.getUserRole ==
-                                      'admin')) // or just isAdmin
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildActionButton(
-                                    Icons.close, const Color(0xFF2F7FFF)),
-                                const SizedBox(width: 16),
-                                _buildActionButton(
-                                    Icons.favorite, const Color(0xFFFF4E00)),
-                              ],
-                            ),
-                          const SizedBox(height: 16),
-                          Center(
-                            child: Text(
-                              'Make an Offer',
-                              style: _customFont(
-                                  20, FontWeight.bold, Colors.white),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // If Admin/Sales => pick a dealer
-                          if (userProvider.getUserRole == 'admin' ||
-                              userProvider.getUserRole ==
-                                  'sales representative') ...[
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Select Dealer',
-                                style: _customFont(
-                                    16, FontWeight.bold, Colors.white),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Consumer<UserProvider>(
-                              builder: (ctx, userProv, child) {
-                                if (userProv.dealers.isEmpty) {
-                                  return const Text(
-                                    'No dealers available.',
-                                    style: TextStyle(
-                                      color: Colors.red,
-                                      fontSize: 16,
-                                    ),
-                                  );
-                                }
-                                return DropdownButtonFormField<Dealer>(
-                                  value: _selectedDealer,
-                                  isExpanded: true,
-                                  items: userProv.dealers.map((Dealer dealer) {
-                                    return DropdownMenuItem<Dealer>(
-                                      value: dealer,
-                                      child: Text(dealer.email),
-                                    );
-                                  }).toList(),
-                                  onChanged: (Dealer? newDealer) {
-                                    setState(() => _selectedDealer = newDealer);
-                                  },
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: Colors.grey[800],
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    hintText: 'Choose a dealer',
-                                    hintStyle: _customFont(
-                                        16, FontWeight.normal, Colors.grey),
-                                  ),
-                                  dropdownColor: Colors.grey[800],
-                                  style: _customFont(
-                                      16, FontWeight.normal, Colors.white),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-
-                          // TextField for offer
-                          TextField(
-                            controller: _controller,
-                            cursorColor: const Color(0xFFFF4E00),
-                            decoration: InputDecoration(
-                              hintText: 'R 102 000 000',
-                              hintStyle: _customFont(
-                                  24, FontWeight.normal, Colors.grey),
-                              enabledBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white),
-                              ),
-                              focusedBorder: const OutlineInputBorder(
-                                borderSide:
-                                    BorderSide(color: Color(0xFFFF4E00)),
-                              ),
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 15.0),
-                            ),
-                            textAlign: TextAlign.center,
-                            style:
-                                _customFont(20, FontWeight.bold, Colors.white),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                if (value.isNotEmpty) {
-                                  try {
-                                    String numericValue = value
-                                        .replaceAll(' ', '')
-                                        .replaceAll('R', '');
-                                    _offerAmount = double.parse(numericValue);
-                                    _totalCost =
-                                        _calculateTotalCost(_offerAmount);
-
-                                    String formattedValue =
-                                        'R${_formatNumberWithSpaces(numericValue)}';
-                                    _controller.value =
-                                        _controller.value.copyWith(
-                                      text: formattedValue,
-                                      selection: TextSelection.collapsed(
-                                        offset: formattedValue.length,
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    debugPrint('Error: $e');
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Invalid Offer Amount. '
-                                          'Please Enter a Valid Number.',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                } else {
-                                  _offerAmount = 0.0;
-                                  _totalCost = 0.0;
-                                }
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Breakdown
-                          Center(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'R${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}',
-                                  style: _customFont(
-                                      18, FontWeight.bold, Colors.white),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Including Commission and VAT',
-                                  style: _customFont(
-                                      15, FontWeight.normal, Colors.white),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Breakdown:',
-                                  style: _customFont(
-                                      16, FontWeight.bold, Colors.white),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Base Price: R ${_formatNumberWithSpaces(_offerAmount.toStringAsFixed(0))}',
-                                  style: _customFont(
-                                      14, FontWeight.normal, Colors.white),
-                                ),
-                                Text(
-                                  'Flat Rate Fee: R 12 500',
-                                  style: _customFont(
-                                      14, FontWeight.normal, Colors.white),
-                                ),
-                                Text(
-                                  'Subtotal: R ${_formatNumberWithSpaces(
-                                    (_offerAmount + 12500.0).toStringAsFixed(0),
-                                  )}',
-                                  style: _customFont(
-                                      14, FontWeight.normal, Colors.white),
-                                ),
-                                Text(
-                                  'VAT (15%): R ${_formatNumberWithSpaces(
-                                    (((_offerAmount + 12500.0) * 0.15)
-                                        .toStringAsFixed(0)),
-                                  )}',
-                                  style: _customFont(
-                                      14, FontWeight.normal, Colors.white),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Total Cost: R ${_formatNumberWithSpaces(
-                                    _totalCost.toStringAsFixed(0),
-                                  )}',
-                                  style: _customFont(
-                                      14, FontWeight.bold, Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // If dealer => doc check
-                          StreamBuilder<DocumentSnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(userProvider.userId)
-                                .snapshots(),
-                            builder: (ctx, snapshot) {
-                              if (snapshot.hasData &&
-                                  userProvider.getUserRole == 'dealer') {
-                                Map<String, dynamic> userData = snapshot.data!
-                                    .data() as Map<String, dynamic>;
-                                bool hasDocuments = userData[
-                                                'cipcCertificateUrl']
-                                            ?.isNotEmpty ==
-                                        true &&
-                                    userData['brncUrl']?.isNotEmpty == true &&
-                                    userData['bankConfirmationUrl']
-                                            ?.isNotEmpty ==
-                                        true &&
-                                    userData['proxyUrl']?.isNotEmpty == true;
-                                bool isVerified =
-                                    userData['isVerified'] ?? false;
-                                bool isApproved = isVerified;
-
-                                if (!hasDocuments || !isApproved) {
-                                  return Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(
-                                      'Please upload all required documents '
-                                      '(CIPC, BRNC, Bank Confirmation, Proxy) '
-                                      'and wait for account approval before making offers.',
-                                      style: _customFont(
-                                          16, FontWeight.normal, Colors.red),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  );
-                                }
-                              }
-                              return Container();
-                            },
-                          ),
-
-                          // MAKE AN OFFER button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _makeOffer,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF4E00),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 10.0),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Text(
-                                'MAKE AN OFFER',
-                                style: _customFont(
-                                    20, FontWeight.bold, Colors.white),
-                              ),
-                            ),
                           ),
                         ],
-                      ],
-
-                      // Spacing
-                      const SizedBox(height: 40),
-
-                      // If it's a trailer & user is a dealer => single trailer block
-                      if (isTrailer && userProvider.getUserRole == 'dealer')
-                        _buildTrailerSection()
-                      else ...[
-                        if (userProvider.getUserRole == 'admin' ||
-                            userProvider.getUserRole ==
-                                'sales representative' ||
-                            userProvider.getUserRole == 'dealer')
-                          _buildSection(
-                            context,
-                            'BASIC INFORMATION',
-                            '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED',
-                          ),
-                        if (userProvider.getUserRole == 'admin' ||
-                            userProvider.getUserRole ==
-                                'sales representative' ||
-                            userProvider.getUserRole == 'dealer')
-                          _buildSection(
-                            context,
-                            'TRUCK CONDITIONS',
-                            '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED',
-                          ),
-                        if (userProvider.getUserRole == 'admin' ||
-                            userProvider.getUserRole ==
-                                'sales representative' ||
-                            userProvider.getUserRole == 'dealer')
-                          _buildSection(
-                            context,
-                            'MAINTENANCE AND WARRANTY',
-                            '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
-                          ),
-                      ],
-
-                      const SizedBox(height: 30),
-
-                      // If transporter => Show the offers
-                      if (userProvider.getUserRole == 'transporter') ...[
-                        Text(
-                          'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
-                          style: _customFont(
-                            20,
-                            FontWeight.bold,
-                            const Color(0xFFFF4E00),
-                          ),
+                      ),
+                    ),
+                    // Loading overlay
+                    if (_isLoading)
+                      Container(
+                        color: Colors.black54,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFFFF4E00)),
                         ),
-                        const SizedBox(height: 10),
-                        _buildOffersList(),
-                      ],
-
-                      const SizedBox(height: 24),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-
-          // Loading overlay
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF4E00)),
               ),
             ),
+          ),
+          // Add footer only for web
+          if (kIsWeb) const WebFooter(),
         ],
       ),
-
-      // Only show bottom nav if not admin/sales
       bottomNavigationBar: (!kIsWeb &&
               !(userProvider.getUserRole == 'admin' ||
                   userProvider.getUserRole == 'sales representative') &&

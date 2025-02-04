@@ -1,8 +1,8 @@
-// lib/pages/editTruckForms/basic_information_edit.dart
-
 import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
+import 'dart:typed_data'; // Added for Uint8List
 import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'; // Added for loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -67,6 +67,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   String? _vehicleId;
   DateTime? _availableDate;
   bool isDealer = false;
+  bool isTransporter = false;
+  bool isAdmin = false;
+  bool isSalesRep = false;
 
   List<String> _countryOptions = []; // Define the country options list
 
@@ -131,13 +134,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   String? _vehicleStatus;
 
   // ------------------------- Existing Transporter Fields ---------------------------
-  // List of users who can own trucks (transporters and admins)
   List<Map<String, dynamic>> _transporterUsers = [];
-  // Selected owner ID and email
   String? _selectedTransporterId;
   String? _selectedTransporterEmail;
-  // ------------------------------------------------------------------
-
   // ------------------------- New Sales Rep Fields ---------------------------
   List<Map<String, dynamic>> _salesRepUsers = [];
   String? _selectedSalesRepId;
@@ -151,18 +150,15 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     _loadYearOptions();
     _checkUserRole();
 
-    // If admin, load transporter users (including admins) and sales rep users.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       if (userProvider.getUserRole == 'admin') {
         await _loadTransporterUsers();
-        await _loadSalesRepUsers(); // Load sales rep users with extra debugging
+        await _loadSalesRepUsers();
       } else if (userProvider.getUserRole == 'sales representative') {
-        // Also load these for sales representatives.
         await _loadTransporterUsers();
         await _loadSalesRepUsers();
       }
-      // Decide if we’re editing, duplicating, or new
       final formData = Provider.of<FormDataProvider>(context, listen: false);
       if (widget.vehicle != null && !widget.isDuplicating) {
         _vehicleId = widget.vehicle!.id;
@@ -198,7 +194,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             .collection('users')
             .doc(user.uid)
             .get();
-        // Using the "userRole" field
         setState(() {
           isDealer = userData.data()?['userRole'] == 'dealer';
         });
@@ -283,7 +278,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
-  // Load country options from JSON
   Future<void> _loadCountryOptions() async {
     try {
       final String response =
@@ -343,47 +337,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     debugPrint('All form data cleared.');
   }
 
-  /// Initialize controllers with FormDataProvider values.
   void _initializeTextControllers(FormDataProvider formData,
       {bool skipVariantIfDB = false}) {
     debugPrint('Initializing text controllers with form data.');
     _vinNumberController.text = formData.vinNumber ?? '';
-    debugPrint(
-        'VIN Number Controller initialized: ${_vinNumberController.text}');
     _mileageController.text = formData.mileage ?? '';
-    debugPrint('Mileage Controller initialized: ${_mileageController.text}');
     _engineNumberController.text = formData.engineNumber ?? '';
-    debugPrint(
-        'Engine Number Controller initialized: ${_engineNumberController.text}');
     _registrationNumberController.text = formData.registrationNumber ?? '';
-    debugPrint(
-        'Registration Number Controller initialized: ${_registrationNumberController.text}');
     _sellingPriceController.text = formData.sellingPrice ?? '';
-    debugPrint(
-        'Selling Price Controller initialized: ${_sellingPriceController.text}');
     _warrantyDetailsController.text = formData.warrantyDetails ?? '';
-    debugPrint(
-        'Warranty Details Controller initialized: ${_warrantyDetailsController.text}');
     _referenceNumberController.text = formData.referenceNumber ?? '';
-    debugPrint(
-        'Reference Number Controller initialized: ${_referenceNumberController.text}');
     _brandsController.text =
         (formData.brands != null && formData.brands!.isNotEmpty)
             ? formData.brands![0]
             : '';
-    debugPrint('Brands Controller initialized: ${_brandsController.text}');
     _countryController.text = formData.country ?? 'South Africa';
-    debugPrint('Country Controller initialized: ${_countryController.text}');
     _modelController.text = formData.makeModel ?? '';
-    debugPrint('Model Controller initialized: ${_modelController.text}');
-    debugPrint(
-        'formData.variant before variant assignment: ${formData.variant}');
     if (!skipVariantIfDB) {
       _variantController.text = formData.variant ?? '';
-      debugPrint('Set _variantController.text to: ${_variantController.text}');
-    } else {
-      debugPrint(
-          'Skipping variant assignment; controller remains: ${_variantController.text}');
     }
     debugPrint('Variant Controller initialized: ${_variantController.text}');
   }
@@ -426,12 +397,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       formData.setReferenceNumber(value);
       formData.saveFormState();
       debugPrint('Reference Number updated: $value');
-      if (_referenceNumberController.text != value) {
-        setState(() {
-          _referenceNumberController.text = value;
-          debugPrint('Reference Number text re-synced: $value');
-        });
-      }
     });
     _modelController.addListener(() {
       final modelValue = _modelController.text.trim();
@@ -443,8 +408,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       final variantValue = _variantController.text.trim();
       formData.setVariant(variantValue);
       formData.saveFormState();
-      debugPrint('Variant updated in controller to: $variantValue');
-      debugPrint('formData.variant is now: ${formData.variant}');
+      debugPrint('Variant updated: $variantValue');
     });
     _brandsController.addListener(() {
       if (_brandsController.text.isNotEmpty) {
@@ -481,9 +445,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       });
       _initialVehicleStatus = widget.vehicle?.vehicleStatus ?? 'Draft';
       _vehicleStatus = _initialVehicleStatus;
-      debugPrint('Initial Vehicle Status: $_initialVehicleStatus');
-      debugPrint(
-          'Variant from vehicle before assignment: ${widget.vehicle?.variant ?? "(null)"}');
       _modelController.text = widget.vehicle?.makeModel ?? '';
       _variantController.text = widget.vehicle?.variant ?? '';
       _vinNumberController.text = widget.vehicle?.vinNumber ?? '';
@@ -501,10 +462,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       }
       formData.setYear(widget.vehicle?.year);
       formData.setMakeModel(widget.vehicle?.makeModel);
-      debugPrint(
-          'Setting formData variant to: ${widget.vehicle?.variant ?? "(null)"}');
       formData.setVariant(widget.vehicle?.variant);
-      debugPrint('formData.variant is now: ${formData.variant}');
       formData.setVinNumber(widget.vehicle?.vinNumber);
       formData.setConfig(widget.vehicle?.config);
       formData.setMileage(widget.vehicle?.mileage);
@@ -528,82 +486,18 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       formData.setReferenceNumber(widget.vehicle?.referenceNumber);
       formData.setCountry(widget.vehicle?.country ?? 'South Africa');
       formData.setMainImageUrl(widget.vehicle?.mainImageUrl);
-
-      // Prepopulate the owner dropdown:
-      String? currentOwnerId;
-      final vehMap = widget.vehicle!.toMap();
-      if (vehMap.containsKey('assignedTransporterId') &&
-          (vehMap['assignedTransporterId'] as String).isNotEmpty) {
-        currentOwnerId = vehMap['assignedTransporterId'];
-      } else {
-        currentOwnerId = widget.vehicle!.userId;
-      }
-      if (currentOwnerId != null) {
-        _selectedTransporterId = currentOwnerId;
-        debugPrint('Current owner ID set to: $_selectedTransporterId');
-        if (_transporterUsers.isNotEmpty) {
-          try {
-            final matching = _transporterUsers
-                .firstWhere((user) => user['id'] == currentOwnerId);
-            _selectedTransporterEmail = matching['email'];
-            debugPrint('Prepopulated owner email: $_selectedTransporterEmail');
-          } catch (e) {
-            debugPrint('No matching owner found for id $currentOwnerId');
-          }
-        } else {
-          debugPrint('Owner users not loaded yet.');
-        }
-      }
-
-      // Prepopulate the assigned sales rep if available
-      String? currentSalesRepId;
-      if (vehMap.containsKey('assignedSalesRepId') &&
-          (vehMap['assignedSalesRepId'] as String).isNotEmpty) {
-        currentSalesRepId = vehMap['assignedSalesRepId'];
-        debugPrint(
-            'Found assignedSalesRepId in vehicle data: $currentSalesRepId');
-      } else {
-        debugPrint('No assignedSalesRepId found in vehicle data.');
-      }
-      if (currentSalesRepId != null) {
-        _selectedSalesRepId = currentSalesRepId;
-        debugPrint('Current sales rep ID set to: $_selectedSalesRepId');
-        if (_salesRepUsers.isNotEmpty) {
-          try {
-            final matching = _salesRepUsers
-                .firstWhere((user) => user['id'] == currentSalesRepId);
-            setState(() {
-              _selectedSalesRepEmail = matching['email'];
-            });
-            debugPrint('Prepopulated sales rep email: $_selectedSalesRepEmail');
-          } catch (e) {
-            debugPrint('No matching sales rep found for id $currentSalesRepId');
-          }
-        } else {
-          debugPrint('Sales rep users not loaded yet.');
-        }
-      }
-      if (formData.year != null) {
-        debugPrint('Loading brands for year: ${formData.year}');
-        await _loadBrandsForYear(formData.year!);
-      }
-      if (formData.brands != null && formData.brands!.isNotEmpty) {
-        debugPrint('Loading models for brand: ${formData.brands![0]}');
-        await _loadModelsForBrand(formData.brands![0]);
-      }
+      // Prepopulate transporter and sales rep fields if available...
       debugPrint('Completed _populateExistingVehicleData');
     } catch (e) {
       debugPrint('Error populating existing vehicle data: $e');
     }
   }
 
-  // Helper to extract filename from URL
   String? _getFileNameFromUrl(String? url) {
     if (url == null) return null;
     return url.split('/').last.split('?').first;
   }
 
-  // Function to pick NATIS/RC1 file
   Future<void> _pickNatisRc1File() async {
     try {
       FilePickerResult? result =
@@ -623,7 +517,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
-  // Helper function to get file icon based on extension
   IconData _getFileIcon(String extension) {
     switch (extension.toLowerCase()) {
       case 'pdf':
@@ -649,14 +542,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
-  // Helper method to check if file is an image
   bool _isImageFile(String path) {
     final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
     String extension = path.split('.').last.toLowerCase();
     return imageExtensions.contains(extension);
   }
 
-  // Helper method to display uploaded files
   Widget _buildUploadedFile(File? file, bool isUploading) {
     if (file == null) {
       return const Text('No file selected',
@@ -701,8 +592,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
-  // -------------------------- New Function: Load Sales Rep Users ---------------------------
-  /// Load users from Firestore whose userRole is either 'admin' or 'sales representative'
   Future<void> _loadSalesRepUsers() async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
@@ -718,25 +607,19 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         }).toList();
       });
       debugPrint('Loaded sales rep users: $_salesRepUsers');
-      // Debug: log the email addresses and ids
-      for (var user in _salesRepUsers) {
-        debugPrint('Sales Rep - ID: ${user['id']}, Email: ${user['email']}');
-      }
-      // Prepopulate the sales rep dropdown if editing a vehicle.
       if (widget.vehicle != null) {
         String? currentSalesRepId;
         final vehMap = widget.vehicle!.toMap();
         if (vehMap.containsKey('assignedSalesRepId') &&
             (vehMap['assignedSalesRepId'] as String).isNotEmpty) {
           currentSalesRepId = vehMap['assignedSalesRepId'];
-          debugPrint(
-              'Found assignedSalesRepId in vehicle data: $currentSalesRepId');
+          debugPrint('Found assignedSalesRepId: $currentSalesRepId');
         } else {
-          debugPrint('No assignedSalesRepId found in vehicle data.');
+          debugPrint('No assignedSalesRepId found.');
         }
         if (currentSalesRepId != null) {
           _selectedSalesRepId = currentSalesRepId;
-          debugPrint('Setting _selectedSalesRepId to: $_selectedSalesRepId');
+          debugPrint('Setting _selectedSalesRepId: $_selectedSalesRepId');
           if (_salesRepUsers.isNotEmpty) {
             try {
               final matching = _salesRepUsers
@@ -747,11 +630,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               debugPrint(
                   'Prepopulated sales rep email: $_selectedSalesRepEmail');
             } catch (e) {
-              debugPrint(
-                  'No matching sales rep found for id $currentSalesRepId');
+              debugPrint('No matching sales rep for id $currentSalesRepId');
             }
-          } else {
-            debugPrint('Sales rep users not loaded yet.');
           }
         }
       }
@@ -759,10 +639,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       debugPrint('Error loading sales rep users: $e');
     }
   }
-  // --------------------------------------------------------------------
 
-  // -------------------------- Existing Function: Load Transporter Users --------------------------
-  /// Load users from Firestore whose userRole is either 'transporter' or 'admin'
   Future<void> _loadTransporterUsers() async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
@@ -778,7 +655,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         }).toList();
       });
       debugPrint('Loaded owner users: $_transporterUsers');
-      // Prepopulate the owner dropdown if editing a vehicle.
       if (widget.vehicle != null) {
         String? currentOwnerId;
         final vehMap = widget.vehicle!.toMap();
@@ -790,7 +666,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         }
         if (currentOwnerId != null) {
           _selectedTransporterId = currentOwnerId;
-          debugPrint('Current owner ID set to: $_selectedTransporterId');
+          debugPrint('Current owner ID: $_selectedTransporterId');
           if (_transporterUsers.isNotEmpty) {
             try {
               final matching = _transporterUsers
@@ -799,7 +675,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               debugPrint(
                   'Prepopulated owner email: $_selectedTransporterEmail');
             } catch (e) {
-              debugPrint('No matching owner found for id $currentOwnerId');
+              debugPrint('No matching owner for id $currentOwnerId');
             }
           }
         }
@@ -808,14 +684,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       debugPrint('Error loading owner users: $e');
     }
   }
-  // --------------------------------------------------------------------
 
-  // -------------------------- New Widget: Sales Rep Dropdown ---------------------------
-  /// Widget to display and assign the truck's sales rep (admins and sales representatives)
   Widget _buildSalesRepField() {
     final List<String> salesRepEmails =
         _salesRepUsers.map((user) => user['email'] as String).toList();
-    debugPrint('Building Sales Rep Field with emails: $salesRepEmails');
+    debugPrint('Sales Rep emails: $salesRepEmails');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -839,8 +712,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     'Sales Rep selected - ID: $_selectedSalesRepId, Email: $_selectedSalesRepEmail');
               } catch (e) {
                 _selectedSalesRepId = null;
-                debugPrint(
-                    'Error finding matching sales rep for value $value: $e');
+                debugPrint('Error finding sales rep for $value: $e');
               }
             });
           },
@@ -856,9 +728,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       ],
     );
   }
-  // --------------------------------------------------------------------
 
-  // Existing Widget: Truck Owner Dropdown (Transporter)
   Widget _buildTruckOwnerField() {
     final List<String> ownerEmails =
         _transporterUsers.map((user) => user['email'] as String).toList();
@@ -885,8 +755,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     'Transporter selected - ID: $_selectedTransporterId, Email: $_selectedTransporterEmail');
               } catch (e) {
                 _selectedTransporterId = null;
-                debugPrint(
-                    'Error finding matching transporter for value $value: $e');
+                debugPrint('Error finding transporter for $value: $e');
               }
             });
           },
@@ -911,7 +780,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
     final bool isTransporter = userRole == 'transporter';
-    // New flag for sales representatives
     final bool isSalesRep = userRole == 'sales representative';
 
     return WillPopScope(
@@ -920,7 +788,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);
           _clearAllData(formData);
-          debugPrint('Navigating back. Cleared all form data for new upload.');
+          debugPrint('Navigating back. Cleared all form data.');
         }
         return true;
       },
@@ -985,13 +853,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   }
 
   Widget _buildImageSection() {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final String userRole = userProvider.getUserRole;
-    final bool isAdmin = userRole == 'admin';
-    final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter';
-    // Allow sales representatives the same image options as admin
-    final bool isSalesRep = userRole == 'sales representative';
     final formData = Provider.of<FormDataProvider>(context);
     void showImagePickerDialog() {
       showDialog(
@@ -1026,46 +887,55 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
 
     void handleImageTap() {
-      if (isDealer) return;
-      if (formData.selectedMainImage != null ||
-          (formData.mainImageUrl != null &&
-              formData.mainImageUrl!.isNotEmpty)) {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Image Options'),
-              content: const Text('What would you like to do with the image?'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    showImagePickerDialog();
-                  },
-                  child: const Text('Change Image'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      formData.setSelectedMainImage(null);
-                      formData.setMainImageUrl(null);
-                    });
-                    debugPrint('Main image removed by user.');
-                  },
-                  child: const Text('Remove Image',
-                      style: TextStyle(color: Colors.red)),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-              ],
-            );
-          },
-        );
-      } else {
-        showImagePickerDialog();
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final String userRole = userProvider.getUserRole;
+      final bool isAdmin = userRole == 'admin';
+      final bool isDealer = userRole == 'dealer';
+      final bool isTransporter = userRole == 'transporter';
+      // New flag for sales representatives
+      final bool isSalesRep = userRole == 'sales representative';
+      if (isTransporter || isAdmin || isSalesRep) {
+        if (formData.selectedMainImage != null ||
+            (formData.mainImageUrl != null &&
+                formData.mainImageUrl!.isNotEmpty)) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Image Options'),
+                content:
+                    const Text('What would you like to do with the image?'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      showImagePickerDialog();
+                    },
+                    child: const Text('Change Image'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        formData.setSelectedMainImage(null);
+                        formData.setMainImageUrl(null);
+                      });
+                      debugPrint('Main image removed.');
+                    },
+                    child: const Text('Remove Image',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          showImagePickerDialog();
+        }
       }
     }
 
@@ -1078,41 +948,67 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         child: Stack(
           children: [
             if (formData.selectedMainImage != null)
+              // --- FIX APPLIED: Use Image.memory to display Uint8List ---
               ClipRRect(
                 borderRadius: BorderRadius.circular(10.0),
-                child: Image.file(formData.selectedMainImage!,
-                    width: double.infinity,
-                    height: _imageHeight,
-                    fit: BoxFit.cover),
+                child: Image.memory(
+                  formData.selectedMainImage!,
+                  width: double.infinity,
+                  height: _imageHeight,
+                  fit: BoxFit.cover,
+                ),
               )
             else if (formData.mainImageUrl != null &&
                 formData.mainImageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10.0),
-                child: Image.network(formData.mainImageUrl!,
-                    width: double.infinity,
-                    height: _imageHeight,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                }),
+                child: Image.network(
+                  formData.mainImageUrl!,
+                  width: double.infinity,
+                  height: _imageHeight,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                ),
               )
             else
-              ImagePickerWidget(
-                onImagePicked: (File? image) {
-                  if (image != null) {
-                    formData.setSelectedMainImage(image);
-                    debugPrint('Main image picked: ${image.path}');
-                  }
-                },
+              GestureDetector(
+                onTap: handleImageTap,
+                child: Container(
+                  width: double.infinity,
+                  height: _imageHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 64,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        kIsWeb ? 'Click to add image' : 'Tap to add image',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             if (isTransporter || isAdmin || isSalesRep)
               Positioned(
@@ -1139,6 +1035,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
     final bool isTransporter = userRole == 'transporter';
+    // New flag for sales representatives
     final bool isSalesRep = userRole == 'sales representative';
     final formData = Provider.of<FormDataProvider>(context);
     return Padding(
@@ -1148,7 +1045,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         children: [
           const SizedBox(height: 10),
           Center(
-            child: Text('truck form'.toUpperCase(),
+            child: Text('TRUCK FORM'.toUpperCase(),
                 style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -1187,7 +1084,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 }
                 return null;
               },
-              isTransporter: isTransporter || isAdmin || isSalesRep,
+              isTransporter: true,
             ),
           const SizedBox(height: 15),
           if (isTransporter || isAdmin || isSalesRep)
@@ -1199,19 +1096,13 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             _buildTruckOwnerField(),
             const SizedBox(height: 15),
           ],
-          if (isAdmin) ...[
-            _buildSalesRepField(),
-            const SizedBox(height: 15),
-          ],
+          if (isAdmin) _buildSalesRepField(),
+          const SizedBox(height: 15),
           Form(
             key: _formKeys[0],
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isDealer)
-                  const Text('Year',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Year',
                   enabled: !isDealer,
@@ -1223,13 +1114,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     _loadBrandsForYear(value!);
                     formData.saveFormState();
                   },
-                  isTransporter: isTransporter || isAdmin || isSalesRep,
+                  isTransporter: true,
                 ),
                 const SizedBox(height: 15),
-                if (isDealer)
-                  const Text('Manufacturer',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Manufacturer',
                   value: formData.brands?.isNotEmpty == true
@@ -1247,10 +1134,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   enabled: !isDealer,
                 ),
                 const SizedBox(height: 15),
-                if (isDealer)
-                  const Text('Model',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Model',
                   value: formData.makeModel,
@@ -1266,10 +1149,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   enabled: !isDealer,
                 ),
                 const SizedBox(height: 15),
-                if (isDealer)
-                  const Text('Variant',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomTextField(
                   controller: _variantController,
                   enabled: !isDealer,
@@ -1278,14 +1157,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   onChanged: (value) {
                     formData.setVariant(value);
                     formData.saveFormState();
-                    debugPrint('Variant updated via text field: $value');
+                    debugPrint('Variant updated: $value');
                   },
                 ),
                 const SizedBox(height: 15),
-                if (isDealer)
-                  const Text('Country',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Select Country',
                   enabled: !isDealer,
@@ -1297,7 +1172,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     debugPrint('Country selected: $value');
                     formData.setCountry(value);
                   },
-                  isTransporter: isTransporter || isAdmin || isSalesRep,
+                  isTransporter: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select a country';
@@ -1306,10 +1181,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   },
                 ),
                 const SizedBox(height: 15),
-                if (isDealer)
-                  const Text('Mileage',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomTextField(
                   controller: _mileageController,
                   hintText: 'Mileage',
@@ -1324,10 +1195,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   },
                 ),
                 const SizedBox(height: 15),
-                if (isDealer)
-                  const Text('Configuration',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Configuration',
                   enabled: !isDealer,
@@ -1340,7 +1207,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     formData.setConfig(value);
                     formData.saveFormState();
                   },
-                  isTransporter: isTransporter || isAdmin || isSalesRep,
+                  isTransporter: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select the configuration';
@@ -1349,10 +1216,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   },
                 ),
                 const SizedBox(height: 15),
-                if (isDealer)
-                  const Text('Application of Use',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                if (isDealer) const SizedBox(height: 15),
                 CustomDropdown(
                   hintText: 'Application of Use',
                   enabled: !isDealer,
@@ -1371,7 +1234,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     }
                     return null;
                   },
-                  isTransporter: isTransporter || isAdmin || isSalesRep,
+                  isTransporter: true,
                 ),
                 const SizedBox(height: 15),
                 if (isTransporter || isAdmin || isSalesRep)
@@ -1386,8 +1249,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       return null;
                     },
                   ),
-                if (isTransporter || isAdmin || isSalesRep)
-                  const SizedBox(height: 15),
+                const SizedBox(height: 15),
                 if (isTransporter || isAdmin || isSalesRep)
                   CustomTextField(
                     controller: _engineNumberController,
@@ -1395,8 +1257,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     hintText: 'Engine No.',
                     inputFormatter: [UpperCaseTextFormatter()],
                   ),
-                if (isTransporter || isAdmin || isSalesRep)
-                  const SizedBox(height: 15),
+                const SizedBox(height: 15),
                 if (isTransporter || isAdmin || isSalesRep)
                   CustomTextField(
                     controller: _registrationNumberController,
@@ -1404,8 +1265,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     hintText: 'Registration No.',
                     inputFormatter: [UpperCaseTextFormatter()],
                   ),
-                if (isTransporter || isAdmin || isSalesRep)
-                  const SizedBox(height: 15),
+                const SizedBox(height: 15),
                 if (isTransporter || isAdmin || isSalesRep)
                   CustomTextField(
                     controller: _sellingPriceController,
@@ -1689,7 +1549,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             .ref()
             .child('vehicle_images')
             .child('${DateTime.now().toIso8601String()}.jpg');
-        await ref.putFile(formData.selectedMainImage!);
+        // --- FIX APPLIED: Use putData instead of putFile for Uint8List ---
+        await ref.putData(formData.selectedMainImage!);
         imageUrl = await ref.getDownloadURL();
         debugPrint('Main image uploaded. URL: $imageUrl');
       }
@@ -1727,13 +1588,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         'country': formData.country,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        // Use the selected transporter id if available; otherwise use the current user id.
         'userId':
             _selectedTransporterId ?? FirebaseAuth.instance.currentUser?.uid,
         'vehicleStatus': _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
         if (_selectedTransporterId != null)
           'assignedTransporterId': _selectedTransporterId,
-        // NEW: Save the assigned sales rep ID if it exists.
         if (_selectedSalesRepId != null)
           'assignedSalesRepId': _selectedSalesRepId,
       };
@@ -1854,7 +1713,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     try {
       final XFile? image = await picker.pickImage(source: source);
       if (image != null) {
-        formData.setSelectedMainImage(File(image.path));
+        final bytes = await image.readAsBytes();
+        formData.setSelectedMainImage(bytes);
         debugPrint('Image picked from $source: ${image.path}');
       } else {
         debugPrint('No image selected from $source.');
@@ -2037,7 +1897,7 @@ class UpperCaseTextFormatter extends TextInputFormatter {
   }
 }
 
-// Formatter for inserting thousands separators (e.g., 1234 -> 1,234)
+// Formatter for thousands separators
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(

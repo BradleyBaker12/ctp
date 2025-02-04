@@ -110,6 +110,8 @@ class _OfferCardState extends State<OfferCard> {
       case 'successful':
       case 'completed':
       case 'inspection done':
+      case 'payment approved':
+      case 'awaiting collection': // Add this case
         return Colors.green;
 
       // Failed states - Red
@@ -162,6 +164,8 @@ class _OfferCardState extends State<OfferCard> {
       case 'paid':
       case 'successful':
       case 'completed':
+      case 'payment approved':
+      case 'awaiting collection': // Add this case
         return Icons.check_circle;
 
       // Rejected/Failed states
@@ -204,6 +208,18 @@ class _OfferCardState extends State<OfferCard> {
 
     // Handle Payment Approved status for both roles
     if (widget.offer.offerStatus?.toLowerCase() == 'payment approved') {
+      String newStatus = 'awaiting collection';
+      // Update the offer status in Firestore
+      FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .update({'offerStatus': newStatus}).then((_) {
+        // Update local state
+        setState(() {
+          widget.offer.offerStatus = newStatus;
+        });
+      });
+
       Navigator.push(
         context,
         MaterialPageRoute(

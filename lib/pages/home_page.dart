@@ -22,6 +22,7 @@ import 'package:flutter/foundation.dart'
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/components/web_footer.dart'; // Add this import
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -679,34 +680,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 )
               : null,
-          body: FutureBuilder<void>(
-            future: _initialization,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Image(
-                    image: AssetImage('lib/assets/Loading_Logo_CTP.gif'),
-                    width: 100,
-                    height: 100,
+          body: Container(
+            // Add this container with min-height
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: FutureBuilder<void>(
+                    future: _initialization,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Image(
+                            image:
+                                AssetImage('lib/assets/Loading_Logo_CTP.gif'),
+                            width: 100,
+                            height: 100,
+                          ),
+                        );
+                      } else if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Error loading data',
+                            style: TextStyle(
+                              fontSize: _adaptiveTextSize(context, 16, 20),
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      } else {
+                        return SingleChildScrollView(
+                          child: _buildHomePageContent(
+                              context, constraints, isTablet),
+                        );
+                      }
+                    },
                   ),
-                );
-              } else if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Error loading data',
-                    style: TextStyle(
-                      fontSize: _adaptiveTextSize(context, 16, 20),
-                      color: Colors.white,
-                    ),
-                  ),
-                );
-              } else {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 100.0),
-                  child: _buildHomePageContent(context, constraints, isTablet),
-                );
-              }
-            },
+                ),
+              ],
+            ),
           ),
           bottomNavigationBar: showBottomNav
               ? CustomBottomNavigation(
@@ -1022,6 +1036,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               },
             ),
           ],
+          SizedBox(height: screenHeight * 0.08),
+          if (kIsWeb) ...[const WebFooter()]
         ],
       ),
     );

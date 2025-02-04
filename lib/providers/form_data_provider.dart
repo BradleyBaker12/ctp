@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'dart:typed_data'; // Added for Uint8List
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,8 +39,9 @@ class FormDataProvider with ChangeNotifier {
   String? _oemInspectionExplanation;
 
   // Main Image
-  File? _selectedMainImage;
-  File? get selectedMainImage => _selectedMainImage;
+  // --- FIX APPLIED: Change type from File? to Uint8List? ---
+  Uint8List? _selectedMainImage;
+  Uint8List? get selectedMainImage => _selectedMainImage;
 
   String? _mainImageUrl;
   String? get mainImageUrl => _mainImageUrl;
@@ -212,7 +214,8 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  void setSelectedMainImage(File? image) {
+  // --- FIX APPLIED: Update the main image setter to accept Uint8List instead of File ---
+  void setSelectedMainImage(Uint8List? image) {
     _selectedMainImage = image;
     notifyListeners();
   }
@@ -557,7 +560,7 @@ class FormDataProvider with ChangeNotifier {
     _requireToSettleType = 'no';
     _referenceNumber = null;
     _brands = [];
-    _selectedMainImage = null;
+    _selectedMainImage = null; // Uint8List now
     _mainImageUrl = null;
     _natisRc1Url = null;
 
