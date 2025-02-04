@@ -1428,7 +1428,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               preferredSize: const Size.fromHeight(70),
               child: WebNavigationBar(
                 isCompactNavigation: _isCompactNavigation(context),
-                currentRoute: '/offers',
+                currentRoute: '/truckPage',
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
             )

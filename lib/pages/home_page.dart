@@ -701,7 +701,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 );
               } else {
-                return _buildHomePageContent(context, constraints, isTablet);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 100.0),
+                  child: _buildHomePageContent(context, constraints, isTablet),
+                );
               }
             },
           ),
