@@ -899,6 +899,23 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     );
   }
 
+  // "Old style" container for image preview and placeholders.
+  Widget _buildStyledContainer({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E4CAF).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10.0),
+        border: Border.all(
+          color: const Color(0xFF0E4CAF),
+          width: 2.0,
+        ),
+      ),
+      child: child,
+    );
+  }
+
   Widget _buildVehicleTypeRadios(FormDataProvider formData) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -931,23 +948,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           ],
         ),
       ],
-    );
-  }
-
-  // This "old style" container used to style the main image preview.
-  Widget _buildStyledContainer({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E4CAF).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10.0),
-        border: Border.all(
-          color: const Color(0xFF0E4CAF),
-          width: 2.0,
-        ),
-      ),
-      child: child,
     );
   }
 
@@ -991,71 +991,49 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Wrap the Reference Number field to fill the width.
-          SizedBox(
-            width: double.infinity,
-            child: CustomTextField(
-              controller: _referenceNumberController,
-              hintText: 'Reference Number',
-              inputFormatter: [UpperCaseTextFormatter()],
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the reference number';
-                }
-                return null;
-              },
-            ),
+          // Reference Number Field using old style (CustomTextField)
+          CustomTextField(
+            controller: _referenceNumberController,
+            hintText: 'Reference Number',
+            inputFormatter: [UpperCaseTextFormatter()],
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter the reference number';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 15),
-          // For Admins: Sales Rep Dropdown
+          // For Admins: Sales Rep Dropdown using old style CustomDropdown
           if (widget.isAdminUpload) ...[
-            SizedBox(
-              width: double.infinity,
-              child: FutureBuilder<List<Map<String, String>>>(
-                future: _getSalesReps(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final salesReps = snapshot.data!;
-                  return DropdownButtonFormField<String>(
-                    dropdownColor: Colors.grey[900],
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey[800],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    hint: Text(
-                      'Select Sales Rep',
-                      style: GoogleFonts.montserrat(color: Colors.white),
-                    ),
-                    value: _selectedSalesRep,
-                    items: salesReps.map((rep) {
-                      return DropdownMenuItem<String>(
-                        value: rep['id'],
-                        child: Text(
-                          rep['display']!,
-                          style: GoogleFonts.montserrat(color: Colors.white),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedSalesRep = value;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please select a Sales Rep';
-                      }
-                      return null;
-                    },
-                  );
-                },
-              ),
+            FutureBuilder<List<Map<String, String>>>(
+              future: _getSalesReps(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final salesReps = snapshot.data!;
+                return CustomDropdown(
+                  hintText: 'Select Sales Rep',
+                  value: _selectedSalesRep,
+                  items: salesReps.map((rep) => rep['display']!).toList(),
+                  onChanged: (value) {
+                    // Find the matching rep id from the display value.
+                    final match = salesReps.firstWhere(
+                        (rep) => rep['display'] == value,
+                        orElse: () => {});
+                    setState(() {
+                      _selectedSalesRep = match['id'];
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select a Sales Rep';
+                    }
+                    return null;
+                  },
+                );
+              },
             ),
             const SizedBox(height: 15),
           ],
@@ -1068,472 +1046,422 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             alignment: WrapAlignment.center,
             children: [
               // Vehicle Type Radios
-              SizedBox(
-                width: isWebView ? (screenWidth * 0.4) : double.infinity,
-                child: _buildVehicleTypeRadios(formData),
-              ),
-              // The rest of the fields are wrapped in a Form and each field in a SizedBox
-              SizedBox(
-                width: isWebView ? (screenWidth * 0.4) : double.infinity,
-                child: Form(
-                  key: _formKeys[0],
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomDropdown(
-                          hintText: 'Year',
-                          value: formData.year,
-                          items: _yearOptions,
+              _buildVehicleTypeRadios(formData),
+              // Form fields
+              Form(
+                key: _formKeys[0],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    CustomDropdown(
+                      hintText: 'Year',
+                      value: formData.year,
+                      items: _yearOptions,
+                      onChanged: (value) {
+                        formData.setYear(value);
+                        _loadBrandsForYear(value!);
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomDropdown(
+                      hintText: 'Manufacturer',
+                      value: formData.brands?.isNotEmpty == true
+                          ? formData.brands![0]
+                          : null,
+                      items: _brandOptions,
+                      onChanged: (value) {
+                        if (value != null) {
+                          formData.setBrands([value]);
+                          _loadModelsForBrand(value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomDropdown(
+                      hintText: 'Model',
+                      value: formData.makeModel,
+                      items: _makeModelOptions[
+                              formData.brands?.isNotEmpty == true
+                                  ? formData.brands![0]
+                                  : ''] ??
+                          [],
+                      onChanged: (value) {
+                        formData.setMakeModel(value);
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomTextField(
+                      controller: _variantController,
+                      hintText: 'Variant',
+                      inputFormatter: [UpperCaseTextFormatter()],
+                      onChanged: (value) {
+                        formData.setVariant(value);
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomDropdown(
+                      hintText: 'Select Country',
+                      value: formData.country?.isNotEmpty == true
+                          ? formData.country
+                          : null,
+                      items: _countryOptions,
+                      onChanged: (value) {
+                        formData.setCountry(value);
+                        if (value != null) {
+                          _updateProvinceOptions(value);
+                          formData.setProvince(null);
+                        }
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a country';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomDropdown(
+                      hintText: 'Select Province/State',
+                      value: formData.province,
+                      items: _provinceOptions,
+                      onChanged: (value) {
+                        formData.setProvince(value);
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a province/state';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomTextField(
+                      controller: _mileageController,
+                      hintText: 'Mileage',
+                      keyboardType: TextInputType.number,
+                      inputFormatter: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the mileage';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomDropdown(
+                      hintText: 'Configuration',
+                      value: formData.config?.isNotEmpty == true
+                          ? formData.config
+                          : null,
+                      items: _configurationOptions,
+                      onChanged: (value) {
+                        formData.setConfig(value);
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select the configuration';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomDropdown(
+                      hintText: 'Application of Use',
+                      value: formData.application?.isNotEmpty == true
+                          ? formData.application
+                          : null,
+                      items: _applicationOptions,
+                      onChanged: (value) {
+                        formData.setApplication(value);
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select the application of use';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomTextField(
+                      controller: _vinNumberController,
+                      hintText: 'VIN Number',
+                      inputFormatter: [UpperCaseTextFormatter()],
+                      onChanged: (value) async {
+                        if (value.length >= 17) {
+                          bool isUnique = await _isVinNumberUnique(value);
+                          if (!isUnique) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Warning: This VIN number is already registered in the system'),
+                                backgroundColor: Colors.orange,
+                                duration: Duration(seconds: 5),
+                                action: SnackBarAction(
+                                  label: 'Dismiss',
+                                  textColor: Colors.white,
+                                  onPressed: () {},
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the VIN number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    CustomTextField(
+                      controller: _engineNumberController,
+                      hintText: 'Engine No.',
+                      inputFormatter: [UpperCaseTextFormatter()],
+                    ),
+                    const SizedBox(height: 15),
+                    CustomTextField(
+                      controller: _registrationNumberController,
+                      hintText: 'Registration No.',
+                      inputFormatter: [UpperCaseTextFormatter()],
+                    ),
+                    const SizedBox(height: 15),
+                    CustomTextField(
+                      controller: _sellingPriceController,
+                      hintText: 'Expected Selling Price',
+                      isCurrency: true,
+                      keyboardType: TextInputType.number,
+                      inputFormatter: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        ThousandsSeparatorInputFormatter(),
+                      ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the expected selling price';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 15),
+                    Center(
+                      child: Text(
+                        'Suspension',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CustomRadioButton(
+                          label: 'Spring',
+                          value: 'spring',
+                          groupValue: formData.suspension,
                           onChanged: (value) {
-                            formData.setYear(value);
-                            _loadBrandsForYear(value!);
+                            formData.setSuspension(value);
                           },
                         ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomDropdown(
-                          hintText: 'Manufacturer',
-                          value: formData.brands?.isNotEmpty == true
-                              ? formData.brands![0]
-                              : null,
-                          items: _brandOptions,
+                        const SizedBox(width: 15),
+                        CustomRadioButton(
+                          label: 'Air',
+                          value: 'air',
+                          groupValue: formData.suspension,
                           onChanged: (value) {
-                            if (value != null) {
-                              formData.setBrands([value]);
-                              _loadModelsForBrand(value);
-                            }
+                            formData.setSuspension(value);
                           },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomDropdown(
-                          hintText: 'Model',
-                          value: formData.makeModel,
-                          items: _makeModelOptions[
-                                  formData.brands?.isNotEmpty == true
-                                      ? formData.brands![0]
-                                      : ''] ??
-                              [],
-                          onChanged: (value) {
-                            formData.setMakeModel(value);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomTextField(
-                          controller: _variantController,
-                          hintText: 'Variant',
-                          inputFormatter: [UpperCaseTextFormatter()],
-                          onChanged: (value) {
-                            formData.setVariant(value);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomDropdown(
-                          hintText: 'Select Country',
-                          value: formData.country?.isNotEmpty == true
-                              ? formData.country
-                              : null,
-                          items: _countryOptions,
-                          onChanged: (value) {
-                            formData.setCountry(value);
-                            if (value != null) {
-                              _updateProvinceOptions(value);
-                              formData.setProvince(null);
-                            }
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a country';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomDropdown(
-                          hintText: 'Select Province/State',
-                          value: formData.province,
-                          items: _provinceOptions,
-                          onChanged: (value) {
-                            formData.setProvince(value);
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a province/state';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomTextField(
-                          controller: _mileageController,
-                          hintText: 'Mileage',
-                          keyboardType: TextInputType.number,
-                          inputFormatter: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the mileage';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomDropdown(
-                          hintText: 'Configuration',
-                          value: formData.config?.isNotEmpty == true
-                              ? formData.config
-                              : null,
-                          items: _configurationOptions,
-                          onChanged: (value) {
-                            formData.setConfig(value);
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select the configuration';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomDropdown(
-                          hintText: 'Application of Use',
-                          value: formData.application?.isNotEmpty == true
-                              ? formData.application
-                              : null,
-                          items: _applicationOptions,
-                          onChanged: (value) {
-                            formData.setApplication(value);
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select the application of use';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomTextField(
-                          controller: _vinNumberController,
-                          hintText: 'VIN Number',
-                          inputFormatter: [UpperCaseTextFormatter()],
-                          onChanged: (value) async {
-                            if (value.length >= 17) {
-                              bool isUnique = await _isVinNumberUnique(value);
-                              if (!isUnique) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Warning: This VIN number is already registered in the system'),
-                                    backgroundColor: Colors.orange,
-                                    duration: Duration(seconds: 5),
-                                    action: SnackBarAction(
-                                      label: 'Dismiss',
-                                      textColor: Colors.white,
-                                      onPressed: () {},
-                                    ),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the VIN number';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomTextField(
-                          controller: _engineNumberController,
-                          hintText: 'Engine No.',
-                          inputFormatter: [UpperCaseTextFormatter()],
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomTextField(
-                          controller: _registrationNumberController,
-                          hintText: 'Registration No.',
-                          inputFormatter: [UpperCaseTextFormatter()],
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomTextField(
-                          controller: _sellingPriceController,
-                          hintText: 'Expected Selling Price',
-                          isCurrency: true,
-                          keyboardType: TextInputType.number,
-                          inputFormatter: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            ThousandsSeparatorInputFormatter(),
-                          ],
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the expected selling price';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Center(
-                        child: Text(
-                          'Suspension',
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CustomRadioButton(
-                            label: 'Spring',
-                            value: 'spring',
-                            groupValue: formData.suspension,
-                            onChanged: (value) {
-                              formData.setSuspension(value);
-                            },
-                          ),
-                          const SizedBox(width: 15),
-                          CustomRadioButton(
-                            label: 'Air',
-                            value: 'air',
-                            groupValue: formData.suspension,
-                            onChanged: (value) {
-                              formData.setSuspension(value);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Divider(),
-                      const SizedBox(height: 15),
-                      Center(
-                        child: Text(
-                          'Transmission',
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CustomRadioButton(
-                            label: 'Automatic',
-                            value: 'automatic',
-                            groupValue: formData.transmissionType,
-                            onChanged: (value) {
-                              formData.setTransmissionType(value);
-                            },
-                          ),
-                          const SizedBox(width: 15),
-                          CustomRadioButton(
-                            label: 'Manual',
-                            value: 'manual',
-                            groupValue: formData.transmissionType,
-                            onChanged: (value) {
-                              formData.setTransmissionType(value);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Divider(),
-                      const SizedBox(height: 15),
-                      Center(
-                        child: Text(
-                          'Hydraulics',
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CustomRadioButton(
-                            label: 'Yes',
-                            value: 'yes',
-                            groupValue: formData.hydraulics,
-                            onChanged: (value) {
-                              formData.setHydraulics(value);
-                            },
-                          ),
-                          const SizedBox(width: 15),
-                          CustomRadioButton(
-                            label: 'No',
-                            value: 'no',
-                            groupValue: formData.hydraulics,
-                            onChanged: (value) {
-                              formData.setHydraulics(value);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Divider(),
-                      const SizedBox(height: 15),
-                      Center(
-                        child: Text(
-                          'Maintenance',
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CustomRadioButton(
-                            label: 'Yes',
-                            value: 'yes',
-                            groupValue: formData.maintenance,
-                            onChanged: (value) {
-                              formData.setMaintenance(value);
-                            },
-                          ),
-                          const SizedBox(width: 15),
-                          CustomRadioButton(
-                            label: 'No',
-                            value: 'no',
-                            groupValue: formData.maintenance,
-                            onChanged: (value) {
-                              formData.setMaintenance(value);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Divider(),
-                      const SizedBox(height: 15),
-                      Center(
-                        child: Text(
-                          'Warranty',
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CustomRadioButton(
-                            label: 'Yes',
-                            value: 'yes',
-                            groupValue: formData.warranty,
-                            onChanged: (value) {
-                              formData.setWarranty(value);
-                            },
-                          ),
-                          const SizedBox(width: 15),
-                          CustomRadioButton(
-                            label: 'No',
-                            value: 'no',
-                            groupValue: formData.warranty,
-                            onChanged: (value) {
-                              formData.setWarranty(value);
-                            },
-                          ),
-                        ],
-                      ),
-                      if (formData.warranty == 'yes') ...[
-                        const SizedBox(height: 15),
-                        SizedBox(
-                          width: double.infinity,
-                          child: CustomTextField(
-                            controller: _warrantyDetailsController,
-                            hintText: 'WHAT MAIN WARRANTY IS THE VEHICLE ON',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter the warranty details';
-                              }
-                              return null;
-                            },
-                          ),
                         ),
                       ],
-                      const SizedBox(height: 15),
-                      Divider(),
-                      const SizedBox(height: 15),
-                      Center(
-                        child: Text(
-                          'DO YOU REQUIRE THE TRUCK TO BE SETTLED BEFORE SELLING',
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.white),
-                          textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 15),
+                    Divider(),
+                    const SizedBox(height: 15),
+                    Center(
+                      child: Text(
+                        'Transmission',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CustomRadioButton(
+                          label: 'Automatic',
+                          value: 'automatic',
+                          groupValue: formData.transmissionType,
+                          onChanged: (value) {
+                            formData.setTransmissionType(value);
+                          },
                         ),
+                        const SizedBox(width: 15),
+                        CustomRadioButton(
+                          label: 'Manual',
+                          value: 'manual',
+                          groupValue: formData.transmissionType,
+                          onChanged: (value) {
+                            formData.setTransmissionType(value);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Divider(),
+                    const SizedBox(height: 15),
+                    Center(
+                      child: Text(
+                        'Hydraulics',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.white),
+                        textAlign: TextAlign.center,
                       ),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CustomRadioButton(
+                          label: 'Yes',
+                          value: 'yes',
+                          groupValue: formData.hydraulics,
+                          onChanged: (value) {
+                            formData.setHydraulics(value);
+                          },
+                        ),
+                        const SizedBox(width: 15),
+                        CustomRadioButton(
+                          label: 'No',
+                          value: 'no',
+                          groupValue: formData.hydraulics,
+                          onChanged: (value) {
+                            formData.setHydraulics(value);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Divider(),
+                    const SizedBox(height: 15),
+                    Center(
+                      child: Text(
+                        'Maintenance',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CustomRadioButton(
+                          label: 'Yes',
+                          value: 'yes',
+                          groupValue: formData.maintenance,
+                          onChanged: (value) {
+                            formData.setMaintenance(value);
+                          },
+                        ),
+                        const SizedBox(width: 15),
+                        CustomRadioButton(
+                          label: 'No',
+                          value: 'no',
+                          groupValue: formData.maintenance,
+                          onChanged: (value) {
+                            formData.setMaintenance(value);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Divider(),
+                    const SizedBox(height: 15),
+                    Center(
+                      child: Text(
+                        'Warranty',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CustomRadioButton(
+                          label: 'Yes',
+                          value: 'yes',
+                          groupValue: formData.warranty,
+                          onChanged: (value) {
+                            formData.setWarranty(value);
+                          },
+                        ),
+                        const SizedBox(width: 15),
+                        CustomRadioButton(
+                          label: 'No',
+                          value: 'no',
+                          groupValue: formData.warranty,
+                          onChanged: (value) {
+                            formData.setWarranty(value);
+                          },
+                        ),
+                      ],
+                    ),
+                    if (formData.warranty == 'yes') ...[
                       const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CustomRadioButton(
-                            label: 'Yes',
-                            value: 'yes',
-                            groupValue: formData.requireToSettleType,
-                            onChanged: (value) {
-                              formData.setRequireToSettleType(value);
-                            },
-                          ),
-                          const SizedBox(width: 15),
-                          CustomRadioButton(
-                            label: 'No',
-                            value: 'no',
-                            groupValue: formData.requireToSettleType,
-                            onChanged: (value) {
-                              formData.setRequireToSettleType(value);
-                            },
-                          ),
-                        ],
+                      CustomTextField(
+                        controller: _warrantyDetailsController,
+                        hintText: 'WHAT MAIN WARRANTY IS THE VEHICLE ON',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the warranty details';
+                          }
+                          return null;
+                        },
                       ),
-                      const SizedBox(height: 30),
-                      _buildNextButton(),
-                      const SizedBox(height: 30),
                     ],
-                  ),
+                    const SizedBox(height: 15),
+                    Divider(),
+                    const SizedBox(height: 15),
+                    Center(
+                      child: Text(
+                        'DO YOU REQUIRE THE TRUCK TO BE SETTLED BEFORE SELLING',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CustomRadioButton(
+                          label: 'Yes',
+                          value: 'yes',
+                          groupValue: formData.requireToSettleType,
+                          onChanged: (value) {
+                            formData.setRequireToSettleType(value);
+                          },
+                        ),
+                        const SizedBox(width: 15),
+                        CustomRadioButton(
+                          label: 'No',
+                          value: 'no',
+                          groupValue: formData.requireToSettleType,
+                          onChanged: (value) {
+                            formData.setRequireToSettleType(value);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    _buildNextButton(),
+                    const SizedBox(height: 30),
+                  ],
                 ),
               ),
             ],
