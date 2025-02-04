@@ -906,46 +906,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
           // For transporter, show "YOUR VEHICLES WITH OFFERS"
           if (userRole == 'transporter') ...[
-            Text(
-              "YOUR VEHICLES WITH OFFERS",
-              style: _getTextStyle(
-                fontSize: _adaptiveTextSize(context, 18, 20),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: screenHeight * 0.015),
-            ValueListenableBuilder<List<Vehicle>>(
-              valueListenable: displayedVehiclesNotifier,
-              builder: (context, displayedVehicles, child) {
-                final offerProvider =
-                    Provider.of<OfferProvider>(context, listen: false);
-
-                return SizedBox(
-                  height: isTablet ? screenHeight * 0.25 : screenHeight * 0.3,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: displayedVehicles.length,
-                    itemBuilder: (context, index) {
-                      final vehicle = displayedVehicles[index];
-                      final hasOffers = offerProvider.offers.any(
-                        (offer) =>
-                            offer.vehicleId == vehicle.id &&
-                            offer.offerStatus != 'Done',
-                      );
-
-                      if (hasOffers) {
-                        return _buildTransporterVehicleCard(
-                          vehicle,
-                          constraints,
-                        );
-                      } else {
-                        return const SizedBox.shrink();
-                      }
-                    },
-                  ),
-                );
-              },
-            ),
             SizedBox(height: screenHeight * 0.015),
           ],
 
