@@ -78,18 +78,24 @@ class WebNavigationBar extends StatelessWidget {
                     ? MainAxisAlignment.center
                     : MainAxisAlignment.start,
                 children: [
-                  Image.network(
-                    'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                    height: 40,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/home'),
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Image.network(
+                        'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
                         height: 40,
-                        width: 40,
-                        color: Colors.grey[900],
-                        child: const Icon(Icons.local_shipping,
-                            color: Colors.white),
-                      );
-                    },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 40,
+                            width: 40,
+                            color: Colors.grey[900],
+                            child: const Icon(Icons.local_shipping,
+                                color: Colors.white),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                   // Navigation links (only shown in full mode)
                   if (!isCompactNavigation) ...[

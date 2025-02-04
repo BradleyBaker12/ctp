@@ -13,6 +13,8 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ctp/components/web_navigation_bar.dart';
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
@@ -23,10 +25,18 @@ class VehiclesListPage extends StatefulWidget {
 
 class _VehiclesListPageState extends State<VehiclesListPage>
     with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 1;
   final ScrollController _scrollController = ScrollController();
   late TabController _tabController;
   bool isLoading = true;
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
+
+  // Add this getter for large screen detection
+  bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
 
   @override
   void initState() {
@@ -93,10 +103,95 @@ class _VehiclesListPageState extends State<VehiclesListPage>
 
     return GradientBackground(
       child: Scaffold(
+        key: _scaffoldKey,
         backgroundColor: Colors.transparent,
-        appBar: CustomAppBar(),
+        appBar: (_isLargeScreen || kIsWeb)
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(70),
+                child: WebNavigationBar(
+                  isCompactNavigation: _isCompactNavigation(context),
+                  currentRoute: '/transporterList',
+                  onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+              )
+            : CustomAppBar(),
+        drawer: _isCompactNavigation(context)
+            ? Drawer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: const [Colors.black, Color(0xFF2F7FFD)],
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      DrawerHeader(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.white24, width: 1),
+                          ),
+                        ),
+                        child: Center(
+                          child: Image.network(
+                            'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                            height: 50,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 50,
+                                width: 50,
+                                color: Colors.grey[900],
+                                child: const Icon(Icons.local_shipping,
+                                    color: Colors.white),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            ListTile(
+                              title: Text('Home',
+                                  style: TextStyle(color: Colors.white)),
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/home'),
+                            ),
+                            ListTile(
+                              title: Text('Your Trucks',
+                                  style: TextStyle(
+                                      color: const Color(0xFFFF4E00))),
+                              selected: true,
+                              onTap: () {},
+                            ),
+                            ListTile(
+                              title: Text('Your Offers',
+                                  style: TextStyle(color: Colors.white)),
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/offers'),
+                            ),
+                            ListTile(
+                              title: Text('Profile',
+                                  style: TextStyle(color: Colors.white)),
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/profile'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : null,
         body: Column(
           children: [
+            // if (kIsWeb)
+            //   WebNavigationBar(
+            //     isCompactNavigation: false,
+            //     currentRoute: '/transporterList',
+            //   ),
             if (isLoading)
               const Padding(
                 padding: EdgeInsets.only(top: 16),
@@ -196,102 +291,127 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             ),
           ],
         ),
+        bottomNavigationBar: kIsWeb
+            ? null
+            : CustomBottomNavigation(
+                selectedIndex: _selectedIndex,
+                onItemTapped: (index) {
+                  _onItemTapped(index);
+                  final userRole =
+                      userProvider.getUserRole.toLowerCase().trim();
 
-        // Bottom nav
-        bottomNavigationBar: CustomBottomNavigation(
-          selectedIndex: _selectedIndex,
-          onItemTapped: (index) {
-            _onItemTapped(index);
-            final userRole = userProvider.getUserRole.toLowerCase().trim();
-
-            // Example for dealers
-            if (userRole == 'dealer') {
-              // 0: Home, 1: Vehicles, 2: Offers
-              if (index == 0) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomePage()),
-                );
-              } else if (index == 1) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VehiclesListPage(),
-                  ),
-                );
-              } else if (index == 2) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OffersPage()),
-                );
-              }
-            }
-            // Example for transporters
-            else if (userRole == 'transporter') {
-              // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
-              if (index == 0) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomePage()),
-                );
-              } else if (index == 1) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VehiclesListPage(),
-                  ),
-                );
-              } else if (index == 2) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OffersPage()),
-                );
-              } else if (index == 3) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => ProfilePage()),
-                );
-              }
-            } else {
-              // Handle other roles if needed
-            }
-          },
-        ),
+                  // Example for dealers
+                  if (userRole == 'dealer') {
+                    // 0: Home, 1: Vehicles, 2: Offers
+                    if (index == 0) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const HomePage()),
+                      );
+                    } else if (index == 1) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const VehiclesListPage(),
+                        ),
+                      );
+                    } else if (index == 2) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const OffersPage()),
+                      );
+                    }
+                  }
+                  // Example for transporters
+                  else if (userRole == 'transporter') {
+                    // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
+                    if (index == 0) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const HomePage()),
+                      );
+                    } else if (index == 1) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const VehiclesListPage(),
+                        ),
+                      );
+                    } else if (index == 2) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const OffersPage()),
+                      );
+                    } else if (index == 3) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfilePage()),
+                      );
+                    }
+                  } else {
+                    // Handle other roles if needed
+                  }
+                },
+              ),
       ),
     );
   }
 
-  /// Build a list of vehicles using ListingCard
+  /// Build a grid of vehicles using ListingCard
   Widget _buildVehiclesList(List vehicles) {
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: vehicles.length,
-      itemBuilder: (context, index) {
-        final vehicle = vehicles[index];
-        return ListingCard(
-          vehicleId: vehicle.id,
-          vehicleType: vehicle.vehicleType, // e.g. "truck" or "trailer"
-          onTap: () {
-            // Go to details page
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate number of columns based on width
+        int crossAxisCount = 4; // Default to 4 columns
+        double screenWidth = constraints.maxWidth;
+
+        if (screenWidth < 600) {
+          crossAxisCount = 1; // Mobile: 1 column
+        } else if (screenWidth < 900) {
+          crossAxisCount = 2; // Tablet: 2 columns
+        } else if (screenWidth < 1200) {
+          crossAxisCount = 3; // Small desktop: 3 columns
+        }
+
+        return GridView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 0.8, // Adjust this value to control card height
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: vehicles.length,
+          itemBuilder: (context, index) {
+            final vehicle = vehicles[index];
+            return ListingCard(
+              vehicleId: vehicle.id,
+              vehicleType: vehicle.vehicleType,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VehicleDetailsPage(vehicle: vehicle),
+                  ),
+                );
+              },
+              vehicleImageUrl: vehicle.mainImageUrl,
+              referenceNumber: vehicle.referenceNumber,
+              vehicleTransmission: vehicle.transmissionType,
+              vehicleMileage: vehicle.mileage,
+              trailerType: vehicle.trailerType,
+              trailerMake:
+                  vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
+              trailerYear: vehicle.year,
+              truckBrand: vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
+              truckModel: vehicle.makeModel,
             );
           },
-          // Common fields
-          vehicleImageUrl: vehicle.mainImageUrl,
-          referenceNumber: vehicle.referenceNumber,
-          vehicleTransmission: vehicle.transmissionType,
-          vehicleMileage: vehicle.mileage,
-          // Trailer fields
-          trailerType: vehicle.trailerType,
-          trailerMake: vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
-          trailerYear: vehicle.year,
-          // Truck fields
-          truckBrand: vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
-          truckModel: vehicle.makeModel,
         );
       },
     );

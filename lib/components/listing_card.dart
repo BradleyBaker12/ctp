@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ListingCard extends StatelessWidget {
   final String vehicleId;
@@ -36,69 +37,184 @@ class ListingCard extends StatelessWidget {
     required this.onTap,
   });
 
+  Widget _buildSpecBox(String value, double fontSize) {
+    if (value.trim().isEmpty || value.toUpperCase() == 'N/A') {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: fontSize * 0.5, vertical: fontSize * 0.5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(fontSize * 0.4),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          value.toUpperCase(),
+          style: GoogleFonts.montserrat(
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: 5,
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
+    const double fixedWidth = 400;
+    const double fixedHeight = 500;
+
+    return Center(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: fixedWidth,
+          height: fixedHeight,
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2F7FFF).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF2F7FFF),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              double imageWidth = constraints.maxWidth * 0.25;
-              double cardHeight = 130.0;
+              double cardW = constraints.maxWidth;
+              double cardH = constraints.maxHeight;
+              double titleFontSize = cardW * 0.045;
+              double subtitleFontSize = cardW * 0.04;
+              double paddingVal = cardW * 0.04;
+              double specFontSize = cardW * 0.03;
 
-              return Row(
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Left color strip
-                  Container(
-                    width: constraints.maxWidth * 0.06,
-                    height: cardHeight,
-                    color: Colors.blue,
-                  ),
-
-                  // Vehicle image
-                  Container(
-                    width: imageWidth,
-                    height: cardHeight,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
+                  SizedBox(
+                    height: cardH * 0.55,
+                    child: ClipRRect(
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(10)),
+                      child: Image(
                         image: (vehicleImageUrl != null &&
                                 vehicleImageUrl!.isNotEmpty)
                             ? NetworkImage(vehicleImageUrl!)
                             : const AssetImage(
                                     "lib/assets/default_vehicle_image.png")
                                 as ImageProvider,
+                        width: cardW,
+                        height: cardH * 0.55,
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
-
-                  // Middle info section
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10.0),
-                      height: cardHeight,
-                      color: Colors.blue,
-                      child: _buildInfo(context),
+                  Padding(
+                    padding: EdgeInsets.all(paddingVal),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                vehicleType.toLowerCase() == 'trailer'
+                                    ? '${trailerType ?? ''}'.toUpperCase()
+                                    : '${truckBrand ?? ''} ${truckModel ?? ''}'
+                                        .toUpperCase(),
+                                style: GoogleFonts.montserrat(
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                              ),
+                            ),
+                            SizedBox(height: paddingVal * 0.25),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                vehicleType.toLowerCase() == 'trailer'
+                                    ? trailerYear ?? ''
+                                    : referenceNumber ?? '',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: subtitleFontSize,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.white70,
+                                ),
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: paddingVal),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                                child: _buildSpecBox(
+                                    vehicleMileage != null
+                                        ? '$vehicleMileage km'
+                                        : 'N/A',
+                                    specFontSize)),
+                            SizedBox(width: paddingVal * 0.3),
+                            Expanded(
+                                child: _buildSpecBox(
+                                    vehicleTransmission ?? 'N/A',
+                                    specFontSize)),
+                            SizedBox(width: paddingVal * 0.3),
+                            Expanded(
+                                child: _buildSpecBox(
+                                    vehicleType.toLowerCase() == 'trailer'
+                                        ? trailerMake ?? 'N/A'
+                                        : 'N/A',
+                                    specFontSize)),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-
-                  // Right color strip / arrow
-                  Container(
-                    width: constraints.maxWidth * 0.24,
-                    height: cardHeight,
-                    color: Colors.green,
-                    child: const Center(
-                      child: Icon(
-                        Icons.arrow_forward,
-                        color: Colors.white,
-                        size: 30,
+                  Padding(
+                    padding: EdgeInsets.only(
+                        bottom: paddingVal,
+                        left: paddingVal,
+                        right: paddingVal),
+                    child: ElevatedButton(
+                      onPressed: onTap,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2F7FFF),
+                        padding:
+                            EdgeInsets.symmetric(vertical: paddingVal * 0.75),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(paddingVal * 0.5),
+                        ),
+                      ),
+                      child: Text(
+                        'VIEW MORE DETAILS',
+                        style: GoogleFonts.montserrat(
+                          fontSize: specFontSize + 2,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -109,92 +225,5 @@ class ListingCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Widget _buildInfo(BuildContext context) {
-    // If trailer => show trailer type, make, year
-    // If truck => show brand + model
-    if (vehicleType.toLowerCase() == 'trailer') {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // e.g. "SIDE TIPPER" or "FLAT DECK" (whatever trailerType is)
-          Text(
-            (trailerType ?? '').toUpperCase(),
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-          const SizedBox(height: 5),
-
-          // Trailer Make (e.g. "AFRIT")
-          if (trailerMake != null && trailerMake!.isNotEmpty)
-            Text(
-              'Make: $trailerMake',
-              style: const TextStyle(color: Colors.white70),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          // Year
-          if (trailerYear != null && trailerYear!.isNotEmpty)
-            Text(
-              'Year: $trailerYear',
-              style: const TextStyle(color: Colors.white70),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-        ],
-      );
-    } else {
-      // truck => brand + model
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // e.g. "SCANIA G460"
-          Text(
-            '${(truckBrand ?? '').toUpperCase()} '
-                    '${(truckModel ?? '').toUpperCase()}'
-                .trim(),
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-          const SizedBox(height: 5),
-
-          // If you still want to show more fields for truck:
-          if (referenceNumber != null && referenceNumber!.isNotEmpty)
-            Text(
-              'Ref#: $referenceNumber',
-              style: const TextStyle(color: Colors.white70),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          if (vehicleMileage != null && vehicleMileage!.isNotEmpty)
-            Text(
-              'Mileage: $vehicleMileage',
-              style: const TextStyle(color: Colors.white70),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          if (vehicleTransmission != null && vehicleTransmission!.isNotEmpty)
-            Text(
-              'Transmission: $vehicleTransmission',
-              style: const TextStyle(color: Colors.white70),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-        ],
-      );
-    }
   }
 }

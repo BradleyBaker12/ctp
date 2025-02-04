@@ -1,4 +1,5 @@
 import 'package:ctp/firebase_options.dart';
+import 'package:ctp/pages/accepted_offers.dart';
 import 'package:ctp/pages/add_profile_photo.dart';
 import 'package:ctp/pages/add_profile_photo_admin_page.dart';
 import 'package:ctp/pages/add_profile_photo_transporter.dart';
@@ -131,6 +132,7 @@ class MyApp extends StatelessWidget {
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
         '/wishlist': (context) => const WishlistPage(),
         '/transporterList': (context) => const VehiclesListPage(),
+        '/in-progress': (context) => const AcceptedOffersPage(),
         '/error': (context) => ErrorPage(), // Create a basic error page
       },
       onGenerateRoute: (settings) {
