@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
@@ -411,6 +413,41 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
               _buildSection(context, 'ADMIN',
                   '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
               const SizedBox(height: 20),
+              if (vehicle?.vehicleStatus == 'Draft')
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                  child: CustomButton(
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection('vehicles')
+                          .doc(vehicle!.id)
+                          .update({'vehicleStatus': 'Live'});
+
+                      // Fetch updated vehicle data
+                      await _fetchVehicleData();
+                    },
+                    text: 'PUSH TO LIVE',
+                    borderColor: Colors.green,
+                  ),
+                )
+              else if (vehicle?.vehicleStatus == 'Live')
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                  child: CustomButton(
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection('vehicles')
+                          .doc(vehicle!.id)
+                          .update({'vehicleStatus': 'Draft'});
+
+                      // Fetch updated vehicle data
+                      await _fetchVehicleData();
+                    },
+                    text: 'MOVE TO DRAFT',
+                    borderColor: Colors.blueAccent,
+                  ),
+                ),
+              const SizedBox(height: 20),
               _buildBottomButtons(),
               const SizedBox(height: 20),
             ],
@@ -501,6 +538,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                     vehicleId: vehicle!.id,
                     isUploading: false,
                     isEditing: true,
+                    isFromAdmin: true,
                     onMaintenanceFileSelected: (file) {
                       // Handle maintenance file selection
                     },
@@ -573,13 +611,13 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                 vehicle: vehicle!,
                 isUploading: false,
                 isEditing: true,
-                onAdminDoc1Selected: (file) {
+                onAdminDoc1Selected: (file, fileName) {
                   // Handle admin doc 1 selection
                 },
-                onAdminDoc2Selected: (file) {
+                onAdminDoc2Selected: (file, fileName) {
                   // Handle admin doc 2 selection
                 },
-                onAdminDoc3Selected: (file) {
+                onAdminDoc3Selected: (file, fileName) {
                   // Handle admin doc 3 selection
                 },
                 requireToSettleType: vehicle!.requireToSettleType ?? 'no',

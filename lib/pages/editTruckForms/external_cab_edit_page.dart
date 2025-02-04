@@ -1,6 +1,7 @@
 // lib/pages/truckForms/external_cab_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -11,10 +12,11 @@ import 'package:provider/provider.dart'; // Ensure this import path is correct
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
-  final File? file;
+  final Uint8List? file;
   final String? url;
+  final String? fileName;
 
-  ImageData({this.file, this.url});
+  ImageData({this.file, this.url, this.fileName});
 }
 
 /// Class to represent items with descriptions and images
@@ -184,28 +186,6 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
             onChange: _updateAdditionalFeaturesType,
             buildItemSection: _buildAdditionalFeaturesSection,
           ),
-          const SizedBox(height: 16.0),
-          // Center(
-          //   child: Column(
-          //     mainAxisAlignment: MainAxisAlignment.center,
-          //     children: [
-          //       Icon(
-          //         Icons.cloud_upload,
-          //         size: 48,
-          //         color: Colors.grey[600],
-          //       ),
-          //       SizedBox(height: 16),
-          //       Text(
-          //         'Drag and drop files here or click to upload',
-          //         textAlign: TextAlign.center,
-          //         style: TextStyle(
-          //           color: Colors.grey[600],
-          //           fontSize: 16,
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
         ],
       ),
     );
@@ -291,7 +271,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     if (imageData?.file != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
-        child: Image.file(
+        child: Image.memory(
           imageData!.file!,
           fit: BoxFit.cover,
           width: double.infinity,
@@ -325,32 +305,24 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         ),
       );
     } else {
-      return Center(
-        // Added Center widget here
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (!isDealer)
-                const Icon(
-                  Icons.add_circle_outline,
-                  color: Colors.white,
-                  size: 40.0,
-                ),
-              if (!isDealer) const SizedBox(height: 8.0),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (!isDealer)
+            const Icon(Icons.add_circle_outline,
+                color: Colors.white, size: 40.0),
+          const SizedBox(height: 8.0),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
+        ],
       );
     }
   }
@@ -447,12 +419,13 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     });
   }
 
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     try {
       String fileName =
           'external_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(imageFile);
+      UploadTask uploadTask = storageRef.putData(imageFile);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
@@ -498,7 +471,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   onTap: () => Navigator.pop(context),
                   child: Center(
                     child: imageData?.file != null
-                        ? Image.file(imageData!.file!)
+                        ? Image.memory(imageData!.file!)
                         : Image.network(
                             imageData!.url!,
                             loadingBuilder: (context, child, loadingProgress) {
@@ -578,9 +551,11 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
                     setState(() {
                       _selectedImages[title] =
-                          ImageData(file: File(pickedFile.path), url: null);
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
                 },
@@ -593,9 +568,11 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
                     setState(() {
                       _selectedImages[title] =
-                          ImageData(file: File(pickedFile.path), url: null);
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
                 },
@@ -784,7 +761,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       onTap: () => Navigator.pop(context),
                       child: Center(
                         child: item.imageData.file != null
-                            ? Image.file(item.imageData.file!)
+                            ? Image.memory(item.imageData.file!)
                             : Image.network(
                                 item.imageData.url!,
                                 errorBuilder: (context, error, stackTrace) {
@@ -845,7 +822,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     if (imageData.file != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
-        child: Image.file(
+        child: Image.memory(
           imageData.file!,
           fit: BoxFit.cover,
           width: double.infinity,
@@ -910,9 +887,12 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
+
                     setState(() {
                       item.imageData =
-                          ImageData(file: File(pickedFile.path), url: null);
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
                 },
@@ -925,9 +905,12 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
+
                     setState(() {
                       item.imageData =
-                          ImageData(file: File(pickedFile.path), url: null);
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
                 },

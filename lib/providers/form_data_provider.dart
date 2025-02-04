@@ -215,7 +215,7 @@ class FormDataProvider with ChangeNotifier {
   }
 
   // --- FIX APPLIED: Update the main image setter to accept Uint8List instead of File ---
-  void setSelectedMainImage(Uint8List? image) {
+  void setSelectedMainImage(Uint8List? image, fileName) {
     _selectedMainImage = image;
     notifyListeners();
   }

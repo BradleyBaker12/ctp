@@ -191,9 +191,6 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
                         final vehicle = soldVehicles[index];
 
                         return ListingCard(
-                          vehicleId: vehicle.id,
-                          vehicleType:
-                              vehicle.vehicleType, // "truck" or "trailer"
                           onTap: () {
                             Navigator.push(
                               context,
@@ -203,24 +200,7 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
                                 ),
                               ),
                             );
-                          },
-                          vehicleImageUrl: vehicle.mainImageUrl,
-                          referenceNumber: vehicle.referenceNumber,
-                          vehicleTransmission: vehicle.transmissionType,
-                          vehicleMileage: vehicle.mileage,
-
-                          // If trailer => pass trailer fields
-                          trailerType: vehicle.trailerType,
-                          trailerMake: vehicle.brands.isNotEmpty
-                              ? vehicle.brands[0]
-                              : '', // <--- was "vehicle.make"
-                          trailerYear: vehicle.year,
-
-                          // If truck => pass truck fields
-                          truckBrand: vehicle.brands.isNotEmpty
-                              ? vehicle.brands[0]
-                              : '',
-                          truckModel: vehicle.makeModel,
+                          }, vehicle: vehicle,
                         );
                       },
                     ),

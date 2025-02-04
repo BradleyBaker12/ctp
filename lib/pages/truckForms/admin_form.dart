@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 
 class AdminForm extends StatefulWidget {
   final Map<String, dynamic> formData;
@@ -18,9 +19,12 @@ class _AdminFormState extends State<AdminForm> {
   final TextEditingController _amountController = TextEditingController();
 
   bool isUploading = false;
-  File? natisFile;
-  File? licenseDiskFile;
-  File? settlementLetterFile;
+  Uint8List? natisFile;
+  Uint8List? licenseDiskFile;
+  Uint8List? settlementLetterFile;
+  String? natisFileName;
+  String? licenseDiskFileName;
+  String? settlementLetterFileName;
   String? natisUrl;
   String? licenseDiskUrl;
   String? settlementLetterUrl;
@@ -62,25 +66,30 @@ class _AdminFormState extends State<AdminForm> {
       );
 
       if (result != null) {
+        final bytes = result.files.first.bytes;
+        final fileName = result.files.first.name;
+
         setState(() {
           switch (type) {
             case 'natis':
-              natisFile = File(result.files.single.path!);
-              natisUrl = null; // Clear the URL when new file is picked
+              natisFile = bytes;
+              natisFileName = fileName;
+              natisUrl = null;
               break;
             case 'licenseDisk':
-              licenseDiskFile = File(result.files.single.path!);
+              licenseDiskFile = bytes;
+              licenseDiskFileName = fileName;
               licenseDiskUrl = null;
               break;
             case 'settlementLetter':
-              settlementLetterFile = File(result.files.single.path!);
+              settlementLetterFile = bytes;
+              settlementLetterFileName = fileName;
               settlementLetterUrl = null;
               break;
           }
         });
       }
     } catch (e) {
-      // Handle any errors that occur during file picking
       print('Error picking file: $e');
     }
   }
@@ -294,6 +303,7 @@ class _AdminFormState extends State<AdminForm> {
                       _buildUploadContainer(
                         title: 'NATIS/RC1 UPLOAD',
                         file: natisFile,
+                        fileName: natisFileName,
                         url: natisUrl,
                         onTap: () => _pickFile('natis'),
                       ),
@@ -311,6 +321,7 @@ class _AdminFormState extends State<AdminForm> {
                       _buildUploadContainer(
                         title: 'LICENSE DISK UPLOAD',
                         file: licenseDiskFile,
+                        fileName: licenseDiskFileName,
                         url: licenseDiskUrl,
                         onTap: () => _pickFile('licenseDisk'),
                       ),
@@ -328,6 +339,7 @@ class _AdminFormState extends State<AdminForm> {
                       _buildUploadContainer(
                         title: 'SETTLEMENT LETTER UPLOAD',
                         file: settlementLetterFile,
+                        fileName: settlementLetterFileName,
                         url: settlementLetterUrl,
                         onTap: () => _pickFile('settlementLetter'),
                       ),
@@ -409,7 +421,8 @@ class _AdminFormState extends State<AdminForm> {
 
   Widget _buildUploadContainer({
     required String title,
-    required File? file,
+    required Uint8List? file,
+    required String? fileName,
     required String? url,
     required VoidCallback onTap,
   }) {
@@ -448,13 +461,13 @@ class _AdminFormState extends State<AdminForm> {
             ] else ...[
               if (file != null) ...[
                 Icon(
-                  _getFileIcon(file.path.split('.').last),
+                  _getFileIcon(fileName?.split('.').last ?? ''),
                   size: 50,
                   color: Colors.white,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  file.path.split('/').last,
+                  fileName ?? 'Unknown file',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,

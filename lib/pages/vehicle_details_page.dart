@@ -27,6 +27,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart'; // Add this import
+import 'dart:developer';
+import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/pages/setup_inspection.dart';
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -444,7 +447,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             .get();
         if (!dealerDoc.exists) return;
 
-        bool isVerified = dealerDoc.get('isVerified') ?? false;
+        bool isVerified = getIsVerified(dealerDoc);
         bool hasDocuments =
             await userProvider.hasDealerUploadedRequiredDocuments(user.uid);
         String accountStatus =
@@ -1078,25 +1081,30 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           );
           setState(() {});
         } else if (title.contains('MAINTENANCE')) {
-          await Navigator.push(
-            ctx,
+          log("Maintenance Data is ${vehicle.maintenance.toMap()}");
+
+          await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => MaintenanceEditSection(
+              builder: (BuildContext context) => MaintenanceEditSection(
                 vehicleId: vehicle.id,
                 isUploading: false,
                 isEditing: true,
+                // isFromAdmin: false, // Add this parameter
                 onMaintenanceFileSelected: (file) {},
                 onWarrantyFileSelected: (file) {},
                 oemInspectionType:
                     vehicle.maintenance.oemInspectionType ?? 'yes',
                 oemInspectionExplanation: vehicle.maintenance.oemReason ?? '',
-                onProgressUpdate: () => setState(() {}),
+                onProgressUpdate: () {
+                  setState(() {});
+                },
                 maintenanceSelection:
                     vehicle.maintenance.maintenanceSelection ?? 'yes',
                 warrantySelection:
                     vehicle.maintenance.warrantySelection ?? 'yes',
                 maintenanceDocUrl: vehicle.maintenance.maintenanceDocUrl,
                 warrantyDocUrl: vehicle.maintenance.warrantyDocUrl,
+                isFromAdmin: false,
               ),
             ),
           );
@@ -1130,6 +1138,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         ),
       ),
     );
+  }
+
+  // Helper method to get verification status from dealer document
+  bool getIsVerified(DocumentSnapshot dealerDoc) {
+    return dealerDoc.get('isVerified') ?? false;
   }
 
   // === COLUMN for TRANSPORTER
@@ -2092,6 +2105,56 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                   // If transporter => Show the offers
                                   if (userProvider.getUserRole ==
                                       'transporter') ...[
+                                    Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 10.0),
+                                      child: vehicle.isAccepted == true
+                                          ? Container(
+                                              padding:
+                                                  const EdgeInsets.all(16.0),
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    Colors.red.withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                                border: Border.all(
+                                                    color: Colors.red),
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  const Icon(
+                                                      Icons
+                                                          .warning_amber_rounded,
+                                                      color: Colors.red,
+                                                      size: 40),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    "This vehicle has an accepted offer",
+                                                    style: _customFont(
+                                                        18,
+                                                        FontWeight.bold,
+                                                        Colors.red),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                  Text(
+                                                    "No new offers can be placed",
+                                                    style: _customFont(
+                                                        16,
+                                                        FontWeight.normal,
+                                                        Colors.red),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          : Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                // ... existing offer section code ...
+                                              ],
+                                            ),
+                                    ),
                                     Text(
                                       'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
                                       style: _customFont(

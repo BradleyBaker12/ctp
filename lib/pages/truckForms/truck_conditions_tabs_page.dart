@@ -478,74 +478,87 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
                   ),
                 ),
 
-                // Content area
+                // Content area with constrained width
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: IndexedStack(
-                            index: _selectedTabIndex,
+                  child: Center(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        double maxWidth = constraints.maxWidth > 1200
+                            ? 1200
+                            : constraints.maxWidth;
+
+                        return Container(
+                          width: maxWidth,
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
                             children: [
-                              ExternalCabPage(
-                                key: _externalCabKey,
-                                vehicleId: widget.vehicleId,
-                                onProgressUpdate: updateTabProgress,
-                                isEditing: widget.isEditing,
+                              Expanded(
+                                child: IndexedStack(
+                                  index: _selectedTabIndex,
+                                  children: [
+                                    ExternalCabPage(
+                                      key: _externalCabKey,
+                                      vehicleId: widget.vehicleId,
+                                      onProgressUpdate: updateTabProgress,
+                                      isEditing: widget.isEditing,
+                                    ),
+                                    InternalCabPage(
+                                      key: _internalCabKey,
+                                      vehicleId: widget.vehicleId,
+                                      onProgressUpdate: updateTabProgress,
+                                      isEditing: widget.isEditing,
+                                    ),
+                                    DriveTrainPage(
+                                      key: _driveTrainKey,
+                                      vehicleId: widget.vehicleId,
+                                      onProgressUpdate: updateTabProgress,
+                                      isEditing: widget.isEditing,
+                                    ),
+                                    ChassisPage(
+                                      key: _chassisKey,
+                                      vehicleId: widget.vehicleId,
+                                      onProgressUpdate: updateTabProgress,
+                                      isEditing: widget.isEditing,
+                                    ),
+                                    TyresPage(
+                                      key: _tyresKey,
+                                      vehicleId: widget.vehicleId,
+                                      numberOfTyrePositions:
+                                          _getNumberOfTyrePositions(
+                                              _vehicleConfig),
+                                      onProgressUpdate: updateTabProgress,
+                                      isEditing: widget.isEditing,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              InternalCabPage(
-                                key: _internalCabKey,
-                                vehicleId: widget.vehicleId,
-                                onProgressUpdate: updateTabProgress,
-                                isEditing: widget.isEditing,
-                              ),
-                              DriveTrainPage(
-                                key: _driveTrainKey,
-                                vehicleId: widget.vehicleId,
-                                onProgressUpdate: updateTabProgress,
-                                isEditing: widget.isEditing,
-                              ),
-                              ChassisPage(
-                                key: _chassisKey,
-                                vehicleId: widget.vehicleId,
-                                onProgressUpdate: updateTabProgress,
-                                isEditing: widget.isEditing,
-                              ),
-                              TyresPage(
-                                key: _tyresKey,
-                                vehicleId: widget.vehicleId,
-                                numberOfTyrePositions:
-                                    _getNumberOfTyrePositions(_vehicleConfig),
-                                onProgressUpdate: updateTabProgress,
-                                isEditing: widget.isEditing,
+                              const SizedBox(height: 24.0),
+                              Row(
+                                children: [
+                                  if (_selectedTabIndex < 4)
+                                    Expanded(
+                                      child: CustomButton(
+                                        text: 'Continue',
+                                        onPressed:
+                                            _isSaving ? null : _handleContinue,
+                                        borderColor: AppColors.blue,
+                                      ),
+                                    ),
+                                  if (_selectedTabIndex < 4)
+                                    const SizedBox(width: 16.0),
+                                  Expanded(
+                                    child: CustomButton(
+                                      text: 'Done',
+                                      onPressed: _isSaving ? null : _handleDone,
+                                      borderColor: AppColors.green,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 24.0),
-                        Row(
-                          children: [
-                            if (_selectedTabIndex < 4)
-                              Expanded(
-                                child: CustomButton(
-                                  text: 'Continue',
-                                  onPressed: _isSaving ? null : _handleContinue,
-                                  borderColor: AppColors.blue,
-                                ),
-                              ),
-                            if (_selectedTabIndex < 4)
-                              const SizedBox(width: 16.0),
-                            Expanded(
-                              child: CustomButton(
-                                text: 'Done',
-                                onPressed: _isSaving ? null : _handleDone,
-                                borderColor: AppColors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                 ),

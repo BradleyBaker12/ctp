@@ -144,13 +144,13 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
       natisRc1Url: widget.natisRc1Url,
       isUploading: _isUploading,
       requireToSettleType: widget.requireToSettleType,
-      onAdminDoc1Selected: (File? file) {
+      onAdminDoc1Selected: (file) {
         _adminSectionKey.currentState?.updateAdminDoc1(file);
       },
-      onAdminDoc2Selected: (File? file) {
+      onAdminDoc2Selected: (file) {
         _adminSectionKey.currentState?.updateAdminDoc2(file);
       },
-      onAdminDoc3Selected: (File? file) {
+      onAdminDoc3Selected: (file) {
         _adminSectionKey.currentState?.updateAdminDoc3(file);
       },
     );

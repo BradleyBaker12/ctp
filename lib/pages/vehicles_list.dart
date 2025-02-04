@@ -390,8 +390,6 @@ class _VehiclesListPageState extends State<VehiclesListPage>
           itemBuilder: (context, index) {
             final vehicle = vehicles[index];
             return ListingCard(
-              vehicleId: vehicle.id,
-              vehicleType: vehicle.vehicleType,
               onTap: () {
                 Navigator.push(
                   context,
@@ -400,16 +398,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                   ),
                 );
               },
-              vehicleImageUrl: vehicle.mainImageUrl,
-              referenceNumber: vehicle.referenceNumber,
-              vehicleTransmission: vehicle.transmissionType,
-              vehicleMileage: vehicle.mileage,
-              trailerType: vehicle.trailerType,
-              trailerMake:
-                  vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
-              trailerYear: vehicle.year,
-              truckBrand: vehicle.brands.isNotEmpty ? vehicle.brands.first : '',
-              truckModel: vehicle.makeModel,
+              vehicle: vehicle,
             );
           },
         );

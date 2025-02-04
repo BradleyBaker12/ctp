@@ -80,39 +80,29 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         child: Column(
           children: [
             const SizedBox(height: 16.0),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Center(
-                child: Text(
-                  'Details for DRIVE TRAIN'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 25,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w900,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+            Text(
+              'Details for DRIVE TRAIN'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Center(
-                child: Text(
-                  'Condition of the Drive Train',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color.fromARGB(221, 255, 255, 255),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+            const Text(
+              'Condition of the Drive Train',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w500,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
             // Condition Radio Buttons
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 CustomRadioButton(
                   label: 'Poor',
@@ -121,7 +111,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                   onChanged: _updateCondition,
                   enabled: !isDealer,
                 ),
-                const SizedBox(width: 16.0),
                 CustomRadioButton(
                   label: 'Good',
                   value: 'good',
@@ -129,7 +118,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                   onChanged: _updateCondition,
                   enabled: !isDealer,
                 ),
-                const SizedBox(width: 16.0),
                 CustomRadioButton(
                   label: 'Excellent',
                   value: 'excellent',
@@ -337,7 +325,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
         child: Stack(
-          alignment: Alignment.center, // <-- This ensures center alignment
           children: [
             // Existing image or placeholder
             _getImageWidget(title, isDealer),
@@ -398,7 +385,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       // Placeholder
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (!isDealer)
             const Icon(Icons.add_circle_outline,

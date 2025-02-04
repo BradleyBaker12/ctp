@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
@@ -391,11 +392,15 @@ class UserProvider extends ChangeNotifier {
 
   String get getAccountStatus => _accountStatus;
 
-  Future<String> uploadFile(File file) async {
+  Future<String> uploadFile(Uint8List file, String nameFile) async {
+    String fileName = '${Uuid().v4()} $nameFile';
     final storageRef = FirebaseStorage.instance
         .ref()
-        .child('profile_images/${_user!.uid}/${file.path.split('/').last}');
-    final uploadTask = storageRef.putFile(file);
+        .child('profile_images/${_user!.uid}/$fileName');
+    // final storageRef = FirebaseStorage.instance
+    //     .ref()
+    //     .child('profile_images/${_user!.uid}/${file.path.split('/').last}');
+    final uploadTask = storageRef.putData(file);
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }

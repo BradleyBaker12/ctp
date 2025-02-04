@@ -54,11 +54,65 @@ class TruckCard extends StatelessWidget {
     );
   }
 
+  /// Calculates the ratio of filled fields vs total fields
+  (int filled, int total) _calculateFieldsRatio(Vehicle vehicle) {
+    // Define all relevant truck fields to check
+    final fieldsToCheck = [
+      vehicle.makeModel,
+      vehicle.brands.isNotEmpty ? vehicle.brands.join() : null,
+      vehicle.year,
+      vehicle.mileage,
+      vehicle.transmissionType,
+      vehicle.config,
+      vehicle.engineNumber,
+      vehicle.registrationNumber,
+      vehicle.vinNumber,
+      vehicle.warrentyType,
+      vehicle.warrantyDetails,
+      vehicle.damageDescription,
+      vehicle.hydraluicType,
+      vehicle.suspensionType,
+      vehicle.expectedSellingPrice,
+      vehicle.mainImageUrl,
+      vehicle.natisDocumentUrl,
+      vehicle.serviceHistoryUrl,
+      vehicle.frontImageUrl,
+      vehicle.sideImageUrl,
+      vehicle.tyresImageUrl,
+      vehicle.chassisImageUrl,
+      vehicle.licenceDiskUrl,
+      vehicle.rc1NatisFile,
+      // Maintenance related fields
+      vehicle.maintenance.maintenanceDocUrl,
+      vehicle.maintenance.warrantyDocUrl,
+      vehicle.maintenance.maintenanceSelection,
+      vehicle.maintenance.warrantySelection,
+      // Admin related fields
+      vehicle.adminData.natisRc1Url,
+      vehicle.adminData.licenseDiskUrl,
+      // Location related
+      vehicle.country,
+      vehicle.province,
+      // Additional fields
+      vehicle.damagesDescription,
+      vehicle.additionalFeatures,
+    ];
+
+    int filledFields = fieldsToCheck
+        .where((field) =>
+            field != null &&
+            field.toString().isNotEmpty &&
+            field.toString().toUpperCase() != 'N/A')
+        .length;
+
+    return (filledFields, fieldsToCheck.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Set fixed dimensions for the card.
     const double fixedWidth = 400;
-    const double fixedHeight = 500;
+    const double fixedHeight = 520; // Increased from 500 to 520
 
     // Use a LayoutBuilder to calculate dimensions relative to the fixed card size.
     return Center(
@@ -85,7 +139,7 @@ class TruckCard extends StatelessWidget {
           builder: (context, constraints) {
             // Use the fixed dimensions from the constraints.
             double cardW = constraints.maxWidth; // 400
-            double cardH = constraints.maxHeight; // 500
+            double cardH = constraints.maxHeight; // 520
 
             // Calculate relative sizes.
             double titleFontSize = cardW * 0.045; // ~18 for a 400px wide card.
@@ -100,12 +154,16 @@ class TruckCard extends StatelessWidget {
             ].where((element) => element.isNotEmpty).join(" ");
             final String year = vehicle.year.toString();
 
+            // Calculate the fields ratio
+            final (filledFields, totalFields) = _calculateFieldsRatio(vehicle);
+            final progressRatio = filledFields / totalFields;
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Image section.
+                // Image section with reduced height
                 SizedBox(
-                  height: cardH * 0.55, // 55% of the card's height.
+                  height: cardH * 0.5, // Reduced from 0.55 to 0.5
                   child: Stack(
                     children: [
                       ClipRRect(
@@ -114,13 +172,13 @@ class TruckCard extends StatelessWidget {
                         child: Image.network(
                           vehicle.mainImageUrl ?? '',
                           width: cardW,
-                          height: cardH * 0.55,
+                          height: cardH * 0.5,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               Image.asset(
                             'lib/assets/default_vehicle_image.png',
                             width: cardW,
-                            height: cardH * 0.55,
+                            height: cardH * 0.5,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -149,9 +207,9 @@ class TruckCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Details section.
+                // Details section with adjusted padding
                 Padding(
-                  padding: EdgeInsets.all(paddingVal),
+                  padding: EdgeInsets.all(paddingVal * 0.8), // Reduced padding
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -213,11 +271,96 @@ class TruckCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                // Progress Bar with adjusted padding
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: paddingVal,
+                    vertical: paddingVal * 0.3,
+                  ),
+                  child: Stack(
+                    children: [
+                      Container(
+                        height: cardH * 0.045,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(cardH * 0.025),
+                          border: Border.all(
+                            color: const Color(0xFF2F7FFF),
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(cardH * 0.025),
+                          child: Stack(
+                            children: [
+                              // Background
+                              Container(
+                                color: const Color(0xFF2F7FFF),
+                              ),
+                              // Gray line background with right padding
+                              Positioned(
+                                left: 0,
+                                right: paddingVal * 2.5, // Add space for text
+                                top: 0,
+                                bottom: 0,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: cardH * 0.01),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[800],
+                                      borderRadius: BorderRadius.circular(100),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Progress Fill with padding
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: cardH * 0.01),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(100)),
+                                  child: FractionallySizedBox(
+                                    widthFactor: progressRatio,
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF4CAF50),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Progress Text (now part of outer Stack)
+                      Positioned(
+                        right: 5, // Adjusted right padding
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Text(
+                            '$filledFields/$totalFields',
+                            style: GoogleFonts.montserrat(
+                              fontSize: specFontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // Spacer to push button to the bottom.
                 // const Spacer(),
                 Padding(
                   padding: EdgeInsets.only(
-                      bottom: paddingVal, left: paddingVal, right: paddingVal),
+                    bottom: paddingVal * 0.8, // Reduced padding
+                    left: paddingVal,
+                    right: paddingVal,
+                  ),
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.push(

@@ -1,39 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/vehicle.dart';
 
 class ListingCard extends StatelessWidget {
-  final String vehicleId;
-  final String vehicleType; // "truck" or "trailer"
-
-  // For trailers: trailerType, make, year
-  final String? trailerType;
-  final String? trailerMake;
-  final String? trailerYear;
-
-  // For trucks: brand, model
-  final String? truckBrand;
-  final String? truckModel;
-
-  // Common fields (only if you still need them)
-  final String? referenceNumber;
-  final String? vehicleMileage;
-  final String? vehicleTransmission;
-  final String? vehicleImageUrl;
+  final Vehicle vehicle;
   final VoidCallback onTap;
 
   const ListingCard({
     super.key,
-    required this.vehicleId,
-    required this.vehicleType,
-    this.trailerType,
-    this.trailerMake,
-    this.trailerYear,
-    this.truckBrand,
-    this.truckModel,
-    this.referenceNumber,
-    this.vehicleMileage,
-    this.vehicleTransmission,
-    this.vehicleImageUrl,
+    required this.vehicle,
     required this.onTap,
   });
 
@@ -67,10 +42,64 @@ class ListingCard extends StatelessWidget {
     );
   }
 
+  /// Calculates the ratio of filled fields vs total fields
+  (int filled, int total) _calculateFieldsRatio() {
+    // Use the same fields as in TruckCard
+    final fieldsToCheck = [
+      vehicle.makeModel,
+      vehicle.brands.isNotEmpty ? vehicle.brands.join() : null,
+      vehicle.year,
+      vehicle.mileage,
+      vehicle.transmissionType,
+      vehicle.config,
+      vehicle.engineNumber,
+      vehicle.registrationNumber,
+      vehicle.vinNumber,
+      vehicle.warrentyType,
+      vehicle.warrantyDetails,
+      vehicle.damageDescription,
+      vehicle.hydraluicType,
+      vehicle.suspensionType,
+      vehicle.expectedSellingPrice,
+      vehicle.mainImageUrl,
+      vehicle.natisDocumentUrl,
+      vehicle.serviceHistoryUrl,
+      vehicle.frontImageUrl,
+      vehicle.sideImageUrl,
+      vehicle.tyresImageUrl,
+      vehicle.chassisImageUrl,
+      vehicle.licenceDiskUrl,
+      vehicle.rc1NatisFile,
+      // Maintenance related fields
+      vehicle.maintenance.maintenanceDocUrl,
+      vehicle.maintenance.warrantyDocUrl,
+      vehicle.maintenance.maintenanceSelection,
+      vehicle.maintenance.warrantySelection,
+      // Admin related fields
+      vehicle.adminData.natisRc1Url,
+      vehicle.adminData.licenseDiskUrl,
+      // Location related
+      vehicle.country,
+      vehicle.province,
+      // Additional fields
+      vehicle.damagesDescription,
+      vehicle.additionalFeatures,
+    ];
+
+    int filledFields = fieldsToCheck
+        .where((field) =>
+            field != null &&
+            field.toString().isNotEmpty &&
+            field.toString().toUpperCase() != 'N/A')
+        .length;
+
+    return (filledFields, fieldsToCheck.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     const double fixedWidth = 400;
-    const double fixedHeight = 500;
+    const double fixedHeight = 520; // Increased from 500 to 520
 
     return Center(
       child: GestureDetector(
@@ -106,15 +135,16 @@ class ListingCard extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Reduce image height slightly
                   SizedBox(
-                    height: cardH * 0.55,
+                    height: cardH * 0.5, // Reduced from 0.55 to 0.5
                     child: ClipRRect(
                       borderRadius:
                           const BorderRadius.vertical(top: Radius.circular(10)),
                       child: Image(
-                        image: (vehicleImageUrl != null &&
-                                vehicleImageUrl!.isNotEmpty)
-                            ? NetworkImage(vehicleImageUrl!)
+                        image: (vehicle.mainImageUrl != null &&
+                                vehicle.mainImageUrl!.isNotEmpty)
+                            ? NetworkImage(vehicle.mainImageUrl!)
                             : const AssetImage(
                                     "lib/assets/default_vehicle_image.png")
                                 as ImageProvider,
@@ -124,8 +154,10 @@ class ListingCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Reduce padding for details section
                   Padding(
-                    padding: EdgeInsets.all(paddingVal),
+                    padding: EdgeInsets.all(
+                        paddingVal * 0.8), // Reduced from 1.0 to 0.8
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -136,9 +168,9 @@ class ListingCard extends StatelessWidget {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                vehicleType.toLowerCase() == 'trailer'
-                                    ? '${trailerType ?? ''}'.toUpperCase()
-                                    : '${truckBrand ?? ''} ${truckModel ?? ''}'
+                                vehicle.vehicleType.toLowerCase() == 'trailer'
+                                    ? '${vehicle.trailerType}'.toUpperCase()
+                                    : '${vehicle.brands.join(" ")} ${vehicle.makeModel}'
                                         .toUpperCase(),
                                 style: GoogleFonts.montserrat(
                                   fontSize: titleFontSize,
@@ -153,9 +185,9 @@ class ListingCard extends StatelessWidget {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                vehicleType.toLowerCase() == 'trailer'
-                                    ? trailerYear ?? ''
-                                    : referenceNumber ?? '',
+                                vehicle.vehicleType.toLowerCase() == 'trailer'
+                                    ? vehicle.year
+                                    : vehicle.referenceNumber,
                                 style: GoogleFonts.montserrat(
                                   fontSize: subtitleFontSize,
                                   fontWeight: FontWeight.w400,
@@ -172,20 +204,21 @@ class ListingCard extends StatelessWidget {
                           children: [
                             Expanded(
                                 child: _buildSpecBox(
-                                    vehicleMileage != null
-                                        ? '$vehicleMileage km'
+                                    vehicle.mileage != null
+                                        ? '${vehicle.mileage} km'
                                         : 'N/A',
                                     specFontSize)),
                             SizedBox(width: paddingVal * 0.3),
                             Expanded(
                                 child: _buildSpecBox(
-                                    vehicleTransmission ?? 'N/A',
+                                    vehicle.transmissionType ?? 'N/A',
                                     specFontSize)),
                             SizedBox(width: paddingVal * 0.3),
                             Expanded(
                                 child: _buildSpecBox(
-                                    vehicleType.toLowerCase() == 'trailer'
-                                        ? trailerMake ?? 'N/A'
+                                    vehicle.vehicleType.toLowerCase() ==
+                                            'trailer'
+                                        ? vehicle.trailerType ?? 'N/A'
                                         : 'N/A',
                                     specFontSize)),
                           ],
@@ -193,9 +226,91 @@ class ListingCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Progress bar with optimized padding
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: paddingVal,
+                      vertical: paddingVal * 0.3, // Reduced vertical padding
+                    ),
+                    child: Stack(
+                      children: [
+                        Container(
+                          height: cardH * 0.045,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(cardH * 0.025),
+                            border: Border.all(
+                              color: const Color(0xFF2F7FFF),
+                              width: 2,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(cardH * 0.025),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  color: const Color(0xFF2F7FFF),
+                                ),
+                                Positioned(
+                                  left: 0,
+                                  right: paddingVal * 2.5,
+                                  top: 0,
+                                  bottom: 0,
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: cardH * 0.01),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[800],
+                                        borderRadius:
+                                            BorderRadius.circular(100),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: cardH * 0.01),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(100),
+                                    ),
+                                    child: FractionallySizedBox(
+                                      widthFactor: _calculateFieldsRatio().$1 /
+                                          _calculateFieldsRatio().$2,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF4CAF50),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 5,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: Text(
+                              '${_calculateFieldsRatio().$1}/${_calculateFieldsRatio().$2}',
+                              style: GoogleFonts.montserrat(
+                                fontSize: specFontSize,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Button with adjusted padding
                   Padding(
                     padding: EdgeInsets.only(
-                        bottom: paddingVal,
+                        bottom: paddingVal * 0.8, // Reduced bottom padding
                         left: paddingVal,
                         right: paddingVal),
                     child: ElevatedButton(

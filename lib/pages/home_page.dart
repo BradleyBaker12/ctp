@@ -742,48 +742,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final screenWidth = constraints.maxWidth;
     final screenHeight = constraints.maxHeight;
 
-    // Get providers and data
+    // Get userProvider and userRole from context
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
-
-    // Sort and filter offers - update the class variable
-    List<Offer> sortedOffers = List.from(_offerProvider.offers);
-    sortedOffers.sort((a, b) {
-      final DateTime? aCreatedAt = a.createdAt;
-      final DateTime? bCreatedAt = b.createdAt;
-      if (aCreatedAt == null && bCreatedAt == null) return 0;
-      if (bCreatedAt == null) return -1;
-      if (aCreatedAt == null) return 1;
-      return bCreatedAt.compareTo(aCreatedAt);
-    });
-
-    // Update the class variable
-    recentOffers = sortedOffers
-        .where((offer) => offer.offerStatus != 'Done')
-        .take(5)
-        .toList();
-
-    // Calculate aspect ratio based on device type
-    final heroAspectRatio = isTablet
-        ? 18 / 8 // Standard 16:9 for tablet/web
-        : 4 / 5; // Taller 4:5 ratio for mobile
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Hero Section - Full width image
+          // Hero Section with updated styling
           Column(
             children: [
-              // Hero Image with adjusted aspect ratio
-              AspectRatio(
-                aspectRatio: heroAspectRatio,
+              if (!kIsWeb) SizedBox(height: screenHeight * 0.1),
+              // Hero Image with responsive container
+              Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  maxHeight: screenWidth > 900
+                      ? screenHeight * 0.6 // Web view - taller
+                      : screenHeight * 0.45, // Mobile view - shorter
+                ),
                 child: Image.asset(
                   'lib/assets/HomePageHero.png',
                   width: screenWidth,
-                  fit: BoxFit.fill,
+                  fit: screenWidth > 900 ? BoxFit.cover : BoxFit.fill,
                 ),
               ),
-              // Welcome text
+
+              // Welcome text section with proper userProvider reference
               Padding(
                 padding: EdgeInsets.symmetric(
                   vertical: screenHeight * 0.02,

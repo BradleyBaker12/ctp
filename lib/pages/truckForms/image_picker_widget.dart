@@ -1,55 +1,108 @@
 // image_picker_widget.dart
+import 'dart:typed_data';
 import 'package:ctp/components/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
 
 class ImagePickerWidget extends StatelessWidget {
-  final Function(Uint8List?) onImagePicked;
+  final Function(Uint8List?, String?) onImagePicked;
 
   const ImagePickerWidget({super.key, required this.onImagePicked});
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ImageSource source, BuildContext context) async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        onImagePicked(bytes);
+      final pickedFile = await ImagePicker().pickImage(source: source);
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        final fileName = pickedFile.name;
+        onImagePicked(bytes, fileName);
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
+      print("Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
     }
+  }
+
+  void _showImageSourceDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Choose Image Source'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Camera'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImage(ImageSource.camera, context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Gallery'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImage(ImageSource.gallery, context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cancel),
+                  title: const Text('Cancel'),
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _pickImage,
+      onTap: () => _showImageSourceDialog(context),
       child: Container(
         width: double.infinity,
-        height: 300,
         decoration: BoxDecoration(
-          color: Colors.grey[800],
+          color: Colors.black.withOpacity(0.3),
           borderRadius: BorderRadius.circular(10.0),
         ),
+        height: 300.0,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.add_photo_alternate_outlined,
-              size: 64,
-              color: Colors.white.withOpacity(0.8),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              kIsWeb ? 'Click to add image' : 'Tap to add image',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 16,
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.blue.withOpacity(0.5),
+                border: Border.all(
+                  color: AppColors.blue,
+                  width: 2.0,
+                ),
               ),
+              padding: const EdgeInsets.all(16.0),
+              child: const Icon(
+                Icons.add,
+                color: Colors.white,
+                size: 50.0,
+              ),
+            ),
+            const SizedBox(height: 25),
+            const Text(
+              'NEW PHOTO OR UPLOAD FROM GALLERY',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

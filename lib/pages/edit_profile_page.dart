@@ -116,7 +116,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.dispose();
   }
 
-  /// Allows the user to pick a PDF/image/doc as a Uint8List in memory.
+  /// Picks a document file based on the field type.
   Future<void> _pickFile(String field) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -133,57 +133,55 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
 
     if (result != null && result.files.single.bytes != null) {
-      String fileName = result.files.single.name;
-      Uint8List fileBytes = result.files.single.bytes!;
-
+      String selectedFileName = result.files.single.name;
+      Uint8List? selectedFile = result.files.single.bytes;
+      
       setState(() {
         switch (field) {
           case 'bankConfirmation':
-            _bankConfirmationFile = fileBytes;
-            _bankConfirmationFileName = fileName;
-            _bankConfirmationUrl = null; // Clear old URL
+            _bankConfirmationFile = selectedFile;
+            _bankConfirmationFileName = selectedFileName;
+            _bankConfirmationUrl = null; // Reset existing URL
             break;
           case 'cipcCertificate':
-            _cipcCertificateFile = fileBytes;
-            _cipcCertificateFileName = fileName;
-            _cipcCertificateUrl = null;
+            _cipcCertificateFile = selectedFile;
+            _cipcCertificateFileName = selectedFileName;
+            _cipcCertificateUrl = null; // Reset existing URL
             break;
           case 'proxy':
-            _proxyFile = fileBytes;
-            _proxyFileName = fileName;
-            _proxyUrl = null;
+            _proxyFile = selectedFile;
+            _proxyFileName = selectedFileName;
+            _proxyUrl = null; // Reset existing URL
             break;
           case 'brnc':
-            _brncFile = fileBytes;
-            _brncFileName = fileName;
-            _brncUrl = null;
+            _brncFile = selectedFile;
+            _brncFileName = selectedFileName;
+            _brncUrl = null; // Reset existing URL
             break;
         }
       });
     }
   }
 
-  /// Allows the user to pick a profile image from gallery, then crop and compress it.
+  /// Picks and processes the profile image.
   Future<void> _pickProfileImage() async {
     setState(() => _isLoading = true);
+
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? pickedFile =
-          await picker.pickImage(source: ImageSource.gallery);
+      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
         _profileImageFileName = pickedFile.name;
-        // Crop as a File, then read as bytes
-        Uint8List? croppedBytes = await _cropImage(File(pickedFile.path));
-        if (croppedBytes != null) {
-          final Uint8List? compressedBytes =
-              await _compressImageFile(croppedBytes);
-          if (compressedBytes != null) {
-            setState(() {
-              _profileImageFile = compressedBytes;
-              _profileImageUrl = null; // Clear old URL
-            });
-          }
+        final data = await pickedFile.readAsBytes();
+        Uint8List? croppedFile = await _cropImage(File(pickedFile.path));
+
+        if (croppedFile != null) {
+          final compressedFile = await _compressImageFile(croppedFile);
+          setState(() {
+            _profileImageFile = compressedFile;
+            _profileImageUrl = null; // Reset existing URL
+          });
         }
       }
     } finally {
@@ -432,7 +430,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_profileImageFile != null && _profileImageFileName != null) {
       try {
         profileImageUrl = await userProvider.uploadFile(
-          _profileImageFile! as File,
+          _profileImageFile!,
+          _profileImageFileName!,
         );
       } catch (e) {
         debugPrint('Error uploading profile image: $e');
@@ -453,22 +452,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       if (_bankConfirmationFile != null && _bankConfirmationFileName != null) {
         bankConfirmationDownloadUrl = await userProvider.uploadFile(
-          _bankConfirmationFile! as File,
+          _bankConfirmationFile!,
+          _bankConfirmationFileName!,
         );
       }
       if (_cipcCertificateFile != null && _cipcCertificateFileName != null) {
         cipcCertificateDownloadUrl = await userProvider.uploadFile(
-          _cipcCertificateFile! as File,
+          _cipcCertificateFile!,
+          _cipcCertificateFileName!,
         );
       }
       if (_proxyFile != null && _proxyFileName != null) {
         proxyDownloadUrl = await userProvider.uploadFile(
-          _proxyFile! as File,
+          _proxyFile!,
+          _proxyFileName!,
         );
       }
       if (_brncFile != null && _brncFileName != null) {
         brncDownloadUrl = await userProvider.uploadFile(
-          _brncFile! as File,
+          _brncFile!,
+          _brncFileName!,
         );
       }
     } catch (e) {

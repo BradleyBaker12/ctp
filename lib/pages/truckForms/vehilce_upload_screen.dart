@@ -285,7 +285,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   void _clearAllData(FormDataProvider formData) {
     formData.clearAllData();
-    formData.setSelectedMainImage(null);
+    formData.setSelectedMainImage(null, null);
     formData.setMainImageUrl(null);
     formData.setNatisRc1Url(null);
     formData.setYear(null);
@@ -313,7 +313,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       _existingNatisRc1Url = null;
       _existingNatisRc1Name = null;
       final formData = Provider.of<FormDataProvider>(context, listen: false);
-      formData.setSelectedMainImage(null);
+      formData.setSelectedMainImage(null, null);
       formData.setMainImageUrl(null);
     });
     _vehicleId = null;
@@ -766,7 +766,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     debugPrint("Remove Image selected");
                     Navigator.pop(context);
                     setState(() {
-                      formData.setSelectedMainImage(null);
+                      formData.setSelectedMainImage(null, null);
                       formData.setMainImageUrl(null);
                     });
                   },
@@ -1650,7 +1650,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _referenceNumberController.clear();
     _brandsController.clear();
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-    formData.setSelectedMainImage(null);
+    formData.setSelectedMainImage(null, null);
     formData.setMainImageUrl(null);
     setState(() {
       _natisRc1File = null;
@@ -1667,12 +1667,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
     if (image != null) {
       final bytes = await image.readAsBytes();
+      final fileName = image.name;
       _selectedMainImageFileName = image.name;
       setState(() {
         _selectedMainImage = bytes;
       });
       debugPrint("Picked main image: $_selectedMainImageFileName");
-      formData.setSelectedMainImage(bytes);
+      formData.setSelectedMainImage(bytes, fileName);
 
       if (_vehicleId != null) {
         _uploadAndUpdateMainImage(bytes);

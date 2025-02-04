@@ -1,3 +1,4 @@
+import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
@@ -9,6 +10,7 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // For Firebase Auth
+import 'package:flutter/foundation.dart';
 
 class SetupInspectionPage extends StatefulWidget {
   final String offerId; // Change from vehicleId to offerId
@@ -20,6 +22,12 @@ class SetupInspectionPage extends StatefulWidget {
 }
 
 class _SetupInspectionPageState extends State<SetupInspectionPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Add this getter for consistent breakpoint
+  bool _isCompactNavigation(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 1100;
+
   DateTime _focusedDay = DateTime.now();
   List<DateTime> _selectedDays = [];
   DateTime? _selectedDay;
@@ -545,394 +553,518 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
     final bool isTransporter =
         userRole == 'transporter'; // Check if the user is a dealer
+    const bool isWeb = kIsWeb;
+
     return GradientBackground(
       child: Stack(
         children: [
           Material(
             color: Colors.transparent,
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: AbsorbPointer(
-                            absorbing:
-                                _isLoading, // Prevent interaction when loading
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const SizedBox(height: 80),
-                                Row(
-                                  children: [
-                                    CustomBackButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(),
-                                    ),
-                                  ],
+            child: Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: Colors.transparent,
+              appBar: isWeb
+                  ? PreferredSize(
+                      preferredSize: const Size.fromHeight(70),
+                      child: WebNavigationBar(
+                        isCompactNavigation: _isCompactNavigation(context),
+                        currentRoute: '/offers',
+                        onMenuPressed: () =>
+                            _scaffoldKey.currentState?.openDrawer(),
+                      ),
+                    )
+                  : null,
+              drawer: _isCompactNavigation(context) && isWeb
+                  ? Drawer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: const [Colors.black, Color(0xFF2F7FFD)],
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            DrawerHeader(
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                      color: Colors.white24, width: 1),
                                 ),
-                                SizedBox(
-                                  width: 100,
-                                  height: 100,
-                                  child: Image.asset('lib/assets/CTPLogo.png'),
+                              ),
+                              child: Center(
+                                child: Image.network(
+                                  'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                                  height: 50,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      height: 50,
+                                      width: 50,
+                                      color: Colors.grey[900],
+                                      child: const Icon(Icons.local_shipping,
+                                          color: Colors.white),
+                                    );
+                                  },
                                 ),
-                                const SizedBox(height: 35),
-                                const Text(
-                                  'SETUP INSPECTION DETAILS',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 35),
-                                const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(width: 5),
-                                    SizedBox(
-                                      child: Text(
-                                        'Provide Details For The Potential Dealer',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            Expanded(
+                              child: Consumer<UserProvider>(
+                                builder: (context, userProvider, _) {
+                                  final userRole = userProvider.getUserRole;
+                                  final navigationItems = userRole == 'dealer'
+                                      ? [
+                                          NavigationItem(
+                                              title: 'Home', route: '/home'),
+                                          NavigationItem(
+                                              title: 'Search Trucks',
+                                              route: '/truckPage'),
+                                          NavigationItem(
+                                              title: 'Wishlist',
+                                              route: '/wishlist'),
+                                          NavigationItem(
+                                              title: 'Pending Offers',
+                                              route: '/offers'),
+                                        ]
+                                      : [
+                                          NavigationItem(
+                                              title: 'Home', route: '/home'),
+                                          NavigationItem(
+                                              title: 'Your Trucks',
+                                              route: '/transporterList'),
+                                          NavigationItem(
+                                              title: 'Your Offers',
+                                              route: '/offers'),
+                                          NavigationItem(
+                                              title: 'In-Progress',
+                                              route: '/in-progress'),
+                                        ];
+
+                                  return ListView(
+                                    children: navigationItems.map((item) {
+                                      bool isActive = '/offers' == item.route;
+                                      return ListTile(
+                                        title: Text(
+                                          item.title,
+                                          style: TextStyle(
+                                            color: isActive
+                                                ? const Color(0xFFFF4E00)
+                                                : Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
-                                        textAlign: TextAlign.center,
+                                        selected: isActive,
+                                        selectedTileColor: Colors.black12,
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          if (!isActive) {
+                                            Navigator.pushNamed(
+                                                context, item.route);
+                                          }
+                                        },
+                                      );
+                                    }).toList(),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : null,
+              body: Stack(
+                children: [
+                  Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: AbsorbPointer(
+                              absorbing:
+                                  _isLoading, // Prevent interaction when loading
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const SizedBox(height: 80),
+                                  Row(
+                                    children: [
+                                      CustomBackButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 30),
-                                const Text(
-                                  'Now, Let\'s Set up a Meeting with the Potential Seller to Inspect the Vehicle. Your Careful Selection Ensures a Smooth Process Ahead.',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
+                                    ],
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 32),
-                                const Text(
-                                  'ENTER INSPECTION LOCATION',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                  SizedBox(
+                                    width: 100,
+                                    height: 100,
+                                    child:
+                                        Image.asset('lib/assets/CTPLogo.png'),
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Show input fields and calendar only if adding location
-                                if (_isAddingLocation) ...[
-                                  _buildSavedLocationsDropdown(),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
-                                    controller: _addressLine1Controller,
-                                    hintText: 'Address Line 1',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
-                                    controller: _addressLine2Controller,
-                                    hintText: 'Suburb (Optional)',
-                                    isOptional: true,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
-                                    controller: _cityController,
-                                    hintText: 'City',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
-                                    controller: _stateController,
-                                    hintText: 'State/Province/Region',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
-                                    controller: _postalCodeController,
-                                    hintText: 'Postal Code',
-                                  ),
-                                  const SizedBox(height: 32),
-
+                                  const SizedBox(height: 35),
                                   const Text(
-                                    'SELECT AVAILABLE DATES AND TIMES',
+                                    'SETUP INSPECTION DETAILS',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 24,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  const SizedBox(height: 8),
-
-                                  // Calendar
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(15),
+                                  const SizedBox(height: 35),
+                                  const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(width: 5),
+                                      SizedBox(
+                                        child: Text(
+                                          'Provide Details For The Potential Dealer',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 30),
+                                  const Text(
+                                    'Now, Let\'s Set up a Meeting with the Potential Seller to Inspect the Vehicle. Your Careful Selection Ensures a Smooth Process Ahead.',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    child: TableCalendar(
-                                      firstDay: DateTime.utc(2020, 1, 1),
-                                      lastDay: DateTime.utc(2100, 1, 1),
-                                      focusedDay: _focusedDay,
-                                      calendarFormat: _calendarFormat,
-                                      selectedDayPredicate: (day) {
-                                        return _selectedDays.any(
-                                            (selectedDay) =>
-                                                _isSameDay(day, selectedDay));
-                                      },
-                                      onDaySelected: _onDaySelected,
-
-                                      // Here we limit the enabled days to only the first 7 days starting from availability date
-                                      enabledDayPredicate: (day) {
-                                        DateTime endDay = _availabilityDate.add(
-                                            Duration(days: _daysAvailable));
-                                        return day.isAfter(_availabilityDate
-                                                .subtract(Duration(days: 1))) &&
-                                            day.isBefore(
-                                                endDay.add(Duration(days: 1)));
-                                      },
-
-                                      calendarStyle: CalendarStyle(
-                                        selectedDecoration: const BoxDecoration(
-                                          color: Colors.blue,
-                                          shape: BoxShape.rectangle,
-                                        ),
-                                        todayDecoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.rectangle,
-                                        ),
-                                        todayTextStyle: const TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                        defaultDecoration: BoxDecoration(
-                                          color: Colors.grey[800],
-                                          shape: BoxShape.rectangle,
-                                        ),
-                                        defaultTextStyle: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                        weekendDecoration: BoxDecoration(
-                                          color: Colors.grey[800],
-                                          shape: BoxShape.rectangle,
-                                        ),
-                                        weekendTextStyle: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                        outsideDaysVisible: false,
-                                        disabledDecoration: const BoxDecoration(
-                                          color: Colors.transparent,
-                                          shape: BoxShape.rectangle,
-                                        ),
-                                        markerDecoration: const BoxDecoration(
-                                          color: Colors.transparent,
-                                        ),
-                                      ),
-                                      headerStyle: const HeaderStyle(
-                                        titleCentered: true,
-                                        formatButtonVisible: false,
-                                        titleTextStyle: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        leftChevronIcon: Icon(
-                                          Icons.chevron_left,
-                                          color: Colors.white,
-                                        ),
-                                        rightChevronIcon: Icon(
-                                          Icons.chevron_right,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      daysOfWeekStyle: const DaysOfWeekStyle(
-                                        weekdayStyle: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        weekendStyle: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 32),
+                                  const Text(
+                                    'ENTER INSPECTION LOCATION',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
                                   const SizedBox(height: 16),
-                                  // Time slots for selected day
-                                  if (_selectedDay != null) ...[
-                                    Text(
-                                      'Set Times for ${_selectedDay?.toLocal().toShortString()}',
-                                      style: const TextStyle(
-                                        fontSize: 18,
+
+                                  // Show input fields and calendar only if adding location
+                                  if (_isAddingLocation) ...[
+                                    _buildSavedLocationsDropdown(),
+                                    const SizedBox(height: 16),
+                                    _buildTextField(
+                                      controller: _addressLine1Controller,
+                                      hintText: 'Address Line 1',
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildTextField(
+                                      controller: _addressLine2Controller,
+                                      hintText: 'Suburb (Optional)',
+                                      isOptional: true,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildTextField(
+                                      controller: _cityController,
+                                      hintText: 'City',
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildTextField(
+                                      controller: _stateController,
+                                      hintText: 'State/Province/Region',
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildTextField(
+                                      controller: _postalCodeController,
+                                      hintText: 'Postal Code',
+                                    ),
+                                    const SizedBox(height: 32),
+
+                                    const Text(
+                                      'SELECT AVAILABLE DATES AND TIMES',
+                                      style: TextStyle(
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 8),
+
+                                    // Calendar
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.5),
+                                        borderRadius: BorderRadius.circular(15),
+                                      ),
+                                      child: TableCalendar(
+                                        firstDay: DateTime.utc(2020, 1, 1),
+                                        lastDay: DateTime.utc(2100, 1, 1),
+                                        focusedDay: _focusedDay,
+                                        calendarFormat: _calendarFormat,
+                                        selectedDayPredicate: (day) {
+                                          return _selectedDays.any(
+                                              (selectedDay) =>
+                                                  _isSameDay(day, selectedDay));
+                                        },
+                                        onDaySelected: _onDaySelected,
+
+                                        // Here we limit the enabled days to only the first 7 days starting from availability date
+                                        enabledDayPredicate: (day) {
+                                          DateTime endDay =
+                                              _availabilityDate.add(Duration(
+                                                  days: _daysAvailable));
+                                          return day.isAfter(
+                                                  _availabilityDate.subtract(
+                                                      Duration(days: 1))) &&
+                                              day.isBefore(endDay
+                                                  .add(Duration(days: 1)));
+                                        },
+
+                                        calendarStyle: CalendarStyle(
+                                          selectedDecoration:
+                                              const BoxDecoration(
+                                            color: Colors.blue,
+                                            shape: BoxShape.rectangle,
+                                          ),
+                                          todayDecoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.rectangle,
+                                          ),
+                                          todayTextStyle: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                          defaultDecoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            shape: BoxShape.rectangle,
+                                          ),
+                                          defaultTextStyle: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                          weekendDecoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            shape: BoxShape.rectangle,
+                                          ),
+                                          weekendTextStyle: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                          outsideDaysVisible: false,
+                                          disabledDecoration:
+                                              const BoxDecoration(
+                                            color: Colors.transparent,
+                                            shape: BoxShape.rectangle,
+                                          ),
+                                          markerDecoration: const BoxDecoration(
+                                            color: Colors.transparent,
+                                          ),
+                                        ),
+                                        headerStyle: const HeaderStyle(
+                                          titleCentered: true,
+                                          formatButtonVisible: false,
+                                          titleTextStyle: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          leftChevronIcon: Icon(
+                                            Icons.chevron_left,
+                                            color: Colors.white,
+                                          ),
+                                          rightChevronIcon: Icon(
+                                            Icons.chevron_right,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        daysOfWeekStyle: const DaysOfWeekStyle(
+                                          weekdayStyle: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          weekendStyle: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Time slots for selected day
+                                    if (_selectedDay != null) ...[
+                                      Text(
+                                        'Set Times for ${_selectedDay?.toLocal().toShortString()}',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Column(
+                                        children: _selectedTimes
+                                            .asMap()
+                                            .entries
+                                            .map((entry) {
+                                          int index = entry.key;
+                                          TimeOfDay? selectedTime = entry.value;
+                                          return DropdownButton<TimeOfDay>(
+                                            value: selectedTime,
+                                            hint: const Text(
+                                              'Select Time Slot',
+                                              style: TextStyle(
+                                                  color: Colors.white),
+                                            ),
+                                            dropdownColor: Colors.black,
+                                            items: _timeSlots
+                                                .map((TimeOfDay time) {
+                                              return DropdownMenuItem<
+                                                  TimeOfDay>(
+                                                value: time,
+                                                child: Text(
+                                                  time.format(context),
+                                                  style: const TextStyle(
+                                                      color: Colors.white),
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (TimeOfDay? newValue) {
+                                              _onTimeSlotSelected(
+                                                  newValue, index);
+                                            },
+                                          );
+                                        }).toList(),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      CustomButton(
+                                        text: 'Add Another Time Slot',
+                                        borderColor: Colors.blue,
+                                        onPressed: _addSelectedTimeSlot,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 16),
+                                  ],
+
+                                  // Display saved locations after the form is hidden
+                                  if (_locations.isNotEmpty &&
+                                      !_isAddingLocation)
                                     Column(
-                                      children: _selectedTimes
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: _locations
                                           .asMap()
                                           .entries
                                           .map((entry) {
                                         int index = entry.key;
-                                        TimeOfDay? selectedTime = entry.value;
-                                        return DropdownButton<TimeOfDay>(
-                                          value: selectedTime,
-                                          hint: const Text(
-                                            'Select Time Slot',
-                                            style:
-                                                TextStyle(color: Colors.white),
-                                          ),
-                                          dropdownColor: Colors.black,
-                                          items:
-                                              _timeSlots.map((TimeOfDay time) {
-                                            return DropdownMenuItem<TimeOfDay>(
-                                              value: time,
-                                              child: Text(
-                                                time.format(context),
-                                                style: const TextStyle(
-                                                    color: Colors.white),
-                                              ),
-                                            );
-                                          }).toList(),
-                                          onChanged: (TimeOfDay? newValue) {
-                                            _onTimeSlotSelected(
-                                                newValue, index);
-                                          },
+                                        Map<String, dynamic> location =
+                                            entry.value;
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    'Location ${index + 1}: ${location['address']}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: 3,
+                                                    softWrap: true,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(
+                                                    Icons.edit,
+                                                    color: Colors.orange,
+                                                  ),
+                                                  onPressed: () =>
+                                                      _editLocation(index),
+                                                ),
+                                              ],
+                                            ),
+                                            ...location['timeSlots']
+                                                .map<Widget>((timeSlot) {
+                                              return Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 4.0),
+                                                child: Text(
+                                                  'Date: ${timeSlot['date']}, Times: ${timeSlot['times'].join(', ')}',
+                                                  style: const TextStyle(
+                                                    color: Colors.white70,
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                            const Divider(
+                                              color: Colors.white,
+                                            ),
+                                          ],
                                         );
                                       }).toList(),
                                     ),
-                                    const SizedBox(height: 8),
-                                    CustomButton(
-                                      text: 'Add Another Time Slot',
-                                      borderColor: Colors.blue,
-                                      onPressed: _addSelectedTimeSlot,
-                                    ),
-                                  ],
                                   const SizedBox(height: 16),
+
+                                  // Save Setup Details button (when adding location)
+                                  if (_isAddingLocation)
+                                    CustomButton(
+                                      text: 'Save Setup Details',
+                                      borderColor: Colors.blue,
+                                      onPressed: _saveLocation,
+                                    ),
+
+                                  // Add Another Location button (shown after saving the current location)
+                                  if (!_isAddingLocation)
+                                    CustomButton(
+                                      text: 'Add Another Location',
+                                      borderColor: Colors.blue,
+                                      onPressed: () {
+                                        setState(() {
+                                          _isAddingLocation = true;
+                                          _clearFields(); // Clear fields for the next location
+                                        });
+                                      },
+                                    ),
+
+                                  const SizedBox(height: 16),
+
+                                  // Save Setup Details button
+                                  if (_showBackToFormButton)
+                                    CustomButton(
+                                      text: 'Save Setup Details',
+                                      borderColor: const Color(0xFFFF4E00),
+                                      onPressed: () {
+                                        _saveInspectionDetails();
+                                      },
+                                    ),
                                 ],
-
-                                // Display saved locations after the form is hidden
-                                if (_locations.isNotEmpty && !_isAddingLocation)
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children:
-                                        _locations.asMap().entries.map((entry) {
-                                      int index = entry.key;
-                                      Map<String, dynamic> location =
-                                          entry.value;
-                                      return Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  'Location ${index + 1}: ${location['address']}',
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  maxLines: 3,
-                                                  softWrap: true,
-                                                ),
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.edit,
-                                                  color: Colors.orange,
-                                                ),
-                                                onPressed: () =>
-                                                    _editLocation(index),
-                                              ),
-                                            ],
-                                          ),
-                                          ...location['timeSlots']
-                                              .map<Widget>((timeSlot) {
-                                            return Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 4.0),
-                                              child: Text(
-                                                'Date: ${timeSlot['date']}, Times: ${timeSlot['times'].join(', ')}',
-                                                style: const TextStyle(
-                                                  color: Colors.white70,
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                          const Divider(
-                                            color: Colors.white,
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
-                                  ),
-                                const SizedBox(height: 16),
-
-                                // Save Setup Details button (when adding location)
-                                if (_isAddingLocation)
-                                  CustomButton(
-                                    text: 'Save Setup Details',
-                                    borderColor: Colors.blue,
-                                    onPressed: _saveLocation,
-                                  ),
-
-                                // Add Another Location button (shown after saving the current location)
-                                if (!_isAddingLocation)
-                                  CustomButton(
-                                    text: 'Add Another Location',
-                                    borderColor: Colors.blue,
-                                    onPressed: () {
-                                      setState(() {
-                                        _isAddingLocation = true;
-                                        _clearFields(); // Clear fields for the next location
-                                      });
-                                    },
-                                  ),
-
-                                const SizedBox(height: 16),
-
-                                // Save Setup Details button
-                                if (_showBackToFormButton)
-                                  CustomButton(
-                                    text: 'Save Setup Details',
-                                    borderColor: const Color(0xFFFF4E00),
-                                    onPressed: () {
-                                      _saveInspectionDetails();
-                                    },
-                                  ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    if (!isAdmin)
-                      CustomBottomNavigation(
-                        selectedIndex: 1,
-                        onItemTapped: (int) {},
-                      ),
-                  ],
-                ),
-              ],
+                      // Remove the CustomBottomNavigation widget
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           if (_isLoading)
