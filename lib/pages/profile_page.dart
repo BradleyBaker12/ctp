@@ -11,6 +11,7 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_back_button.dart'; // Import the Custom Back Button
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/components/web_footer.dart'; // Add this import
 
 class ProfilePage extends StatelessWidget {
   ProfilePage({super.key});
@@ -85,7 +86,7 @@ class ProfilePage extends StatelessWidget {
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: kIsWeb
+      appBar: kIsWeb && !isAdmin
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
               child: WebNavigationBar(
@@ -163,12 +164,10 @@ class ProfilePage extends StatelessWidget {
               ),
             )
           : null,
-      // Wrap the entire body inside a Stack so we can add the back button on top of the page
-      body: Stack(
-        children: [
-          // Main content
-          GradientBackground(
-            child: SingleChildScrollView(
+      body: GradientBackground(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -397,25 +396,26 @@ class ProfilePage extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 20),
+                  if (kIsWeb) const WebFooter(), // Add web footer for web only
                 ],
               ),
             ),
-          ),
-          // Show the CustomBackButton only for Admins and Sales Reps, with a conditional top offset.
-          if (isAdmin || isSalesRep)
-            Positioned(
-              top:
-                  backButtonTopPosition, // Different positioning for sales rep to avoid overlap
-              left: 20,
-              child: SafeArea(
-                child: CustomBackButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+            // Show the CustomBackButton only for Admins and Sales Reps, with a conditional top offset.
+            if (isAdmin || isSalesRep)
+              Positioned(
+                top:
+                    backButtonTopPosition, // Different positioning for sales rep to avoid overlap
+                left: 20,
+                child: SafeArea(
+                  child: CustomBackButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
       // Only show the bottom navigation bar if the user is NOT an admin or a sales rep.
       bottomNavigationBar: (isAdmin || isSalesRep || kIsWeb)

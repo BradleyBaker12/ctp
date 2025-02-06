@@ -411,4 +411,107 @@ class VehicleProvider with ChangeNotifier {
   int getVehicleCount() {
     return _vehicles.length;
   }
+
+  Future<List<Vehicle>> fetchVehiclesForDateRange({
+    required DateTime startDate,
+    required DateTime endDate,
+    int limit = 10,
+  }) async {
+    try {
+      final QuerySnapshot vehicleSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('uploadTimestamp', isGreaterThanOrEqualTo: startDate)
+          .where('uploadTimestamp', isLessThanOrEqualTo: endDate)
+          .where('vehicleStatus', isEqualTo: 'Live')
+          .orderBy('uploadTimestamp', descending: true)
+          .limit(limit)
+          .get();
+
+      return vehicleSnapshot.docs.map((doc) {
+        return Vehicle.fromFirestore(
+            doc.id, doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      print('Error fetching vehicles for date range: $e');
+      return [];
+    }
+  }
+
+  Future<List<Vehicle>> fetchVehiclesForToday() async {
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    try {
+      print('Fetching today\'s vehicles from $startOfToday to $endOfToday');
+
+      final QuerySnapshot vehicleSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('createdAt',
+              isGreaterThanOrEqualTo:
+                  startOfToday) // Changed from uploadTimestamp
+          .where('createdAt',
+              isLessThanOrEqualTo: endOfToday) // Changed from uploadTimestamp
+          .where('vehicleStatus', isEqualTo: 'Live')
+          .orderBy('createdAt',
+              descending: true) // Changed from uploadTimestamp
+          .limit(5)
+          .get();
+
+      print('Found ${vehicleSnapshot.docs.length} vehicles for today');
+
+      final vehicles = vehicleSnapshot.docs
+          .map((doc) =>
+              Vehicle.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
+          .toList();
+
+      print(
+          'Processed vehicles: ${vehicles.map((v) => '${v.makeModel} (${v.vehicleStatus})')}');
+      return vehicles;
+    } catch (e) {
+      print('Error fetching today\'s vehicles: $e');
+      return [];
+    }
+  }
+
+  Future<List<Vehicle>> fetchVehiclesForYesterday() async {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final startOfYesterday =
+        DateTime(yesterday.year, yesterday.month, yesterday.day);
+    final endOfYesterday =
+        DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+
+    try {
+      print(
+          'Fetching yesterday\'s vehicles from $startOfYesterday to $endOfYesterday');
+
+      final QuerySnapshot vehicleSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('createdAt',
+              isGreaterThanOrEqualTo:
+                  startOfYesterday) // Changed from uploadTimestamp
+          .where('createdAt',
+              isLessThanOrEqualTo:
+                  endOfYesterday) // Changed from uploadTimestamp
+          .where('vehicleStatus', isEqualTo: 'Live')
+          .orderBy('createdAt',
+              descending: true) // Changed from uploadTimestamp
+          .limit(5)
+          .get();
+
+      print('Found ${vehicleSnapshot.docs.length} vehicles for yesterday');
+
+      final vehicles = vehicleSnapshot.docs
+          .map((doc) =>
+              Vehicle.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
+          .toList();
+
+      print(
+          'Processed vehicles: ${vehicles.map((v) => '${v.makeModel} (${v.vehicleStatus})')}');
+      return vehicles;
+    } catch (e) {
+      print('Error fetching yesterday\'s vehicles: $e');
+      return [];
+    }
+  }
 }

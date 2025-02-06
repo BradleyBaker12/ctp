@@ -35,8 +35,10 @@ class _AddProfilePhotoPageTransporterState
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                CropPhotoPage(imageFile: pickedFile, userData: const {},), // Pass XFile directly
+            builder: (context) => CropPhotoPage(
+              imageFile: pickedFile,
+              userData: const {},
+            ), // Pass XFile directly
           ),
         );
       } else {

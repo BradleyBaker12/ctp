@@ -1072,8 +1072,7 @@ class _TruckPageState extends State<TruckPage> {
                             crossAxisCount: _calculateCrossAxisCount(context),
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
-                            childAspectRatio:
-                                0.8, // Adjust as needed for card aspect
+                            childAspectRatio: 1, // Adjust as needed for card t
                           ),
                           itemCount: displayedVehicles.length +
                               (_isLoadingMore ? 1 : 0),

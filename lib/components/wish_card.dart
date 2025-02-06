@@ -116,6 +116,66 @@ class WishCard extends StatelessWidget {
                     ].where((element) => element.isNotEmpty).join(" ");
                     final String year = vehicle.year.toString();
 
+                    // Helper to check if a field is filled.
+                    bool isFieldFilled(dynamic value) {
+                      if (value == null) return false;
+                      if (value is String)
+                        return value.trim().isNotEmpty &&
+                            value.trim().toUpperCase() != 'N/A';
+                      if (value is List) return value.isNotEmpty;
+                      return true;
+                    }
+
+                    // List of 41 fields (as used in TruckCard).
+                    final List<dynamic> fields = [
+                      vehicle.mileage, // 1.
+                      vehicle.transmissionType, // 2.
+                      vehicle.config, // 3.
+                      vehicle.damageDescription, // 4.
+                      vehicle.damagePhotos, // 5.
+                      vehicle.dashboardPhoto, // 6.
+                      vehicle.engineNumber, // 7.
+                      vehicle.expectedSellingPrice, // 8.
+                      vehicle.faultCodesPhoto, // 9.
+                      vehicle.hydraluicType, // 10.
+                      vehicle.licenceDiskUrl, // 11.
+                      vehicle.mileageImage, // 12.
+                      vehicle.mainImageUrl, // 13.
+                      vehicle.photos, // 14.
+                      vehicle.rc1NatisFile, // 15.
+                      vehicle.registrationNumber, // 16.
+                      vehicle.suspensionType, // 17.
+                      vehicle.vehicleType, // 18.
+                      vehicle.vinNumber, // 19.
+                      vehicle.warrentyType, // 20.
+                      vehicle.warrantyDetails, // 21.
+                      vehicle.availableDate, // 22.
+                      vehicle.trailerType, // 23.
+                      vehicle.axles, // 24.
+                      vehicle.trailerLength, // 25.
+                      vehicle.natisRc1Url, // 26.
+                      vehicle.referenceNumber, // 27.
+                      vehicle.length, // 28.
+                      vehicle.vinTrailer, // 29.
+                      vehicle.damagesDescription, // 30.
+                      vehicle.additionalFeatures, // 31.
+                      vehicle.requireToSettleType, // 32.
+                      vehicle.country, // 33.
+                      vehicle.province, // 34.
+                      vehicle.variant, // 35.
+                      vehicle.natisDocumentUrl, // 36.
+                      vehicle.serviceHistoryUrl, // 37.
+                      vehicle.frontImageUrl, // 38.
+                      vehicle.sideImageUrl, // 39.
+                      vehicle.tyresImageUrl, // 40.
+                      vehicle.chassisImageUrl, // 41.
+                    ];
+
+                    int totalFields = fields.length;
+                    int filledFields =
+                        fields.where((field) => isFieldFilled(field)).length;
+                    double progressRatio = filledFields / totalFields;
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -210,6 +270,98 @@ class WishCard extends StatelessWidget {
                                     vehicle.config ?? 'N/A', specFontSize),
                               ),
                             ],
+                          ),
+                        ),
+                        // Progress Bar
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: paddingVal,
+                            vertical: paddingVal * 0.3,
+                          ),
+                          child: Container(
+                            height: cardH * 0.045,
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.circular(cardH * 0.025),
+                              border: Border.all(
+                                color: const Color(0xFF2F7FFF),
+                                width: 2,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(cardH * 0.025),
+                              child: Stack(
+                                children: [
+                                  // Base background layer.
+                                  Container(
+                                    color: const Color(0xFF2F7FFF)
+                                        .withOpacity(0.2),
+                                  ),
+                                  // Dark gray bar layer.
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      color:
+                                          Colors.grey.shade800.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  // Gray bar overlay (if needed, adjust opacity for contrast).
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      color: Colors.grey.withOpacity(0.1),
+                                    ),
+                                  ),
+                                  // Green fill based on progressRatio.
+                                  Positioned(
+                                    left: paddingVal * 0.7,
+                                    right: paddingVal * 2.8,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: cardH * 0.01,
+                                      ),
+                                      child: FractionallySizedBox(
+                                        widthFactor: progressRatio,
+                                        alignment: Alignment.centerLeft,
+                                        child: Container(
+                                          height: 2.0,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF4CAF50),
+                                            borderRadius:
+                                                BorderRadius.circular(100),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Progress text on top.
+                                  Positioned(
+                                    right: 5,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: Text(
+                                        '$filledFields/$totalFields',
+                                        style: GoogleFonts.montserrat(
+                                          fontSize: specFontSize,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                         const Spacer(),

@@ -334,11 +334,9 @@ class _LoginPageState extends State<LoginPage> {
             fontWeight: FontWeight.w400,
           ),
         ),
-        GestureDetector(
-          onTap: () {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.pushNamed(context, '/signup');
-            });
+        TextButton(
+          onPressed: () {
+            Navigator.pushNamed(context, '/signup');
           },
           child: const Text(
             'Sign Up',
@@ -429,13 +427,10 @@ class _LoginPageState extends State<LoginPage> {
     const orange = Color(0xFFFF4E00);
     return Column(
       children: [
-        // Example: Other social sign-in buttons can be added here.
         SignInButton(
           text: 'Sign In with Email',
           onPressed: () {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.pushNamed(context, '/signin');
-            });
+            Navigator.pushNamed(context, '/signin');
           },
           borderColor: orange,
         ),
@@ -448,14 +443,26 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 10),
-        SignInButton(
-          text: 'Sign Up',
+        TextButton(
           onPressed: () {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.pushNamed(context, '/signup');
-            });
+            Navigator.pushNamed(context, '/signup');
           },
-          borderColor: Colors.white,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Sign Up',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.montserrat(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ),
       ],
     );
