@@ -1,6 +1,5 @@
 // lib/providers/user_provider.dart
 
-import 'dart:io';
 import 'dart:async'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists

@@ -1,9 +1,8 @@
-// lib/components/truck_card.dart
-
-import 'dart:math'; // <-- Needed for min(...)
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 import '../models/vehicle.dart';
 import '../pages/vehicle_details_page.dart';
@@ -26,30 +25,43 @@ class TruckCard extends StatelessWidget {
   });
 
   /// Builds one of the small spec boxes (e.g., mileage, transmission, config).
-  Widget _buildSpecBox(String value, double fontSize) {
+  Widget _buildSpecBox(BuildContext context, String value, double fontSize) {
     if (value.trim().isEmpty || value.toUpperCase() == 'N/A') {
       return const SizedBox.shrink();
     }
+
+    // Get screen dimensions for dynamic font sizing
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Adjust font size based on screen size with a reasonable minimum.
+    final dynamicFontSize = screenWidth < 600
+        ? max(fontSize * 0.9, 12.0)
+        : screenWidth < 1200
+            ? max(fontSize * 0.7, 10.0)
+            : max(fontSize * 0.6, 10.0);
+
+    // Return a Container that wraps the text with padding and decoration.
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: fontSize * 0.8,
-        vertical: fontSize * 0.5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(fontSize * 0.4),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Colors.white.withOpacity(0.3),
           width: 1,
         ),
       ),
-      child: Text(
+      child: AutoSizeText(
         value.toUpperCase(),
         style: GoogleFonts.montserrat(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w300,
+          fontSize: dynamicFontSize,
+          fontWeight: FontWeight.w500,
           color: Colors.white,
         ),
+        maxLines: 1,
+        minFontSize: 10,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -70,9 +82,9 @@ class TruckCard extends StatelessWidget {
   /// Calculates how many fields are filled vs total, based on Vehicle fields.
   (int filled, int total) _calculateFieldsRatio(Vehicle vehicle) {
     final fieldsToCheck = [
-      // Basic details
+      // Basic Vehicle Details
       vehicle.makeModel,
-      vehicle.brands, // List<String>
+      vehicle.brands,
       vehicle.year,
       vehicle.mileage,
       vehicle.transmissionType,
@@ -83,15 +95,32 @@ class TruckCard extends StatelessWidget {
       vehicle.warrentyType,
       vehicle.warrantyDetails,
       vehicle.expectedSellingPrice,
+      vehicle.vehicleType,
+      vehicle.vehicleAvailableImmediately,
+      vehicle.availableDate,
+      vehicle.referenceNumber,
+      vehicle.requireToSettleType,
+      vehicle.country,
+      vehicle.province,
+      vehicle.variant,
+      vehicle.assignedSalesRepId,
 
-      // Descriptions
+      // Descriptions and Features
       vehicle.damageDescription,
       vehicle.damagesDescription,
       vehicle.hydraluicType,
       vehicle.suspensionType,
+      vehicle.additionalFeatures,
+      vehicle.damagesCondition,
+      vehicle.featuresCondition,
 
-      // Images/Docs
+      // Images and Documents
       vehicle.mainImageUrl,
+      vehicle.photos,
+      vehicle.damagePhotos,
+      vehicle.dashboardPhoto,
+      vehicle.mileageImage,
+      vehicle.faultCodesPhoto,
       vehicle.natisDocumentUrl,
       vehicle.serviceHistoryUrl,
       vehicle.frontImageUrl,
@@ -102,28 +131,67 @@ class TruckCard extends StatelessWidget {
       vehicle.makersPlateImageUrl,
       vehicle.licenceDiskUrl,
       vehicle.rc1NatisFile,
-      vehicle.additionalImages, // List<String>?
+      vehicle.additionalImages,
 
-      // Maintenance
+      // Arrays of Data
+      vehicle.damages,
+      vehicle.features,
+      vehicle.application,
+
+      // Admin Data Fields
+      vehicle.adminData.settlementAmount,
+      vehicle.adminData.natisRc1Url,
+      vehicle.adminData.licenseDiskUrl,
+      vehicle.adminData.settlementLetterUrl,
+
+      // Maintenance Fields
+      vehicle.maintenance.oemInspectionType,
+      vehicle.maintenance.oemReason,
       vehicle.maintenance.maintenanceDocUrl,
       vehicle.maintenance.warrantyDocUrl,
       vehicle.maintenance.maintenanceSelection,
       vehicle.maintenance.warrantySelection,
 
-      // Admin data
-      vehicle.adminData.natisRc1Url,
-      vehicle.adminData.licenseDiskUrl,
+      // Truck Conditions - External Cab
+      vehicle.truckConditions.externalCab.condition,
+      vehicle.truckConditions.externalCab.damagesCondition,
+      vehicle.truckConditions.externalCab.additionalFeaturesCondition,
+      vehicle.truckConditions.externalCab.damages,
+      vehicle.truckConditions.externalCab.additionalFeatures,
+      vehicle.truckConditions.externalCab.images,
 
-      // Location
-      vehicle.country,
-      vehicle.province,
+      // Truck Conditions - Internal Cab
+      vehicle.truckConditions.internalCab.condition,
+      vehicle.truckConditions.internalCab.damagesCondition,
+      vehicle.truckConditions.internalCab.additionalFeaturesCondition,
+      vehicle.truckConditions.internalCab.faultCodesCondition,
+      vehicle.truckConditions.internalCab.damages,
+      vehicle.truckConditions.internalCab.additionalFeatures,
+      vehicle.truckConditions.internalCab.faultCodes,
+      vehicle.truckConditions.internalCab.viewImages,
 
-      // Additional features/conditions
-      vehicle.additionalFeatures,
-      vehicle.damagesCondition,
-      vehicle.featuresCondition,
-      vehicle.damages, // List<Map<String, dynamic>>?
-      vehicle.features, // List<Map<String, dynamic>>?
+      // Truck Conditions - Chassis
+      vehicle.truckConditions.chassis.condition,
+      vehicle.truckConditions.chassis.damagesCondition,
+      vehicle.truckConditions.chassis.additionalFeaturesCondition,
+      vehicle.truckConditions.chassis.damages,
+      vehicle.truckConditions.chassis.additionalFeatures,
+      vehicle.truckConditions.chassis.images,
+
+      // Truck Conditions - Drive Train
+      vehicle.truckConditions.driveTrain.condition,
+      vehicle.truckConditions.driveTrain.oilLeakConditionEngine,
+      vehicle.truckConditions.driveTrain.waterLeakConditionEngine,
+      vehicle.truckConditions.driveTrain.blowbyCondition,
+      vehicle.truckConditions.driveTrain.oilLeakConditionGearbox,
+      vehicle.truckConditions.driveTrain.retarderCondition,
+      vehicle.truckConditions.driveTrain.damages,
+      vehicle.truckConditions.driveTrain.additionalFeatures,
+      vehicle.truckConditions.driveTrain.faultCodes,
+      vehicle.truckConditions.driveTrain.images,
+
+      // Truck Conditions - Tyres (check if positions map is not empty)
+      vehicle.truckConditions.tyres['tyres']?.positions.isNotEmpty,
     ];
 
     final filledFields = fieldsToCheck.where(_isFieldFilled).length;
@@ -134,329 +202,308 @@ class TruckCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- 1) Enforce your chosen ratio: (5 : 13) ---
-    const double ratioWidth = 5;
-    const double ratioHeight = 13;
+    // Fixed height for the card
+    const double cardHeight = 600.0;
 
-    // Hard limits
-    const double maxWidth = 500;
-    const double maxHeight = 1300;
-
-    // Percentage of screen usage
-    const double screenFractionWidth = 0.95;
-    const double screenFractionHeight = 0.90;
-
+    // Width based on screen size with a maximum limit
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    final cardWidth = min(screenWidth * 0.95, 500.0);
 
-    // We'll find the largest scale 's' so:
-    //   5*s <= 500, 13*s <= 1300
-    //   5*s <= screenWidth * 0.95
-    //   13*s <= screenHeight * 0.90
-    final sForMaxWidth = maxWidth / ratioWidth;
-    final sForMaxHeight = maxHeight / ratioHeight;
-    final sForScreenWidth = (screenWidth * screenFractionWidth) / ratioWidth;
-    final sForScreenHeight =
-        (screenHeight * screenFractionHeight) / ratioHeight;
-
-    final scale = min(
-      sForMaxWidth,
-      min(sForMaxHeight, min(sForScreenWidth, sForScreenHeight)),
-    );
-
-    final cardWidth = ratioWidth * scale;
-    final cardHeight = ratioHeight * scale;
-
-    // --- 2) Data completeness (progress bar) ---
+    // Calculate fields ratio for the progress bar
     final (filledFields, totalFields) = _calculateFieldsRatio(vehicle);
-    final progressRatio =
-        (totalFields == 0) ? 0 : filledFields / totalFields.toDouble();
+    final progressRatio = totalFields > 0 ? filledFields / totalFields : 0.0;
 
-    // --- 3) Decide final border color ---
-    final Color effectiveBorderColor = borderColor ?? const Color(0xFF2F7FFF);
+    // BRAND + MODEL + YEAR text.
+    final brandModel = [
+      vehicle.brands.join(" "),
+      vehicle.makeModel,
+    ].where((e) => e.isNotEmpty).join(" ");
+    final year = vehicle.year.toString();
 
-    // --- 4) Build the UI, ensuring order: Specs -> ProgressBar -> Button at bottom
-    return Center(
-      child: Container(
-        width: cardWidth,
-        height: cardHeight,
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2F7FFF).withOpacity(0.2),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: effectiveBorderColor,
-            width: 2,
+    // Wrap the entire card in an InkWell so that tapping anywhere (except on interactive widgets)
+    // navigates to the vehicle details page.
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VehicleDetailsPage(vehicle: vehicle),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+        );
+      },
+      child: Center(
+        child: Container(
+          width: cardWidth,
+          height: cardHeight,
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2F7FFF).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: borderColor ?? const Color(0xFF2F7FFF),
+              width: 2,
             ),
-          ],
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final cardW = constraints.maxWidth;
-            final cardH = constraints.maxHeight;
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final cardW = constraints.maxWidth;
+              final cardH = constraints.maxHeight;
 
-            // Let's make the top ~60% for the image, bottom ~40% for specs & button
-            final imageSectionHeight = cardH * 0.6;
-            final contentSectionHeight = cardH - imageSectionHeight;
+              // Define sections of the card based on its height.
+              final imageSectionHeight = cardH * 0.6;
+              final contentSectionHeight = cardH * 0.4;
 
-            // Font sizes based on card width
-            final titleFontSize = cardW * 0.045;
-            final subtitleFontSize = cardW * 0.042;
-            final paddingVal = cardW * 0.04;
-            final specFontSize = cardW * 0.032;
-            final progressText = cardW * 0.024;
+              // Adjust font sizes and padding based on card width.
+              final titleFontSize = max(cardW * 0.045, 14.0);
+              final subtitleFontSize = max(cardW * 0.042, 12.0);
+              final paddingVal = max(cardW * 0.04, 8.0);
+              final specFontSize = max(cardW * 0.032, 14.0);
+              final progressText = max(cardW * 0.024, 8.0);
 
-            // For button thickness, ~8% of card height
-            final double buttonHeight = cardH * 0.08;
+              // Button height ~8% of card height.
+              final double buttonHeight = cardH * 0.08;
 
-            // Brand + Model + Year
-            final brandModel = [
-              vehicle.brands.join(" "),
-              vehicle.makeModel,
-            ].where((e) => e.isNotEmpty).join(" ");
-            final year = vehicle.year.toString();
+              // Vertical spacing between sections.
+              final verticalSpacing = cardH * 0.02;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ========== TOP SECTION: IMAGE ==========
-                SizedBox(
-                  height: imageSectionHeight,
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(10),
-                        ),
-                        child: Image.network(
-                          vehicle.mainImageUrl ?? '',
-                          width: cardW,
-                          height: imageSectionHeight,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Image.asset(
-                            'lib/assets/default_vehicle_image.png',
+              // Spacing between spec boxes.
+              final responsiveSpacing =
+                  screenWidth < 400 ? 4.0 : paddingVal * 0.2;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Top section: Image with a like button.
+                  SizedBox(
+                    height: imageSectionHeight,
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          child: Image.network(
+                            vehicle.mainImageUrl ?? '',
                             width: cardW,
                             height: imageSectionHeight,
                             fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      // Heart (like) button in top-right
-                      Positioned(
-                        top: paddingVal * 0.75,
-                        right: paddingVal * 0.75,
-                        child: Consumer<UserProvider>(
-                          builder: (context, userProvider, child) {
-                            bool isLiked = userProvider.getLikedVehicles
-                                .contains(vehicle.id);
-                            return IconButton(
-                              icon: Icon(
-                                isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isLiked ? Colors.red : Colors.white,
-                                size: titleFontSize + 10,
-                              ),
-                              onPressed: () => onInterested(vehicle),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ========== BOTTOM SECTION: SPECS + PROGRESS + BUTTON ==========
-                SizedBox(
-                  height: contentSectionHeight,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: paddingVal * 0.8,
-                      vertical: paddingVal * 0.8,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // BRAND MODEL / YEAR
-                        SizedBox(height: 18),
-                        Text(
-                          brandModel.isEmpty
-                              ? 'LOADING...'
-                              : brandModel.toUpperCase(),
-                          style: GoogleFonts.montserrat(
-                            fontSize: titleFontSize,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          year,
-                          style: GoogleFonts.montserrat(
-                            fontSize: subtitleFontSize,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        SizedBox(height: 18),
-
-                        // SPECS ROW
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Flexible(
-                              child: _buildSpecBox(
-                                '${vehicle.mileage ?? "N/A"} km',
-                                specFontSize,
-                              ),
-                            ),
-                            SizedBox(width: paddingVal * 0.5),
-                            Flexible(
-                              child: _buildSpecBox(
-                                vehicle.transmissionType ?? 'N/A',
-                                specFontSize,
-                              ),
-                            ),
-                            SizedBox(width: paddingVal * 0.5),
-                            Flexible(
-                              child: _buildSpecBox(
-                                vehicle.config ?? 'N/A',
-                                specFontSize,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 18),
-
-                        // PROGRESS BAR
-                        Container(
-                          height: contentSectionHeight * 0.07,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(50),
-                            border: Border.all(
-                              color: const Color(0xFF2F7FFF),
-                              width: 2,
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                                contentSectionHeight * 0.03),
-                            child: Stack(
-                              children: [
-                                // Background
-                                Container(
-                                  color:
-                                      const Color(0xFF2F7FFF).withOpacity(0.2),
-                                ),
-                                // Gray bar
-                                Positioned(
-                                  left: paddingVal * 0.7,
-                                  right: paddingVal * 2.8,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    margin: EdgeInsets.symmetric(
-                                      vertical: contentSectionHeight * 0.01,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[800],
-                                      borderRadius: BorderRadius.circular(100),
-                                    ),
-                                  ),
-                                ),
-                                // Green fill
-                                Positioned(
-                                  left: paddingVal * 0.7,
-                                  right: paddingVal * 2.8,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: FractionallySizedBox(
-                                    widthFactor: progressRatio.toDouble(),
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(
-                                      margin: EdgeInsets.symmetric(
-                                        vertical: contentSectionHeight * 0.01,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF4CAF50),
-                                        borderRadius:
-                                            BorderRadius.circular(100),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Progress text
-                                Positioned(
-                                  right: 5,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: Text(
-                                      '$filledFields/$totalFields',
-                                      style: GoogleFonts.montserrat(
-                                        fontSize: progressText,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            errorBuilder: (context, error, stackTrace) =>
+                                Image.asset(
+                              'lib/assets/default_vehicle_image.png',
+                              width: cardW,
+                              height: imageSectionHeight,
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),
-
-                        // This spacer pushes the button to the bottom of the card
-                        SizedBox(height: 18),
-
-                        // VIEW MORE DETAILS BUTTON
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      VehicleDetailsPage(vehicle: vehicle),
+                        Positioned(
+                          top: paddingVal * 0.75,
+                          right: paddingVal * 0.75,
+                          child: Consumer<UserProvider>(
+                            builder: (context, userProvider, child) {
+                              bool isLiked = userProvider.getLikedVehicles
+                                  .contains(vehicle.id);
+                              return IconButton(
+                                icon: Icon(
+                                  isLiked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isLiked ? Colors.red : Colors.white,
+                                  size: titleFontSize + 10,
                                 ),
+                                onPressed: () => onInterested(vehicle),
                               );
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2F7FFF),
-                              minimumSize: Size(double.infinity, buttonHeight),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  paddingVal * 0.5,
-                                ),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(10.0),
-                              child: Text(
-                                'VIEW MORE DETAILS',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: specFontSize + 3,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+
+                  // Bottom section: Details, specs, progress bar.
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                          left: 10, right: 10, top: 5, bottom: 5),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: verticalSpacing),
+                          // Brand, Model, and Year text.
+                          Text(
+                            brandModel.isEmpty
+                                ? 'LOADING...'
+                                : brandModel.toUpperCase(),
+                            style: GoogleFonts.montserrat(
+                              fontSize: titleFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            year,
+                            style: GoogleFonts.montserrat(
+                              fontSize: subtitleFontSize,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          SizedBox(height: 18),
+
+                          // Specs row: Each spec box now sizes itself based on its content.
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              _buildSpecBox(
+                                  context,
+                                  '${vehicle.mileage ?? "N/A"} km',
+                                  specFontSize),
+                              SizedBox(width: responsiveSpacing),
+                              _buildSpecBox(
+                                  context,
+                                  vehicle.transmissionType ?? 'N/A',
+                                  specFontSize),
+                              SizedBox(width: responsiveSpacing),
+                              _buildSpecBox(context, vehicle.config ?? 'N/A',
+                                  specFontSize),
+                            ],
+                          ),
+                          SizedBox(height: 18),
+
+                          // Progress bar.
+                          Container(
+                            height: contentSectionHeight * 0.07,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(50),
+                              border: Border.all(
+                                color: const Color(0xFF2F7FFF),
+                                width: 2,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                  contentSectionHeight * 0.02),
+                              child: Stack(
+                                children: [
+                                  // Background
+                                  Container(
+                                    color: const Color(0xFF2F7FFF)
+                                        .withOpacity(0.2),
+                                  ),
+                                  // Gray bar
+                                  Positioned(
+                                    left: paddingVal * 0.7,
+                                    right: paddingVal * 2.8,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: contentSectionHeight * 0.01,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0d1d4a),
+                                        borderRadius:
+                                            BorderRadius.circular(100),
+                                      ),
+                                    ),
+                                  ),
+                                  // Green fill representing progress
+                                  Positioned(
+                                    left: paddingVal * 0.7,
+                                    right: paddingVal * 2.8,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: FractionallySizedBox(
+                                      widthFactor: progressRatio.toDouble(),
+                                      alignment: Alignment.centerLeft,
+                                      child: Container(
+                                        margin: EdgeInsets.symmetric(
+                                          vertical: contentSectionHeight * 0.01,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF4CAF50),
+                                          borderRadius:
+                                              BorderRadius.circular(100),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Progress text
+                                  Positioned(
+                                    right: 5,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: Text(
+                                        '$filledFields/$totalFields',
+                                        style: GoogleFonts.montserrat(
+                                          fontSize: progressText,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 18),
+
+                          // Optionally, you can keep the "VIEW MORE DETAILS" button if desired.
+                          // If you want the entire card to be clickable, this button could be removed.
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        VehicleDetailsPage(vehicle: vehicle),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2F7FFF),
+                                minimumSize:
+                                    Size(double.infinity, buttonHeight),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(paddingVal * 0.5),
+                                ),
+                              ),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Text(
+                                  'VIEW MORE DETAILS',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: specFontSize + 2,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

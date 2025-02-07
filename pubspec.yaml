@@ -29,6 +29,7 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   appinio_swiper: ^2.1.1
+  auto_size_text: ^3.0.0
   cached_network_image: ^3.4.1
   cloud_firestore: ^5.2.0
   cupertino_icons: ^1.0.6

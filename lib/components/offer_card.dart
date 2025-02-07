@@ -207,7 +207,7 @@ class _OfferCardState extends State<OfferCard> {
     final userRole = userProvider.getUserRole ?? '';
 
     // Handle Payment Approved status for both roles
-    if (widget.offer.offerStatus?.toLowerCase() == 'payment approved') {
+    if (widget.offer.offerStatus.toLowerCase() == 'payment approved') {
       String newStatus = 'awaiting collection';
       // Update the offer status in Firestore
       FirebaseFirestore.instance

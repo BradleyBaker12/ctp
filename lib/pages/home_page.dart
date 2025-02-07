@@ -1029,7 +1029,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
 
     return Container(
-      height: 560, // Enough height to fit your TruckCard
+      height: 616, // 600 for card + 16 for margins
       alignment: Alignment.center,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1065,6 +1065,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               itemBuilder: (context, index) {
                 final vehicle = vehicles[index];
                 return Center(
+                  heightFactor: 1,
                   child: TruckCard(
                     vehicle: vehicle,
                     onInterested: _handleInterestedVehicle,

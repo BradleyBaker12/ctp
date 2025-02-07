@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'dart:typed_data'; // Added for Uint8List
-import 'package:flutter/material.dart';
+// Added for Uint8List
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FormDataProvider with ChangeNotifier {

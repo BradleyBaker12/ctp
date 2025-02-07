@@ -529,7 +529,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final orange = const Color(0xFFFF4E00);
+    const orange = Color(0xFFFF4E00);
 
     return Scaffold(
       body: Stack(

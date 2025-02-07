@@ -169,7 +169,7 @@ class ListingCard extends StatelessWidget {
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 vehicle.vehicleType.toLowerCase() == 'trailer'
-                                    ? '${vehicle.trailerType}'.toUpperCase()
+                                    ? vehicle.trailerType.toUpperCase()
                                     : '${vehicle.brands.join(" ")} ${vehicle.makeModel}'
                                         .toUpperCase(),
                                 style: GoogleFonts.montserrat(

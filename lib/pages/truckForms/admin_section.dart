@@ -1,6 +1,5 @@
 // admin_section.dart
 
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:flutter/material.dart';

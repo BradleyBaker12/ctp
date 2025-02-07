@@ -463,6 +463,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
         isMaintenance ? _maintenanceDocFile : _warrantyDocFile;
     final String title =
         isMaintenance ? 'Maintenance Document' : 'Warranty Document';
+    final bool canEdit =
+        Provider.of<UserProvider>(context, listen: false).getUserRole !=
+            'dealer';
 
     showDialog(
       context: context,
@@ -483,56 +486,22 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                   } else if (file != null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text("Please upload first")));
-                    // For local files
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(
-                    //     builder: (context) => Scaffold(
-                    //       appBar: AppBar(
-                    //         title: Text(title),
-                    //         backgroundColor: const Color(0xFF0E4CAF),
-                    //       ),
-                    //       body: PDFView(
-                    //         pdfData: file,
-                    //         enableSwipe: true,
-                    //         swipeHorizontal: false,
-                    //         autoSpacing: true,
-                    //         pageFling: true,
-                    //         pageSnap: true,
-                    //         defaultPage: 0,
-                    //         fitPolicy: FitPolicy.BOTH,
-                    //         preventLinkNavigation: false,
-                    //         onError: (error) {
-                    //           ScaffoldMessenger.of(context).showSnackBar(
-                    //             SnackBar(content: Text('Error: $error')),
-                    //           );
-                    //         },
-                    //         onPageError: (page, error) {
-                    //           ScaffoldMessenger.of(context).showSnackBar(
-                    //             SnackBar(
-                    //                 content:
-                    //                     Text('Error on page $page: $error')),
-                    //           );
-                    //         },
-                    //       ),
-                    //     ),
-                    //   ),
-                    // );
                   }
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Change'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (isMaintenance) {
-                    _pickMaintenanceDocument();
-                  } else {
-                    _pickWarrantyDocument();
-                  }
-                },
-              ),
+              if (canEdit) // Only show Change option if not dealer
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Change'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (isMaintenance) {
+                      _pickMaintenanceDocument();
+                    } else {
+                      _pickWarrantyDocument();
+                    }
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.close),
                 title: const Text('Cancel'),
@@ -545,64 +514,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     );
   }
 
-  // Future<File?> convertToPdf(File file) async {
-  //   try {
-  //     final String extension = file.path.split('.').last.toLowerCase();
-  //     final pdf = pw.Document();
-
-  //     if (_isImageFile(file.path)) {
-  //       // Handle image files
-  //       final image = img.decodeImage(await file.readAsBytes());
-  //       if (image != null) {
-  //         final pdfImage = pw.MemoryImage(
-  //           img.encodeJpg(image),
-  //         );
-
-  //         pdf.addPage(
-  //           pw.Page(
-  //             build: (pw.Context context) {
-  //               return pw.Center(
-  //                 child: pw.Image(pdfImage),
-  //               );
-  //             },
-  //           ),
-  //         );
-  //       }
-  //     } else if (extension == 'pdf') {
-  //       // If it's already a PDF, return the original file
-  //       return file;
-  //     } else {
-  //       // For other file types, create a PDF with a message
-  //       pdf.addPage(
-  //         pw.Page(
-  //           build: (pw.Context context) {
-  //             return pw.Center(
-  //               child: pw.Text(
-  //                 'Original file: ${file.path.split('/').last}\n'
-  //                 'File type: $extension\n'
-  //                 'Original file is preserved as-is',
-  //               ),
-  //             );
-  //           },
-  //         ),
-  //       );
-  //       // Return original file for non-convertible types
-  //       return file;
-  //     }
-
-  //     // Save the PDF
-  //     final output = await getTemporaryDirectory();
-  //     final pdfFile = File(
-  //         '${output.path}/converted_${DateTime.now().millisecondsSinceEpoch}.pdf');
-  //     await pdfFile.writeAsBytes(await pdf.save());
-  //     return pdfFile;
-  //   } catch (e) {
-  //     print('Error converting to PDF: $e');
-  //     // Return original file if conversion fails
-  //     return file;
-  //   }
-  // }
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -614,9 +525,12 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
     final bool isTransporter = userRole == 'transporter';
-    // NEW: handle "sales"
     final bool isSales = userRole == 'sales';
+    final bool canEdit = isAdmin ||
+        isSales ||
+        isTransporter; // New variable for edit permissions
 
+    // Change the onTap/enabled conditions to exclude dealers
     return Scaffold(
       body: GradientBackground(
         child: SizedBox(
@@ -657,10 +571,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       ),
                     const SizedBox(height: 15),
                     InkWell(
-                      // Let dealers, sales, admin, transporters pick the doc
-                      onTap: (isAdmin || isDealer || isSales || isTransporter)
+                      // Only allow admin, sales, and transporters to pick the doc (exclude dealers)
+                      onTap: canEdit
                           ? _pickMaintenanceDocument
-                          : null,
+                          : null, // Only allow editing if not dealer
                       borderRadius: BorderRadius.circular(10.0),
                       child: Container(
                         width: double.infinity,
@@ -879,32 +793,39 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           label: 'Yes',
                           value: 'yes',
                           groupValue: _oemInspectionType,
-                          onChanged: (value) {
-                            setState(() {
-                              _oemInspectionType = value!;
-                              if (_oemInspectionType == 'yes') {
-                                _oemReasonController.clear();
-                              }
-                            });
-                            notifyProgress();
-                          },
-                          // Allow dealers, sales, admin, transporters to edit
-                          enabled:
-                              (isAdmin || isDealer || isSales || isTransporter),
+                          onChanged: canEdit
+                              ? (String? value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      _oemInspectionType = value;
+                                      if (_oemInspectionType == 'yes') {
+                                        _oemReasonController.clear();
+                                      }
+                                    });
+                                    notifyProgress();
+                                  }
+                                }
+                              : (String?
+                                  value) {}, // Provide empty function when not editable
+                          enabled: canEdit,
                         ),
                         const SizedBox(width: 15),
                         CustomRadioButton(
                           label: 'No',
                           value: 'no',
                           groupValue: _oemInspectionType,
-                          onChanged: (value) {
-                            setState(() {
-                              _oemInspectionType = value!;
-                            });
-                            notifyProgress();
-                          },
-                          enabled:
-                              (isAdmin || isDealer || isSales || isTransporter),
+                          onChanged: canEdit
+                              ? (String? value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      _oemInspectionType = value;
+                                    });
+                                    notifyProgress();
+                                  }
+                                }
+                              : (String?
+                                  value) {}, // Provide empty function when not editable
+                          enabled: canEdit,
                         ),
                       ],
                     ),
@@ -916,8 +837,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                         child: CustomTextField(
                           controller: _oemReasonController,
                           hintText: 'ENTER REASONING HERE'.toUpperCase(),
-                          enabled:
-                              (isAdmin || isDealer || isSales || isTransporter),
+                          enabled: canEdit,
                         ),
                       ),
                     const SizedBox(height: 15),
@@ -938,10 +858,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       ),
                     const SizedBox(height: 15),
                     InkWell(
-                      // Let dealers, sales, admin, transporters pick the doc
-                      onTap: (isAdmin || isDealer || isSales || isTransporter)
+                      // Only allow admin, sales, and transporters to pick the doc (exclude dealers)
+                      onTap: canEdit
                           ? _pickWarrantyDocument
-                          : null,
+                          : null, // Only allow editing if not dealer
                       borderRadius: BorderRadius.circular(10.0),
                       child: Container(
                         width: double.infinity,
@@ -1080,8 +1000,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // Show the DONE button for dealers, sales, admin, or transporters
-                    if (isTransporter || isDealer || isSales || isAdmin)
+                    // Show the DONE button for admin, sales, or transporters (exclude dealers)
+                    if (isTransporter || isSales || isAdmin)
                       CustomButton(
                         onPressed: () async {
                           // Show loading indicator

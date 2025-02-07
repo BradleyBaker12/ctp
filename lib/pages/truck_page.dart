@@ -1,6 +1,5 @@
 // lib/pages/truck_page.dart
 
-import 'dart:math';
 import 'dart:convert';
 
 import 'package:ctp/components/custom_app_bar.dart';
@@ -12,35 +11,26 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 
-// Add the NavigationItem class definition near the top of the file
 class NavigationItem {
   final String title;
   final String route;
-
   NavigationItem({
     required this.title,
     required this.route,
   });
 }
 
-// Define the FilterOperation enum to handle various filter operations
-enum FilterOperation {
-  equals,
-  contains,
-  // Since we're using predefined values, we might not need greaterThan, lessThan
-}
+// If still needed:
+enum FilterOperation { equals, contains }
 
-// Define the FilterCriterion class to encapsulate filter criteria
 class FilterCriterion {
   String fieldName;
   FilterOperation operation;
   dynamic value;
-
   FilterCriterion({
     required this.fieldName,
     required this.operation,
@@ -50,12 +40,12 @@ class FilterCriterion {
 
 class TruckPage extends StatefulWidget {
   final String? vehicleType;
-  final String? selectedBrand; // Add this parameter
+  final String? selectedBrand;
 
   const TruckPage({
     super.key,
     this.vehicleType,
-    this.selectedBrand, // Add this
+    this.selectedBrand,
   });
 
   @override
@@ -65,27 +55,22 @@ class TruckPage extends StatefulWidget {
 class _TruckPageState extends State<TruckPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Add missing getter for large screen
   bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
-
-  // Add this getter for consistent breakpoint
   bool _isCompactNavigation(BuildContext context) =>
       MediaQuery.of(context).size.width <= 1100;
 
-  // Remove the custom web navigation bar methods and keep only the build method
-
   late ScrollController _scrollController;
   bool _isLoadingMore = false;
-  final int _itemsPerPage = 10; // Number of items per page
-  int _currentPage = 0; // Current page index
-  int _selectedIndex = 1; // Initial selected index (trucks tab)
-  List<Vehicle> swipedVehicles = []; // Track swiped vehicles
-  List<Vehicle> displayedVehicles = []; // Vehicles currently displayed
-  List<String> swipedDirections = []; // Track swipe directions for undo
-  int loadedVehicleIndex = 0; // Track loaded vehicles index
-  bool _hasReachedEnd = false; // Track if all cards are loaded
-  bool _isLoading = true; // Loading state
-  final bool _isFiltering = false; // Filtering state
+  final int _itemsPerPage = 10;
+  int _currentPage = 0;
+  int _selectedIndex = 1;
+  List<Vehicle> swipedVehicles = [];
+  List<Vehicle> displayedVehicles = [];
+  List<String> swipedDirections = [];
+  int loadedVehicleIndex = 0;
+  bool _hasReachedEnd = false;
+  bool _isLoading = true;
+  final bool _isFiltering = false;
 
   // --------------------------------------------------------------------
   // 1) Filter State
@@ -173,9 +158,11 @@ class _TruckPageState extends State<TruckPage> {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialVehicles();
     });
+
     _loadBrandsFromJson();
     _loadCountriesFromJson();
   }
@@ -329,7 +316,8 @@ class _TruckPageState extends State<TruckPage> {
             .where((vehicle) => vehicle.vehicleStatus == 'Live');
         if (widget.selectedBrand != null) {
           filteredVehicles = filteredVehicles.where(
-              (vehicle) => vehicle.brands.contains(widget.selectedBrand));
+            (vehicle) => vehicle.brands.contains(widget.selectedBrand),
+          );
         }
         filteredVehicles = _applySelectedFilters(filteredVehicles);
         displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
@@ -341,7 +329,8 @@ class _TruckPageState extends State<TruckPage> {
       print('Error in _loadInitialVehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Failed to load vehicles. Please try again later.')),
+          content: Text('Failed to load vehicles. Please try again later.'),
+        ),
       );
     }
   }
@@ -358,8 +347,9 @@ class _TruckPageState extends State<TruckPage> {
       var filteredVehicles = vehicleProvider.vehicles
           .where((vehicle) => vehicle.vehicleStatus == 'Live');
       if (widget.selectedBrand != null) {
-        filteredVehicles = filteredVehicles
-            .where((vehicle) => vehicle.brands.contains(widget.selectedBrand));
+        filteredVehicles = filteredVehicles.where(
+          (vehicle) => vehicle.brands.contains(widget.selectedBrand),
+        );
       }
       filteredVehicles = _applySelectedFilters(filteredVehicles);
       List<Vehicle> moreVehicles =
@@ -445,8 +435,10 @@ class _TruckPageState extends State<TruckPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.grey[900],
-          title: Text('Filter Vehicles',
-              style: GoogleFonts.montserrat(color: Colors.white)),
+          title: Text(
+            'Filter Vehicles',
+            style: GoogleFonts.montserrat(color: Colors.white),
+          ),
           content: SingleChildScrollView(
             child: StatefulBuilder(
               builder: (BuildContext context, StateSetter setDialogState) {
@@ -455,13 +447,16 @@ class _TruckPageState extends State<TruckPage> {
                   children: [
                     // YEAR
                     ExpansionTile(
-                      title: Text('By Year',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Year',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _yearOptions.map((year) {
                         return CheckboxListTile(
-                          title: Text(year,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            year,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedYears.contains(year),
                           onChanged: (bool? value) {
                             setDialogState(() {
@@ -481,15 +476,19 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // BRAND
                     ExpansionTile(
-                      title: Text('By Brand',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Brand',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _brandOptions.map((brand) {
                         return CheckboxListTile(
-                          title: Text(brand,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            brand,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedBrands.contains(brand),
                           onChanged: (bool? value) {
                             setDialogState(() {
@@ -515,20 +514,26 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // MODEL
                     ExpansionTile(
-                      title: Text('By Model',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Model',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _makeModelOptions.map((model) {
                         return CheckboxListTile(
-                          title: Text(model,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            model,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedMakeModels.contains(model),
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (model == 'All') _selectedMakeModels.clear();
+                                if (model == 'All') {
+                                  _selectedMakeModels.clear();
+                                }
                                 if (_selectedMakeModels.contains('All')) {
                                   _selectedMakeModels.remove('All');
                                 }
@@ -543,10 +548,13 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // VEHICLE STATUS
                     ExpansionTile(
-                      title: Text('By Status',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Status',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _vehicleStatusOptions
                           .where((status) =>
                               status != 'Draft' &&
@@ -554,9 +562,10 @@ class _TruckPageState extends State<TruckPage> {
                               status != 'Live')
                           .map((status) {
                         return CheckboxListTile(
-                          title: Text(status,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            status,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedVehicleStatuses.contains(status),
                           onChanged: (bool? value) {
                             setDialogState(() {
@@ -578,15 +587,19 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // TRANSMISSION
                     ExpansionTile(
-                      title: Text('By Transmission',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Transmission',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _transmissionOptions.map((trans) {
                         return CheckboxListTile(
-                          title: Text(trans,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            trans,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedTransmissions.contains(trans),
                           onChanged: (bool? value) {
                             setDialogState(() {
@@ -608,20 +621,26 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // COUNTRY
                     ExpansionTile(
-                      title: Text('By Country',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Country',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _countryOptions.map((ctry) {
                         return CheckboxListTile(
-                          title: Text(ctry,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            ctry,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedCountries.contains(ctry),
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (ctry == 'All') _selectedCountries.clear();
+                                if (ctry == 'All') {
+                                  _selectedCountries.clear();
+                                }
                                 if (_selectedCountries.contains('All')) {
                                   _selectedCountries.remove('All');
                                 }
@@ -650,20 +669,26 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // PROVINCE
                     ExpansionTile(
-                      title: Text('By Province',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Province',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _provinceOptions.map((prov) {
                         return CheckboxListTile(
-                          title: Text(prov,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            prov,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedProvinces.contains(prov),
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (prov == 'All') _selectedProvinces.clear();
+                                if (prov == 'All') {
+                                  _selectedProvinces.clear();
+                                }
                                 if (_selectedProvinces.contains('All')) {
                                   _selectedProvinces.remove('All');
                                 }
@@ -678,15 +703,19 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // APPLICATION OF USE
                     ExpansionTile(
-                      title: Text('By Application Of Use',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Application Of Use',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _applicationOfUseOptions.map((vtype) {
                         return CheckboxListTile(
-                          title: Text(vtype,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            vtype,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedApplicationOfUse.contains(vtype),
                           onChanged: (bool? value) {
                             setDialogState(() {
@@ -708,20 +737,26 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // CONFIG
                     ExpansionTile(
-                      title: Text('By Config',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Config',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _configOptions.map((cfg) {
                         return CheckboxListTile(
-                          title: Text(cfg,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            cfg,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedConfigs.contains(cfg),
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (cfg == 'All') _selectedConfigs.clear();
+                                if (cfg == 'All') {
+                                  _selectedConfigs.clear();
+                                }
                                 if (_selectedConfigs.contains('All')) {
                                   _selectedConfigs.remove('All');
                                 }
@@ -736,20 +771,26 @@ class _TruckPageState extends State<TruckPage> {
                         );
                       }).toList(),
                     ),
+
                     // VEHICLE TYPE
                     ExpansionTile(
-                      title: Text('By Vehicle Type',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
+                      title: Text(
+                        'By Vehicle Type',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
                       children: _vehicleTypeOptions.map((type) {
                         return CheckboxListTile(
-                          title: Text(type,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
+                          title: Text(
+                            type,
+                            style: GoogleFonts.montserrat(color: Colors.white),
+                          ),
                           value: _selectedVehicleType.contains(type),
                           onChanged: (bool? value) {
                             setDialogState(() {
                               if (value == true) {
-                                if (type == 'All') _selectedVehicleType.clear();
+                                if (type == 'All') {
+                                  _selectedVehicleType.clear();
+                                }
                                 if (_selectedVehicleType.contains('All')) {
                                   _selectedVehicleType.remove('All');
                                 }
@@ -771,8 +812,10 @@ class _TruckPageState extends State<TruckPage> {
           ),
           actions: [
             TextButton(
-              child: Text('Clear All',
-                  style: GoogleFonts.montserrat(color: Colors.white)),
+              child: Text(
+                'Clear All',
+                style: GoogleFonts.montserrat(color: Colors.white),
+              ),
               onPressed: () {
                 setState(() {
                   _selectedYears.clear();
@@ -792,9 +835,10 @@ class _TruckPageState extends State<TruckPage> {
               },
             ),
             TextButton(
-              child: Text('Apply',
-                  style:
-                      GoogleFonts.montserrat(color: const Color(0xFFFF4E00))),
+              child: Text(
+                'Apply',
+                style: GoogleFonts.montserrat(color: Color(0xFFFF4E00)),
+              ),
               onPressed: () {
                 Navigator.pop(context);
                 _loadInitialVehicles();
@@ -816,14 +860,16 @@ class _TruckPageState extends State<TruckPage> {
       await userProvider.clearLikedVehicles();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Liked and disliked vehicles have been cleared.')),
+          content: Text('Liked and disliked vehicles have been cleared.'),
+        ),
       );
       _loadInitialVehicles();
     } catch (e) {
       print('Error in _clearLikedAndDislikedVehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Failed to clear vehicles. Please try again.')),
+          content: Text('Failed to clear vehicles. Please try again.'),
+        ),
       );
     }
   }
@@ -833,7 +879,10 @@ class _TruckPageState extends State<TruckPage> {
   // --------------------------------------------------------------------
   TextStyle _customFont(double fontSize, FontWeight fontWeight, Color color) {
     return GoogleFonts.montserrat(
-        fontSize: fontSize, fontWeight: fontWeight, color: color);
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+    );
   }
 
   void _markAsInterested(Vehicle vehicle) async {
@@ -855,8 +904,10 @@ class _TruckPageState extends State<TruckPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text("No Vehicles Available",
-              style: _customFont(16, FontWeight.normal, Colors.white)),
+          Text(
+            "No Vehicles Available",
+            style: _customFont(16, FontWeight.normal, Colors.white),
+          ),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -870,27 +921,24 @@ class _TruckPageState extends State<TruckPage> {
           ElevatedButton(
             onPressed: _clearLikedAndDislikedVehicles,
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Clear Liked & Disliked Vehicles',
-                style: _customFont(14, FontWeight.bold, Colors.white)),
+            child: Text(
+              'Clear Liked & Disliked Vehicles',
+              style: _customFont(14, FontWeight.bold, Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --------------------------------------------------------------------
-  // Helper: Calculate cross-axis count based on screen width.
+  // Modify this method to handle the aspect ratio correctly
   int _calculateCrossAxisCount(BuildContext context) {
     double width = MediaQuery.of(context).size.width;
-    if (width >= 1200) {
-      return 4;
-    } else if (width >= 900) {
-      return 3;
-    } else if (width >= 600) {
-      return 2;
-    } else {
-      return 1;
-    }
+    // Adjust breakpoints to account for card width
+    if (width >= 1500) return 4;
+    if (width >= 1100) return 3;
+    if (width >= 700) return 2;
+    return 1;
   }
 
   // --------------------------------------------------------------------
@@ -898,7 +946,6 @@ class _TruckPageState extends State<TruckPage> {
   // --------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
@@ -932,11 +979,11 @@ class _TruckPageState extends State<TruckPage> {
       drawer: _isCompactNavigation(context)
           ? Drawer(
               child: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: const [Colors.black, Color(0xFF2F7FFD)],
+                    colors: [Colors.black, Color(0xFF2F7FFD)],
                   ),
                 ),
                 child: Column(
@@ -956,8 +1003,10 @@ class _TruckPageState extends State<TruckPage> {
                               height: 50,
                               width: 50,
                               color: Colors.grey[900],
-                              child: const Icon(Icons.local_shipping,
-                                  color: Colors.white),
+                              child: const Icon(
+                                Icons.local_shipping,
+                                color: Colors.white,
+                              ),
                             );
                           },
                         ),
@@ -1004,8 +1053,10 @@ class _TruckPageState extends State<TruckPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('All Vehicles Total: ${displayedVehicles.length}',
-                    style: _customFont(16, FontWeight.bold, Colors.white)),
+                Text(
+                  'All Vehicles Total: ${displayedVehicles.length}',
+                  style: _customFont(16, FontWeight.bold, Colors.white),
+                ),
                 Row(
                   children: [
                     IconButton(
@@ -1039,14 +1090,18 @@ class _TruckPageState extends State<TruckPage> {
                           });
                           _loadInitialVehicles();
                         },
-                        child: const Text("Clear Filters",
-                            style: TextStyle(color: Colors.white)),
+                        child: const Text(
+                          "Clear Filters",
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                   ],
                 ),
               ],
             ),
           ),
+
+          // Main body
           Expanded(
             child: _isLoading || _isFiltering
                 ? Center(
@@ -1058,33 +1113,38 @@ class _TruckPageState extends State<TruckPage> {
                   )
                 : displayedVehicles.isNotEmpty
                     ? NotificationListener<ScrollNotification>(
-                        onNotification: (ScrollNotification notification) {
-                          if (notification is ScrollEndNotification) {
+                        onNotification: (scrollInfo) {
+                          if (scrollInfo is ScrollEndNotification) {
                             _scrollListener();
                           }
                           return false;
                         },
                         child: GridView.builder(
                           controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
+                          padding:
+                              const EdgeInsets.all(24), // Increased from 16
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: _calculateCrossAxisCount(context),
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 1, // Adjust as needed for card t
+                            crossAxisSpacing: 24, // Increased from 16
+                            mainAxisSpacing: 24, // Increased from 16
+                            mainAxisExtent: 600,
                           ),
                           itemCount: displayedVehicles.length +
                               (_isLoadingMore ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index < displayedVehicles.length) {
-                              return TruckCard(
-                                vehicle: displayedVehicles[index],
-                                onInterested: _markAsInterested,
+                              return SizedBox(
+                                height: 1500,
+                                child: TruckCard(
+                                  vehicle: displayedVehicles[index],
+                                  onInterested: _markAsInterested,
+                                ),
                               );
                             } else {
                               return const Center(
-                                  child: CircularProgressIndicator());
+                                child: CircularProgressIndicator(),
+                              );
                             }
                           },
                         ),
