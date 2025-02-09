@@ -3,6 +3,7 @@ import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/login.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'signup_page.dart'; // Import the SignUp page
@@ -59,24 +60,16 @@ class ErrorPage extends StatelessWidget {
                         CustomButton(
                           text: 'CREATE NEW ACCOUNT',
                           borderColor: blue,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const SignUpPage()),
-                            );
+                          onPressed: () async {
+                            await MyNavigator.push(context, const SignUpPage());
                           },
                         ),
                         const SizedBox(height: 16),
                         CustomButton(
                           text: 'CHOOSE ANOTHER SIGN IN METHOD',
                           borderColor: orange,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const LoginPage()),
-                            );
+                          onPressed: () async {
+                            await MyNavigator.push(context, const LoginPage());
                           },
                         ),
                       ],

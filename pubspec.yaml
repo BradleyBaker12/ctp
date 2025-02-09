@@ -72,6 +72,10 @@ dependencies:
   # syncfusion_flutter_pdfviewer: ^28.1.35
   syncfusion_flutter_pdfviewer: ^27.2.5
   url_strategy: ^0.3.0
+  shimmer: ^3.0.0
+  universal_html: ^2.2.4
+  open_file: ^3.5.10
+  mime: ^2.0.0
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_test:

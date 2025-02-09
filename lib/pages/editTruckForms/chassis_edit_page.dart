@@ -1,6 +1,7 @@
 // lib/pages/truckForms/chassis_edit_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
@@ -37,7 +38,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
   String _damagesCondition = 'no';
 
   // Maps to store selected images and their URLs
-  final Map<String, File?> _selectedImages = {
+  final Map<String, Uint8List?> _selectedImages = {
     'Right Brake': null,
     'Left Brake': null,
     'Front Axel': null,
@@ -301,7 +302,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   onTap: () => Navigator.pop(context),
                   child: Center(
                     child: hasFile
-                        ? Image.file(_selectedImages[title]!)
+                        ? Image.memory(_selectedImages[title]!)
                         : Image.network(
                             _imageUrls[title]!,
                             errorBuilder: (context, error, stackTrace) {
@@ -331,7 +332,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
             if (hasFile)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
+                child: Image.memory(
                   _selectedImages[title]!,
                   fit: BoxFit.cover,
                   width: double.infinity,
@@ -384,6 +385,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       _selectedImages[title] = null;
                       _imageUrls[title] = '';
                     });
+                    widget.onProgressUpdate();
                   },
                 ),
               ),
@@ -411,11 +413,13 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    var image = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = image;
                       _imageUrls[title] = '';
                     });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
               ListTile(
@@ -426,11 +430,13 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    var image = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = image;
                       _imageUrls[title] = '';
                     });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
             ],
@@ -792,12 +798,13 @@ class ChassisEditPageState extends State<ChassisEditPage>
   // ===========================================================================
   // 6) FIREBASE METHODS / GET DATA
   // ===========================================================================
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     try {
       String fileName =
           'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       Reference storageRef = _storage.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(imageFile);
+      UploadTask uploadTask = storageRef.putData(imageFile);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {

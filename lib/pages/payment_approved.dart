@@ -1,6 +1,7 @@
 // If you're not using this model, you can remove this import
 import 'package:ctp/pages/collect_vehcile.dart';
 import 'package:ctp/pages/report_issue.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -215,12 +216,9 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                           text: 'VEHICLE COLLECTED',
                           borderColor: Colors.blue,
                           onPressed: () async {
-                            Navigator.push(
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    CollectVehiclePage(offerId: widget.offerId),
-                              ),
+                              CollectVehiclePage(offerId: widget.offerId),
                             );
                           },
                         ),
@@ -228,13 +226,11 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                         CustomButton(
                           text: 'REPORT AN ISSUE',
                           borderColor: const Color(0xFFFF4E00),
-                          onPressed: () {
-                            Navigator.push(
+                          onPressed: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => ReportIssuePage(
-                                  offerId: widget.offerId,
-                                ),
+                              ReportIssuePage(
+                                offerId: widget.offerId,
                               ),
                             );
                           },

@@ -4,8 +4,11 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/crop_photo_page.dart';
+
 // import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/transporter_reg.dart';
+import 'package:ctp/utils/navigation.dart';
+
 // Import the House Rules page
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -32,13 +35,12 @@ class _AddProfilePhotoPageTransporterState
       final pickedFile = await _picker.pickImage(source: source);
 
       if (pickedFile != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                CropPhotoPage(imageFile: pickedFile, userData: const {},), // Pass XFile directly
-          ),
-        );
+        await MyNavigator.push(
+            context,
+            CropPhotoPage(
+              imageFile: pickedFile,
+              userData: const {},
+            ));
       } else {
         print("No image selected.");
       }
@@ -66,12 +68,9 @@ class _AddProfilePhotoPageTransporterState
       });
 
       // Navigate directly to the Dealer Registration page
-      Navigator.pushReplacement(
+      await MyNavigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) =>
-              const TransporterRegistrationPage(), // Ensure DealerRegistrationPage exists
-        ),
+        const TransporterRegistrationPage(),
       );
     } catch (e) {
       print("Error setting default profile image: $e");

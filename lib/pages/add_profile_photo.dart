@@ -5,6 +5,8 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/crop_photo_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
+import 'package:ctp/utils/navigation.dart';
+
 // Import the House Rules page
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,13 +31,11 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
       final pickedFile = await _picker.pickImage(source: source);
 
       if (pickedFile != null) {
-        Navigator.push(
+        await MyNavigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => CropPhotoPage(
-              imageFile: pickedFile,
-              userData: const {},
-            ), // Pass XFile directly
+          CropPhotoPage(
+            imageFile: pickedFile,
+            userData: const {},
           ),
         );
       } else {
@@ -65,13 +65,7 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
       });
 
       // Navigate directly to the Dealer Registration page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) =>
-              const DealerRegPage(), // Ensure DealerRegistrationPage exists
-        ),
-      );
+      await MyNavigator.pushReplacement(context, const DealerRegPage());
     } catch (e) {
       print("Error setting default profile image: $e");
       ScaffoldMessenger.of(context).showSnackBar(

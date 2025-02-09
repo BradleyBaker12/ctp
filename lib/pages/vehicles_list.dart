@@ -6,6 +6,7 @@ import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/offersPage.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -182,7 +183,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         ),
         bottomNavigationBar: CustomBottomNavigation(
           selectedIndex: _selectedIndex,
-          onItemTapped: (index) {
+          onItemTapped: (index) async {
             _onItemTapped(index);
             final userRole = userProvider.getUserRole.toLowerCase().trim();
 
@@ -190,49 +191,26 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             if (userRole == 'dealer') {
               // 0: Home, 1: Vehicles, 2: Offers
               if (index == 0) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomePage()),
-                );
+                await MyNavigator.pushReplacement(context, const HomePage());
               } else if (index == 1) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VehiclesListPage(),
-                  ),
-                );
+                await MyNavigator.pushReplacement(
+                    context, const VehiclesListPage());
               } else if (index == 2) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OffersPage()),
-                );
+                await MyNavigator.pushReplacement(context, const OffersPage());
               }
             }
             // Example: transporter logic
             else if (userRole == 'transporter') {
               // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
               if (index == 0) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomePage()),
-                );
+                await MyNavigator.pushReplacement(context, const HomePage());
               } else if (index == 1) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VehiclesListPage(),
-                  ),
-                );
+                await MyNavigator.pushReplacement(
+                    context, const VehiclesListPage());
               } else if (index == 2) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OffersPage()),
-                );
+                await MyNavigator.pushReplacement(context, const OffersPage());
               } else if (index == 3) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePage()),
-                );
+                await MyNavigator.pushReplacement(context, const ProfilePage());
               }
             } else {
               // handle other roles or undefined roles
@@ -253,12 +231,10 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         return ListingCard(
           vehicleId: vehicle.id,
           vehicleType: vehicle.vehicleType, // "truck" or "trailer"
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await MyNavigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-              ),
+              VehicleDetailsPage(vehicle: vehicle),
             );
           },
 

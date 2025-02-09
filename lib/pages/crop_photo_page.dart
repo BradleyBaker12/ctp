@@ -7,6 +7,7 @@ import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/transporter_reg.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
@@ -168,13 +169,11 @@ class _CropPhotoPageState extends State<CropPhotoPage> {
               finalUserData['userRole']?.toString().trim().toLowerCase();
           print('Processed User Role: $userRole'); // Debug print
 
-          Navigator.pushReplacement(
+          await MyNavigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => finalUserData['userRole'] == 'dealer'
-                  ? const DealerRegPage()
-                  : const TransporterRegistrationPage(),
-            ),
+            finalUserData['userRole'] == 'dealer'
+                ? const DealerRegPage()
+                : const TransporterRegistrationPage(),
           );
         }
       }

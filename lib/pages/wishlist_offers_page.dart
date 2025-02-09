@@ -8,6 +8,7 @@ import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -132,13 +133,9 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
               const SizedBox(height: 16),
               // Text Button for "View More"
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   // Navigate to the WishlistPage
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const WishlistPage()),
-                  );
+                  await MyNavigator.push(context, const WishlistPage());
                 },
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -348,13 +345,10 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             );
                           },
                           hasOffer: hasOffer,
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    VehicleDetailsPage(vehicle: vehicle),
-                              ),
+                              VehicleDetailsPage(vehicle: vehicle),
                             );
                           },
                           onDelete: () async {
@@ -395,28 +389,16 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
         ),
         bottomNavigationBar: CustomBottomNavigation(
           selectedIndex: 3,
-          onItemTapped: (index) {
+          onItemTapped: (index) async {
             if (index == 0) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HomePage()),
-              );
+              await MyNavigator.pushReplacement(context, const HomePage());
             } else if (index == 1) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const TruckPage()),
-              );
+              await MyNavigator.pushReplacement(context, const TruckPage());
             } else if (index == 2) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const WishlistOffersPage()),
-              );
+              await MyNavigator.pushReplacement(
+                  context, const WishlistOffersPage());
             } else if (index == 3) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const OffersPage()),
-              );
+              await MyNavigator.pushReplacement(context, const OffersPage());
             }
           },
         ),

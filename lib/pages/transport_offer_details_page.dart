@@ -2,6 +2,7 @@
 
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -98,7 +99,7 @@ class _TransporterOfferDetailsPageState
   Future<void> _handleAccept() async {
     try {
       final offerProvider = Provider.of<OfferProvider>(context, listen: false);
-      
+
       // Use transaction to ensure atomic updates
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Get all offers for this vehicle
@@ -109,26 +110,27 @@ class _TransporterOfferDetailsPageState
 
         // Update the accepted offer
         await transaction.update(
-          FirebaseFirestore.instance.collection('offers').doc(widget.offer.offerId),
-          {'offerStatus': 'accepted'}
-        );
+            FirebaseFirestore.instance
+                .collection('offers')
+                .doc(widget.offer.offerId),
+            {'offerStatus': 'accepted'});
 
         // Update vehicle status
         await transaction.update(
-          FirebaseFirestore.instance.collection('vehicles').doc(widget.vehicle.id),
-          {
-            'isAccepted': true,
-            'acceptedOfferId': widget.offer.offerId,
-          }
-        );
+            FirebaseFirestore.instance
+                .collection('vehicles')
+                .doc(widget.vehicle.id),
+            {
+              'isAccepted': true,
+              'acceptedOfferId': widget.offer.offerId,
+            });
 
         // Update all other offers for this vehicle to rejected
         for (var doc in offersQuery.docs) {
           if (doc.id != widget.offer.offerId) {
             await transaction.update(
-              FirebaseFirestore.instance.collection('offers').doc(doc.id),
-              {'offerStatus': 'rejected'}
-            );
+                FirebaseFirestore.instance.collection('offers').doc(doc.id),
+                {'offerStatus': 'rejected'});
           }
         }
       });
@@ -137,12 +139,10 @@ class _TransporterOfferDetailsPageState
         _hasResponded = true;
         _responseMessage = 'You have accepted the offer';
       });
-
     } catch (e) {
       print('Error handling offer acceptance: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to accept offer: $e'))
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to accept offer: $e')));
     }
   }
 
@@ -173,22 +173,18 @@ class _TransporterOfferDetailsPageState
   }
 
   Future<void> _setupInspection() async {
-    await Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SetupInspectionPage(
-          vehicleId: widget.vehicle.id,
-        ),
+      SetupInspectionPage(
+        vehicleId: widget.vehicle.id,
       ),
     );
   }
 
   Future<void> _setupCollection() async {
-    await Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(vehicleId: widget.vehicle.id),
-      ),
+      SetupCollectionPage(vehicleId: widget.vehicle.id),
     );
   }
 

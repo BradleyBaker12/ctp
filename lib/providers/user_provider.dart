@@ -401,9 +401,9 @@ class UserProvider extends ChangeNotifier {
     // final storageRef = FirebaseStorage.instance
     //     .ref()
     //     .child('profile_images/${_user!.uid}/${file.path.split('/').last}');
-    final uploadTask = storageRef.putData(file);
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    await storageRef.putData(file);
+    // final snapshot = await uploadTask;
+    return await storageRef.getDownloadURL();
   }
 
   Future<String> uploadBytes(Uint8List bytes) async {

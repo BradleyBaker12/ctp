@@ -1,3 +1,4 @@
+import 'package:ctp/utils/cached_image.dart';
 import 'package:flutter/material.dart';
 
 class ListingCard extends StatelessWidget {
@@ -66,17 +67,10 @@ class ListingCard extends StatelessWidget {
                   Container(
                     width: imageWidth,
                     height: cardHeight,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: (vehicleImageUrl != null &&
-                                vehicleImageUrl!.isNotEmpty)
-                            ? NetworkImage(vehicleImageUrl!)
-                            : const AssetImage(
-                                    "lib/assets/default_vehicle_image.png")
-                                as ImageProvider,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                    child: (vehicleImageUrl != null &&
+                            vehicleImageUrl!.isNotEmpty)
+                        ? cachedImage(vehicleImageUrl!)
+                        : Image.asset("lib/assets/default_vehicle_image.png"),
                   ),
 
                   // Middle info section

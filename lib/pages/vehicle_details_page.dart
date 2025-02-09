@@ -2,6 +2,7 @@
 
 import 'dart:developer';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/offer_card.dart';
@@ -20,8 +21,10 @@ import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/pages/setup_inspection.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,7 +50,9 @@ class VehicleDetailsPage extends StatefulWidget {
 
 class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   Vehicle? _vehicle;
+
   Vehicle get vehicle => _vehicle ?? widget.vehicle;
+
   set vehicle(Vehicle value) {
     setState(() {
       _vehicle = value;
@@ -315,25 +320,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // If the vehicle is a trailer, go to EditTrailerUploadScreen
     if (widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
-      await Navigator.push(
+      await MyNavigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => EditTrailerUploadScreen(
-            isDuplicating: false,
-            isNewUpload: false,
-            isAdminUpload: isAdminOrSalesRep,
-            vehicle: widget.vehicle,
-          ),
+        EditTrailerUploadScreen(
+          isDuplicating: false,
+          isNewUpload: false,
+          isAdminUpload: isAdminOrSalesRep,
+          vehicle: widget.vehicle,
         ),
       );
     } else {
       // Otherwise, go to the regular truck edit forms
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => EditFormNavigation(vehicle: widget.vehicle),
-        ),
-      );
+      await MyNavigator.push(
+          context, EditFormNavigation(vehicle: widget.vehicle));
     }
 
     setState(() {}); // Refresh the page after returning
@@ -370,7 +369,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   // Duplicates a vehicle (for Transporters)
-  void _navigateToDuplicatePage() {
+  void _navigateToDuplicatePage() async {
     // Create a new vehicle object with only the required fields for duplication
     Vehicle duplicatedVehicle = Vehicle(
       id: '',
@@ -402,7 +401,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       mileageImage: '',
       photos: [],
       rc1NatisFile: '',
-      vehicleType: '', // Will remain blank if duplicating
+      vehicleType: '',
+      // Will remain blank if duplicating
       warrantyDetails: '',
       createdAt: DateTime.now(),
       vehicleStatus: '',
@@ -467,13 +467,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       additionalFeatures: '',
     );
 
-    Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => VehicleUploadScreen(
-          vehicle: duplicatedVehicle,
-          isDuplicating: true,
-        ),
+      VehicleUploadScreen(
+        vehicle: duplicatedVehicle,
+        isDuplicating: true,
       ),
     );
   }
@@ -703,24 +701,20 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   // Setup inspection steps
   Future<void> _setupInspection() async {
-    await Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SetupInspectionPage(
-          vehicleId: widget.vehicle.id,
-        ),
+      SetupInspectionPage(
+        vehicleId: widget.vehicle.id,
       ),
     );
   }
 
   // Setup collection steps
   Future<void> _setupCollection() async {
-    await Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(
-          vehicleId: widget.vehicle.id,
-        ),
+      SetupCollectionPage(
+        vehicleId: widget.vehicle.id,
       ),
     );
   }
@@ -817,15 +811,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return GestureDetector(
       onTap: () async {
         // Go to the EditTrailerUploadScreen
-        await Navigator.push(
+        await MyNavigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => EditTrailerUploadScreen(
-              isDuplicating: false,
-              isNewUpload: false,
-              isAdminUpload: isAdminOrSalesRep,
-              vehicle: widget.vehicle,
-            ),
+          EditTrailerUploadScreen(
+            isDuplicating: false,
+            isNewUpload: false,
+            isAdminUpload: isAdminOrSalesRep,
+            vehicle: widget.vehicle,
           ),
         );
         setState(() {});
@@ -1249,7 +1241,8 @@ vehicle.referenceNumber: ${vehicle.referenceNumber}
                                 'vehicleStatus': 'Archived',
                               });
                               Navigator.of(context).pop();
-                              Navigator.of(context).pop();
+                              await MyNavigator.pushReplacement(
+                                  context, VehiclesListPage());
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -1300,19 +1293,32 @@ vehicle.referenceNumber: ${vehicle.referenceNumber}
                               GestureDetector(
                                 onTap: () =>
                                     _showFullScreenImage(context, index),
-                                child: Image.network(
-                                  allPhotos[index].url,
+                                child: CachedNetworkImage(
+                                  imageUrl: allPhotos[index].url,
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: size.height * 0.45,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      'assets/default_vehicle_image.png',
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: size.height * 0.45,
-                                    );
-                                  },
+                                  placeholder: (context, url) => SizedBox(
+                                    height: 30,
+                                    width: 30,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation(
+                                            Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      Container(
+                                    color: Colors.grey[300],
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        color: Colors.grey,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                               IgnorePointer(

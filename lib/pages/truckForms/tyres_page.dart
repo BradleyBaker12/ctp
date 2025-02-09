@@ -193,6 +193,8 @@ class TyresPageState extends State<TyresPage>
                   _updateAndNotify(() {
                     _chassisConditions[pos] = value;
                   });
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -203,6 +205,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _chassisConditions[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -213,6 +217,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _chassisConditions[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -240,6 +246,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -250,6 +258,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -277,6 +287,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _rimTypes[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -287,6 +299,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _rimTypes[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -347,6 +361,8 @@ class TyresPageState extends State<TyresPage>
                     _selectedImages.remove(key);
                     _imageUrls.remove(key);
                   });
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
                 child: Container(
                   decoration: BoxDecoration(
@@ -454,6 +470,8 @@ class TyresPageState extends State<TyresPage>
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -469,6 +487,8 @@ class TyresPageState extends State<TyresPage>
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],

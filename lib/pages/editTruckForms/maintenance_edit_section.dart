@@ -4,8 +4,8 @@ import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
-import 'dart:html' as html; // For web
 
+// import 'dart:html' as html; // For web
 import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
@@ -84,6 +84,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     // Initialize files with existing data if available
     // _maintenanceDocFile = widget.maintenanceDocFile;
     // _warrantyDocFile = widget.warrantyDocFile;
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     // Add listener for progress updates
     _oemReasonController.addListener(() {
@@ -384,68 +385,68 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     try {
       // Show loading indicator
 
-      if (kIsWeb) {
-        Navigator.push(
-            context, MaterialPageRoute(builder: (_) => ViewerPage(url: url)));
-        // html.window.open(url, "_blank");
-        return;
-      }
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          );
-        },
-      );
+      // if (kIsWeb) {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => ViewerPage(url: url)));
+      // html.window.open(url, "_blank");
+      return;
+      // }
+      // showDialog(
+      //   context: context,
+      //   barrierDismissible: false,
+      //   builder: (BuildContext context) {
+      //     return const Center(
+      //       child: CircularProgressIndicator(
+      //         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      //       ),
+      //     );
+      //   },
+      // );
       // Download and cache the PDF
-      final response = await http.get(Uri.parse(url));
-      final bytes = response.bodyBytes;
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/temp.pdf');
-      await file.writeAsBytes(bytes);
+      // final response = await http.get(Uri.parse(url));
+      // final bytes = response.bodyBytes;
+      // final dir = await getTemporaryDirectory();
+      // final file = File('${dir.path}/temp.pdf');
+      // await file.writeAsBytes(bytes);
 
       // Dismiss loading indicator
-      if (mounted) Navigator.pop(context);
+      // if (mounted) Navigator.pop(context);
 
       // Show PDF viewer
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Scaffold(
-              appBar: AppBar(
-                title: Text(title),
-                backgroundColor: const Color(0xFF0E4CAF),
-              ),
-              body: PDFView(
-                filePath: file.path,
-                enableSwipe: true,
-                swipeHorizontal: false,
-                autoSpacing: true,
-                pageFling: true,
-                pageSnap: true,
-                defaultPage: 0,
-                fitPolicy: FitPolicy.BOTH,
-                preventLinkNavigation: false,
-                onError: (error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $error')),
-                  );
-                },
-                onPageError: (page, error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error on page $page: $error')),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      }
+      // if (mounted) {
+      //   Navigator.push(
+      //     context,
+      //     MaterialPageRoute(
+      //       builder: (context) => Scaffold(
+      //         appBar: AppBar(
+      //           title: Text(title),
+      //           backgroundColor: const Color(0xFF0E4CAF),
+      //         ),
+      //         body: PDFView(
+      //           filePath: file.path,
+      //           enableSwipe: true,
+      //           swipeHorizontal: false,
+      //           autoSpacing: true,
+      //           pageFling: true,
+      //           pageSnap: true,
+      //           defaultPage: 0,
+      //           fitPolicy: FitPolicy.BOTH,
+      //           preventLinkNavigation: false,
+      //           onError: (error) {
+      //             ScaffoldMessenger.of(context).showSnackBar(
+      //               SnackBar(content: Text('Error: $error')),
+      //             );
+      //           },
+      //           onPageError: (page, error) {
+      //             ScaffoldMessenger.of(context).showSnackBar(
+      //               SnackBar(content: Text('Error on page $page: $error')),
+      //             );
+      //           },
+      //         ),
+      //       ),
+      //     ),
+      //   );
+      // }
     } catch (e) {
       // Dismiss loading indicator if showing
       if (mounted) Navigator.pop(context);
@@ -476,63 +477,76 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
               ListTile(
                 leading: const Icon(Icons.visibility),
                 title: const Text('View'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  if (url != null && file == null) {
-                    await _viewPdf(url, title);
-                  } else if (file != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Please upload first")));
-                    // For local files
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(
-                    //     builder: (context) => Scaffold(
-                    //       appBar: AppBar(
-                    //         title: Text(title),
-                    //         backgroundColor: const Color(0xFF0E4CAF),
-                    //       ),
-                    //       body: PDFView(
-                    //         pdfData: file,
-                    //         enableSwipe: true,
-                    //         swipeHorizontal: false,
-                    //         autoSpacing: true,
-                    //         pageFling: true,
-                    //         pageSnap: true,
-                    //         defaultPage: 0,
-                    //         fitPolicy: FitPolicy.BOTH,
-                    //         preventLinkNavigation: false,
-                    //         onError: (error) {
-                    //           ScaffoldMessenger.of(context).showSnackBar(
-                    //             SnackBar(content: Text('Error: $error')),
-                    //           );
-                    //         },
-                    //         onPageError: (page, error) {
-                    //           ScaffoldMessenger.of(context).showSnackBar(
-                    //             SnackBar(
-                    //                 content:
-                    //                     Text('Error on page $page: $error')),
-                    //           );
-                    //         },
-                    //       ),
-                    //     ),
-                    //   ),
-                    // );
-                  }
-                },
+                onTap: context.read<UserProvider>().getUserRole == "dealer"
+                    ? () async {
+                        Navigator.pop(context);
+                        if (url != null && url != "") {
+                          print("URL of: $url");
+                          await _viewPdf(url, title);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("No document available")));
+                        }
+                      }
+                    : () async {
+                        Navigator.pop(context);
+                        if (url != null && file != null) {
+                          print("URL of: $url");
+                          await _viewPdf(url, title);
+                        } else if (file == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Please upload first")));
+                          // For local files
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => Scaffold(
+                          //       appBar: AppBar(
+                          //         title: Text(title),
+                          //         backgroundColor: const Color(0xFF0E4CAF),
+                          //       ),
+                          //       body: PDFView(
+                          //         pdfData: file,
+                          //         enableSwipe: true,
+                          //         swipeHorizontal: false,
+                          //         autoSpacing: true,
+                          //         pageFling: true,
+                          //         pageSnap: true,
+                          //         defaultPage: 0,
+                          //         fitPolicy: FitPolicy.BOTH,
+                          //         preventLinkNavigation: false,
+                          //         onError: (error) {
+                          //           ScaffoldMessenger.of(context).showSnackBar(
+                          //             SnackBar(content: Text('Error: $error')),
+                          //           );
+                          //         },
+                          //         onPageError: (page, error) {
+                          //           ScaffoldMessenger.of(context).showSnackBar(
+                          //             SnackBar(
+                          //                 content:
+                          //                     Text('Error on page $page: $error')),
+                          //           );
+                          //         },
+                          //       ),
+                          //     ),
+                          //   ),
+                          // );
+                        }
+                      },
               ),
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Change'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (isMaintenance) {
-                    _pickMaintenanceDocument();
-                  } else {
-                    _pickWarrantyDocument();
-                  }
-                },
-              ),
+              if (context.read<UserProvider>().getUserRole != "dealer")
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Change'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (isMaintenance) {
+                      _pickMaintenanceDocument();
+                    } else {
+                      _pickWarrantyDocument();
+                    }
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.close),
                 title: const Text('Cancel'),
@@ -623,7 +637,12 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
           height: MediaQuery.of(context).size.height,
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 20),
+              padding: EdgeInsets.only(
+                bottom: 20,
+                top: MediaQuery.of(context).size.height * 0.05,
+                left: 10,
+                right: 10,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -658,7 +677,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                     const SizedBox(height: 15),
                     InkWell(
                       // Let dealers, sales, admin, transporters pick the doc
-                      onTap: (isAdmin || isDealer || isSales || isTransporter)
+                      onTap: (isAdmin || isSales || isTransporter)
                           ? _pickMaintenanceDocument
                           : null,
                       borderRadius: BorderRadius.circular(10.0),
@@ -889,8 +908,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             notifyProgress();
                           },
                           // Allow dealers, sales, admin, transporters to edit
-                          enabled:
-                              (isAdmin || isDealer || isSales || isTransporter),
+                          enabled: (isAdmin || isSales || isTransporter),
                         ),
                         const SizedBox(width: 15),
                         CustomRadioButton(
@@ -903,8 +921,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             });
                             notifyProgress();
                           },
-                          enabled:
-                              (isAdmin || isDealer || isSales || isTransporter),
+                          enabled: (isAdmin || isSales || isTransporter),
                         ),
                       ],
                     ),
@@ -939,7 +956,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                     const SizedBox(height: 15),
                     InkWell(
                       // Let dealers, sales, admin, transporters pick the doc
-                      onTap: (isAdmin || isDealer || isSales || isTransporter)
+                      onTap: (isAdmin || isSales || isTransporter)
                           ? _pickWarrantyDocument
                           : null,
                       borderRadius: BorderRadius.circular(10.0),
@@ -1083,119 +1100,134 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                     // Show the DONE button for dealers, sales, admin, or transporters
                     if (isTransporter || isDealer || isSales || isAdmin)
                       CustomButton(
-                        onPressed: () async {
-                          // Show loading indicator
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (BuildContext context) {
-                              return const Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              );
-                            },
-                          );
+                        onPressed: isDealer
+                            ? () {
+                                Navigator.of(context).pop();
+                              }
+                            : () async {
+                                // Show loading indicator
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (BuildContext context) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
 
-                          try {
-                            String? maintenanceDocUrl =
-                                widget.maintenanceDocUrl;
-                            String? warrantyDocUrl = widget.warrantyDocUrl;
+                                try {
+                                  String? maintenanceDocUrl =
+                                      widget.maintenanceDocUrl;
+                                  String? warrantyDocUrl =
+                                      widget.warrantyDocUrl;
 
-                            // Upload maintenance file if new one is selected
-                            if (_maintenanceDocFile != null) {
-                              final storageRef = FirebaseStorage.instance
-                                  .ref()
-                                  .child(
-                                      'vehicles/${widget.vehicleId}/maintenance')
-                                  .child(
-                                      'maintenance_doc_${DateTime.now().millisecondsSinceEpoch}$_maintenanceDocFileName');
+                                  // Upload maintenance file if new one is selected
+                                  if (_maintenanceDocFile != null) {
+                                    final storageRef = FirebaseStorage.instance
+                                        .ref()
+                                        .child(
+                                            'vehicles/${widget.vehicleId}/maintenance')
+                                        .child(
+                                            'maintenance_doc_${DateTime.now().millisecondsSinceEpoch}$_maintenanceDocFileName');
 
-                              await storageRef.putData(_maintenanceDocFile!);
-                              maintenanceDocUrl =
-                                  await storageRef.getDownloadURL();
-                            }
+                                    await storageRef
+                                        .putData(_maintenanceDocFile!);
+                                    maintenanceDocUrl =
+                                        await storageRef.getDownloadURL();
+                                  }
 
-                            // Upload warranty file if new one is selected
-                            if (_warrantyDocFile != null) {
-                              final storageRef = FirebaseStorage.instance
-                                  .ref()
-                                  .child(
-                                      'vehicles/${widget.vehicleId}/maintenance')
-                                  .child(
-                                      'warranty_doc_${DateTime.now().millisecondsSinceEpoch}$_warrantyDocFileName');
+                                  // Upload warranty file if new one is selected
+                                  if (_warrantyDocFile != null) {
+                                    final storageRef = FirebaseStorage.instance
+                                        .ref()
+                                        .child(
+                                            'vehicles/${widget.vehicleId}/maintenance')
+                                        .child(
+                                            'warranty_doc_${DateTime.now().millisecondsSinceEpoch}$_warrantyDocFileName');
 
-                              await storageRef.putData(_warrantyDocFile!);
-                              warrantyDocUrl =
-                                  await storageRef.getDownloadURL();
-                            }
+                                    await storageRef.putData(_warrantyDocFile!);
+                                    warrantyDocUrl =
+                                        await storageRef.getDownloadURL();
+                                  }
 
-                            // Prepare the maintenance data
-                            Map<String, dynamic> maintenanceData = {
-                              'vehicleId': widget.vehicleId,
-                              'oemInspectionType': _oemInspectionType,
-                              'oemReason': _oemInspectionType == 'no'
-                                  ? _oemReasonController.text.trim()
-                                  : null,
-                              'maintenanceDocUrl': maintenanceDocUrl,
-                              'warrantyDocUrl': warrantyDocUrl,
-                              'maintenanceSelection':
-                                  widget.maintenanceSelection,
-                              'warrantySelection': widget.warrantySelection,
-                              'lastUpdated': FieldValue.serverTimestamp(),
-                            };
+                                  // Prepare the maintenance data
+                                  Map<String, dynamic> maintenanceData = {
+                                    'vehicleId': widget.vehicleId,
+                                    'oemInspectionType': _oemInspectionType,
+                                    'oemReason': _oemInspectionType == 'no'
+                                        ? _oemReasonController.text.trim()
+                                        : null,
+                                    'maintenanceDocUrl': maintenanceDocUrl,
+                                    'warrantyDocUrl': warrantyDocUrl,
+                                    'maintenanceSelection':
+                                        widget.maintenanceSelection,
+                                    'warrantySelection':
+                                        widget.warrantySelection,
+                                    'lastUpdated': FieldValue.serverTimestamp(),
+                                  };
 
-                            // Update the vehicle document in Firestore
+                                  // Update the vehicle document in Firestore
 
-                            log("Maintenance data before save ${maintenanceData}");
-                            await FirebaseFirestore.instance
-                                .collection('vehicles')
-                                .doc(widget.vehicleId)
-                                .set(
-                                    widget.isFromAdmin
-                                        ? {"maintenanceData": maintenanceData}
-                                        : {
-                                            'maintenance': maintenanceData,
-                                          },
-                                    SetOptions(merge: true));
+                                  log("Maintenance data before save ${maintenanceData}");
+                                  await FirebaseFirestore.instance
+                                      .collection('vehicles')
+                                      .doc(widget.vehicleId)
+                                      .set(
+                                          widget.isFromAdmin
+                                              ? {
+                                                  "maintenanceData":
+                                                      maintenanceData
+                                                }
+                                              : {
+                                                  'maintenance':
+                                                      maintenanceData,
+                                                },
+                                          SetOptions(merge: true));
 
-                            // Dismiss loading indicator and pop back
-                            Navigator.pop(context); // Dismiss loading indicator
-                            Navigator.pop(context); // Return to previous screen
-                            if (widget.isFromAdmin) {
-                              Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const VehiclesListPage()));
-                            } else {
-                              Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => const TruckPage()));
-                            }
+                                  // Dismiss loading indicator and pop back
+                                  Navigator.pop(
+                                      context); // Dismiss loading indicator
+                                  Navigator.pop(
+                                      context); // Return to previous screen
+                                  if (widget.isFromAdmin) {
+                                    Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                const VehiclesListPage()));
+                                  } else {
+                                    Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                const TruckPage()));
+                                  }
 
-                            // Show success message
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'Maintenance data saved successfully')),
-                            );
-                          } catch (error) {
-                            // Dismiss loading indicator
-                            Navigator.pop(context);
+                                  // Show success message
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Maintenance data saved successfully')),
+                                  );
+                                } catch (error) {
+                                  // Dismiss loading indicator
+                                  Navigator.pop(context);
 
-                            // Show error message
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    'Error saving maintenance data: $error'),
-                              ),
-                            );
-                          }
-                        },
+                                  // Show error message
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Error saving maintenance data: $error'),
+                                    ),
+                                  );
+                                }
+                              },
                         text: 'DONE',
                         borderColor: Colors.deepOrange,
                       ),

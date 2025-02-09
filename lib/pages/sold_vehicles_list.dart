@@ -3,6 +3,7 @@
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -113,15 +114,13 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
 
                         return ListingCard(
                           vehicleId: vehicle.id,
-                          vehicleType:
-                              vehicle.vehicleType, // "truck" or "trailer"
-                          onTap: () {
-                            Navigator.push(
+                          vehicleType: vehicle.vehicleType,
+                          // "truck" or "trailer"
+                          onTap: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => VehicleDetailsPage(
-                                  vehicle: vehicle,
-                                ),
+                              VehicleDetailsPage(
+                                vehicle: vehicle,
                               ),
                             );
                           },
@@ -134,7 +133,8 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
                           trailerType: vehicle.trailerType,
                           trailerMake: vehicle.brands.isNotEmpty
                               ? vehicle.brands[0]
-                              : '', // <--- was "vehicle.make"
+                              : '',
+                          // <--- was "vehicle.make"
                           trailerYear: vehicle.year,
 
                           // If truck => pass truck fields

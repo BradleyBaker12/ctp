@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -59,7 +60,8 @@ class _RateDealerPageState extends State<RateDealerPage> {
       Offer offer = offerProvider.offers.firstWhere(
         (offer) => offer.offerId == widget.offerId,
         orElse: () => Offer(
-          offerId: '', // Default or fallback values
+          offerId: '',
+          // Default or fallback values
           dealerId: '',
           vehicleId: '',
           transporterId: '',
@@ -185,15 +187,13 @@ class _RateDealerPageState extends State<RateDealerPage> {
     await _submitRating();
 
     // Navigate to setup collection page instead of home
-    Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(
-          vehicleId: Provider.of<OfferProvider>(context, listen: false)
-              .offers
-              .firstWhere((offer) => offer.offerId == widget.offerId)
-              .vehicleId,
-        ),
+      SetupCollectionPage(
+        vehicleId: Provider.of<OfferProvider>(context, listen: false)
+            .offers
+            .firstWhere((offer) => offer.offerId == widget.offerId)
+            .vehicleId,
       ),
     );
   }

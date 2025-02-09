@@ -1,15 +1,29 @@
 // lib/adminScreens/payment_options_page.dart
 
+import 'dart:developer';
+
 import 'package:ctp/pages/payment_approved.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/pages/offer_summary_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/utils/navigation.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mime/mime.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'package:http/http.dart' as http;
+import 'package:universal_html/html.dart' as html;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'dart:io';
+
+import '../adminScreens/viewer_page.dart';
 
 class PaymentOptionsPage extends StatefulWidget {
   final String offerId;
@@ -53,19 +67,13 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
   Future<void> _navigateBasedOnStatus(
       BuildContext context, String? paymentStatus) async {
     if (paymentStatus == 'approved') {
-      Navigator.push(
+      await MyNavigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => PaymentApprovedPage(offerId: widget.offerId),
-        ),
+        PaymentApprovedPage(offerId: widget.offerId),
       );
     } else if (paymentStatus == 'pending') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PaymentPendingPage(offerId: widget.offerId),
-        ),
-      );
+      await MyNavigator.push(
+          context, PaymentPendingPage(offerId: widget.offerId));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -83,16 +91,7 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
 
     if (externalInvoice != null && externalInvoice.isNotEmpty) {
       // **Step 1:** Invoice exists, allow user to view it
-      if (await canLaunch(externalInvoice)) {
-        await launch(externalInvoice);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not launch invoice URL'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      await downloadAndOpenFile(externalInvoice);
     } else {
       // **Step 2:** Invoice not uploaded, send a message by setting 'needsInvoice' flag
       try {
@@ -117,6 +116,35 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> downloadAndOpenFile(String url) async {
+    final response = await http.get(Uri.parse(url));
+    final bytes = response.bodyBytes;
+
+    try {
+      // Get MIME type from headers or infer from bytes
+      String? mimeType =
+          response.headers['content-type'] ?? lookupMimeType(url);
+
+      if (kIsWeb) {
+        // Open file in the browser
+        final blob = html.Blob([bytes], mimeType ?? 'application/octet-stream');
+        final url2 = html.Url.createObjectUrlFromBlob(blob);
+        html.window.open(url2, '_blank');
+        html.Url.revokeObjectUrl(url2);
+      } else {
+        String extension = mimeType?.split('/').last ?? 'file';
+        var dt = DateTime.now().millisecondsSinceEpoch.toString();
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath = '${directory.path}/d_$dt.$extension';
+        await File(filePath).writeAsBytes(bytes);
+
+        await OpenFile.open(filePath);
+      }
+    } catch (e) {
+      print("Error opening file: $e");
     }
   }
 
@@ -241,13 +269,10 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
                     CustomButton(
                       text: 'SEND OFFER SUMMARY',
                       borderColor: const Color(0xFFFF4E00),
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        await MyNavigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                OfferSummaryPage(offerId: widget.offerId),
-                          ),
+                          OfferSummaryPage(offerId: widget.offerId),
                         );
                       },
                     ),

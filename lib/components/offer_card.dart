@@ -3,6 +3,7 @@
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/payment_approved.dart';
+import 'package:ctp/utils/cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/pages/transport_offer_details_page.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
@@ -24,10 +25,12 @@ import 'package:ctp/providers/complaints_provider.dart';
 
 class OfferCard extends StatefulWidget {
   final Offer offer;
+  final Function? onPop;
 
   const OfferCard({
     super.key,
     required this.offer,
+    this.onPop,
   });
 
   @override
@@ -200,9 +203,9 @@ class _OfferCardState extends State<OfferCard> {
           );
           return;
         default:
-          _getVehicle().then((vehicle) {
+          _getVehicle().then((vehicle) async {
             if (vehicle != null) {
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => TransporterOfferDetailsPage(
@@ -211,6 +214,9 @@ class _OfferCardState extends State<OfferCard> {
                   ),
                 ),
               );
+              if (widget.onPop != null) {
+                widget.onPop!();
+              }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -531,7 +537,7 @@ Rendering Offer:
         }
       });
     }
-
+    var size = MediaQuery.of(context).size;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -547,19 +553,12 @@ Rendering Offer:
             ),
             GestureDetector(
               onTap: () => navigateToVehicleDetails(),
-              child: Container(
+              child: SizedBox(
                 width: constraints.maxWidth * 0.22,
                 height: cardHeight,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: widget.offer.vehicleMainImage != null
-                        ? NetworkImage(widget.offer.vehicleMainImage!)
-                        : const AssetImage(
-                                'lib/assets/default_vehicle_image.png')
-                            as ImageProvider,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+                child: widget.offer.vehicleMainImage != null
+                    ? cachedImage(widget.offer.vehicleMainImage!)
+                    : Image.asset('lib/assets/default_vehicle_image.png'),
               ),
             ),
             Expanded(
@@ -578,7 +577,7 @@ Rendering Offer:
                             ? 'Loading...'
                             : vehicleInfo.toUpperCase(),
                         style: customFont(
-                          screenSize.width * 0.03,
+                          size.height * 0.025,
                           FontWeight.w800,
                           Colors.white,
                         ),
@@ -590,7 +589,7 @@ Rendering Offer:
                         'Offer of ${formatOfferAmount(widget.offer.offerAmount)}'
                             .toUpperCase(),
                         style: customFont(
-                          screenSize.width * 0.028,
+                          size.height * 0.025,
                           FontWeight.w800,
                           Colors.white,
                         ),

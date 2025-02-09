@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:ctp/utils/navigation.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -527,7 +528,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
             hintText: 'Select Country',
             hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
             filled: true,
-            fillColor: Colors.grey.withOpacity(0.2), // Set grey background
+            fillColor: Colors.grey.withOpacity(0.2),
+            // Set grey background
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10.0),
               borderSide: const BorderSide(color: Colors.white), // White border
@@ -555,7 +557,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
           icon: Icon(Icons.clear, color: Colors.white),
         ),
         popupProps: PopupProps.menu(
-          showSearchBox: true, // Enable search box
+          showSearchBox: true,
+          // Enable search box
           menuProps: MenuProps(
             backgroundColor:
                 Colors.grey[900], // Black background for the dropdown menu
@@ -566,8 +569,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
             cursorColor: const Color(0xFFFF4E00), // Orange cursor
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.grey
-                  .withOpacity(0.2), // Grey background for search bar
+              fillColor: Colors.grey.withOpacity(0.2),
+              // Grey background for search bar
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10.0),
                 borderSide: BorderSide(
@@ -626,8 +629,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
         hintText: hintText,
         hintStyle: GoogleFonts.montserrat(color: Colors.white70),
         filled: true,
-        fillColor:
-            Colors.grey.withOpacity(0.2), // Set the background to a grey color
+        fillColor: Colors.grey.withOpacity(0.2),
+        // Set the background to a grey color
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(4.0),
           borderSide:
@@ -672,11 +675,9 @@ class _DealerRegPageState extends State<DealerRegPage> {
               final extension = path.extension(fileName).toLowerCase();
               if (extension == '.pdf') {
                 // Open the PDF file using flutter_pdfview
-                Navigator.push(
+                await MyNavigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => PDFViewerScreen(filePath: fileName),
-                  ),
+                  PDFViewerScreen(filePath: fileName),
                 );
               } else {
                 // Open the file using the default file viewer

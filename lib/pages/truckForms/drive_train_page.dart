@@ -340,6 +340,8 @@ class DriveTrainPageState extends State<DriveTrainPage>
                         setState(() {
                           _selectedImages[title] = null;
                         });
+                        widget.onProgressUpdate();
+                        setState(() {});
                       },
                       child: Container(
                         decoration: BoxDecoration(
@@ -383,6 +385,8 @@ class DriveTrainPageState extends State<DriveTrainPage>
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -397,6 +401,8 @@ class DriveTrainPageState extends State<DriveTrainPage>
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],

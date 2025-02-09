@@ -10,6 +10,7 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
@@ -687,23 +688,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     if (userRole == 'transporter') {
-                      Navigator.push(
+                      await MyNavigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => VehicleUploadScreen(
-                            isNewUpload: true,
-                          ),
+                        VehicleUploadScreen(
+                          isNewUpload: true,
                         ),
                       );
                     } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TruckPage(vehicleType: 'truck'),
-                        ),
-                      );
+                      await MyNavigator.push(
+                          context, TruckPage(vehicleType: 'truck'));
                     }
                   },
                   child: _buildVehicleTypeCard(
@@ -718,21 +713,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               const SizedBox(width: 10),
               Expanded(
                 child: GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     if (userRole == 'transporter') {
-                      Navigator.push(
+                      await MyNavigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const TrailerUploadScreen(),
-                        ),
+                        const TrailerUploadScreen(),
                       );
                     } else {
-                      Navigator.push(
+                      await MyNavigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              TruckPage(vehicleType: 'trailer'),
-                        ),
+                        TruckPage(vehicleType: 'trailer'),
                       );
                     }
                   },
@@ -1041,14 +1031,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async {
+                              await MyNavigator.push(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => TruckPage(
-                                    vehicleType: 'all',
-                                    selectedBrand: brand,
-                                  ),
+                                TruckPage(
+                                  vehicleType: 'all',
+                                  selectedBrand: brand,
                                 ),
                               );
                             },
@@ -1273,13 +1261,8 @@ class SwiperWidget extends StatelessWidget {
         Tween<double>(begin: 1.0, end: 1.05).animate(animationController);
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-          ),
-        );
+      onTap: () async {
+        await MyNavigator.push(context, VehicleDetailsPage(vehicle: vehicle));
       },
       child: AnimatedBuilder(
         animation: scaleAnimation,

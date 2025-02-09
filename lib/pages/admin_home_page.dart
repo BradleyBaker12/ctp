@@ -6,6 +6,7 @@ import 'package:ctp/adminScreens/user_tabs.dart';
 import 'package:ctp/adminScreens/vehicle_tab.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/adminScreens/complaints_tab.dart';
 import 'package:ctp/adminScreens/offers_tab.dart';
@@ -101,12 +102,10 @@ class _AdminHomePageState extends State<AdminHomePage>
             Padding(
               padding: const EdgeInsets.only(right: 25.0),
               child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  await MyNavigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfilePage(),
-                    ),
+                    const ProfilePage(),
                   );
                 },
                 child: Consumer<UserProvider>(

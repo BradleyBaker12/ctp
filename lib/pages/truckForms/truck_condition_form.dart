@@ -3,6 +3,7 @@ import 'package:ctp/pages/truckForms/drive_train_form.dart';
 import 'package:ctp/pages/truckForms/external_cab_form.dart';
 import 'package:ctp/pages/truckForms/internal_cab_form.dart';
 import 'package:ctp/pages/truckForms/tyres_form.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -12,47 +13,22 @@ class TruckConditionForm extends StatelessWidget {
 
   const TruckConditionForm({super.key, required this.formData});
 
-  void _navigateToSection(BuildContext context, String section) {
+  void _navigateToSection(BuildContext context, String section) async {
     switch (section) {
       case 'EXTERNAL':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ExternalCabForm(formData: formData),
-          ),
-        );
+        await MyNavigator.push(context, ExternalCabForm(formData: formData));
         break;
       case 'INTERNAL':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => InternalCabForm(formData: formData),
-          ),
-        );
+        await MyNavigator.push(context, InternalCabForm(formData: formData));
         break;
       case 'DRIVE_TRAIN':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DriveTrainForm(formData: formData),
-          ),
-        );
+        await MyNavigator.push(context, DriveTrainForm(formData: formData));
         break;
       case 'CHASSIS':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChassisForm(formData: formData),
-          ),
-        );
+        await MyNavigator.push(context, ChassisForm(formData: formData));
         break;
       case 'TYRES':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TyresForm(formData: formData),
-          ),
-        );
+        await MyNavigator.push(context, TyresForm(formData: formData));
         break;
     }
   }

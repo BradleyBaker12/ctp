@@ -1,6 +1,8 @@
 // lib/adminScreens/offer_details_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
+// import 'dart:nativewrappers/_internal/vm/lib/typed_data_patch.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/pages/setup_collection.dart';
@@ -943,25 +945,26 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
       );
 
-      if (result != null && result.files.single.path != null) {
-        File file = File(result.files.single.path!);
-        String fileName = result.files.single.name;
+      if (result != null && result.files.isNotEmpty) {
+        Uint8List? fileBytes = result.files.single.bytes;
+        String? extension = result.files.single.extension;
+        String? name = result.files.single.name;
 
         // Validate MIME type
-        final mimeType = lookupMimeType(file.path);
-        if (mimeType == null ||
-            (!mimeType.startsWith('image/') && mimeType != 'application/pdf')) {
+        final mimeType = lookupMimeType(name)!;
+        print("File mime type: $mimeType");
+        if (!mimeType.startsWith('image/') && mimeType != 'application/pdf') {
           throw Exception('Unsupported file type.');
         }
 
-        debugText('Uploading invoice: $fileName, mimeType: $mimeType');
+        debugText('Uploading invoice: $name, mimeType: $mimeType');
 
         // Upload path with timestamp
         String storagePath =
-            'invoices/${widget.offer.offerId}/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+            'invoices/${widget.offer.offerId}/${DateTime.now().millisecondsSinceEpoch}_$name';
 
         final storageRef = FirebaseStorage.instance.ref(storagePath);
-        final uploadTask = storageRef.putFile(file);
+        final uploadTask = storageRef.putData(fileBytes!);
 
         // Wait for upload
         final snapshot = await uploadTask;

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/truckForms/admin_section.dart';
 import 'package:ctp/pages/truckForms/maintenance_section.dart';
 import 'package:ctp/pages/truckForms/truck_condition_section.dart';
@@ -144,10 +145,10 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
       natisRc1Url: widget.natisRc1Url,
       isUploading: _isUploading,
       requireToSettleType: widget.requireToSettleType,
-      onAdminDoc1Selected: ( file) {
+      onAdminDoc1Selected: (file) {
         _adminSectionKey.currentState?.updateAdminDoc1(file);
       },
-      onAdminDoc2Selected: ( file) {
+      onAdminDoc2Selected: (file) {
         _adminSectionKey.currentState?.updateAdminDoc2(file);
       },
       onAdminDoc3Selected: (file) {
@@ -404,11 +405,9 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     }
   }
 
-  // Helper method to build custom tab buttons
-  Widget _buildCustomTabButton(String title, int index) {
-    bool isSelected = _selectedTabIndex == index;
-    double completionPercentage = 0.0;
+  double completionPercentage = 0.0;
 
+  updatePercentage(index) {
     // Get completion percentage based on tab index
     if (index == 0 && _maintenanceSectionKey.currentState != null) {
       completionPercentage =
@@ -417,7 +416,12 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
       completionPercentage =
           _adminSectionKey.currentState!.getCompletionPercentage();
     }
+  }
 
+  // Helper method to build custom tab buttons
+  Widget _buildCustomTabButton(String title, int index) {
+    bool isSelected = _selectedTabIndex == index;
+    updatePercentage(index);
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -561,123 +565,144 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     bool isTruckConditionTab =
         _tabTitles[_selectedTabIndex] == 'TRUCK CONDITION';
 
-    return Stack(
-      children: [
-        Scaffold(
-          body: GradientBackground(
-            child: Column(
-              children: [
-                // Custom AppBar
-                Container(
-                  color: AppColors.blue,
-                  padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        "Ref#: ${widget.vehicleRef}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        "Make/Model: ${widget.makeModel}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Container(
-                        width: 50,
-                        height: 50,
-                        margin: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          image: DecorationImage(
-                            image: NetworkImage(widget.mainImageUrl),
-                            fit: BoxFit.cover,
-                            onError: (error, stackTrace) {
-                              print('Error loading image: $error');
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                  ),
-                ),
-
-                // Modified tab buttons section
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  child: Row(
-                    children: List.generate(_tabTitles.length, (index) {
-                      return _buildCustomTabButton(_tabTitles[index], index);
-                    }),
-                  ),
-                ),
-
-                // Rest of the existing content
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildContent(),
-                  ),
-                ),
-
-                // Modified buttons section
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 10.0),
-                  child: Row(
-                    children: [
-                      if (!isTruckConditionTab) ...[
-                        Expanded(
-                          child: CustomButton(
-                            text: 'Continue',
-                            onPressed:
-                                _selectedTabIndex < _tabContents.length - 1
-                                    ? _onContinuePressed
-                                    : null,
-                            borderColor: AppColors.blue,
-                          ),
-                        ),
-                        const SizedBox(width: 16.0),
-                      ],
-                      Expanded(
-                        child: CustomButton(
-                          text: 'Done',
-                          onPressed: _onDonePressed,
-                          borderColor: AppColors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+    // ignore: deprecated_member_use
+    return WillPopScope(
+      onWillPop: () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomePage(),
           ),
-        ),
-        if (_isLoading)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.5),
-              child: Center(
-                child: Image.asset(
-                  'lib/assets/Loading_Logo_CTP.gif',
-                  width: 100,
-                  height: 100,
+        );
+        return Future.value(true);
+      },
+      child: Builder(builder: (context) {
+        return Stack(
+          children: [
+            Scaffold(
+              body: GradientBackground(
+                child: Column(
+                  children: [
+                    // Custom AppBar
+                    Container(
+                      color: AppColors.blue,
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).padding.top,
+                        left: 10,
+                        right: 10,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            "Ref#: ${widget.vehicleRef}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Text(
+                              "Make/Model: ${widget.makeModel}",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            width: 50,
+                            height: 50,
+                            margin: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: DecorationImage(
+                                image: NetworkImage(widget.mainImageUrl),
+                                fit: BoxFit.cover,
+                                onError: (error, stackTrace) {
+                                  print('Error loading image: $error');
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
+                      ),
+                    ),
+
+                    // Modified tab buttons section
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10.0),
+                      child: Row(
+                        children: List.generate(_tabTitles.length, (index) {
+                          return _buildCustomTabButton(
+                              _tabTitles[index], index);
+                        }),
+                      ),
+                    ),
+
+                    // Rest of the existing content
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _buildContent(),
+                      ),
+                    ),
+
+                    // Modified buttons section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 10.0),
+                      child: Row(
+                        children: [
+                          if (!isTruckConditionTab) ...[
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Continue',
+                                onPressed:
+                                    _selectedTabIndex < _tabContents.length - 1
+                                        ? _onContinuePressed
+                                        : null,
+                                borderColor: AppColors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 16.0),
+                          ],
+                          Expanded(
+                            child: CustomButton(
+                              text: 'Done',
+                              onPressed: _onDonePressed,
+                              borderColor: AppColors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-      ],
+            if (_isLoading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: Center(
+                    child: Image.asset(
+                      'lib/assets/Loading_Logo_CTP.gif',
+                      width: 100,
+                      height: 100,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      }),
     );
   }
 }

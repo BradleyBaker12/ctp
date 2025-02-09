@@ -7,6 +7,7 @@ import 'package:ctp/models/maintenance.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -351,14 +352,9 @@ class _WishlistPageState extends State<WishlistPage> {
                             );
                           },
                           hasOffer: hasOffer,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    VehicleDetailsPage(vehicle: vehicle),
-                              ),
-                            );
+                          onTap: () async {
+                            await MyNavigator.push(
+                                context, VehicleDetailsPage(vehicle: vehicle));
                           },
                           onDelete: () async {
                             User? user = FirebaseAuth.instance.currentUser;

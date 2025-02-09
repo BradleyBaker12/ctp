@@ -374,6 +374,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
                         setState(() {
                           _selectedImages[title] = null;
                         });
+                        widget.onProgressUpdate();
+                        setState(() {});
                       },
                       child: Container(
                         decoration: BoxDecoration(
@@ -417,6 +419,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -431,6 +435,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],

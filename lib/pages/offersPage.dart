@@ -10,6 +10,7 @@ import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -252,54 +253,33 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                 ),
                 bottomNavigationBar: CustomBottomNavigation(
                   selectedIndex: selectedIndex,
-                  onItemTapped: (index) {
+                  onItemTapped: (index) async {
                     if (userRole == 'dealer') {
                       // Dealer nav: 0 -> Home, 1 -> Vehicles, 2 -> Offers
                       if (index == 0) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const HomePage()),
-                        );
+                        await MyNavigator.pushReplacement(
+                            context, const HomePage());
                       } else if (index == 1) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const TruckPage()),
-                        );
+                        await MyNavigator.pushReplacement(
+                            context, const TruckPage());
                       } else if (index == 2) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const OffersPage()),
-                        );
+                        await MyNavigator.pushReplacement(
+                            context, const OffersPage());
                       }
                     } else if (userRole == 'transporter') {
                       // Transporter nav: 0 -> Home, 1 -> Vehicles, 2 -> Offers, 3 -> Profile
                       if (index == 0) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const HomePage()),
-                        );
+                        await MyNavigator.pushReplacement(
+                            context, const HomePage());
                       } else if (index == 1) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const VehiclesListPage()),
-                        );
+                        await MyNavigator.pushReplacement(
+                            context, const VehiclesListPage());
                       } else if (index == 2) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const OffersPage()),
-                        );
+                        await MyNavigator.pushReplacement(
+                            context, const OffersPage());
                       } else if (index == 3) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ProfilePage()),
-                        );
+                        await MyNavigator.pushReplacement(
+                            context, const ProfilePage());
                       }
                     } else {
                       // Handle other roles or additional logic here
@@ -339,7 +319,12 @@ class OffersPageState extends State<OffersPage> with RouteAware {
     return ListView.builder(
       itemCount: filteredOffers.length,
       itemBuilder: (context, index) {
-        return OfferCard(offer: filteredOffers[index]);
+        return OfferCard(
+          offer: filteredOffers[index],
+          onPop: () {
+            _fetchOffers();
+          },
+        );
       },
     );
   }

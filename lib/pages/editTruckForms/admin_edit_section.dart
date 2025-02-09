@@ -2,6 +2,7 @@
 
 import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
@@ -255,11 +256,20 @@ class AdminEditSectionState extends State<AdminEditSection>
       if (_isImageUrl(fileUrl!)) {
         mainWidget = ClipRRect(
           borderRadius: BorderRadius.circular(8.0),
-          child: Image.network(
-            fileUrl,
+          child: CachedNetworkImage(
+            imageUrl: fileUrl,
             width: 100,
             height: 100,
             fit: BoxFit.cover,
+            placeholder: (context, url) => Center(
+              child: SizedBox(
+                width: 30,
+                height: 30,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              ),
+            ),
           ),
         );
       } else {
@@ -868,7 +878,10 @@ class AdminEditSectionState extends State<AdminEditSection>
                                 Navigator.pop(context); // Dismiss loading
                                 if (success) {
                                   Navigator.pop(context); // pop the page
-                                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=>VehiclesListPage()));
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => VehiclesListPage()));
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(

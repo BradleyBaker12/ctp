@@ -1,4 +1,5 @@
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -161,12 +162,8 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
                       // Handle form submission
                       await _submitComplaint();
                       // Navigate to Thank You Page
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ThankYouPage(),
-                        ),
-                      );
+                      await MyNavigator.pushReplacement(
+                          context, const ThankYouPage());
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFFFF4E00),

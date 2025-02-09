@@ -361,6 +361,8 @@ class InternalCabPageState extends State<InternalCabPage>
                         setState(() {
                           _selectedImages[title] = null;
                         });
+                        widget.onProgressUpdate();
+                        setState(() {});
                       },
                       child: Container(
                         decoration: BoxDecoration(
@@ -404,6 +406,8 @@ class InternalCabPageState extends State<InternalCabPage>
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -418,6 +422,8 @@ class InternalCabPageState extends State<InternalCabPage>
                       _selectedImages[title] = File(pickedFile.path);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],

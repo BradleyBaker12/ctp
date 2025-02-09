@@ -317,6 +317,8 @@ class ChassisPageState extends State<ChassisPage>
                       // Optionally clear URL if you wish:
                       // _imageUrls[title] = null;
                     });
+                    widget.onProgressUpdate();
+                    setState(() {});
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -456,6 +458,8 @@ class ChassisPageState extends State<ChassisPage>
                       _imageUrls[title] = null;
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -472,6 +476,8 @@ class ChassisPageState extends State<ChassisPage>
                       _imageUrls[title] = null;
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],

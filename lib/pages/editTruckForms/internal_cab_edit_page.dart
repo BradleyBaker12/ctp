@@ -1,6 +1,7 @@
 // lib/pages/truckForms/internal_cab_edit_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -12,7 +13,7 @@ import 'package:provider/provider.dart';
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
-  final File? file;
+  final Uint8List? file;
   final String? url;
 
   ImageData({this.file, this.url});
@@ -355,13 +356,21 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   onTap: () => Navigator.pop(context),
                   child: Center(
                     child: hasFile
-                        ? Image.file(_selectedImages[title]!.file!)
+                        ? Image.memory(_selectedImages[title]!.file!)
                         : Image.network(
                             _selectedImages[title]!.url!,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(Icons.error_outline,
                                   color: Colors.red);
                             },
+                            loadingBuilder: (context, url, _) => Container(
+                              color: Colors.white,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                           ),
                   ),
                 ),
@@ -385,7 +394,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
             if (hasFile)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
+                child: Image.memory(
                   _selectedImages[title]!.file!,
                   fit: BoxFit.cover,
                   width: double.infinity,
@@ -403,6 +412,14 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   errorBuilder: (context, error, stackTrace) {
                     return const Icon(Icons.error_outline, color: Colors.red);
                   },
+                  // loadingBuilder: (context, url, _) => Container(
+                  //   color: Colors.white,
+                  //   child: const Center(
+                  //     child: CircularProgressIndicator(
+                  //       color: Colors.grey,
+                  //     ),
+                  //   ),
+                  // ),
                 ),
               )
             else
@@ -437,6 +454,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                     setState(() {
                       _selectedImages[title] = ImageData(); // Clear the image
                     });
+                    widget.onProgressUpdate();
                   },
                 ),
               ),
@@ -513,8 +531,22 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       onTap: () => Navigator.pop(context),
                       child: Center(
                         child: hasFile
-                            ? Image.file(item.imageData.file!)
-                            : Image.network(item.imageData.url!),
+                            ? Image.memory(item.imageData.file!)
+                            : Image.network(
+                                item.imageData.url!,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.error_outline,
+                                      color: Colors.red);
+                                },
+                                loadingBuilder: (context, url, _) => Container(
+                                  color: Colors.white,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -543,7 +575,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
                     child: hasFile
-                        ? Image.file(
+                        ? Image.memory(
                             item.imageData.file!,
                             fit: BoxFit.cover,
                             width: double.infinity,
@@ -643,11 +675,12 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: File(pickedFile.path));
-                    });
+                    var file = await pickedFile.readAsBytes();
+
+                    _selectedImages[title] = ImageData(file: file);
+                    setState(() {});
                   }
+                  widget.onProgressUpdate();
                 },
               ),
               ListTile(
@@ -658,11 +691,12 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    var file = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: File(pickedFile.path));
+                      _selectedImages[title] = ImageData(file: file);
                     });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
             ],
@@ -689,9 +723,11 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   Navigator.of(context).pop();
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
+
                   if (pickedFile != null) {
+                    var file = await pickedFile.readAsBytes();
                     setState(() {
-                      item.imageData = ImageData(file: File(pickedFile.path));
+                      item.imageData = ImageData(file: file);
                     });
                   }
                 },
@@ -704,8 +740,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    var file = await pickedFile.readAsBytes();
                     setState(() {
-                      item.imageData = ImageData(file: File(pickedFile.path));
+                      item.imageData = ImageData(file: file);
                     });
                   }
                 },
@@ -862,11 +899,12 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   // =============================================================================
   // Firebase Methods / Data Methods
   // =============================================================================
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     String fileName =
         'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(imageFile);
+    UploadTask uploadTask = storageRef.putData(imageFile);
     TaskSnapshot snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }

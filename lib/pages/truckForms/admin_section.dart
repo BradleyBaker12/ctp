@@ -97,8 +97,8 @@ class AdminSectionState extends State<AdminSection>
         ],
       );
 
-      if (result != null ) {
-        final bytes = await  result.xFiles.first.readAsBytes();
+      if (result != null) {
+        final bytes = await result.xFiles.first.readAsBytes();
         final fileName = result.xFiles.first.name;
         setState(() {
           switch (docNumber) {
@@ -175,8 +175,8 @@ class AdminSectionState extends State<AdminSection>
   }
 
   // Updated helper method to display uploaded files with a DELETE ("X") button
-  Widget _buildUploadedFile(
-      Uint8List? file, String? fileUrl, bool isUploading, int docNumber,String? filesName) {
+  Widget _buildUploadedFile(Uint8List? file, String? fileUrl, bool isUploading,
+      int docNumber, String? filesName) {
     // If no file or URL, show placeholder text
     if (file == null && fileUrl == null) {
       return const Text(
@@ -408,7 +408,8 @@ class AdminSectionState extends State<AdminSection>
       // Upload documents if new files are selected, otherwise use existing URLs
       String natisRc1Url;
       if (_natisRc1File != null) {
-        natisRc1Url = await _uploadDocument(_natisRc1File!, 'NATIS_RC1',_natisRc1FileName!);
+        natisRc1Url = await _uploadDocument(
+            _natisRc1File!, 'NATIS_RC1', _natisRc1FileName!);
       } else if (_natisRc1Url != null) {
         natisRc1Url = _natisRc1Url!;
       } else {
@@ -421,8 +422,8 @@ class AdminSectionState extends State<AdminSection>
 
       String licenseDiskUrl;
       if (_licenseDiskFile != null) {
-        licenseDiskUrl =
-            await _uploadDocument(_licenseDiskFile!, 'LicenseDisk',_licenseDiskFileName!);
+        licenseDiskUrl = await _uploadDocument(
+            _licenseDiskFile!, 'LicenseDisk', _licenseDiskFileName!);
       } else if (_licenseDiskUrl != null) {
         licenseDiskUrl = _licenseDiskUrl!;
       } else {
@@ -435,8 +436,8 @@ class AdminSectionState extends State<AdminSection>
       String? settlementLetterUrl;
       if (widget.requireToSettleType == 'yes') {
         if (_settlementLetterFile != null) {
-          settlementLetterUrl =
-              await _uploadDocument(_settlementLetterFile!, 'SettlementLetter',_settlementLetterFileName!);
+          settlementLetterUrl = await _uploadDocument(_settlementLetterFile!,
+              'SettlementLetter', _settlementLetterFileName!);
         } else if (_settlementLetterUrl != null) {
           settlementLetterUrl = _settlementLetterUrl!;
         } else {
@@ -483,7 +484,8 @@ class AdminSectionState extends State<AdminSection>
   }
 
   // Helper method to upload a single document
-  Future<String> _uploadDocument(Uint8List file, String docName,String fileNames) async {
+  Future<String> _uploadDocument(
+      Uint8List file, String docName, String fileNames) async {
     String fileName =
         'admin_docs/${widget.vehicleId}_$docName${DateTime.now().millisecondsSinceEpoch}.$fileNames';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
@@ -570,7 +572,9 @@ class AdminSectionState extends State<AdminSection>
           ),
           const SizedBox(height: 15),
           InkWell(
-            onTap: () => _pickFile(1),
+            onTap: () {
+              _pickFile(1);
+            },
             borderRadius: BorderRadius.circular(10.0),
             child: Container(
               width: double.infinity,
@@ -594,8 +598,8 @@ class AdminSectionState extends State<AdminSection>
                     ),
                   const SizedBox(height: 10),
                   if (_natisRc1File != null || _natisRc1Url != null)
-                    _buildUploadedFile(
-                        _natisRc1File, _natisRc1Url, _isUploading, 1,_natisRc1FileName)
+                    _buildUploadedFile(_natisRc1File, _natisRc1Url,
+                        _isUploading, 1, _natisRc1FileName)
                   else
                     const Text(
                       'NATIS/RC1 Upload',
@@ -624,7 +628,9 @@ class AdminSectionState extends State<AdminSection>
           ),
           const SizedBox(height: 15),
           InkWell(
-            onTap: () => _pickFile(2),
+            onTap: () {
+              _pickFile(2);
+            },
             borderRadius: BorderRadius.circular(10.0),
             child: Container(
               width: double.infinity,
@@ -648,8 +654,8 @@ class AdminSectionState extends State<AdminSection>
                     ),
                   const SizedBox(height: 10),
                   if (_licenseDiskFile != null || _licenseDiskUrl != null)
-                    _buildUploadedFile(
-                        _licenseDiskFile, _licenseDiskUrl, _isUploading, 2,_licenseDiskFileName)
+                    _buildUploadedFile(_licenseDiskFile, _licenseDiskUrl,
+                        _isUploading, 2, _licenseDiskFileName)
                   else
                     const Text(
                       'License Disk Upload',
@@ -680,7 +686,9 @@ class AdminSectionState extends State<AdminSection>
             ),
             const SizedBox(height: 15),
             InkWell(
-              onTap: () => _pickFile(3),
+              onTap: () {
+                _pickFile(3);
+              },
               borderRadius: BorderRadius.circular(10.0),
               child: Container(
                 width: double.infinity,
@@ -706,8 +714,12 @@ class AdminSectionState extends State<AdminSection>
                     const SizedBox(height: 10),
                     if (_settlementLetterFile != null ||
                         _settlementLetterUrl != null)
-                      _buildUploadedFile(_settlementLetterFile,
-                          _settlementLetterUrl, _isUploading, 3,_settlementLetterFileName)
+                      _buildUploadedFile(
+                          _settlementLetterFile,
+                          _settlementLetterUrl,
+                          _isUploading,
+                          3,
+                          _settlementLetterFileName)
                     else
                       const Text(
                         'Settlement Letter Upload',

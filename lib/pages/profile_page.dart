@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/pages/edit_profile_page.dart';
 import 'package:ctp/pages/sold_vehicles_list.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -60,6 +61,9 @@ class ProfilePage extends StatelessWidget {
       if (value == null || value.isEmpty) return '';
       return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
+
+    print(
+        "userProvider.getBankConfirmationUrl : ${userProvider.getBankConfirmationUrl}");
 
     return Scaffold(
       // Wrap the entire body inside a Stack so we can add the back button on top of the page
@@ -122,14 +126,17 @@ class ProfilePage extends StatelessWidget {
                                     ),
                                   ),
                                   GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const EditProfilePage(),
-                                        ),
-                                      );
+                                    onTap: () async {
+                                      // Navigator.push(
+                                      //   context,
+                                      //   MaterialPageRoute(
+                                      //     builder: (context) =>
+                                      //         const EditProfilePage(),
+                                      //   ),
+                                      // );
+                                      await MyNavigator.push(
+                                          context, EditProfilePage());
+                                      print("Back from page");
                                     },
                                     child: Text(
                                       'Edit Profile'.toUpperCase(),
@@ -195,13 +202,9 @@ class ProfilePage extends StatelessWidget {
                     _buildProfileAction(
                       'VIEW SOLD VEHICLES',
                       Icons.history,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SoldVehiclesListPage(),
-                          ),
-                        );
+                      () async {
+                        await MyNavigator.push(
+                            context, const SoldVehiclesListPage());
                       },
                     ),
                     const SizedBox(height: 20),
@@ -303,8 +306,8 @@ class ProfilePage extends StatelessWidget {
           // Show the CustomBackButton only for Admins and Sales Reps, with a conditional top offset.
           if (isAdmin || isSalesRep)
             Positioned(
-              top:
-                  backButtonTopPosition, // Different positioning for sales rep to avoid overlap
+              top: backButtonTopPosition,
+              // Different positioning for sales rep to avoid overlap
               left: 20,
               child: SafeArea(
                 child: CustomBackButton(
@@ -360,6 +363,7 @@ class ProfilePage extends StatelessWidget {
 
   Widget _buildDocumentItem(
       String title, String? url, IconData icon, BuildContext context) {
+    print("URL :: $url");
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       child: Row(
@@ -377,13 +381,8 @@ class ProfilePage extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: url != null
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ViewerPage(url: url),
-                          ),
-                        );
+                    ? () async {
+                        await MyNavigator.push(context, ViewerPage(url: url));
                       }
                     : null,
                 child: Text(

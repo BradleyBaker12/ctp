@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'truck_conditions_tabs_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -92,16 +93,14 @@ class TruckConditionSection extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: InkWell(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                await MyNavigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => TruckConditionsTabsPage(
-                      initialIndex: index,
-                      mainImageFile: mainImageFile,
-                      mainImageUrl: mainImageUrl,
-                      vehicleId: vehicleId,
-                    ),
+                  TruckConditionsTabsPage(
+                    initialIndex: index,
+                    mainImageFile: mainImageFile,
+                    mainImageUrl: mainImageUrl,
+                    vehicleId: vehicleId,
                   ),
                 );
               },

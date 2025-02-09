@@ -1,6 +1,7 @@
 // user_detail_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/components/constants.dart';
@@ -192,12 +193,12 @@ class _UserDetailPageState extends State<UserDetailPage> {
   }
 
   /// Helper method to upload a document file.
-  Future<String> _uploadDocument(File file, String fieldName) async {
-    String extension = file.path.split('.').last;
+  Future<String> _uploadDocument(Uint8List file, String fieldName) async {
+    String extension = fieldName.split('.').last;
     String fileName =
         'documents/${widget.userId}_${fieldName}_${DateTime.now().millisecondsSinceEpoch}.$extension';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(file);
+    UploadTask uploadTask = storageRef.putData(file);
 
     try {
       TaskSnapshot snapshot = await uploadTask;
@@ -214,11 +215,37 @@ class _UserDetailPageState extends State<UserDetailPage> {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx'],
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
       );
-      if (result != null && result.files.single.path != null) {
-        File file = File(result.files.single.path!);
-        String docUrl = await _uploadDocument(file, fieldName);
+      if (result != null) {
+        final bytes = await result.files.first.bytes;
+        final fileName = result.files.first.name;
+        String docUrl = await _uploadDocument(bytes!, fieldName);
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .update({fieldName: docUrl});
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$fieldName updated successfully.',
+                style: GoogleFonts.montserrat()),
+          ),
+        );
+      }
+      if (result != null) {
+        final bytes = await result.files.first.bytes;
+        final fileName = result.files.first.name;
+        String docUrl = await _uploadDocument(bytes!, fieldName);
         await FirebaseFirestore.instance
             .collection('users')
             .doc(widget.userId)

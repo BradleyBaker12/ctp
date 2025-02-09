@@ -1,4 +1,5 @@
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/utils/cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -68,20 +69,13 @@ class WishCard extends StatelessWidget {
                       height: cardHeight,
                       color: Colors.blue,
                     ),
-                    Container(
+                    SizedBox(
                       width: imageWidth,
                       height: cardHeight,
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: vehicle.mainImageUrl != null &&
-                                  vehicle.mainImageUrl!.isNotEmpty
-                              ? NetworkImage(vehicle.mainImageUrl!)
-                              : const AssetImage(
-                                      'lib/assets/default_vehicle_image.png')
-                                  as ImageProvider,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                      child: vehicle.mainImageUrl != null &&
+                              vehicle.mainImageUrl!.isNotEmpty
+                          ? cachedImage(vehicle.mainImageUrl!)
+                          : Image.asset('lib/assets/default_vehicle_image.png'),
                     ),
                     Expanded(
                       child: Container(

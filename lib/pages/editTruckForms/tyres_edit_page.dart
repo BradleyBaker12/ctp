@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -88,6 +89,7 @@ class TyresEditPageState extends State<TyresEditPage>
             // Handle image data
             if (data['imageUrl'] != null) {
               _imageUrls[photoKey] = data['imageUrl'];
+              print("ImageUrls: $_imageUrls");
             }
             // Note: imagePath is not typically stored; if needed, handle accordingly
           }
@@ -181,6 +183,8 @@ class TyresEditPageState extends State<TyresEditPage>
                     _chassisConditions[pos] = value;
                   });
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -192,6 +196,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _chassisConditions[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -203,6 +209,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _chassisConditions[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -231,6 +239,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -242,6 +252,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -270,6 +282,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _rimTypes[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -281,6 +295,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _rimTypes[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -296,13 +312,12 @@ class TyresEditPageState extends State<TyresEditPage>
     final bool isDealer = userProvider.getUserRole == 'dealer';
     String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (isDealer &&
             (_selectedImages[key] != null || _imageUrls[key] != null)) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => Scaffold(
+          await MyNavigator.push(
+              context,
+              Scaffold(
                 backgroundColor: Colors.black,
                 appBar: AppBar(
                   backgroundColor: Colors.transparent,
@@ -322,9 +337,7 @@ class TyresEditPageState extends State<TyresEditPage>
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
+              ));
         } else if (!isDealer) {
           _showImageSourceDialog(key);
         }
@@ -354,12 +367,15 @@ class TyresEditPageState extends State<TyresEditPage>
                 else if (_imageUrls[key] != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      _imageUrls[key]!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
+                    child: _imageUrls[key] == null || _imageUrls[key] == ""
+                        ? Center(child: Text("Invalid Image"))
+                        : Image.network(
+                            _imageUrls[key]!,
+                            // "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaNLiTGLsYuLJw2qP6ICVQWQJ3SSjuqQVsEQ&s",
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
                   )
                 else
                   Center(
@@ -413,6 +429,7 @@ class TyresEditPageState extends State<TyresEditPage>
                           _selectedImages.remove(key);
                           _imageUrls.remove(key);
                         });
+                        widget.onProgressUpdate();
                       },
                       child: Container(
                         decoration: const BoxDecoration(
@@ -460,6 +477,7 @@ class TyresEditPageState extends State<TyresEditPage>
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
               ListTile(
@@ -470,13 +488,14 @@ class TyresEditPageState extends State<TyresEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    final bytes =await pickedFile.readAsBytes();
+                    final bytes = await pickedFile.readAsBytes();
                     final fileName = pickedFile.name;
                     _updateAndNotify(() {
                       _selectedImages[key] = bytes;
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
             ],
@@ -569,7 +588,8 @@ class TyresEditPageState extends State<TyresEditPage>
   }
 
   /// Uploads an image file to Firebase Storage and returns the download URL
-  Future<String> _uploadImageToFirebase(Uint8List imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     String fileName =
         'tyres/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);

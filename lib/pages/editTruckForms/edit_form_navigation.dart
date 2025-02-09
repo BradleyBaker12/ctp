@@ -6,6 +6,8 @@ import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
+import 'package:ctp/pages/vehicles_list.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -367,9 +369,11 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(width: 16),
-            Text(
-              vehicle!.makeModel.toString().toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+            Expanded(
+              child: Text(
+                vehicle!.makeModel.toString().toUpperCase(),
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              ),
             ),
             const SizedBox(width: 16),
           ],
@@ -425,6 +429,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
 
                       // Fetch updated vehicle data
                       await _fetchVehicleData();
+                      await MyNavigator.pushReplacement(
+                          context, VehiclesListPage());
                     },
                     text: 'PUSH TO LIVE',
                     borderColor: Colors.green,
@@ -442,6 +448,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
 
                       // Fetch updated vehicle data
                       await _fetchVehicleData();
+                      await MyNavigator.pushReplacement(
+                          context, VehiclesListPage());
                     },
                     text: 'MOVE TO DRAFT',
                     borderColor: Colors.blueAccent,
@@ -468,8 +476,6 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                 .doc(vehicle!.id)
                 .get();
 
-
-
             if (!doc.exists) {
               throw Exception('Vehicle document not found');
             }
@@ -477,7 +483,6 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
             Map<String, dynamic> maintenanceData =
                 data['maintenanceData'] as Map<String, dynamic>? ?? {};
-
 
             // Navigate to maintenance section with existing data
             await Navigator.of(context).push(
@@ -542,7 +547,6 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                     isUploading: false,
                     isEditing: true,
                     isFromAdmin: true,
-
                     onMaintenanceFileSelected: (file) {
                       // Handle maintenance file selection
                     },
@@ -615,13 +619,13 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                 vehicle: vehicle!,
                 isUploading: false,
                 isEditing: true,
-                onAdminDoc1Selected: (file,fileName) {
+                onAdminDoc1Selected: (file, fileName) {
                   // Handle admin doc 1 selection
                 },
-                onAdminDoc2Selected: (file,fileName) {
+                onAdminDoc2Selected: (file, fileName) {
                   // Handle admin doc 2 selection
                 },
-                onAdminDoc3Selected: (file,fileName) {
+                onAdminDoc3Selected: (file, fileName) {
                   // Handle admin doc 3 selection
                 },
                 requireToSettleType: vehicle!.requireToSettleType ?? 'no',

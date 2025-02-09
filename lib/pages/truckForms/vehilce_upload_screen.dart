@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'dart:convert'; // For JSON decoding
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:flutter/services.dart'; // For loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -237,14 +238,20 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Future<void> _loadTruckData() async {
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response) as Map<String, dynamic>;
+
+    final Map<String, dynamic> data = json.decode(response);
+
     setState(() {
-      _makeModelOptions = Map<String, List<String>>.from(
-        data.map((key, value) => MapEntry(
-              key,
-              (value as List).map((item) => item.toString()).toList(),
-            )),
-      );
+      _makeModelOptions = data.map<String, List<String>>((key, value) {
+        if (value is List) {
+          return MapEntry(
+            key,
+            value.map((item) => item.toString()).toList(),
+          );
+        } else {
+          return MapEntry(key, []);
+        }
+      });
     });
   }
 
@@ -1463,7 +1470,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           try {
             String? vehicleId = await _saveSection1Data();
             if (vehicleId != null) {
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => MaintenanceWarrantyScreen(
@@ -1690,7 +1697,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   void _viewDocument() async {
     final url = _natisRc1File != null ? null : _existingNatisRc1Url;
     if (url != null) {
-      // Implement document viewing logic here (e.g., using url_launcher)
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => ViewerPage(url: url)));
+      return;
     }
   }
 

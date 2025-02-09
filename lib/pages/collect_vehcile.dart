@@ -5,6 +5,7 @@ import 'package:ctp/pages/rating_pages/rate_transporter_page_two.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -25,6 +26,7 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
   String _registrationNumber = '';
   final TextEditingController _licensePlateController = TextEditingController();
   bool _isMatched = false;
+
   @override
   void initState() {
     super.initState();
@@ -78,26 +80,22 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
                 duration: Duration(seconds: 3)),
           )
           .closed
-          .then((_) {
+          .then((_) async {
         if (isDealer) {
           // If user is dealer, navigate to rate transporter page
-          Navigator.push(
+          await MyNavigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => RateTransporterPageTwo(
-                offerId: widget.offerId,
-                fromCollectionPage: true,
-              ),
+            RateTransporterPageTwo(
+              offerId: widget.offerId,
+              fromCollectionPage: true,
             ),
           );
         } else {
           // If user is transporter, navigate to rate dealer page
-          Navigator.push(
+          await MyNavigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => RateDealerPageTwo(
-                offerId: widget.offerId,
-              ),
+            RateDealerPageTwo(
+              offerId: widget.offerId,
             ),
           );
         }

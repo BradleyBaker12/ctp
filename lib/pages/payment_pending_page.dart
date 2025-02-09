@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/report_issue.dart';
 import 'package:ctp/pages/upload_pop.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -61,12 +62,9 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
               .doc(widget.offerId)
               .update({'offerStatus': 'paid'});
 
-          Navigator.pushReplacement(
+          await MyNavigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  PaymentApprovedPage(offerId: widget.offerId),
-            ),
+            PaymentApprovedPage(offerId: widget.offerId),
           );
         } else {
           // Keep checking the payment status if not yet accepted
@@ -180,13 +178,10 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                         CustomButton(
                           text: 'UPLOAD PROOF OF PAYMENT',
                           borderColor: Colors.blue,
-                          onPressed: () {
-                            Navigator.push(
+                          onPressed: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => UploadProofOfPaymentPage(
-                                    offerId: widget.offerId),
-                              ),
+                              UploadProofOfPaymentPage(offerId: widget.offerId),
                             ).then((_) {
                               // Refresh the proof of payment status when returning
                               _checkProofOfPayment();
@@ -209,13 +204,11 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                       CustomButton(
                         text: 'REPORT AN ISSUE',
                         borderColor: const Color(0xFFFF4E00),
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          await MyNavigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => ReportIssuePage(
-                                offerId: widget.offerId,
-                              ),
+                            ReportIssuePage(
+                              offerId: widget.offerId,
                             ),
                           );
                         },

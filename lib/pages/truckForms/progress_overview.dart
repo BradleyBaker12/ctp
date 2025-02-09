@@ -3,6 +3,7 @@ import 'package:ctp/pages/truckForms/basic_information.dart';
 import 'package:ctp/pages/truckForms/maintenance_form.dart';
 import 'package:ctp/pages/truckForms/truck_condition_form.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -21,40 +22,28 @@ class ProgressOverviewPage extends StatefulWidget {
 }
 
 class _ProgressOverviewPageState extends State<ProgressOverviewPage> {
-  void _navigateToSection(BuildContext context, String section) {
+  void _navigateToSection(BuildContext context, String section) async {
     switch (section) {
       case 'BASIC':
-        Navigator.push(
+        await MyNavigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) =>
-                BasicInformationForm(formData: widget.formData),
-          ),
+          BasicInformationForm(formData: widget.formData),
         );
         break;
       case 'CONDITION':
-        Navigator.push(
+        await MyNavigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => TruckConditionForm(formData: widget.formData),
-          ),
+          TruckConditionForm(formData: widget.formData),
         );
         break;
       case 'MAINTENANCE':
-        Navigator.push(
+        await MyNavigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => MaintenanceForm(formData: widget.formData),
-          ),
+          MaintenanceForm(formData: widget.formData),
         );
         break;
       case 'ADMIN':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AdminForm(formData: widget.formData),
-          ),
-        );
+        await MyNavigator.push(context, AdminForm(formData: widget.formData));
         break;
     }
   }

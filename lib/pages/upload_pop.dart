@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -111,12 +112,10 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
           content: Text('Proof of payment uploaded successfully')));
 
       // Navigate back to the PaymentPendingPage after 2 seconds
-      Future.delayed(const Duration(seconds: 2), () {
-        Navigator.pushReplacement(
+      Future.delayed(const Duration(seconds: 2), () async {
+        await MyNavigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => PaymentPendingPage(offerId: widget.offerId),
-          ),
+          PaymentPendingPage(offerId: widget.offerId),
         );
       });
     } catch (e) {

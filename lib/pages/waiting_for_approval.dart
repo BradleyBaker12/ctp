@@ -194,7 +194,7 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
                             CustomButton(
                               text: 'LOG OUT',
                               borderColor: blue,
-                              onPressed: () {
+                              onPressed: () async {
                                 // Add logic to log out the user
                                 FirebaseAuth.instance.signOut();
                                 Navigator.pushReplacementNamed(

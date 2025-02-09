@@ -1,14 +1,17 @@
 // lib/pages/truck_page.dart
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 
 // Define the FilterOperation enum to handle various filter operations
 enum FilterOperation {
@@ -635,13 +638,86 @@ class _TruckPageState extends State<TruckPage> {
           ),
           Expanded(
             child: _isLoading || _isFiltering
-                ? Center(
-                    child: Image.asset(
-                      'lib/assets/Loading_Logo_CTP.gif',
-                      width: 100,
-                      height: 100,
-                    ),
-                  )
+                ? ListView.builder(
+                    itemCount: 10,
+                    itemBuilder: (context, index) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: Colors.black, // Set card background to black
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.deepOrange)),
+                        child: SizedBox(
+                          height: size.height * 0.245,
+                          child: Shimmer.fromColors(
+                            highlightColor: Colors.white.withOpacity(0.5),
+                            baseColor: Colors.white.withOpacity(0.1),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 1,
+                                  child: Container(
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 10,
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 15),
+                                      Container(
+                                        margin:
+                                            const EdgeInsets.only(right: 40),
+                                        width: double.infinity,
+                                        height: 35,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          color: Colors.grey.withOpacity(0.6),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 15),
+                                      Container(
+                                        width: 50,
+                                        height: 30,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          color: Colors.grey.withOpacity(0.6),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 15),
+                                      Container(
+                                        width: 50,
+                                        height: 30,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          color: Colors.grey.withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    })
+                // Center(
+                //     child: Image.asset(
+                //       'lib/assets/Loading_Logo_CTP.gif',
+                //       width: 100,
+                //       height: 100,
+                //     ),
+                //   )
                 : displayedVehicles.isNotEmpty
                     ? NotificationListener<ScrollNotification>(
                         onNotification: (ScrollNotification notification) {
@@ -682,13 +758,11 @@ class _TruckPageState extends State<TruckPage> {
     final size = MediaQuery.of(context).size;
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         try {
-          Navigator.push(
+          await MyNavigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-            ),
+            VehicleDetailsPage(vehicle: vehicle),
           );
         } catch (e) {
           print('Error in onTap: $e');
@@ -722,19 +796,29 @@ class _TruckPageState extends State<TruckPage> {
                   ),
                   child: vehicle.mainImageUrl != null &&
                           vehicle.mainImageUrl!.isNotEmpty
-                      ? Image.network(
-                          vehicle.mainImageUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: vehicle.mainImageUrl!,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                              'lib/assets/default_vehicle_image.png',
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                            );
-                          },
+                          placeholder: (context, url) => Container(
+                            color: Colors.white,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                                size: 22,
+                              ),
+                            ),
+                          ),
                         )
                       : Image.asset(
                           'lib/assets/default_vehicle_image.png',

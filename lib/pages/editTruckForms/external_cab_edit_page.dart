@@ -16,7 +16,7 @@ class ImageData {
   final String? url;
   final String? fileName;
 
-  ImageData( {this.file, this.url,this.fileName});
+  ImageData({this.file, this.url, this.fileName});
 }
 
 /// Class to represent items with descriptions and images
@@ -419,7 +419,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     });
   }
 
-  Future<String> _uploadImageToFirebase(Uint8List imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     try {
       String fileName =
           'external_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -523,6 +524,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       // Remove the image by resetting it
                       _selectedImages[title] = ImageData();
                     });
+                    widget.onProgressUpdate();
                   },
                 ),
               ),
@@ -551,12 +553,14 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName =  pickedFile.name;
+                    final fileName = pickedFile.name;
                     setState(() {
                       _selectedImages[title] =
-                          ImageData(file: bytes, url: null,fileName: fileName );
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -568,12 +572,14 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName =  pickedFile.name;
+                    final fileName = pickedFile.name;
                     setState(() {
                       _selectedImages[title] =
-                          ImageData(file: bytes, url: null,fileName: fileName );
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],
@@ -887,11 +893,11 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName =  pickedFile.name;
-                   
+                    final fileName = pickedFile.name;
+
                     setState(() {
                       item.imageData =
-                          ImageData(file: bytes, url: null,fileName: fileName);
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
                 },
@@ -905,11 +911,11 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName =  pickedFile.name;
-                   
+                    final fileName = pickedFile.name;
+
                     setState(() {
                       item.imageData =
-                          ImageData(file: bytes, url: null,fileName: fileName);
+                          ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
                 },

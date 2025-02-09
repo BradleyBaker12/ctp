@@ -1,5 +1,6 @@
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/tutorial_pages/tutorial_truck_swipe.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:provider/provider.dart';
@@ -67,11 +68,8 @@ class _TutorialStartedPageState extends State<TutorialStartedPage> {
       } else if (_currentIndex == _titles.length - 1 && index == 0) {
         // On the last tutorial step, go to the actual home page
         final userProvider = Provider.of<UserProvider>(context, listen: false);
-        userProvider.fetchUserData().then((_) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
-          );
+        userProvider.fetchUserData().then((_) async {
+          await MyNavigator.pushReplacement(context, const HomePage());
         });
       } else {
         // Keep navigating through the tutorial sections
@@ -215,14 +213,10 @@ class _TutorialStartedPageState extends State<TutorialStartedPage> {
           top: screenSize.height * 0.55,
           right: 16,
           child: TextButton(
-            onPressed: () {
+            onPressed: () async {
               if (_currentIndex == 1) {
                 // Navigate to the TutorialTruckSwipePage
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const TutorialTruckSwipePage()),
-                );
+                await MyNavigator.push(context, const TutorialTruckSwipePage());
               } else {
                 setState(() {
                   if (_currentIndex < _titles.length - 1) {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import rootBundle
 import 'package:ctp/components/gradient_background.dart';
@@ -11,6 +12,8 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
+import 'package:universal_html/html.dart' as html;
+import 'package:url_launcher/url_launcher.dart';
 
 class OfferSummaryPage extends StatelessWidget {
   final String offerId;
@@ -20,7 +23,7 @@ class OfferSummaryPage extends StatelessWidget {
     required this.offerId,
   });
 
-  Future<File> _generatePdf(
+  Future<File?> _generatePdf(
       BuildContext context,
       Map<String, dynamic> offerData,
       Map<String, dynamic> dealerData,
@@ -319,11 +322,32 @@ class OfferSummaryPage extends StatelessWidget {
         ),
       ),
     );
+    final pdfBytes = await pdf.save();
+    if (kIsWeb) {
+      var dt = DateTime.now().millisecondsSinceEpoch.toString();
+      final blob = html.Blob([pdfBytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final html.AnchorElement anchor = html.AnchorElement(href: url)
+        ..setAttribute("download", "offer_summary_$dt.pdf")
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      final output = await getTemporaryDirectory();
+      final file = File("${output.path}/offer_summary.pdf");
+      await file.writeAsBytes(await pdf.save());
+      return file;
+    }
+  }
 
-    final output = await getTemporaryDirectory();
-    final file = File("${output.path}/offer_summary.pdf");
-    await file.writeAsBytes(await pdf.save());
-    return file;
+  Future<String> getTemporaryDirectoryPath() async {
+    if (kIsWeb) {
+      // Use window.localStorage or another web-specific solution
+      // For demonstration purposes, we'll just return a dummy path
+      return '/tmp/web-temp-dir';
+    } else {
+      final tempDir = await getTemporaryDirectory();
+      return tempDir.path;
+    }
   }
 
   Future<pw.ImageProvider> _networkImage(String url) async {
@@ -398,7 +422,7 @@ class OfferSummaryPage extends StatelessWidget {
 
                 return Scaffold(
                   body: GradientBackground(
-                    child: FutureBuilder<File>(
+                    child: FutureBuilder<File?>(
                       future: _generatePdf(
                         context,
                         offerData,
@@ -422,15 +446,18 @@ class OfferSummaryPage extends StatelessWidget {
 
                         final file = pdfSnapshot.data;
 
-                        return file == null
+                        return file == null && kIsWeb
                             ? const Center(
-                                child: Text('Failed to generate PDF'))
-                            : PDFView(
-                                filePath: file.path,
-                                autoSpacing: true,
-                                swipeHorizontal: true,
-                                pageFling: true,
-                              );
+                                child: Text('File downloaded successfully!'))
+                            : file == null
+                                ? const Center(
+                                    child: Text('Failed to generate PDF'))
+                                : PDFView(
+                                    filePath: file.path,
+                                    autoSpacing: true,
+                                    swipeHorizontal: true,
+                                    pageFling: true,
+                                  );
                       },
                     ),
                   ),
@@ -443,8 +470,10 @@ class OfferSummaryPage extends StatelessWidget {
                         vehicleData,
                         transporterData,
                       );
-                      final xFile = XFile(file.path);
-                      await Share.shareXFiles([xFile], text: 'Offer Summary');
+                      if (file != null) {
+                        final xFile = XFile(file.path);
+                        await Share.shareXFiles([xFile], text: 'Offer Summary');
+                      }
                     },
                     tooltip: 'Share PDF',
                     child: const Icon(Icons.share),

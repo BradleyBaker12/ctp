@@ -1,12 +1,15 @@
 // lib/pages/truckForms/truck_conditions_tabs_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/internal_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/tyres_edit_page.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
@@ -16,7 +19,7 @@ import 'package:provider/provider.dart';
 
 class TruckConditionsTabsEditPage extends StatefulWidget {
   final int initialIndex;
-  final File? mainImageFile;
+  final Uint8List? mainImageFile;
   final String? mainImageUrl;
   final String vehicleId;
   final String referenceNumber;
@@ -73,6 +76,8 @@ class _TruckConditionsTabsEditPageState
   String _vehicleRef = '';
   String _makeModel = '';
   String _vehicleImageUrl = '';
+  bool isLoading = false;
+  bool isLoadingDone = false;
 
   @override
   void initState() {
@@ -171,8 +176,13 @@ class _TruckConditionsTabsEditPageState
   // Modified Continue button handler
   Future<void> _handleContinue() async {
     try {
-      // Save current tab data
+      setState(() {
+        isLoading = true;
+      });
       await _saveCurrentTabData();
+      setState(() {
+        isLoading = false;
+      });
 
       // If not on the last tab, move to next tab
       if (_selectedTabIndex < 4) {
@@ -206,6 +216,9 @@ class _TruckConditionsTabsEditPageState
 
   // Modified Done button handler
   Future<void> _handleDone() async {
+    setState(() {
+      isLoadingDone = true;
+    });
     // Only allow saving for transporters
     if (Provider.of<UserProvider>(context, listen: false).getUserRole !=
         'transporter') {
@@ -271,8 +284,7 @@ class _TruckConditionsTabsEditPageState
           ),
         );
 
-        // Navigate back
-        Navigator.of(context).pop();
+        await MyNavigator.pushReplacement(context, VehiclesListPage());
       }
     } catch (e) {
       print('Error saving all data: $e');
@@ -288,6 +300,9 @@ class _TruckConditionsTabsEditPageState
       if (mounted) {
         setState(() => _isSaving = false);
       }
+      setState(() {
+        isLoadingDone = false;
+      });
     }
   }
 
@@ -543,6 +558,7 @@ class _TruckConditionsTabsEditPageState
                                 Expanded(
                                   child: CustomButton(
                                     text: 'Continue',
+                                    isLoading: isLoading,
                                     onPressed:
                                         _isSaving ? null : _handleContinue,
                                     borderColor: AppColors.blue,
@@ -553,6 +569,7 @@ class _TruckConditionsTabsEditPageState
                               Expanded(
                                 child: CustomButton(
                                   text: 'Done',
+                                  isLoading: isLoadingDone,
                                   onPressed: _isSaving ? null : _handleDone,
                                   borderColor: AppColors.green,
                                 ),

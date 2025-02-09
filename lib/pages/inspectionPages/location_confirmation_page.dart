@@ -39,14 +39,17 @@ class LocationConfirmationPage extends StatefulWidget {
 
 class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
   bool _isLoading = false;
+  // LatLng? _latLng = LatLng(37.96, 91.83);
   LatLng? _latLng;
   int _selectedIndex = 0;
 
   @override
   void initState() {
+    WidgetsBinding.instance.addPersistentFrameCallback((_) async {
+      await _getCoordinatesFromAddress();
+      await _updateOfferStatus();
+    });
     super.initState();
-    _updateOfferStatus();
-    _getCoordinatesFromAddress();
   }
 
   Future<void> _updateOfferStatus() async {
@@ -74,8 +77,14 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
     try {
       print('Getting coordinates for address: ${widget.address}');
       List<Location> locations = await locationFromAddress(widget.address);
+      // List<Location> locations =
+      //     await locationFromAddress("Gronausestraat 710, Enschede");
+      print("Locations List: $locations");
       if (locations.isNotEmpty) {
         final location = locations.first;
+        print("Location: $location");
+        print(
+            "Latiture: ${location.latitude} and Longiture: ${location.longitude}");
         setState(() {
           _latLng = LatLng(location.latitude, location.longitude);
           print('Coordinates found: $_latLng');
@@ -259,13 +268,13 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
                             borderRadius: BorderRadius.circular(15),
                             child: GoogleMap(
                               initialCameraPosition: CameraPosition(
-                                target: _latLng!,
+                                target: _latLng ?? LatLng(0, 0),
                                 zoom: 14.0,
                               ),
                               markers: {
                                 Marker(
                                   markerId: MarkerId(widget.location),
-                                  position: _latLng!,
+                                  position: _latLng ?? LatLng(0, 0),
                                 ),
                               },
                             ),

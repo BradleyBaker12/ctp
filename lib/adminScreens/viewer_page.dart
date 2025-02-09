@@ -6,7 +6,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'dart:html' as html;
+// import 'dart:html' as html;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class ViewerPage extends StatefulWidget {
@@ -105,8 +105,8 @@ class _ViewerPageState extends State<ViewerPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('View File'),
-      ),
+          title: const Text('View File'),
+          backgroundColor: const Color(0xFF0E4CAF)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : isPDF

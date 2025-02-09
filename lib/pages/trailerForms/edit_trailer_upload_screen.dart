@@ -13,6 +13,7 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/user_provider.dart'; // <--- for user role
+import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -499,14 +500,13 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     );
   }
 
-  void _showImagePreview({File? file, String? url, required String title}) {
-    Navigator.push(
+  void _showImagePreview(
+      {File? file, String? url, required String title}) async {
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => DocumentPreviewScreen(
-          file: file,
-          url: url,
-        ),
+      DocumentPreviewScreen(
+        file: file,
+        url: url,
       ),
     );
   }
