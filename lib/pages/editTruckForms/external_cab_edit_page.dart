@@ -783,11 +783,14 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         Row(
           children: [
             Expanded(
-              child: TextField(
+              child: TextFormField(
+                // Changed to TextFormField
                 enabled: !isDealer,
-                controller: TextEditingController(text: item.description),
+                initialValue: item.description,
                 onChanged: (value) => _updateDamageDescription(index, value),
                 readOnly: isDealer,
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.left,
                 decoration: InputDecoration(
                   labelText: 'Describe Item',
                   labelStyle: const TextStyle(color: Colors.white),
@@ -796,8 +799,13 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
+                  // Force LTR for hint text
+                  hintTextDirection: TextDirection.ltr,
                 ),
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Roboto', // Add a specific font family
+                ),
               ),
             ),
             if (!isDealer)

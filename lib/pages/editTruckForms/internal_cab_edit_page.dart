@@ -560,25 +560,24 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
 
-    bool hasFile = item.imageData.file != null;
-    bool hasUrl = item.imageData.url != null && item.imageData.url!.isNotEmpty;
-
     return Column(
       children: [
         const SizedBox(height: 16.0),
-        // Row with description and delete icon
         Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: TextEditingController(text: item.description),
+              child: TextFormField(
+                enabled: !isDealer,
+                initialValue: item.description,
                 onChanged: (value) {
                   _updateAndNotify(() {
                     item.description = value;
                   });
                 },
-                enabled: !isDealer,
                 readOnly: isDealer,
+                // Add these properties to fix text direction
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.left,
                 decoration: InputDecoration(
                   labelText: 'Describe Item',
                   labelStyle: const TextStyle(color: Colors.white),
@@ -587,8 +586,13 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
+                  // Force LTR for hint text
+                  hintTextDirection: TextDirection.ltr,
                 ),
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Roboto', // Add a specific font family
+                ),
               ),
             ),
             if (!isDealer)
@@ -606,7 +610,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
         // Image container with stack
         GestureDetector(
           onTap: () {
-            if (isDealer && (hasFile || hasUrl)) {
+            if (isDealer &&
+                (item.imageData.file != null || item.imageData.url != null)) {
               // Dealer can only view in fullscreen
               Navigator.push(
                 context,
@@ -615,7 +620,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                     body: GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Center(
-                        child: hasFile
+                        child: item.imageData.file != null
                             ? Image.memory(item.imageData.file!)
                             : Image.network(
                                 item.imageData.url!,
@@ -653,13 +658,14 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
             child: Stack(
               children: [
                 // Existing image or placeholder
-                if (!hasFile &&
-                    (!hasUrl || !item.imageData.url!.startsWith('http')))
+                if (item.imageData.file == null &&
+                    (item.imageData.url == null ||
+                        !item.imageData.url!.startsWith('http')))
                   _buildImagePlaceholder()
                 else
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: hasFile
+                    child: item.imageData.file != null
                         ? Image.memory(
                             item.imageData.file!,
                             fit: BoxFit.cover,
@@ -684,7 +690,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   ),
 
                 // The "X" button (only if not dealer and there's an image)
-                if (!isDealer && (hasFile || hasUrl))
+                if (!isDealer &&
+                    (item.imageData.file != null || item.imageData.url != null))
                   Positioned(
                     top: 0,
                     right: 0,
