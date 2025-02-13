@@ -1,6 +1,5 @@
 // lib/pages/truckForms/truck_conditions_tabs_page.dart
 
-import 'dart:io';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
@@ -13,10 +12,13 @@ import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
+import 'package:ctp/utils/navigation.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 
 class TruckConditionsTabsEditPage extends StatefulWidget {
   final int initialIndex;
-  final File? mainImageFile;
+  final Uint8List? mainImageFile;
   final String? mainImageUrl;
   final String vehicleId;
   final String referenceNumber;
@@ -33,11 +35,11 @@ class TruckConditionsTabsEditPage extends StatefulWidget {
   });
 
   @override
-  _TruckConditionsTabsEditPageState createState() =>
-      _TruckConditionsTabsEditPageState();
+  TruckConditionsTabsEditPageState createState() =>
+      TruckConditionsTabsEditPageState();
 }
 
-class _TruckConditionsTabsEditPageState
+class TruckConditionsTabsEditPageState
     extends State<TruckConditionsTabsEditPage> {
   int _selectedTabIndex = 0;
   bool _isSaving = false;
@@ -73,6 +75,8 @@ class _TruckConditionsTabsEditPageState
   String _vehicleRef = '';
   String _makeModel = '';
   String _vehicleImageUrl = '';
+  bool isLoading = false;
+  bool isLoadingDone = false;
 
   @override
   void initState() {
@@ -171,8 +175,14 @@ class _TruckConditionsTabsEditPageState
   // Modified Continue button handler
   Future<void> _handleContinue() async {
     try {
+      setState(() {
+        isLoading = true;
+      });
       // Save current tab data
       await _saveCurrentTabData();
+      setState(() {
+        isLoading = false;
+      });
 
       // If not on the last tab, move to next tab
       if (_selectedTabIndex < 4) {
@@ -206,6 +216,9 @@ class _TruckConditionsTabsEditPageState
 
   // Modified Done button handler
   Future<void> _handleDone() async {
+    setState(() {
+      isLoadingDone = true;
+    });
     // Only allow saving for transporters
     if (Provider.of<UserProvider>(context, listen: false).getUserRole !=
         'transporter') {
@@ -272,7 +285,7 @@ class _TruckConditionsTabsEditPageState
         );
 
         // Navigate back
-        Navigator.of(context).pop();
+        await MyNavigator.pushReplacement(context, VehiclesListPage());
       }
     } catch (e) {
       print('Error saving all data: $e');
@@ -288,6 +301,9 @@ class _TruckConditionsTabsEditPageState
       if (mounted) {
         setState(() => _isSaving = false);
       }
+      setState(() {
+        isLoadingDone = false;
+      });
     }
   }
 
@@ -507,30 +523,35 @@ class _TruckConditionsTabsEditPageState
                                 vehicleId: widget.vehicleId,
                                 onProgressUpdate: updateTabProgress,
                                 isEditing: widget.isEditing,
+                                inTabsPage: true, // Add this parameter
                               ),
                               InternalCabEditPage(
                                 key: _internalCabKey,
                                 vehicleId: widget.vehicleId,
                                 onProgressUpdate: updateTabProgress,
                                 isEditing: widget.isEditing,
+                                inTabsPage: true, // Add this parameter
                               ),
                               DriveTrainEditPage(
                                 key: _driveTrainKey,
                                 vehicleId: widget.vehicleId,
                                 onProgressUpdate: updateTabProgress,
                                 isEditing: widget.isEditing,
+                                inTabsPage: true, // Add this parameter
                               ),
                               ChassisEditPage(
                                 key: _chassisKey,
                                 vehicleId: widget.vehicleId,
                                 onProgressUpdate: updateTabProgress,
                                 isEditing: widget.isEditing,
+                                inTabsPage: true, // Add this parameter
                               ),
                               TyresEditPage(
                                 key: _tyresKey,
                                 vehicleId: widget.vehicleId,
                                 onProgressUpdate: updateTabProgress,
                                 isEditing: widget.isEditing,
+                                inTabsPage: true, // Add this parameter
                               ),
                             ],
                           ),
@@ -543,6 +564,7 @@ class _TruckConditionsTabsEditPageState
                                 Expanded(
                                   child: CustomButton(
                                     text: 'Continue',
+                                    isLoading: isLoading,
                                     onPressed:
                                         _isSaving ? null : _handleContinue,
                                     borderColor: AppColors.blue,
@@ -553,6 +575,7 @@ class _TruckConditionsTabsEditPageState
                               Expanded(
                                 child: CustomButton(
                                   text: 'Done',
+                                  isLoading: isLoadingDone,
                                   onPressed: _isSaving ? null : _handleDone,
                                   borderColor: AppColors.green,
                                 ),
@@ -729,5 +752,34 @@ class _TruckConditionsTabsEditPageState
         // This will trigger a rebuild of the tab buttons
       });
     }
+  }
+
+  double getTotalProgress() {
+    int filledFields = 0;
+    int totalFields = 5; // Total number of sections
+
+    // Check each section's completion
+    if (_externalCabKey.currentState != null) {
+      filledFields +=
+          (_externalCabKey.currentState!.getCompletionPercentage() > 0) ? 1 : 0;
+    }
+    if (_internalCabKey.currentState != null) {
+      filledFields +=
+          (_internalCabKey.currentState!.getCompletionPercentage() > 0) ? 1 : 0;
+    }
+    if (_driveTrainKey.currentState != null) {
+      filledFields +=
+          (_driveTrainKey.currentState!.getCompletionPercentage() > 0) ? 1 : 0;
+    }
+    if (_chassisKey.currentState != null) {
+      filledFields +=
+          (_chassisKey.currentState!.getCompletionPercentage() > 0) ? 1 : 0;
+    }
+    if (_tyresKey.currentState != null) {
+      filledFields +=
+          (_tyresKey.currentState!.getCompletionPercentage() > 0) ? 1 : 0;
+    }
+
+    return filledFields / totalFields;
   }
 }

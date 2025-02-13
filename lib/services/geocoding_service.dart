@@ -1,102 +1,91 @@
-import 'package:geocoding/geocoding.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_geocoding_api/google_geocoding_api.dart';
 
 class GeocodingService {
-  // South African cities coordinates database
-  static final Map<String, LatLng> _saCoordinates = {
-    'meyerton': LatLng(-26.5577, 28.0169),
-    'henley on klip': LatLng(-26.5477, 28.0769),
-    'gauteng': LatLng(-26.2708, 28.1123),
-    // Add more cities as needed
+  static const String _googleApiKey =
+      'AIzaSyDyE6Oqb-T0B1x-iqaQUejLexXKwoe7NoU'; // Replace with your API key
+  static final _api = GoogleGeocodingApi(_googleApiKey, isLogged: kDebugMode);
+
+  // Default coordinates for South Africa
+  static const LatLng _defaultSouthAfrica = LatLng(-30.5595, 22.9375);
+
+  // South African province mappings
+  static const Map<String, String> _provinceAbbreviations = {
+    'gauteng': 'GP',
+    'western cape': 'WC',
+    'eastern cape': 'EC',
+    'kwazulu-natal': 'KZN',
+    'free state': 'FS',
+    'mpumalanga': 'MP',
+    'limpopo': 'LP',
+    'north west': 'NW',
+    'northern cape': 'NC',
   };
+
+  static String _formatAddress(String address) {
+    // Convert to lowercase for comparison
+    String formattedAddress = address.toLowerCase().trim();
+
+    // Add South Africa if not present
+    if (!formattedAddress.contains('south africa')) {
+      formattedAddress += ', south africa';
+    }
+
+    // Replace province abbreviations with full names
+    _provinceAbbreviations.forEach((full, abbr) {
+      formattedAddress = formattedAddress.replaceAll(
+        RegExp('\\b$abbr\\b', caseSensitive: false),
+        full,
+      );
+    });
+
+    return formattedAddress;
+  }
 
   static Future<LatLng?> getCoordinates(String address) async {
     try {
-      // Clean and normalize the address
-      final normalizedAddress = _normalizeAddress(address);
+      print('Original address: $address');
+      final formattedAddress = _formatAddress(address);
+      print('Formatted address: $formattedAddress');
 
-      // Try exact match first
-      final result = await _tryExactGeocoding(normalizedAddress);
-      if (result != null) return result;
+      final searchResults = await _api.search(
+        formattedAddress,
+        language: 'en',
+        region: 'za', // Restrict to South Africa
+        components: 'country:za', // Additional restriction to South Africa
+      );
 
-      // Try known city matching
-      final cityMatch = await _tryKnownCityMatch(normalizedAddress);
-      if (cityMatch != null) return cityMatch;
+      if (searchResults.status == "OK" && searchResults.results.isNotEmpty) {
+        final location = searchResults.results.first.geometry!.location;
+        print('Found coordinates: ${location.lat}, ${location.lng}');
+        return LatLng(location.lat, location.lng);
+      }
 
-      // Try progressive fallback
-      return await _tryProgressiveFallback(normalizedAddress);
+      // If no results, try with just the city/town name
+      final simplifiedAddress =
+          '${formattedAddress.split(',').first}, south africa';
+      print('Trying simplified address: $simplifiedAddress');
+
+      final fallbackResults = await _api.search(
+        simplifiedAddress,
+        language: 'en',
+        region: 'za',
+      );
+
+      if (fallbackResults.status == "OK" &&
+          fallbackResults.results.isNotEmpty) {
+        final location = fallbackResults.results.first.geometry!.location;
+        print(
+            'Found coordinates with simplified address: ${location.lat}, ${location.lng}');
+        return LatLng(location.lat, location.lng);
+      }
+
+      print('No coordinates found for address');
+      return _defaultSouthAfrica;
     } catch (e) {
-      print('Final geocoding error: $e');
-      return null;
+      print('Error in geocoding: $e');
+      return _defaultSouthAfrica;
     }
-  }
-
-  static String _normalizeAddress(String address) {
-    return address
-        .toLowerCase()
-        .trim()
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll(RegExp(r'[^\w\s,]'), '');
-  }
-
-  static Future<LatLng?> _tryExactGeocoding(String address) async {
-    try {
-      final locations = await locationFromAddress(address);
-      if (locations.isNotEmpty) {
-        return LatLng(locations.first.latitude, locations.first.longitude);
-      }
-    } catch (e) {
-      print('Exact geocoding failed: $e');
-    }
-    return null;
-  }
-
-  static Future<LatLng?> _tryKnownCityMatch(String address) async {
-    for (final city in _saCoordinates.keys) {
-      if (address.contains(city)) {
-        print('Found known city match: $city');
-        return _saCoordinates[city];
-      }
-    }
-    return null;
-  }
-
-  static Future<LatLng?> _tryProgressiveFallback(String address) async {
-    final parts = address.split(',').map((e) => e.trim()).toList();
-
-    // Try different combinations of address parts
-    for (var i = parts.length - 1; i >= 0; i--) {
-      for (var j = i - 1; j >= 0; j--) {
-        try {
-          final testAddress = '${parts[j]}, ${parts[i]}';
-          print('Trying combination: $testAddress');
-          final locations = await locationFromAddress(testAddress);
-          if (locations.isNotEmpty) {
-            return LatLng(locations.first.latitude, locations.first.longitude);
-          }
-        } catch (e) {
-          print('Combination failed: $e');
-          continue;
-        }
-      }
-    }
-
-    // If all else fails, try individual parts
-    for (final part in parts.reversed) {
-      try {
-        if (part.length > 3) {
-          // Avoid too short terms
-          final locations = await locationFromAddress(part);
-          if (locations.isNotEmpty) {
-            return LatLng(locations.first.latitude, locations.first.longitude);
-          }
-        }
-      } catch (e) {
-        print('Individual part failed: $e');
-        continue;
-      }
-    }
-
-    return null;
   }
 }

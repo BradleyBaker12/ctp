@@ -7,6 +7,18 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'dart:typed_data';
+
+class ImageData {
+  File? file;
+  Uint8List? webImage;
+  String? url;
+
+  ImageData({this.file, this.webImage, this.url});
+
+  bool get hasImage =>
+      file != null || webImage != null || (url != null && url!.isNotEmpty);
+}
 
 class DriveTrainPage extends StatefulWidget {
   final String vehicleId;
@@ -39,27 +51,24 @@ class DriveTrainPageState extends State<DriveTrainPage>
   String _retarderCondition = 'no';
 
   // Map to store selected images for different sections
-  final Map<String, File?> _selectedImages = {
-    'Down': null,
-    'Left': null,
-    'Up': null,
-    'Right': null,
-    'Engine Left': null,
-    'Engine Right': null,
-    'Gearbox Top View': null,
-    'Gearbox Bottom View': null,
-    'Gearbox Rear Panel': null,
-    'Diffs top view of front diff': null,
-    'Diffs bottom view of diff front': null,
-    'Diffs top view of rear diff': null,
-    'Diffs bottom view of rear diff': null,
-    'Engine Oil Leak': null,
-    'Engine Water Leak': null,
-    'Gearbox Oil Leak': null,
+  final Map<String, ImageData> _selectedImages = {
+    'Down': ImageData(),
+    'Left': ImageData(),
+    'Up': ImageData(),
+    'Right': ImageData(),
+    'Engine Left': ImageData(),
+    'Engine Right': ImageData(),
+    'Gearbox Top View': ImageData(),
+    'Gearbox Bottom View': ImageData(),
+    'Gearbox Rear Panel': ImageData(),
+    'Diffs top view of front diff': ImageData(),
+    'Diffs bottom view of diff front': ImageData(),
+    'Diffs top view of rear diff': ImageData(),
+    'Diffs bottom view of rear diff': ImageData(),
+    'Engine Oil Leak': ImageData(),
+    'Engine Water Leak': ImageData(),
+    'Gearbox Oil Leak': ImageData(),
   };
-
-  // Add a map to store image URLs
-  final Map<String, String> _imageUrls = {};
 
   bool _isInitialized = false; // Flag to prevent re-initialization
 
@@ -299,7 +308,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] == null
+        child: !_selectedImages[title]!.hasImage
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -319,15 +328,10 @@ class DriveTrainPageState extends State<DriveTrainPage>
               )
             : Stack(
                 children: [
-                  // Display the image
+                  // Display the image based on available source
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
-                      _selectedImages[title]!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
+                    child: _getImageWidget(_selectedImages[title]!),
                   ),
 
                   // 'X' button to remove the image
@@ -338,8 +342,10 @@ class DriveTrainPageState extends State<DriveTrainPage>
                       onTap: () {
                         // Stop the parent onTap from also firing
                         setState(() {
-                          _selectedImages[title] = null;
+                          _selectedImages[title] = ImageData();
                         });
+                        widget.onProgressUpdate();
+                        setState(() {});
                       },
                       child: Container(
                         decoration: BoxDecoration(
@@ -361,6 +367,33 @@ class DriveTrainPageState extends State<DriveTrainPage>
     );
   }
 
+  // Helper method to get the appropriate image widget
+  Widget _getImageWidget(ImageData imageData) {
+    if (imageData.webImage != null) {
+      return Image.memory(
+        imageData.webImage!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    } else if (imageData.file != null) {
+      return Image.file(
+        imageData.file!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    } else if (imageData.url != null && imageData.url!.isNotEmpty) {
+      return Image.network(
+        imageData.url!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    return Container(); // Fallback empty container
+  }
+
   // Method to show the dialog for selecting image source (Camera or Gallery)
   void _showImageSourceDialog(String title) {
     showDialog(
@@ -376,12 +409,17 @@ class DriveTrainPageState extends State<DriveTrainPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = ImageData(
+                        file: File(pickedFile.path),
+                        webImage: bytes,
+                      );
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -390,12 +428,17 @@ class DriveTrainPageState extends State<DriveTrainPage>
                 title: const Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = ImageData(
+                        file: File(pickedFile.path),
+                        webImage: bytes,
+                      );
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -513,10 +556,10 @@ class DriveTrainPageState extends State<DriveTrainPage>
         Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
         images.forEach((key, value) {
           if (value is Map && value['path'] != null) {
-            _selectedImages[key] = File(value['path']);
+            _selectedImages[key] = ImageData(file: File(value['path']));
           } else if (value is Map && value['url'] != null) {
             // Store URL for later use
-            _imageUrls[key] = value['url'];
+            _selectedImages[key] = ImageData(url: value['url']);
           }
         });
       }
@@ -535,19 +578,30 @@ class DriveTrainPageState extends State<DriveTrainPage>
   Future<Map<String, dynamic>> getData() async {
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
-      if (entry.value != null) {
-        String imageUrl = await _uploadImageToFirebase(
-          entry.value!,
-          entry.key.replaceAll(' ', '_').toLowerCase(),
-        );
+      if (entry.value.hasImage) {
+        String? imageUrl;
+        if (entry.value.webImage != null) {
+          imageUrl = await _uploadWebImageToFirebase(
+            entry.value.webImage!,
+            entry.key.replaceAll(' ', '_').toLowerCase(),
+          );
+        } else if (entry.value.file != null) {
+          imageUrl = await _uploadImageToFirebase(
+            entry.value.file!,
+            entry.key.replaceAll(' ', '_').toLowerCase(),
+          );
+        }
+
+        if (imageUrl != null) {
+          serializedImages[entry.key] = {
+            'url': imageUrl,
+            'path': entry.value.file?.path,
+            'isNew': true,
+          };
+        }
+      } else if (entry.value.url != null && entry.value.url!.isNotEmpty) {
         serializedImages[entry.key] = {
-          'url': imageUrl,
-          'path': entry.value!.path,
-          'isNew': true,
-        };
-      } else if (_imageUrls.containsKey(entry.key)) {
-        serializedImages[entry.key] = {
-          'url': _imageUrls[entry.key],
+          'url': entry.value.url,
           'isNew': false,
         };
       }
@@ -564,6 +618,21 @@ class DriveTrainPageState extends State<DriveTrainPage>
     };
   }
 
+  Future<String> _uploadWebImageToFirebase(
+      Uint8List imageData, String section) async {
+    try {
+      String fileName =
+          'drive_train/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+      UploadTask uploadTask = storageRef.putData(imageData);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print('Error uploading web image: $e');
+      return '';
+    }
+  }
+
   void reset() {
     setState(() {
       _selectedCondition = 'good';
@@ -575,11 +644,8 @@ class DriveTrainPageState extends State<DriveTrainPage>
 
       // Clear selected images
       _selectedImages.forEach((key, _) {
-        _selectedImages[key] = null;
+        _selectedImages[key] = ImageData();
       });
-
-      // Clear image URLs
-      _imageUrls.clear();
 
       _isInitialized = false; // Allow re-initialization if needed
     });
@@ -600,10 +666,10 @@ class DriveTrainPageState extends State<DriveTrainPage>
             (_waterLeakConditionEngine == 'yes' &&
                 key == 'Engine Water Leak') ||
             (_oilLeakConditionGearbox == 'yes' && key == 'Gearbox Oil Leak')) {
-          if (value != null) filledFields++;
+          if (value.file != null) filledFields++;
         }
       } else {
-        if (value != null) filledFields++;
+        if (value.file != null) filledFields++;
       }
     });
 
@@ -611,14 +677,14 @@ class DriveTrainPageState extends State<DriveTrainPage>
     // Oil leak engine
     if (_oilLeakConditionEngine == 'no' ||
         (_oilLeakConditionEngine == 'yes' &&
-            _selectedImages['Engine Oil Leak'] != null)) {
+            _selectedImages['Engine Oil Leak']?.file != null)) {
       filledFields++;
     }
 
     // Water leak engine
     if (_waterLeakConditionEngine == 'no' ||
         (_waterLeakConditionEngine == 'yes' &&
-            _selectedImages['Engine Water Leak'] != null)) {
+            _selectedImages['Engine Water Leak']?.file != null)) {
       filledFields++;
     }
 
@@ -628,7 +694,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
     // Gearbox oil leak
     if (_oilLeakConditionGearbox == 'no' ||
         (_oilLeakConditionGearbox == 'yes' &&
-            _selectedImages['Gearbox Oil Leak'] != null)) {
+            _selectedImages['Gearbox Oil Leak']?.file != null)) {
       filledFields++;
     }
 
@@ -662,7 +728,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
       _updateAndNotify(() {
         _oilLeakConditionEngine = value;
         if (value == 'no') {
-          _selectedImages['Engine Oil Leak'] = null;
+          _selectedImages['Engine Oil Leak'] = ImageData();
         }
       });
     }
@@ -674,7 +740,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
       _updateAndNotify(() {
         _waterLeakConditionEngine = value;
         if (value == 'no') {
-          _selectedImages['Engine Water Leak'] = null;
+          _selectedImages['Engine Water Leak'] = ImageData();
         }
       });
     }
@@ -695,7 +761,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
       _updateAndNotify(() {
         _oilLeakConditionGearbox = value;
         if (value == 'no') {
-          _selectedImages['Gearbox Oil Leak'] = null;
+          _selectedImages['Gearbox Oil Leak'] = ImageData();
         }
       });
     }
@@ -713,7 +779,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
   // For image selection
   Future<void> _updateImage(String title, File imageFile) async {
     _updateAndNotify(() {
-      _selectedImages[title] = imageFile;
+      _selectedImages[title] = ImageData(file: imageFile);
     });
   }
 }

@@ -28,6 +28,11 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isLoading = false;
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
+  bool _isPasswordFocused = false;
+
+  bool _has8Chars = false;
+  bool _hasNumber = false;
+  bool _hasSpecialChar = false;
 
   bool _isEmailValid(String email) {
     final RegExp emailRegExp = RegExp(
@@ -40,8 +45,15 @@ class _SignUpPageState extends State<SignUpPage> {
     final RegExp passwordRegExp = RegExp(
       r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&\-])[A-Za-z\d@$!%*?&\-]{8,}$',
     );
-
     return passwordRegExp.hasMatch(password);
+  }
+
+  void _checkPasswordStrength(String password) {
+    setState(() {
+      _has8Chars = password.length >= 8;
+      _hasNumber = password.contains(RegExp(r'[0-9]'));
+      _hasSpecialChar = password.contains(RegExp(r'[@$!%*?&\-]'));
+    });
   }
 
   Future<void> _signUp() async {
@@ -65,7 +77,8 @@ class _SignUpPageState extends State<SignUpPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Password must be at least 8 characters long, include a number, and a special character.'),
+            'Password must be at least 8 characters long, include a number, and a special character.',
+          ),
         ),
       );
       return;
@@ -91,7 +104,7 @@ class _SignUpPageState extends State<SignUpPage> {
           'email': user.email,
           'createdAt': FieldValue.serverTimestamp(),
           'userRole': 'pending',
-          'accountStatus': 'active'
+          'accountStatus': 'pending'
         });
         print("DEBUG: Firestore document created");
 
@@ -125,6 +138,91 @@ class _SignUpPageState extends State<SignUpPage> {
         });
       }
     }
+  }
+
+  Widget _buildPasswordRequirementItem(String text, bool isMet) {
+    return Row(
+      children: [
+        Icon(
+          isMet ? Icons.check_circle : Icons.circle_outlined,
+          color: isMet ? Colors.green : Colors.white.withOpacity(0.8),
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: GoogleFonts.montserrat(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Use an `AnimatedCrossFade` so that if `_isPasswordFocused` is `false`,
+  /// the requirements widget becomes a `SizedBox.shrink()` (0 size),
+  /// removing all extra space.
+  Widget _buildPasswordRequirements() {
+    return AnimatedCrossFade(
+      duration: const Duration(milliseconds: 200),
+      crossFadeState: _isPasswordFocused
+          ? CrossFadeState.showSecond
+          : CrossFadeState.showFirst,
+      firstChild: const SizedBox.shrink(), // no space when not focused
+      secondChild: Container(
+        margin: const EdgeInsets.only(top: 4),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 400),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Password Requirements:',
+              style: GoogleFonts.montserrat(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildPasswordRequirementItem(
+              'At least 8 characters',
+              _has8Chars,
+            ),
+            const SizedBox(height: 4),
+            _buildPasswordRequirementItem(
+              'Include at least one number',
+              _hasNumber,
+            ),
+            const SizedBox(height: 4),
+            _buildPasswordRequirementItem(
+              'At least one Capital Letter',
+              _hasSpecialChar, // This currently checks special chars, adjust if needed
+            ),
+            const SizedBox(height: 4),
+            _buildPasswordRequirementItem(
+              'Include at least one special character (@\$!%*?&-)',
+              _hasSpecialChar,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -185,44 +283,68 @@ class _SignUpPageState extends State<SignUpPage> {
                                   ),
                                   SizedBox(
                                       height: constraints.maxHeight * 0.03),
-                                  CustomTextField(
-                                    hintText: 'Password',
-                                    obscureText: !_passwordVisible,
-                                    controller: _passwordController,
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        _passwordVisible
-                                            ? Icons.visibility
-                                            : Icons.visibility_off,
-                                        color: Colors.white,
+                                  // Password + Requirements
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      CustomTextField(
+                                        hintText: 'Password',
+                                        obscureText: !_passwordVisible,
+                                        controller: _passwordController,
+                                        onFocusChange: (hasFocus) {
+                                          setState(() {
+                                            _isPasswordFocused = hasFocus;
+                                          });
+                                        },
+                                        onChanged: (value) {
+                                          _checkPasswordStrength(value);
+                                        },
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _passwordVisible
+                                                ? Icons.visibility
+                                                : Icons.visibility_off,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _passwordVisible =
+                                                  !_passwordVisible;
+                                            });
+                                          },
+                                        ),
                                       ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _passwordVisible = !_passwordVisible;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      height: constraints.maxHeight * 0.03),
-                                  CustomTextField(
-                                    hintText: 'Confirm Password',
-                                    obscureText: !_confirmPasswordVisible,
-                                    controller: _confirmPasswordController,
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        _confirmPasswordVisible
-                                            ? Icons.visibility
-                                            : Icons.visibility_off,
-                                        color: Colors.white,
+                                      // Show/hide requirements with no extra space
+                                      _buildPasswordRequirements(),
+                                      SizedBox(
+                                          height: constraints.maxHeight * 0.03),
+                                      // Extra gap only if user is focusing on the password field
+                                      AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        height: _isPasswordFocused ? 24.0 : 0.0,
                                       ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _confirmPasswordVisible =
-                                              !_confirmPasswordVisible;
-                                        });
-                                      },
-                                    ),
+                                      CustomTextField(
+                                        hintText: 'Confirm Password',
+                                        obscureText: !_confirmPasswordVisible,
+                                        controller: _confirmPasswordController,
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _confirmPasswordVisible
+                                                ? Icons.visibility
+                                                : Icons.visibility_off,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _confirmPasswordVisible =
+                                                  !_confirmPasswordVisible;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

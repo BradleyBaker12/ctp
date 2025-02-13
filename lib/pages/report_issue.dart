@@ -6,6 +6,7 @@ import 'thank_you_page.dart'; // Import the ThankYouPage
 import 'package:file_picker/file_picker.dart'; // Add this import
 import 'package:firebase_storage/firebase_storage.dart'; // Add this import
 import 'dart:io'; // Add this import
+import 'package:ctp/utils/navigation.dart';
 
 class ReportIssuePage extends StatefulWidget {
   final String offerId; // Add offerId as a required parameter
@@ -161,11 +162,9 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
                       // Handle form submission
                       await _submitComplaint();
                       // Navigate to Thank You Page
-                      Navigator.pushReplacement(
+                      await MyNavigator.pushReplacement(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const ThankYouPage(),
-                        ),
+                        const ThankYouPage(),
                       );
                     },
                     style: ElevatedButton.styleFrom(

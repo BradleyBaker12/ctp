@@ -11,12 +11,16 @@ import 'package:ctp/models/maintenance.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
+import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
+import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/internal_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/tyres_edit_page.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
-import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart'
-    as truck_upload;
+import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,6 +34,10 @@ import 'package:ctp/components/web_footer.dart'; // Add this import
 import 'dart:developer';
 import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/pages/setup_inspection.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:ctp/pages/vehicles_list.dart';
+import 'package:ctp/utils/navigation.dart';
+import 'package:ctp/pages/editTruckForms/admin_edit_section.dart'; // Add this import
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
@@ -90,21 +98,24 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // Add new state variable
   bool _isLiked = false;
 
+  // Add these state variables
+  bool _isTruckConditionsExpanded = false;
+
+  // Add these new fields
+  Map<String, double> _sectionProgress = {
+    'basic': 0,
+    'maintenance': 0,
+    'external': 0,
+    'internal': 0,
+    'chassis': 0,
+    'driveTrain': 0,
+    'tyres': 0,
+  };
+
   @override
   void initState() {
     super.initState();
     _vehicle = widget.vehicle;
-
-    // Clear image cache to prevent stale images
-    PaintingBinding.instance.imageCache.clear();
-    PaintingBinding.instance.imageCache.clearLiveImages();
-
-    // 1. Check if the vehicle is accepted => can or cannot make an offer
-    _checkOfferAvailability();
-
-    // 2. Check if the logged-in user has an existing offer
-    _checkIfOfferMade();
-
     // 3. If accepted, see if that acceptedOfferId belongs to this user
     _checkIfMyOfferAccepted();
 
@@ -646,29 +657,23 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final bool isAdminOrSalesRep = isAdmin || isSalesRep;
 
     if (vehicle.vehicleType.toLowerCase() == 'trailer') {
-      await Navigator.push(
+      await MyNavigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => EditTrailerUploadScreen(
-            isDuplicating: false,
-            isNewUpload: false,
-            isAdminUpload: isAdminOrSalesRep,
-            vehicle: vehicle,
-          ),
+        EditTrailerUploadScreen(
+          isDuplicating: false,
+          isNewUpload: false,
+          isAdminUpload: isAdminOrSalesRep,
+          vehicle: widget.vehicle,
         ),
       );
     } else {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EditFormNavigation(vehicle: vehicle),
-        ),
-      );
+      await MyNavigator.push(
+          context, EditFormNavigation(vehicle: widget.vehicle));
     }
     setState(() {});
   }
 
-  void _navigateToDuplicatePage() {
+  void _navigateToDuplicatePage() async {
     try {
       debugPrint('=== Starting Vehicle Duplication ===');
       debugPrint('Source Vehicle ID: ${vehicle.id}');
@@ -782,13 +787,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         ),
       );
 
-      Navigator.push(
+      await MyNavigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => truck_upload.VehicleUploadScreen(
-            vehicle: dup,
-            isDuplicating: true,
-          ),
+        VehicleUploadScreen(
+          vehicle: dup,
+          isDuplicating: true,
         ),
       );
 
@@ -1015,15 +1018,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     return GestureDetector(
       onTap: () async {
-        await Navigator.push(
+        await MyNavigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => EditTrailerUploadScreen(
-              isDuplicating: false,
-              isNewUpload: false,
-              isAdminUpload: isAdminOrSalesRep,
-              vehicle: vehicle,
-            ),
+          EditTrailerUploadScreen(
+            isDuplicating: false,
+            isNewUpload: false,
+            isAdminUpload: isAdminOrSalesRep,
+            vehicle: widget.vehicle,
           ),
         );
         setState(() {});
@@ -1050,90 +1051,189 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // Generic section block
   Widget _buildSection(BuildContext ctx, String title, String progress) {
-    return GestureDetector(
-      onTap: () async {
-        if (title.contains('BASIC')) {
-          var updated = await Navigator.push<Vehicle>(
-            ctx,
-            MaterialPageRoute(
-              builder: (_) => BasicInformationEdit(vehicle: vehicle),
-            ),
-          );
-          if (updated != null) {
-            setState(() {
-              vehicle = updated;
-            });
-          }
-        } else if (title.contains('TRUCK CONDITIONS')) {
-          await Navigator.push(
-            ctx,
-            MaterialPageRoute(
-              builder: (_) => TruckConditionsTabsEditPage(
-                initialIndex: 0,
-                vehicleId: vehicle.id,
-                mainImageUrl: vehicle.mainImageUrl,
-                referenceNumber: vehicle.referenceNumber ?? 'REF',
-                isEditing: true,
-              ),
-            ),
-          );
-          setState(() {});
-        } else if (title.contains('MAINTENANCE')) {
-          log("Maintenance Data is ${vehicle.maintenance.toMap()}");
+    final size = MediaQuery.of(ctx).size;
+    final parts = progress.split('/');
+    final current = int.tryParse(parts[0]) ?? 0;
+    final total = int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1;
+    final progressRatio = total == 0 ? 0.0 : (current / total);
 
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (BuildContext context) => MaintenanceEditSection(
-                vehicleId: vehicle.id,
+    final isLargeScreen = size.width > 600;
+    final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
+    final containerPadding = isLargeScreen ? 37.31 : 20.0;
+    final borderSideWidth = 0.93;
+    final borderRadius = 20.0;
+    final borderColor = const Color(0xFF2F7FFF);
+    final titleBoxHeight = isLargeScreen ? 76.48 : 45.0;
+    final titleBoxPadding = isLargeScreen
+        ? const EdgeInsets.symmetric(horizontal: 48.50, vertical: 18.65)
+        : const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0);
+    final titleBoxRadius = 6.0;
+    final titleFontSize = isLargeScreen ? 20.0 : 16.0;
+    final titleLetterSpace = isLargeScreen ? 1.87 : 1.0;
+    final progressFontSize = isLargeScreen ? 14.00 : 12.0;
+    final progressLetterSp = isLargeScreen ? 2.24 : 1.0;
+    final gapHeight = isLargeScreen ? 20.98 : 20.0;
+    final progressBarHeight = 5.0;
+    final progressSpacing = isLargeScreen ? 0.0 : 20.0;
+
+    final displayProgress =
+        title == 'ADMIN' ? _calculateAdminProgressString() : progress;
+
+    return GestureDetector(
+      onTap: () {
+        // Navigation logic based on the title
+        switch (title) {
+          case 'BASIC INFORMATION':
+            MyNavigator.push(
+              context,
+              BasicInformationEdit(vehicle: widget.vehicle),
+            );
+            break;
+          case 'MAINTENANCE AND WARRANTY':
+            MyNavigator.push(
+              context,
+              MaintenanceEditSection(
+                vehicleId: widget.vehicle.id,
                 isUploading: false,
-                isEditing: true,
-                // isFromAdmin: false, // Add this parameter
                 onMaintenanceFileSelected: (file) {},
                 onWarrantyFileSelected: (file) {},
                 oemInspectionType:
-                    vehicle.maintenance.oemInspectionType ?? 'yes',
-                oemInspectionExplanation: vehicle.maintenance.oemReason ?? '',
-                onProgressUpdate: () {
-                  setState(() {});
-                },
+                    widget.vehicle.maintenance.oemInspectionType ?? '',
+                oemInspectionExplanation:
+                    widget.vehicle.maintenance.oemReason ?? '',
+                onProgressUpdate: () {},
                 maintenanceSelection:
-                    vehicle.maintenance.maintenanceSelection ?? 'yes',
+                    widget.vehicle.maintenance.maintenanceSelection ?? '',
                 warrantySelection:
-                    vehicle.maintenance.warrantySelection ?? 'yes',
-                maintenanceDocUrl: vehicle.maintenance.maintenanceDocUrl,
-                warrantyDocUrl: vehicle.maintenance.warrantyDocUrl,
-                isFromAdmin: false,
+                    widget.vehicle.maintenance.warrantySelection ?? '',
+                isFromAdmin: Provider.of<UserProvider>(context, listen: false)
+                        .getUserRole ==
+                    'admin',
               ),
-            ),
-          );
-          setState(() {});
+            );
+            break;
+          case 'ADMIN':
+            MyNavigator.push(
+              context,
+              AdminEditSection(
+                vehicle: widget.vehicle,
+                isUploading: false,
+                isEditing: true,
+                onAdminDoc1Selected: (file, name) {},
+                onAdminDoc2Selected: (file, name) {},
+                onAdminDoc3Selected: (file, name) {},
+                requireToSettleType: widget.vehicle.requireToSettleType ?? 'no',
+                settlementAmount: widget.vehicle.adminData.settlementAmount,
+                natisRc1Url: widget.vehicle.adminData.natisRc1Url,
+                licenseDiskUrl: widget.vehicle.adminData.licenseDiskUrl,
+                settlementLetterUrl:
+                    widget.vehicle.adminData.settlementLetterUrl,
+              ),
+            );
+            break;
+          case 'TRUCK CONDITIONS':
+            MyNavigator.push(
+              context,
+              TruckConditionsTabsEditPage(
+                initialIndex: 0,
+                vehicleId: widget.vehicle.id,
+                referenceNumber: widget.vehicle.referenceNumber,
+              ),
+            );
+            break;
         }
       },
       child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.blue,
-          borderRadius: BorderRadius.circular(8),
+        width: containerWidth,
+        padding: EdgeInsets.all(containerPadding),
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        decoration: ShapeDecoration(
+          color: const Color(0x332F7FFF),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(width: borderSideWidth, color: borderColor),
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            // Title Box
+            Container(
+              width: double.infinity,
+              height: titleBoxHeight,
+              padding: titleBoxPadding,
+              decoration: ShapeDecoration(
+                color: borderColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(titleBoxRadius),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: titleFontSize,
+                    fontFamily: 'Montserrat',
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: titleLetterSpace,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              progress,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-            ),
+            SizedBox(height: gapHeight),
+            // Progress Row using Expanded/Flexible to prevent overflow
+            LayoutBuilder(builder: (context, constraints) {
+              // Let’s split the available width proportionally.
+              final progressBarWidth = constraints.maxWidth * 0.7;
+              final textWidth = constraints.maxWidth * 0.3;
+
+              return Row(
+                children: [
+                  SizedBox(
+                    width: progressBarWidth,
+                    height: progressBarHeight,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: progressBarWidth,
+                          height: progressBarHeight,
+                          decoration: const BoxDecoration(
+                            color: Color(0x7F526584),
+                          ),
+                        ),
+                        Container(
+                          width:
+                              progressBarWidth * progressRatio.clamp(0.0, 1.0),
+                          height: progressBarHeight,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF39BB36),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: progressSpacing),
+                  SizedBox(
+                    width: textWidth,
+                    child: Text(
+                      displayProgress,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: progressFontSize,
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: progressLetterSp,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -1192,7 +1292,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                   'vehicleStatus': 'Archived',
                                 });
                                 Navigator.of(context).pop();
-                                Navigator.of(context).pop();
+                                await MyNavigator.pushReplacement(
+                                    context, VehiclesListPage());
                               } catch (e) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -1408,6 +1509,416 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
+  // Add this new method before the build method:
+  Widget _buildTruckConditionsSection(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isLargeScreen = size.width > 600;
+
+    // Adjusted styling variables to prevent overflow
+    final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
+    final containerPadding = isLargeScreen ? 37.31 : 16.0;
+    final borderSideWidth = 0.93;
+    final borderRadius = 20.0;
+    final borderColor = const Color(0xFF2F7FFF);
+    final titleBoxHeight = isLargeScreen ? 76.48 : 45.0;
+    final titleBoxPadding = isLargeScreen
+        ? const EdgeInsets.symmetric(horizontal: 48.50, vertical: 18.65)
+        : const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0);
+    final titleBoxRadius = 6.0;
+    final titleFontSize = isLargeScreen ? 20.0 : 14.0;
+    final titleLetterSpace = isLargeScreen ? 1.87 : 0.5;
+    final progressFontSize = isLargeScreen ? 22.38 : 12.0;
+    final progressLetterSp = isLargeScreen ? 2.24 : 0.5;
+    final gapHeight = isLargeScreen ? 27.98 : 16.0;
+    final progressBarHeight = 5.0;
+    final progressSpacing = isLargeScreen ? 26.11 : 12.0;
+
+    // The top-level "truck conditions" bar - you might decide how it's computed.
+    // For example, a simple approach might sum all sub-sections or set a static "x of 35".
+    double bigBarWidth = isLargeScreen
+        ? 762.93
+        : (containerWidth - (2 * containerPadding) - progressSpacing - 50);
+
+    // Suppose you combine the sub-sections into a single "complete/total" count
+    // or keep the "35" as you had. For demonstration, I'll just keep "35" as before.
+    int subSectionTotal = 35;
+    int subSectionCompleted = _calculateTruckConditionsProgress();
+    double topRatio =
+        subSectionTotal == 0 ? 0 : (subSectionCompleted / subSectionTotal);
+
+    return Container(
+      width: containerWidth,
+      padding: EdgeInsets.all(containerPadding),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: ShapeDecoration(
+        color: const Color(0x332F7FFF),
+        shape: RoundedRectangleBorder(
+          side: BorderSide(width: borderSideWidth, color: borderColor),
+          borderRadius: BorderRadius.circular(borderRadius),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Main truck conditions header (clickable)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isTruckConditionsExpanded = !_isTruckConditionsExpanded;
+              });
+            },
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: titleBoxHeight,
+                  padding: titleBoxPadding,
+                  decoration: ShapeDecoration(
+                    color: borderColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(titleBoxRadius),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'TRUCK CONDITIONS',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: titleFontSize,
+                          fontFamily: 'Montserrat',
+                          fontWeight: FontWeight.w800,
+                          height: 1.10,
+                          letterSpacing: titleLetterSpace,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: gapHeight),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Progress bar
+                    Expanded(
+                      child: SizedBox(
+                        height: progressBarHeight,
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              height: progressBarHeight,
+                              decoration: const BoxDecoration(
+                                color: Color(0x7F526584),
+                              ),
+                            ),
+                            FractionallySizedBox(
+                              widthFactor: topRatio, // top-level ratio
+                              child: Container(
+                                height: progressBarHeight,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF39BB36),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: progressSpacing),
+                    Text(
+                      '$subSectionCompleted/$subSectionTotal',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: progressFontSize,
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w400,
+                        height: 1.40,
+                        letterSpacing: progressLetterSp,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // If expanded, show sub-sections
+          if (_isTruckConditionsExpanded) ...[
+            const SizedBox(height: 20),
+
+            // External Cab Sub-Section
+            _buildSubSectionItem(
+              context: context,
+              containerWidth: containerWidth,
+              title: 'EXTERNAL CAB',
+              onTap: () => MyNavigator.push(
+                context,
+                ExternalCabEditPage(
+                  vehicleId: widget.vehicle.id,
+                  onProgressUpdate: () {},
+                  isEditing: true,
+                ),
+              ),
+              progressString: _calculateExternalCabProgressString(),
+              progressRatio: _calculateExternalCabProgressPercentage(),
+              titleBoxHeight: titleBoxHeight,
+              titleBoxPadding: titleBoxPadding,
+              borderColor: borderColor,
+              gapHeight: gapHeight,
+              progressBarHeight: progressBarHeight,
+              progressSpacing: progressSpacing,
+              titleFontSize: titleFontSize,
+              titleLetterSpace: titleLetterSpace,
+              progressFontSize: progressFontSize,
+              progressLetterSp: progressLetterSp,
+              titleBoxRadius: titleBoxRadius,
+            ),
+
+            // Internal Cab
+            _buildSubSectionItem(
+              context: context,
+              containerWidth: containerWidth,
+              title: 'INTERNAL CAB',
+              onTap: () => MyNavigator.push(
+                context,
+                InternalCabEditPage(
+                  vehicleId: widget.vehicle.id,
+                  onProgressUpdate: () {},
+                  isEditing: true,
+                ),
+              ),
+              progressString: _calculateInternalCabProgressString(),
+              progressRatio: _calculateInternalCabProgressPercentage(),
+              titleBoxHeight: titleBoxHeight,
+              titleBoxPadding: titleBoxPadding,
+              borderColor: borderColor,
+              gapHeight: gapHeight,
+              progressBarHeight: progressBarHeight,
+              progressSpacing: progressSpacing,
+              titleFontSize: titleFontSize,
+              titleLetterSpace: titleLetterSpace,
+              progressFontSize: progressFontSize,
+              progressLetterSp: progressLetterSp,
+              titleBoxRadius: titleBoxRadius,
+            ),
+
+            // Chassis
+            _buildSubSectionItem(
+              context: context,
+              containerWidth: containerWidth,
+              title: 'CHASSIS',
+              onTap: () => MyNavigator.push(
+                context,
+                ChassisEditPage(
+                  vehicleId: widget.vehicle.id,
+                  onProgressUpdate: () {},
+                  isEditing: true,
+                ),
+              ),
+              progressString: _calculateChassisProgressString(),
+              progressRatio: _calculateChassisProgressPercentage(),
+              titleBoxHeight: titleBoxHeight,
+              titleBoxPadding: titleBoxPadding,
+              borderColor: borderColor,
+              gapHeight: gapHeight,
+              progressBarHeight: progressBarHeight,
+              progressSpacing: progressSpacing,
+              titleFontSize: titleFontSize,
+              titleLetterSpace: titleLetterSpace,
+              progressFontSize: progressFontSize,
+              progressLetterSp: progressLetterSp,
+              titleBoxRadius: titleBoxRadius,
+            ),
+
+            // Drive Train
+            _buildSubSectionItem(
+              context: context,
+              containerWidth: containerWidth,
+              title: 'DRIVE TRAIN',
+              onTap: () => MyNavigator.push(
+                context,
+                DriveTrainEditPage(
+                  vehicleId: widget.vehicle.id,
+                  onProgressUpdate: () {},
+                  isEditing: true,
+                ),
+              ),
+              progressString: _calculateDriveTrainProgressString(),
+              progressRatio: _calculateDriveTrainProgressPercentage(),
+              titleBoxHeight: titleBoxHeight,
+              titleBoxPadding: titleBoxPadding,
+              borderColor: borderColor,
+              gapHeight: gapHeight,
+              progressBarHeight: progressBarHeight,
+              progressSpacing: progressSpacing,
+              titleFontSize: titleFontSize,
+              titleLetterSpace: titleLetterSpace,
+              progressFontSize: progressFontSize,
+              progressLetterSp: progressLetterSp,
+              titleBoxRadius: titleBoxRadius,
+            ),
+
+            // Tyres
+            _buildSubSectionItem(
+              context: context,
+              containerWidth: containerWidth,
+              title: 'TYRES',
+              onTap: () => MyNavigator.push(
+                context,
+                TyresEditPage(
+                  vehicleId: widget.vehicle.id,
+                  onProgressUpdate: () {},
+                  isEditing: true,
+                ),
+              ),
+              progressString: _calculateTyresProgressString(),
+              progressRatio: _calculateTyresProgressPercentage(),
+              titleBoxHeight: titleBoxHeight,
+              titleBoxPadding: titleBoxPadding,
+              borderColor: borderColor,
+              gapHeight: gapHeight,
+              progressBarHeight: progressBarHeight,
+              progressSpacing: progressSpacing,
+              titleFontSize: titleFontSize,
+              titleLetterSpace: titleLetterSpace,
+              progressFontSize: progressFontSize,
+              progressLetterSp: progressLetterSp,
+              titleBoxRadius: titleBoxRadius,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubSectionItem({
+    required BuildContext context,
+    required double containerWidth,
+    required String title,
+    required VoidCallback onTap,
+    required String progressString,
+    required double progressRatio,
+    // repeated styling parameters:
+    required double titleBoxHeight,
+    required EdgeInsets titleBoxPadding,
+    required Color borderColor,
+    required double gapHeight,
+    required double progressBarHeight,
+    required double progressSpacing,
+    required double titleFontSize,
+    required double titleLetterSpace,
+    required double progressFontSize,
+    required double progressLetterSp,
+    required double titleBoxRadius,
+  }) {
+    final size = MediaQuery.of(context).size;
+    final isLargeScreen = size.width > 600;
+    final progressBarWidth = isLargeScreen
+        ? (containerWidth * 0.6).clamp(0.0, 600.0)
+        : containerWidth * 0.7;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(top: 15),
+        width: containerWidth * 0.8,
+        alignment: Alignment.centerLeft,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: progressBarWidth,
+              height: titleBoxHeight,
+              padding: titleBoxPadding,
+              decoration: ShapeDecoration(
+                color: borderColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(titleBoxRadius),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16.0),
+                    child: Text(
+                      title.toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: titleFontSize,
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w800,
+                        height: 1.10,
+                        letterSpacing: titleLetterSpace,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: gapHeight),
+            Container(
+              width: progressBarWidth,
+              constraints: BoxConstraints(maxWidth: 600),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(2.5),
+                          child: SizedBox(
+                            height: progressBarHeight,
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: double.infinity,
+                                  height: progressBarHeight,
+                                  color: const Color(0x7F526584),
+                                ),
+                                Container(
+                                  width: constraints.maxWidth *
+                                      progressRatio.clamp(0.0, 1.0),
+                                  height: progressBarHeight,
+                                  color: const Color(0xFF39BB36),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  SizedBox(width: progressSpacing),
+                  Container(
+                    width: 60, // Fixed width for progress text
+                    child: Text(
+                      progressString,
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: progressFontSize,
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w400,
+                        height: 1.40,
+                        letterSpacing: progressLetterSp,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   //  BUILD
   // ---------------------------------------------------------------------------
@@ -1495,18 +2006,32 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ),
                       ),
                       child: Center(
-                        child: Image.network(
-                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                          height: 50,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 50,
-                              width: 50,
-                              color: Colors.grey[900],
-                              child: const Icon(Icons.local_shipping,
-                                  color: Colors.white),
-                            );
-                          },
+                        child: CachedNetworkImage(
+                          imageUrl:
+                              'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: size.height * 0.45,
+                          placeholder: (context, url) => SizedBox(
+                            height: 30,
+                            width: 30,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                valueColor:
+                                    AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                                size: 22,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -1542,657 +2067,729 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             )
           : null,
       body: Column(
-        // Wrap the body in a Column
         children: [
           Expanded(
-            // Wrap the main content in Expanded
-            child: Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: Stack(
-                  children: [
-                    SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          // === Image Gallery
-                          Stack(
-                            children: [
-                              SizedBox(
-                                height: size.height * 0.32,
-                                child: PageView.builder(
-                                  controller: _pageController,
-                                  itemCount: allPhotos.length,
-                                  onPageChanged: (index) {
-                                    setState(() => _currentImageIndex = index);
-                                  },
-                                  itemBuilder: (context, index) {
-                                    return GestureDetector(
-                                      onTap: () =>
-                                          _showFullScreenImage(context, index),
-                                      child: Stack(
-                                        children: [
-                                          Image.network(
-                                            allPhotos[index].url,
-                                            fit: BoxFit.cover,
-                                            width: double.infinity,
-                                            height: size.height * 0.32,
-                                            // Add cacheWidth to optimize memory usage
-                                            cacheWidth: (MediaQuery.of(context)
-                                                        .size
-                                                        .width *
-                                                    2)
-                                                .toInt(),
-                                            // Add key to force rebuild when URL changes
-                                            key: ValueKey(allPhotos[index].url),
-                                            errorBuilder: (ctx, error, st) {
-                                              return Image.asset(
-                                                'assets/default_vehicle_image.png',
-                                                fit: BoxFit.cover,
-                                                width: double.infinity,
-                                                height: size.height * 0.32,
-                                              );
-                                            },
-                                          ),
-                                          IgnorePointer(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
-                                                  colors: [
-                                                    Colors.black
-                                                        .withOpacity(0.3),
-                                                    Colors.black.withOpacity(1),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: Stack(
+                        children: <Widget>[
+                          SingleChildScrollView(
+                            child: Column(
+                              children: <Widget>[
+                                // === Image Gallery
+                                Stack(
+                                  children: [
+                                    SizedBox(
+                                      height: size.height * 0.32,
+                                      child: PageView.builder(
+                                        controller: _pageController,
+                                        itemCount: allPhotos.length,
+                                        onPageChanged: (index) {
+                                          setState(
+                                              () => _currentImageIndex = index);
+                                        },
+                                        itemBuilder: (context, index) {
+                                          return GestureDetector(
+                                            onTap: () => _showFullScreenImage(
+                                                context, index),
+                                            child: Stack(
+                                              children: [
+                                                Image.network(
+                                                  allPhotos[index].url,
+                                                  fit: BoxFit.cover,
+                                                  width: double.infinity,
+                                                  height: size.height * 0.32,
+                                                  // Add cacheWidth to optimize memory usage
+                                                  cacheWidth:
+                                                      (MediaQuery.of(context)
+                                                                  .size
+                                                                  .width *
+                                                              2)
+                                                          .toInt(),
+                                                  // Add key to force rebuild when URL changes
+                                                  key: ValueKey(
+                                                      allPhotos[index].url),
+                                                  errorBuilder:
+                                                      (ctx, error, st) {
+                                                    return Image.asset(
+                                                      'assets/default_vehicle_image.png',
+                                                      fit: BoxFit.cover,
+                                                      width: double.infinity,
+                                                      height:
+                                                          size.height * 0.32,
+                                                    );
+                                                  },
+                                                ),
+                                                IgnorePointer(
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      gradient: LinearGradient(
+                                                        begin:
+                                                            Alignment.topCenter,
+                                                        end: Alignment
+                                                            .bottomCenter,
+                                                        colors: [
+                                                          Colors.black
+                                                              .withOpacity(0.3),
+                                                          Colors.black
+                                                              .withOpacity(1),
+                                                        ],
+                                                        stops: const [0.5, 1.0],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 10,
+                                      left: 0,
+                                      right: 0,
+                                      child: Center(
+                                        child: _buildImageIndicators(
+                                            allPhotos.length),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // === Details and Offer Info
+                                Container(
+                                  width: double.infinity,
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 800),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      children: [
+                                        const SizedBox(height: 8),
+                                        // Basic specs row
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            _buildInfoContainer(
+                                                'Year', vehicle.year),
+                                            const SizedBox(width: 5),
+                                            _buildInfoContainer(
+                                                'Mileage', vehicle.mileage),
+                                            const SizedBox(width: 5),
+                                            _buildInfoContainer('Gearbox',
+                                                vehicle.transmissionType),
+                                            const SizedBox(width: 5),
+                                            _buildInfoContainer(
+                                                'Config', vehicle.config),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+
+                                        // === TRANSPORTER Buttons (stacked) if isTransporter
+                                        if (userProvider.getUserRole ==
+                                            'transporter') ...[
+                                          _buildTransporterActionButtonsColumn(),
+                                          const SizedBox(height: 20),
+                                        ],
+
+                                        // === ADMIN/SALES => special actions
+                                        if (userProvider.getUserRole ==
+                                                'admin' ||
+                                            userProvider.getUserRole ==
+                                                'sales representative') ...[
+                                          _buildAdminActionButtonsColumn(),
+                                          const SizedBox(height: 20),
+                                        ],
+
+                                        // ========== If Admin/Sales/Dealer, handle offer logic
+                                        if (userProvider.getUserRole ==
+                                                'admin' ||
+                                            userProvider.getUserRole ==
+                                                'sales representative' ||
+                                            userProvider.getUserRole ==
+                                                'dealer') ...[
+                                          if (vehicle.isAccepted) ...[
+                                            if (_isAcceptedOfferMine) ...[
+                                              // If it's MY accepted offer => show normal Offer Status
+                                              Center(
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Text(
+                                                      'Offer Status: ',
+                                                      style: _customFont(
+                                                          20,
+                                                          FontWeight.bold,
+                                                          Colors.white),
+                                                    ),
+                                                    Text(
+                                                      'Accepted',
+                                                      style: _customFont(
+                                                          20,
+                                                          FontWeight.bold,
+                                                          Color(0xFFFF4E00)),
+                                                    ),
                                                   ],
-                                                  stops: const [0.5, 1.0],
                                                 ),
                                               ),
+                                            ] else ...[
+                                              // Another dealer's offer is accepted
+                                              Center(
+                                                child: Text(
+                                                  'Another dealer’s offer has already been accepted.\n'
+                                                  'No new offers can be made.',
+                                                  style: _customFont(
+                                                      18,
+                                                      FontWeight.normal,
+                                                      Colors.red),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ],
+                                          ] else if (_hasMadeOffer &&
+                                              _offerStatus != 'rejected') ...[
+                                            Center(
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Offer Status: ',
+                                                    style: _customFont(
+                                                        20,
+                                                        FontWeight.bold,
+                                                        Colors.white),
+                                                  ),
+                                                  Text(
+                                                    getDisplayStatus(
+                                                        _offerStatus),
+                                                    style: _customFont(
+                                                        20,
+                                                        FontWeight.bold,
+                                                        Color(0xFFFF4E00)),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              Positioned(
-                                bottom: 10,
-                                left: 0,
-                                right: 0,
-                                child: Center(
-                                  child:
-                                      _buildImageIndicators(allPhotos.length),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // === Details and Offer Info
-                          Container(
-                            width: double.infinity,
-                            constraints: const BoxConstraints(maxWidth: 800),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 8),
-                                  // Basic specs row
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      _buildInfoContainer('Year', vehicle.year),
-                                      const SizedBox(width: 5),
-                                      _buildInfoContainer(
-                                          'Mileage', vehicle.mileage),
-                                      const SizedBox(width: 5),
-                                      _buildInfoContainer(
-                                          'Gearbox', vehicle.transmissionType),
-                                      const SizedBox(width: 5),
-                                      _buildInfoContainer(
-                                          'Config', vehicle.config),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  // === TRANSPORTER Buttons (stacked) if isTransporter
-                                  if (userProvider.getUserRole ==
-                                      'transporter') ...[
-                                    _buildTransporterActionButtonsColumn(),
-                                    const SizedBox(height: 20),
-                                  ],
-
-                                  // === ADMIN/SALES => special actions
-                                  if (userProvider.getUserRole == 'admin' ||
-                                      userProvider.getUserRole ==
-                                          'sales representative') ...[
-                                    _buildAdminActionButtonsColumn(),
-                                    const SizedBox(height: 20),
-                                  ],
-
-                                  // ========== If Admin/Sales/Dealer, handle offer logic
-                                  if (userProvider.getUserRole == 'admin' ||
-                                      userProvider.getUserRole ==
-                                          'sales representative' ||
-                                      userProvider.getUserRole == 'dealer') ...[
-                                    if (vehicle.isAccepted) ...[
-                                      if (_isAcceptedOfferMine) ...[
-                                        // If it's MY accepted offer => show normal Offer Status
-                                        Center(
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                'Offer Status: ',
+                                          ] else ...[
+                                            // If not accepted + not made an offer or was rejected => Make an Offer
+                                            // Hide X and Heart if user is admin
+                                            if (!(userProvider.getUserRole ==
+                                                    'admin' ||
+                                                userProvider.getUserRole ==
+                                                        'sales representative' &&
+                                                    userProvider.getUserRole ==
+                                                        'admin')) // or just isAdmin
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceEvenly,
+                                                children: [
+                                                  _buildActionButton(
+                                                      Icons.close,
+                                                      const Color(0xFF2F7FFF)),
+                                                  const SizedBox(width: 16),
+                                                  _buildActionButton(
+                                                      Icons.favorite,
+                                                      const Color(0xFFFF4E00)),
+                                                ],
+                                              ),
+                                            const SizedBox(height: 16),
+                                            Center(
+                                              child: Text(
+                                                'Make an Offer',
                                                 style: _customFont(
                                                     20,
                                                     FontWeight.bold,
                                                     Colors.white),
                                               ),
-                                              Text(
-                                                'Accepted',
-                                                style: _customFont(
-                                                    20,
-                                                    FontWeight.bold,
-                                                    Color(0xFFFF4E00)),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ] else ...[
-                                        // Another dealer's offer is accepted
-                                        Center(
-                                          child: Text(
-                                            'Another dealer’s offer has already been accepted.\n'
-                                            'No new offers can be made.',
-                                            style: _customFont(18,
-                                                FontWeight.normal, Colors.red),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ],
-                                    ] else if (_hasMadeOffer &&
-                                        _offerStatus != 'rejected') ...[
-                                      Center(
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Offer Status: ',
-                                              style: _customFont(
-                                                  20,
-                                                  FontWeight.bold,
-                                                  Colors.white),
-                                            ),
-                                            Text(
-                                              getDisplayStatus(_offerStatus),
-                                              style: _customFont(
-                                                  20,
-                                                  FontWeight.bold,
-                                                  Color(0xFFFF4E00)),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ] else ...[
-                                      // If not accepted + not made an offer or was rejected => Make an Offer
-                                      // Hide X and Heart if user is admin
-                                      if (!(userProvider.getUserRole ==
-                                              'admin' ||
-                                          userProvider.getUserRole ==
-                                                  'sales representative' &&
-                                              userProvider.getUserRole ==
-                                                  'admin')) // or just isAdmin
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceEvenly,
-                                          children: [
-                                            _buildActionButton(Icons.close,
-                                                const Color(0xFF2F7FFF)),
-                                            const SizedBox(width: 16),
-                                            _buildActionButton(Icons.favorite,
-                                                const Color(0xFFFF4E00)),
-                                          ],
-                                        ),
-                                      const SizedBox(height: 16),
-                                      Center(
-                                        child: Text(
-                                          'Make an Offer',
-                                          style: _customFont(20,
-                                              FontWeight.bold, Colors.white),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-
-                                      // If Admin/Sales => pick a dealer
-                                      if (userProvider.getUserRole == 'admin' ||
-                                          userProvider.getUserRole ==
-                                              'sales representative') ...[
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: Text(
-                                            'Select Dealer',
-                                            style: _customFont(16,
-                                                FontWeight.bold, Colors.white),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Consumer<UserProvider>(
-                                          builder: (ctx, userProv, child) {
-                                            if (userProv.dealers.isEmpty) {
-                                              return const Text(
-                                                'No dealers available.',
-                                                style: TextStyle(
-                                                  color: Colors.red,
-                                                  fontSize: 16,
-                                                ),
-                                              );
-                                            }
-                                            return DropdownButtonFormField<
-                                                Dealer>(
-                                              value: _selectedDealer,
-                                              isExpanded: true,
-                                              items: userProv.dealers
-                                                  .map((Dealer dealer) {
-                                                return DropdownMenuItem<Dealer>(
-                                                  value: dealer,
-                                                  child: Text(dealer.email),
-                                                );
-                                              }).toList(),
-                                              onChanged: (Dealer? newDealer) {
-                                                setState(() => _selectedDealer =
-                                                    newDealer);
-                                              },
-                                              decoration: InputDecoration(
-                                                filled: true,
-                                                fillColor: Colors.grey[800],
-                                                border: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          8.0),
-                                                  borderSide: BorderSide.none,
-                                                ),
-                                                hintText: 'Choose a dealer',
-                                                hintStyle: _customFont(
-                                                    16,
-                                                    FontWeight.normal,
-                                                    Colors.grey),
-                                              ),
-                                              dropdownColor: Colors.grey[800],
-                                              style: _customFont(
-                                                  16,
-                                                  FontWeight.normal,
-                                                  Colors.white),
-                                            );
-                                          },
-                                        ),
-                                        const SizedBox(height: 16),
-                                      ],
-
-                                      // TextField for offer
-                                      TextField(
-                                        controller: _controller,
-                                        cursorColor: const Color(0xFFFF4E00),
-                                        decoration: InputDecoration(
-                                          hintText: 'R 102 000 000',
-                                          hintStyle: _customFont(24,
-                                              FontWeight.normal, Colors.grey),
-                                          enabledBorder:
-                                              const OutlineInputBorder(
-                                            borderSide:
-                                                BorderSide(color: Colors.white),
-                                          ),
-                                          focusedBorder:
-                                              const OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                                color: Color(0xFFFF4E00)),
-                                          ),
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                  vertical: 15.0),
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        style: _customFont(
-                                            20, FontWeight.bold, Colors.white),
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .digitsOnly,
-                                        ],
-                                        onChanged: (value) {
-                                          setState(() {
-                                            if (value.isNotEmpty) {
-                                              try {
-                                                String numericValue = value
-                                                    .replaceAll(' ', '')
-                                                    .replaceAll('R', '');
-                                                _offerAmount =
-                                                    double.parse(numericValue);
-                                                _totalCost =
-                                                    _calculateTotalCost(
-                                                        _offerAmount);
-
-                                                String formattedValue =
-                                                    'R${_formatNumberWithSpaces(numericValue)}';
-                                                _controller.value =
-                                                    _controller.value.copyWith(
-                                                  text: formattedValue,
-                                                  selection:
-                                                      TextSelection.collapsed(
-                                                    offset:
-                                                        formattedValue.length,
-                                                  ),
-                                                );
-                                              } catch (e) {
-                                                debugPrint('Error: $e');
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Invalid Offer Amount. '
-                                                      'Please Enter a Valid Number.',
-                                                    ),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              }
-                                            } else {
-                                              _offerAmount = 0.0;
-                                              _totalCost = 0.0;
-                                            }
-                                          });
-                                        },
-                                      ),
-                                      const SizedBox(height: 8),
-
-                                      // Breakdown
-                                      Center(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'R${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}',
-                                              style: _customFont(
-                                                  18,
-                                                  FontWeight.bold,
-                                                  Colors.white),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Including Commission and VAT',
-                                              style: _customFont(
-                                                  15,
-                                                  FontWeight.normal,
-                                                  Colors.white),
                                             ),
                                             const SizedBox(height: 8),
-                                            Text(
-                                              'Breakdown:',
-                                              style: _customFont(
-                                                  16,
-                                                  FontWeight.bold,
-                                                  Colors.white),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Base Price: R ${_formatNumberWithSpaces(_offerAmount.toStringAsFixed(0))}',
-                                              style: _customFont(
-                                                  14,
-                                                  FontWeight.normal,
-                                                  Colors.white),
-                                            ),
-                                            Text(
-                                              'Flat Rate Fee: R 12 500',
-                                              style: _customFont(
-                                                  14,
-                                                  FontWeight.normal,
-                                                  Colors.white),
-                                            ),
-                                            Text(
-                                              'Subtotal: R ${_formatNumberWithSpaces(
-                                                (_offerAmount + 12500.0)
-                                                    .toStringAsFixed(0),
-                                              )}',
-                                              style: _customFont(
-                                                  14,
-                                                  FontWeight.normal,
-                                                  Colors.white),
-                                            ),
-                                            Text(
-                                              'VAT (15%): R ${_formatNumberWithSpaces(
-                                                (((_offerAmount + 12500.0) *
-                                                        0.15)
-                                                    .toStringAsFixed(0)),
-                                              )}',
-                                              style: _customFont(
-                                                  14,
-                                                  FontWeight.normal,
-                                                  Colors.white),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Total Cost: R ${_formatNumberWithSpaces(
-                                                _totalCost.toStringAsFixed(0),
-                                              )}',
-                                              style: _customFont(
-                                                  14,
-                                                  FontWeight.bold,
-                                                  Colors.white),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
 
-                                      // If dealer => doc check
-                                      StreamBuilder<DocumentSnapshot>(
-                                        stream: FirebaseFirestore.instance
-                                            .collection('users')
-                                            .doc(userProvider.userId)
-                                            .snapshots(),
-                                        builder: (ctx, snapshot) {
-                                          if (snapshot.hasData &&
-                                              userProvider.getUserRole ==
-                                                  'dealer') {
-                                            Map<String, dynamic> userData =
-                                                snapshot.data!.data()
-                                                    as Map<String, dynamic>;
-                                            bool hasDocuments = userData[
-                                                            'cipcCertificateUrl']
-                                                        ?.isNotEmpty ==
-                                                    true &&
-                                                userData['brncUrl']
-                                                        ?.isNotEmpty ==
-                                                    true &&
-                                                userData['bankConfirmationUrl']
-                                                        ?.isNotEmpty ==
-                                                    true &&
-                                                userData['proxyUrl']
-                                                        ?.isNotEmpty ==
-                                                    true;
-                                            bool isVerified =
-                                                userData['isVerified'] ?? false;
-                                            bool isApproved = isVerified;
-
-                                            if (!hasDocuments || !isApproved) {
-                                              return Padding(
-                                                padding:
-                                                    const EdgeInsets.all(16.0),
+                                            // If Admin/Sales => pick a dealer
+                                            if (userProvider.getUserRole ==
+                                                    'admin' ||
+                                                userProvider.getUserRole ==
+                                                    'sales representative') ...[
+                                              Align(
+                                                alignment: Alignment.centerLeft,
                                                 child: Text(
-                                                  'Please upload all required documents '
-                                                  '(CIPC, BRNC, Bank Confirmation, Proxy) '
-                                                  'and wait for account approval before making offers.',
+                                                  'Select Dealer',
                                                   style: _customFont(
                                                       16,
-                                                      FontWeight.normal,
-                                                      Colors.red),
-                                                  textAlign: TextAlign.center,
+                                                      FontWeight.bold,
+                                                      Colors.white),
                                                 ),
-                                              );
-                                            }
-                                          }
-                                          return Container();
-                                        },
-                                      ),
-
-                                      // MAKE AN OFFER button
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: _makeOffer,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color(0xFFFF4E00),
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 10.0),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'MAKE AN OFFER',
-                                            style: _customFont(20,
-                                                FontWeight.bold, Colors.white),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-
-                                  // Spacing
-                                  const SizedBox(height: 40),
-
-                                  // If it's a trailer & user is a dealer => single trailer block
-                                  if (isTrailer &&
-                                      userProvider.getUserRole == 'dealer')
-                                    _buildTrailerSection()
-                                  else ...[
-                                    if (userProvider.getUserRole == 'admin' ||
-                                        userProvider.getUserRole ==
-                                            'sales representative' ||
-                                        userProvider.getUserRole == 'dealer')
-                                      _buildSection(
-                                        context,
-                                        'BASIC INFORMATION',
-                                        '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED',
-                                      ),
-                                    if (userProvider.getUserRole == 'admin' ||
-                                        userProvider.getUserRole ==
-                                            'sales representative' ||
-                                        userProvider.getUserRole == 'dealer')
-                                      _buildSection(
-                                        context,
-                                        'TRUCK CONDITIONS',
-                                        '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED',
-                                      ),
-                                    if (userProvider.getUserRole == 'admin' ||
-                                        userProvider.getUserRole ==
-                                            'sales representative' ||
-                                        userProvider.getUserRole == 'dealer')
-                                      _buildSection(
-                                        context,
-                                        'MAINTENANCE AND WARRANTY',
-                                        '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
-                                      ),
-                                  ],
-
-                                  const SizedBox(height: 30),
-
-                                  // If transporter => Show the offers
-                                  if (userProvider.getUserRole ==
-                                      'transporter') ...[
-                                    Container(
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 10.0),
-                                      child: vehicle.isAccepted == true
-                                          ? Container(
-                                              padding:
-                                                  const EdgeInsets.all(16.0),
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    Colors.red.withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(8.0),
-                                                border: Border.all(
-                                                    color: Colors.red),
                                               ),
-                                              child: Column(
-                                                children: [
-                                                  const Icon(
-                                                      Icons
-                                                          .warning_amber_rounded,
-                                                      color: Colors.red,
-                                                      size: 40),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    "This vehicle has an accepted offer",
-                                                    style: _customFont(
-                                                        18,
-                                                        FontWeight.bold,
-                                                        Colors.red),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                  Text(
-                                                    "No new offers can be placed",
+                                              const SizedBox(height: 8),
+                                              Consumer<UserProvider>(
+                                                builder:
+                                                    (ctx, userProv, child) {
+                                                  if (userProv
+                                                      .dealers.isEmpty) {
+                                                    return const Text(
+                                                      'No dealers available.',
+                                                      style: TextStyle(
+                                                        color: Colors.red,
+                                                        fontSize: 16,
+                                                      ),
+                                                    );
+                                                  }
+                                                  return DropdownButtonFormField<
+                                                      Dealer>(
+                                                    value: _selectedDealer,
+                                                    isExpanded: true,
+                                                    items: userProv.dealers
+                                                        .map((Dealer dealer) {
+                                                      return DropdownMenuItem<
+                                                          Dealer>(
+                                                        value: dealer,
+                                                        child:
+                                                            Text(dealer.email),
+                                                      );
+                                                    }).toList(),
+                                                    onChanged:
+                                                        (Dealer? newDealer) {
+                                                      setState(() =>
+                                                          _selectedDealer =
+                                                              newDealer);
+                                                    },
+                                                    decoration: InputDecoration(
+                                                      filled: true,
+                                                      fillColor:
+                                                          Colors.grey[800],
+                                                      border:
+                                                          OutlineInputBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8.0),
+                                                        borderSide:
+                                                            BorderSide.none,
+                                                      ),
+                                                      hintText:
+                                                          'Choose a dealer',
+                                                      hintStyle: _customFont(
+                                                          16,
+                                                          FontWeight.normal,
+                                                          Colors.grey),
+                                                    ),
+                                                    dropdownColor:
+                                                        Colors.grey[800],
                                                     style: _customFont(
                                                         16,
                                                         FontWeight.normal,
-                                                        Colors.red),
-                                                    textAlign: TextAlign.center,
+                                                        Colors.white),
+                                                  );
+                                                },
+                                              ),
+                                              const SizedBox(height: 16),
+                                            ],
+
+                                            // TextField for offer
+                                            TextField(
+                                              controller: _controller,
+                                              cursorColor:
+                                                  const Color(0xFFFF4E00),
+                                              decoration: InputDecoration(
+                                                hintText: 'R 102 000 000',
+                                                hintStyle: _customFont(
+                                                    24,
+                                                    FontWeight.normal,
+                                                    Colors.grey),
+                                                enabledBorder:
+                                                    const OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                      color: Colors.white),
+                                                ),
+                                                focusedBorder:
+                                                    const OutlineInputBorder(
+                                                  borderSide: BorderSide(
+                                                      color: Color(0xFFFF4E00)),
+                                                ),
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 15.0),
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              style: _customFont(
+                                                  20,
+                                                  FontWeight.bold,
+                                                  Colors.white),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .digitsOnly,
+                                              ],
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  if (value.isNotEmpty) {
+                                                    try {
+                                                      String numericValue =
+                                                          value
+                                                              .replaceAll(
+                                                                  ' ', '')
+                                                              .replaceAll(
+                                                                  'R', '');
+                                                      _offerAmount =
+                                                          double.parse(
+                                                              numericValue);
+                                                      _totalCost =
+                                                          _calculateTotalCost(
+                                                              _offerAmount);
+
+                                                      String formattedValue =
+                                                          'R${_formatNumberWithSpaces(numericValue)}';
+                                                      _controller.value =
+                                                          _controller.value
+                                                              .copyWith(
+                                                        text: formattedValue,
+                                                        selection: TextSelection
+                                                            .collapsed(
+                                                          offset: formattedValue
+                                                              .length,
+                                                        ),
+                                                      );
+                                                    } catch (e) {
+                                                      debugPrint('Error: $e');
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Invalid Offer Amount. '
+                                                            'Please Enter a Valid Number.',
+                                                          ),
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                        ),
+                                                      );
+                                                    }
+                                                  } else {
+                                                    _offerAmount = 0.0;
+                                                    _totalCost = 0.0;
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+
+                                            // Breakdown
+                                            Center(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'R${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}',
+                                                    style: _customFont(
+                                                        18,
+                                                        FontWeight.bold,
+                                                        Colors.white),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Including Commission and VAT',
+                                                    style: _customFont(
+                                                        15,
+                                                        FontWeight.normal,
+                                                        Colors.white),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Breakdown:',
+                                                    style: _customFont(
+                                                        16,
+                                                        FontWeight.bold,
+                                                        Colors.white),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Base Price: R ${_formatNumberWithSpaces(_offerAmount.toStringAsFixed(0))}',
+                                                    style: _customFont(
+                                                        14,
+                                                        FontWeight.normal,
+                                                        Colors.white),
+                                                  ),
+                                                  Text(
+                                                    'Flat Rate Fee: R 12 500',
+                                                    style: _customFont(
+                                                        14,
+                                                        FontWeight.normal,
+                                                        Colors.white),
+                                                  ),
+                                                  Text(
+                                                    'Subtotal: R ${_formatNumberWithSpaces(
+                                                      (_offerAmount + 12500.0)
+                                                          .toStringAsFixed(0),
+                                                    )}',
+                                                    style: _customFont(
+                                                        14,
+                                                        FontWeight.normal,
+                                                        Colors.white),
+                                                  ),
+                                                  Text(
+                                                    'VAT (15%): R ${_formatNumberWithSpaces(
+                                                      (((_offerAmount +
+                                                                  12500.0) *
+                                                              0.15)
+                                                          .toStringAsFixed(0)),
+                                                    )}',
+                                                    style: _customFont(
+                                                        14,
+                                                        FontWeight.normal,
+                                                        Colors.white),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Total Cost: R ${_formatNumberWithSpaces(
+                                                      _totalCost
+                                                          .toStringAsFixed(0),
+                                                    )}',
+                                                    style: _customFont(
+                                                        14,
+                                                        FontWeight.bold,
+                                                        Colors.white),
                                                   ),
                                                 ],
                                               ),
-                                            )
-                                          : Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                // ... existing offer section code ...
-                                              ],
                                             ),
-                                    ),
-                                    Text(
-                                      'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
-                                      style: _customFont(
-                                        20,
-                                        FontWeight.bold,
-                                        const Color(0xFFFF4E00),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _buildOffersList(),
-                                  ],
+                                            const SizedBox(height: 16),
 
-                                  const SizedBox(height: 24),
-                                ],
-                              ),
+                                            // If dealer => doc check
+                                            StreamBuilder<DocumentSnapshot>(
+                                              stream: FirebaseFirestore.instance
+                                                  .collection('users')
+                                                  .doc(userProvider.userId)
+                                                  .snapshots(),
+                                              builder: (ctx, snapshot) {
+                                                if (snapshot.hasData &&
+                                                    userProvider.getUserRole ==
+                                                        'dealer') {
+                                                  Map<String, dynamic>
+                                                      userData =
+                                                      snapshot.data!.data()
+                                                          as Map<String,
+                                                              dynamic>;
+                                                  bool hasDocuments = userData[
+                                                                  'cipcCertificateUrl']
+                                                              ?.isNotEmpty ==
+                                                          true &&
+                                                      userData[
+                                                                  'brncUrl']
+                                                              ?.isNotEmpty ==
+                                                          true &&
+                                                      userData['bankConfirmationUrl']
+                                                              ?.isNotEmpty ==
+                                                          true &&
+                                                      userData['proxyUrl']
+                                                              ?.isNotEmpty ==
+                                                          true;
+                                                  bool isVerified =
+                                                      userData['isVerified'] ??
+                                                          false;
+                                                  bool isApproved = isVerified;
+
+                                                  if (!hasDocuments ||
+                                                      !isApproved) {
+                                                    return Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16.0),
+                                                      child: Text(
+                                                        'Please upload all required documents '
+                                                        '(CIPC, BRNC, Bank Confirmation, Proxy) '
+                                                        'and wait for account approval before making offers.',
+                                                        style: _customFont(
+                                                            16,
+                                                            FontWeight.normal,
+                                                            Colors.red),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                                return Container();
+                                              },
+                                            ),
+
+                                            // MAKE AN OFFER button
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton(
+                                                onPressed: _makeOffer,
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      const Color(0xFFFF4E00),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      vertical: 10.0),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  'MAKE AN OFFER',
+                                                  style: _customFont(
+                                                      20,
+                                                      FontWeight.bold,
+                                                      Colors.white),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+
+                                        // Spacing
+                                        const SizedBox(height: 40),
+
+                                        // If it's a trailer & user is a dealer => single trailer block
+                                        if (isTrailer &&
+                                            userProvider.getUserRole ==
+                                                'dealer')
+                                          _buildTrailerSection()
+                                        else ...[
+                                          if (userProvider.getUserRole ==
+                                                  'admin' ||
+                                              userProvider.getUserRole ==
+                                                  'sales representative' ||
+                                              userProvider.getUserRole ==
+                                                  'dealer') ...[
+                                            _buildSection(
+                                              context,
+                                              'BASIC INFORMATION',
+                                              _calculateBasicInfoProgressString(),
+                                            ),
+                                            _buildSection(
+                                              context,
+                                              'MAINTENANCE AND WARRANTY',
+                                              _calculateMaintenanceProgressString(),
+                                            ),
+                                            // Add admin header here if user is admin
+                                            if (userProvider.getUserRole ==
+                                                'admin')
+                                              _buildSection(
+                                                context,
+                                                'ADMIN',
+                                                '10/10', // You can adjust these numbers based on your needs
+                                              ),
+                                            _buildTruckConditionsSection(
+                                                context),
+                                          ],
+                                        ],
+
+                                        const SizedBox(height: 30),
+
+                                        // If transporter => Show the offers
+                                        if (userProvider.getUserRole ==
+                                            'transporter') ...[
+                                          Container(
+                                            margin: const EdgeInsets.symmetric(
+                                                vertical: 10.0),
+                                            child: vehicle.isAccepted == true
+                                                ? Container(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            16.0),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8.0),
+                                                      border: Border.all(
+                                                          color: Colors.red),
+                                                    ),
+                                                    child: Column(
+                                                      children: [
+                                                        const Icon(
+                                                            Icons
+                                                                .warning_amber_rounded,
+                                                            color: Colors.red,
+                                                            size: 40),
+                                                        const SizedBox(
+                                                            height: 8),
+                                                        Text(
+                                                          "This vehicle has an accepted offer",
+                                                          style: _customFont(
+                                                              18,
+                                                              FontWeight.bold,
+                                                              Colors.red),
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                        ),
+                                                        Text(
+                                                          "No new offers can be placed",
+                                                          style: _customFont(
+                                                              16,
+                                                              FontWeight.normal,
+                                                              Colors.red),
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  )
+                                                : Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      // ... existing offer section code ...
+                                                    ],
+                                                  ),
+                                          ),
+                                          Text(
+                                            'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
+                                            style: _customFont(
+                                              20,
+                                              FontWeight.bold,
+                                              const Color(0xFFFF4E00),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          _buildOffersList(),
+                                        ],
+
+                                        const SizedBox(height: 24),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          // Loading overlay
+                          if (_isLoading)
+                            Container(
+                              color: Colors.black54,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                    color: Color(0xFFFF4E00)),
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                    // Loading overlay
-                    if (_isLoading)
-                      Container(
-                        color: Colors.black54,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                              color: Color(0xFFFF4E00)),
-                        ),
-                      ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-          // Add footer only for web
-          if (kIsWeb) const WebFooter(),
         ],
       ),
+      // Footer will now stay at bottom
+      // if (kIsWeb) const WebFooter(),
       bottomNavigationBar: (!kIsWeb &&
               !(userProvider.getUserRole == 'admin' ||
                   userProvider.getUserRole == 'sales representative') &&
@@ -2206,5 +2803,430 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           : null,
     );
   }
-  // ...existing code...
+
+  double _calculateBasicInfoProgressPercentage() {
+    final basicFields = [
+      widget.vehicle.application,
+      widget.vehicle.brands,
+      widget.vehicle.config,
+      widget.vehicle.country,
+      widget.vehicle.hydraluicType,
+      widget.vehicle.makeModel,
+      widget.vehicle.suspensionType,
+      widget.vehicle.transmissionType,
+      widget.vehicle.variant,
+      widget.vehicle.mileage,
+      widget.vehicle.maintenance,
+      widget.vehicle.requireToSettleType,
+      widget.vehicle.year.toString(),
+    ];
+    int total = basicFields.length;
+    int completed = basicFields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+    return total == 0 ? 0 : completed / total;
+  }
+
+  String _calculateBasicInfoProgressString() {
+    final basicFields = [
+      widget.vehicle.application,
+      widget.vehicle.brands,
+      widget.vehicle.config,
+      widget.vehicle.country,
+      widget.vehicle.hydraluicType,
+      widget.vehicle.makeModel,
+      widget.vehicle.suspensionType,
+      widget.vehicle.transmissionType,
+      widget.vehicle.variant,
+      widget.vehicle.mileage,
+      widget.vehicle.maintenance,
+      widget.vehicle.requireToSettleType,
+      widget.vehicle.year.toString(),
+    ];
+    int total = basicFields.length;
+    int completed = basicFields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+    return "$completed/$total";
+  }
+
+  double _calculateMaintenanceProgressPercentage() {
+    final maintenanceFields = [
+      widget.vehicle.maintenance.maintenanceDocUrl,
+      widget.vehicle.maintenance.oemInspectionType,
+      widget.vehicle.maintenance.warrantyDocUrl,
+    ];
+    int total = maintenanceFields.length;
+    int completed = maintenanceFields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+    return total == 0 ? 0 : (completed / total);
+  }
+
+  String _calculateMaintenanceProgressString() {
+    final maintenanceFields = [
+      widget.vehicle.maintenance.maintenanceDocUrl,
+      widget.vehicle.maintenance.oemInspectionType,
+      widget.vehicle.maintenance.warrantyDocUrl,
+    ];
+    int total = maintenanceFields.length;
+    int completed = maintenanceFields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+    return "$completed/$total";
+  }
+
+// ...existing code...
+
+// Add helper method near the other helpers
+  bool _isNotEmpty(String? value) {
+    return value != null && value.trim().isNotEmpty;
+  }
+
+  String _calculateExternalCabProgressString() {
+    final ext = vehicle.truckConditions.externalCab;
+
+    List<bool> completedFields = [];
+
+    // Debug condition fields
+    debugPrint("\n=== External Cab Progress Debug ===");
+    debugPrint("Condition values:");
+    debugPrint("condition: '${ext.condition}'");
+    debugPrint("damagesCondition: '${ext.damagesCondition}'");
+    debugPrint(
+        "additionalFeaturesCondition: '${ext.additionalFeaturesCondition}'");
+
+    // Check condition fields
+    completedFields.add(_isNotEmpty(ext.condition));
+    completedFields.add(_isNotEmpty(ext.damagesCondition));
+    completedFields.add(_isNotEmpty(ext.additionalFeaturesCondition));
+
+    // Debug image fields
+    debugPrint("\nImage data details:");
+    ext.images.forEach((key, value) {
+      String imageUrl = value.imageUrl ?? '';
+      String path = value.path;
+      debugPrint("$key: {path: $path, imageUrl: $imageUrl}");
+    });
+
+    // Check required images
+    final requiredImageKeys = [
+      "FRONT VIEW",
+      "LEFT SIDE VIEW",
+      "REAR VIEW",
+      "RIGHT SIDE VIEW"
+    ];
+    for (String key in requiredImageKeys) {
+      var photoData = ext.images[key];
+      bool hasImage = false;
+
+      if (photoData != null) {
+        bool hasPath = photoData.path.isNotEmpty;
+        bool hasUrl = (photoData.imageUrl ?? '').isNotEmpty;
+        hasImage = hasPath || hasUrl;
+        debugPrint(
+            "$key status: hasPath=$hasPath, hasUrl=$hasUrl, isComplete=$hasImage");
+      } else {
+        debugPrint("$key status: No PhotoData");
+      }
+
+      completedFields.add(hasImage);
+    }
+
+    int total = completedFields.length;
+    int completed = completedFields.where((field) => field).length;
+
+    debugPrint("\nFinal counts:");
+    for (int i = 0; i < completedFields.length; i++) {
+      String fieldName = i < 3 ? "Condition ${i + 1}" : "Image ${i - 2}";
+      debugPrint("$fieldName: ${completedFields[i]}");
+    }
+    debugPrint("Total complete: $completed/$total");
+    debugPrint("=== End Debug ===\n");
+
+    return "$completed/$total";
+  }
+
+  double _calculateExternalCabProgressPercentage() {
+    final ext = vehicle.truckConditions.externalCab;
+
+    List<bool> completedFields = [];
+
+    // Check condition fields
+    completedFields.add(_isNotEmpty(ext.condition));
+    completedFields.add(_isNotEmpty(ext.damagesCondition));
+    completedFields.add(_isNotEmpty(ext.additionalFeaturesCondition));
+
+    // Check required images
+    final requiredImageKeys = [
+      "FRONT VIEW",
+      "LEFT SIDE VIEW",
+      "REAR VIEW",
+      "RIGHT SIDE VIEW"
+    ];
+    for (String key in requiredImageKeys) {
+      var photoData = ext.images[key];
+      bool hasImage = false;
+
+      if (photoData != null) {
+        hasImage =
+            photoData.path.isNotEmpty || (photoData.imageUrl ?? '').isNotEmpty;
+      }
+
+      completedFields.add(hasImage);
+    }
+
+    int total = completedFields.length;
+    int completed = completedFields.where((field) => field).length;
+    return total == 0 ? 0.0 : completed / total;
+  }
+
+// ...existing code...
+
+// --------------------------------------------------------
+
+  String _calculateInternalCabProgressString() {
+    final intern = widget.vehicle.truckConditions.internalCab;
+
+    final fields = [
+      intern.condition,
+      intern.damagesCondition,
+      intern.additionalFeaturesCondition,
+      intern.faultCodesCondition,
+    ];
+    int total = fields.length;
+    int completed = fields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+
+    return "$completed/$total";
+  }
+
+  double _calculateInternalCabProgressPercentage() {
+    final intern = widget.vehicle.truckConditions.internalCab;
+    final fields = [
+      intern.condition,
+      intern.damagesCondition,
+      intern.additionalFeaturesCondition,
+      intern.faultCodesCondition,
+    ];
+    int total = fields.length;
+    int completed = fields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+
+    return total == 0 ? 0 : (completed / total);
+  }
+
+// --------------------------------------------------------
+
+  String _calculateChassisProgressString() {
+    final chass = widget.vehicle.truckConditions.chassis;
+
+    final fields = [
+      chass.condition,
+      chass.damagesCondition,
+      chass.additionalFeaturesCondition,
+    ];
+    int total = fields.length;
+    int completed = fields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+
+    return "$completed/$total";
+  }
+
+  double _calculateChassisProgressPercentage() {
+    final chass = widget.vehicle.truckConditions.chassis;
+    final fields = [
+      chass.condition,
+      chass.damagesCondition,
+      chass.additionalFeaturesCondition,
+    ];
+    int total = fields.length;
+    int completed = fields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+
+    return total == 0 ? 0 : (completed / total);
+  }
+
+// --------------------------------------------------------
+
+  String _calculateDriveTrainProgressString() {
+    try {
+      debugPrint("\n=== DriveTrain Progress Debug ===");
+      final drive = widget.vehicle.truckConditions.driveTrain;
+
+      List<String?> fields = [
+        drive.condition,
+        drive.oilLeakConditionEngine,
+        drive.waterLeakConditionEngine,
+        drive.blowbyCondition,
+        drive.oilLeakConditionGearbox,
+        drive.retarderCondition,
+      ];
+
+      int completed = fields
+          .where((field) => field != null && field.trim().isNotEmpty)
+          .length;
+
+      fields.asMap().forEach((index, value) {
+        debugPrint("Field ${index + 1}: ${value?.isNotEmpty ?? false}");
+      });
+
+      debugPrint("Completed: $completed/${fields.length}");
+      return "$completed/${fields.length}";
+    } catch (e) {
+      debugPrint("Error calculating drive train progress: $e");
+      return "0/6";
+    }
+  }
+
+  double _calculateDriveTrainProgressPercentage() {
+    final drive = widget.vehicle.truckConditions.driveTrain;
+    final fields = [
+      drive.condition,
+      drive.oilLeakConditionEngine,
+      drive.waterLeakConditionEngine,
+      drive.blowbyCondition,
+      drive.oilLeakConditionGearbox,
+      drive.retarderCondition,
+      // Possibly also faultCodes if you want
+    ];
+    int total = fields.length;
+    int completed = fields
+        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .length;
+
+    return total == 0 ? 0 : (completed / total);
+  }
+
+// --------------------------------------------------------
+
+  String _calculateTyresProgressString() {
+    try {
+      debugPrint("\n=== Tyres Progress Debug ===");
+      final tyresMap = widget.vehicle.truckConditions.tyres;
+      if (tyresMap.isEmpty) {
+        debugPrint("No tyres data found");
+        return "0/1";
+      }
+
+      final tyres = tyresMap['tyres'];
+      if (tyres == null) {
+        debugPrint("No tyres submap found");
+        return "0/1";
+      }
+
+      final positions = tyres.positions;
+      if (positions.isEmpty) {
+        debugPrint("No tyre positions found");
+        return "0/1";
+      }
+
+      int filledPositions = 0;
+      positions.forEach((key, value) {
+        if (value != null) filledPositions++;
+        debugPrint("Position $key: ${value != null}");
+      });
+
+      debugPrint("Filled positions: $filledPositions/${positions.length}");
+      return "$filledPositions/${positions.length}";
+    } catch (e) {
+      debugPrint("Error calculating tyres progress: $e");
+      return "0/1";
+    }
+  }
+
+  double _calculateTyresProgressPercentage() {
+    try {
+      final tyresMap = widget.vehicle.truckConditions.tyres;
+      if (tyresMap.isEmpty) return 0.0;
+
+      final tyres = tyresMap['tyres'];
+      if (tyres == null) return 0.0;
+
+      final positions = tyres.positions;
+      if (positions.isEmpty) return 0.0;
+
+      int filledPositions = positions.values.where((v) => v != null).length;
+      return filledPositions / positions.length;
+    } catch (e) {
+      debugPrint("Error calculating tyres percentage: $e");
+      return 0.0;
+    }
+  }
+
+  // Add this helper method to check if a map has any non-empty string values
+  bool _hasAnyNonEmptyValues(Map<String, dynamic>? map) {
+    if (map == null) return false;
+    return map.values.any((value) {
+      if (value is String) {
+        return value.trim().isNotEmpty;
+      }
+      return false;
+    });
+  }
+
+  // Add this helper method to check if a list has any valid items
+  bool _hasValidItems(List? items) {
+    if (items == null || items.isEmpty) return false;
+    return items.any((item) {
+      if (item is Map<String, dynamic>) {
+        return _hasAnyNonEmptyValues(item);
+      }
+      return false;
+    });
+  }
+
+  // Add new admin progress tracking methods
+  String _calculateAdminProgressString() {
+    int completed = 0;
+    int total = 3; // NATIS/RC1, License Disk, and Settlement if required
+
+    // Check NATIS/RC1
+    if (widget.vehicle.adminData.natisRc1Url?.isNotEmpty ?? false) {
+      completed++;
+    }
+
+    // Check License Disk
+    if (widget.vehicle.adminData.licenseDiskUrl?.isNotEmpty ?? false) {
+      completed++;
+    }
+
+    // Check Settlement Letter if required
+    if (widget.vehicle.requireToSettleType == 'yes') {
+      total++; // Add settlement amount to total
+      if (widget.vehicle.adminData.settlementLetterUrl?.isNotEmpty ?? false) {
+        completed++;
+      }
+      if (widget.vehicle.adminData.settlementAmount?.isNotEmpty ?? false) {
+        completed++;
+      }
+    }
+
+    return "$completed/$total";
+  }
+
+  double _calculateAdminProgressPercentage() {
+    int completed = 0;
+    int total = 3;
+
+    if (widget.vehicle.adminData.natisRc1Url?.isNotEmpty ?? false) completed++;
+    if (widget.vehicle.adminData.licenseDiskUrl?.isNotEmpty ?? false)
+      completed++;
+
+    if (widget.vehicle.requireToSettleType == 'yes') {
+      total++;
+      if (widget.vehicle.adminData.settlementLetterUrl?.isNotEmpty ?? false) {
+        completed++;
+      }
+      if (widget.vehicle.adminData.settlementAmount?.isNotEmpty ?? false) {
+        completed++;
+      }
+    }
+
+    return total == 0 ? 0.0 : completed / total;
+  }
 }

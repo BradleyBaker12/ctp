@@ -36,7 +36,10 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
     {'name': 'HINO', 'path': 'lib/assets/Logo/HINO.png'},
     {'name': 'HYUNDAI', 'path': 'lib/assets/Logo/HYUNDAI.png'},
     {'name': 'ISUZU', 'path': 'lib/assets/Logo/ISUZU.png'},
-    {'name': 'IVECO', 'path': null}, // Logo not available, will use an Icon
+    {
+      'name': 'IVECO',
+      'path': 'lib/assets/Logo/iveco.png'
+    }, // Logo not available, will use an Icon
     {'name': 'JAC', 'path': 'lib/assets/Logo/JAC.png'},
     {'name': 'JOYLONG', 'path': 'lib/assets/Logo/JOYLONG.png'},
     {'name': 'MAN', 'path': 'lib/assets/Logo/MAN.png'},
@@ -48,7 +51,6 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
     {'name': 'TATA', 'path': 'lib/assets/Logo/TATA.png'},
     {'name': 'TOYOTA', 'path': 'lib/assets/Logo/TOYOTA.png'},
     {'name': 'UD TRUCKS', 'path': 'lib/assets/Logo/UD TRUCKS.png'},
-    {'name': 'US TRUCKS', 'path': null}, // Logo not available, will use an Icon
     {'name': 'VOLVO', 'path': 'lib/assets/Logo/VOLVO.png'},
     {'name': 'VW', 'path': 'lib/assets/Logo/VW.png'},
   ];

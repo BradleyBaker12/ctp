@@ -70,6 +70,11 @@ class _TransporterRegistrationPageState
   Uint8List? _brncByte;
   bool _isLoading = false;
 
+  // Add these new state variables
+  String? _bankConfirmationFileName;
+  String? _proxyFileName;
+  String? _brncFileName;
+
   @override
   void initState() {
     super.initState();
@@ -87,28 +92,32 @@ class _TransporterRegistrationPageState
 
   Future<void> _pickFile(String fieldName) async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles();
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
+      );
+
       if (result != null) {
+        final bytes = await result.files.single.xFile.readAsBytes();
         setState(() {
-          if (!kIsWeb) {
-            if (fieldName == 'bankConfirmation') {
-              _bankConfirmationFile = result.files.single.path;
-            } else if (fieldName == 'proxy') {
-              _proxyFile = result.files.single.path;
-            } else if (fieldName == 'brnc') {
-              _brncFile = result.files.single.path;
-            }
-          } else {
-            if (fieldName == 'bankConfirmation') {
-              _bankConfirmationByte = result.files.single.bytes;
-              print("Bank Confirmation has been selected");
-            } else if (fieldName == 'proxy') {
-              _proxyByte = result.files.single.bytes;
-              print("Proxy has been selected");
-            } else if (fieldName == 'brnc') {
-              _brncByte = result.files.single.bytes;
-              print("Brnc has been selected");
-            }
+          if (fieldName == 'bankConfirmation') {
+            _bankConfirmationByte = bytes;
+            _bankConfirmationFileName = result.files.single.name;
+          } else if (fieldName == 'proxy') {
+            _proxyByte = bytes;
+            _proxyFileName = result.files.single.name;
+          } else if (fieldName == 'brnc') {
+            _brncByte = bytes;
+            _brncFileName = result.files.single.name;
           }
         });
       }
@@ -197,7 +206,7 @@ class _TransporterRegistrationPageState
         const SnackBar(content: Text('Registration completed successfully!')),
       );
       Navigator.pushReplacementNamed(
-          context, '/home'); // Navigate to the first truck upload form page
+          context, '/waitingApproval'); // Navigate to the first truck upload form page
     } catch (e) {
       print("Error submitting form: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -613,36 +622,103 @@ class _TransporterRegistrationPageState
   }
 
   Widget _buildUploadButton(String fieldName, String? fileName) {
-    return GestureDetector(
-      onTap: () => _pickFile(fieldName),
-      child: Container(
-        height: 100,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(10.0),
-          border: Border.all(color: Colors.white70, width: 1),
-        ),
-        child: Center(
-          child: fileName == null
-              ? const Icon(Icons.folder_open, color: Colors.blue, size: 40)
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(_getIconForFileType(fileName),
-                        color: Colors.white, size: 40),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        path.basename(fileName),
-                        style: GoogleFonts.montserrat(color: Colors.white),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+    var screenSize = MediaQuery.of(context).size;
+    String? displayFileName;
+    Uint8List? fileBytes;
+
+    switch (fieldName) {
+      case 'bankConfirmation':
+        displayFileName = _bankConfirmationFileName;
+        fileBytes = _bankConfirmationByte;
+        break;
+      case 'proxy':
+        displayFileName = _proxyFileName;
+        fileBytes = _proxyByte;
+        break;
+      case 'brnc':
+        displayFileName = _brncFileName;
+        fileBytes = _brncByte;
+        break;
+    }
+
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () => _pickFile(fieldName),
+          child: Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: Colors.white70, width: 1),
+            ),
+            child: Center(
+              child: displayFileName == null
+                  ? Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(Icons.folder_outlined,
+                            color: Colors.blue, size: 40),
+                        Positioned(
+                          bottom: screenSize.height * 0.009,
+                          child: Icon(Icons.arrow_upward,
+                              color: Colors.white, size: 20),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_getIconForFileType(displayFileName),
+                            color: Colors.white, size: 40),
+                        const SizedBox(height: 5),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            displayFileName,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+            ),
+          ),
         ),
-      ),
+        if (displayFileName != null)
+          Positioned(
+            top: 5,
+            right: 5,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  switch (fieldName) {
+                    case 'bankConfirmation':
+                      _bankConfirmationFileName = null;
+                      _bankConfirmationByte = null;
+                      break;
+                    case 'proxy':
+                      _proxyFileName = null;
+                      _proxyByte = null;
+                      break;
+                    case 'brnc':
+                      _brncFileName = null;
+                      _brncByte = null;
+                      break;
+                  }
+                });
+              },
+              child: const Icon(Icons.close, color: Colors.red, size: 24),
+            ),
+          ),
+      ],
     );
   }
 

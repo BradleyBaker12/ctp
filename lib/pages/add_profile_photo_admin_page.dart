@@ -1,4 +1,5 @@
 import 'package:ctp/pages/admin_home_page.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -27,13 +28,11 @@ class _AddProfilePhotoAdminPageState extends State<AddProfilePhotoAdminPage> {
       final pickedFile = await _picker.pickImage(source: source);
 
       if (pickedFile != null) {
-        Navigator.push(
+        await MyNavigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => CropPhotoPage(
-              imageFile: pickedFile,
-              userData: const {},
-            ), // Pass XFile directly
+          CropPhotoPage(
+            imageFile: pickedFile,
+            userData: const {},
           ),
         );
       } else {
@@ -67,12 +66,7 @@ class _AddProfilePhotoAdminPageState extends State<AddProfilePhotoAdminPage> {
       await Provider.of<UserProvider>(context, listen: false).fetchUserData();
 
       // Navigate to Admin Home Page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const AdminHomePage(),
-        ),
-      );
+      await MyNavigator.pushReplacement(context, AdminHomePage());
     } catch (e) {
       print("Error setting default profile image: $e");
       ScaffoldMessenger.of(context).showSnackBar(

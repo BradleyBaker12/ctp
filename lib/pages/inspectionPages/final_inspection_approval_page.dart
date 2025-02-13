@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/pages/adjust_offer.dart';
 import 'package:ctp/pages/rating_pages/rate_dealer_page_two.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
 // Import RateDealerPage
@@ -35,6 +34,8 @@ class _FinalInspectionApprovalPageState
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 1;
   bool _isLoading = false;
+  bool dealerInspectionApproval = false;
+  bool transporterInspectionApproval = false;
 
   // Add this getter for consistent breakpoint
   bool _isCompactNavigation(BuildContext context) =>
@@ -44,6 +45,9 @@ class _FinalInspectionApprovalPageState
   void initState() {
     super.initState();
     _updateOfferStatus();
+    _checkApprovalStatus();
+    print(
+        'Initial state - Dealer approval: $dealerInspectionApproval, Transporter approval: $transporterInspectionApproval');
   }
 
   void _onItemTapped(int index) {
@@ -71,22 +75,8 @@ class _FinalInspectionApprovalPageState
     }
   }
 
-  Future<void> _approveInspection(String userRole) async {
-    setState(() {
-      _isLoading = true;
-    });
-
+  Future<void> _checkApprovalStatus() async {
     try {
-      String fieldToUpdate =
-          userRole == 'dealer' ? 'dealerApproved' : 'transporterApproved';
-
-      // Update Firestore to mark the approval status for the respective role
-      await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offerId)
-          .update({fieldToUpdate: true});
-
-      // Check if both the dealer and transporter have approved
       DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
@@ -96,15 +86,22 @@ class _FinalInspectionApprovalPageState
       bool dealerApproved = data['dealerApproved'] ?? false;
       bool transporterApproved = data['transporterApproved'] ?? false;
 
-      // Navigate to the appropriate rating page only if both parties have approved
+      print(
+          'Checked approval status - Dealer: $dealerApproved, Transporter: $transporterApproved');
+
+      // If both are approved, navigate to appropriate rating page
       if (dealerApproved && transporterApproved) {
-        await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(widget.offerId)
-            .update({'offerStatus': 'Inspection Done'});
+        print('Both approvals detected, preparing for navigation');
+
+        if (!mounted) return;
+
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final userRole = userProvider.getUserRole;
+
+        print('User role for navigation: $userRole');
 
         if (userRole == 'dealer') {
-          // Dealer rates the transporter
+          print('Navigating dealer to rate transporter');
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -114,8 +111,82 @@ class _FinalInspectionApprovalPageState
               ),
             ),
           );
-        } else if (userRole == 'transporter') {
-          // Transporter rates the dealer
+        } else {
+          print('Navigating transporter to rate dealer');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RateDealerPageTwo(
+                offerId: widget.offerId,
+              ),
+            ),
+          );
+        }
+      }
+
+      setState(() {
+        dealerInspectionApproval = dealerApproved;
+        transporterInspectionApproval = transporterApproved;
+      });
+    } catch (e) {
+      print('Failed to check approval status: $e');
+    }
+  }
+
+  Future<void> _approveInspection(String userRole) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String fieldToUpdate =
+          userRole == 'dealer' ? 'dealerApproved' : 'transporterApproved';
+      print('Attempting to update $fieldToUpdate for $userRole');
+
+      // Update the current user's approval
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({fieldToUpdate: true});
+
+      // Get latest approval status
+      DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .get();
+
+      Map<String, dynamic> data = offerSnapshot.data() as Map<String, dynamic>;
+      bool dealerApproved = data['dealerApproved'] ?? false;
+      bool transporterApproved = data['transporterApproved'] ?? false;
+
+      print(
+          'Current approval status - Dealer: $dealerApproved, Transporter: $transporterApproved');
+
+      // If both have approved, update status and navigate
+      if (dealerApproved && transporterApproved) {
+        print('Both parties have approved - updating offer status');
+
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .update({'offerStatus': 'Inspection Done'});
+
+        if (!mounted) return;
+
+        // Navigate based on user role
+        if (userRole == 'dealer') {
+          print('Navigating dealer to rate transporter page');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RateTransporterPage(
+                offerId: widget.offerId,
+                fromCollectionPage: false,
+              ),
+            ),
+          );
+        } else {
+          print('Navigating transporter to rate dealer page');
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -126,30 +197,42 @@ class _FinalInspectionApprovalPageState
           );
         }
       } else {
-        // Display message indicating the other party still needs to approve
-        String waitingForMessage = userRole == 'dealer'
-            ? 'Waiting for the transporter to approve the inspection.'
-            : 'Waiting for the dealer to approve the inspection.';
+        // Update local state for UI
+        setState(() {
+          if (userRole == 'dealer') {
+            dealerInspectionApproval = true;
+          } else {
+            transporterInspectionApproval = true;
+          }
+        });
 
+        if (!mounted) return;
+
+        // Show waiting message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(waitingForMessage),
+            content: Text(userRole == 'dealer'
+                ? 'Waiting for transporter approval'
+                : 'Waiting for dealer approval'),
             backgroundColor: Colors.orange,
           ),
         );
       }
     } catch (e) {
-      print('Failed to approve inspection: $e');
+      print('Error in approval process: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('An error occurred while approving the inspection.'),
+          content: Text('An error occurred during the approval process'),
           backgroundColor: Colors.red,
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -310,42 +393,50 @@ class _FinalInspectionApprovalPageState
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: spacing),
-                      CustomButton(
-                        text: 'APPROVE',
-                        borderColor: Colors.blue,
-                        onPressed: () {
-                          _approveInspection(userRole);
-                        },
-                      ),
-                      // Only show the "Adjust Offer" button for dealers
-                      if (userRole == 'dealer')
-                        CustomButton(
-                          text: 'ADJUST OFFER',
-                          borderColor: Colors.blue,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AdjustOfferPage(
-                                  offerId: widget.offerId,
+                      Column(
+                        children: [
+                          if (userRole == 'dealer' &&
+                                  !dealerInspectionApproval ||
+                              userRole == 'transporter' &&
+                                  !transporterInspectionApproval)
+                            CustomButton(
+                              text: 'APPROVE',
+                              borderColor: Colors.blue,
+                              onPressed: () {
+                                _approveInspection(userRole);
+                              },
+                            ),
+                          if ((userRole == 'dealer' &&
+                                  dealerInspectionApproval) ||
+                              (userRole == 'transporter' &&
+                                  transporterInspectionApproval))
+                            const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text(
+                                'Inspection Approved - Waiting for other party\'s approval',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      CustomButton(
-                        text: 'REPORT AN ISSUE',
-                        borderColor: const Color(0xFFFF4E00),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ReportIssuePage(
-                                offerId: widget.offerId,
+                                textAlign: TextAlign.center,
                               ),
                             ),
-                          );
-                        },
+                          CustomButton(
+                            text: 'REPORT AN ISSUE',
+                            borderColor: const Color(0xFFFF4E00),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ReportIssuePage(
+                                    offerId: widget.offerId,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                       SizedBox(height: spacing),
                     ],

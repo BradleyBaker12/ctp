@@ -10,6 +10,7 @@ import 'package:ctp/pages/truckForms/maintenance_section.dart';
 import 'package:ctp/pages/truckForms/truck_condition_section.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:ctp/pages/home_page.dart';
 
 class MaintenanceWarrantyScreen extends StatefulWidget {
   final String vehicleId;
@@ -555,129 +556,163 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     }
   }
 
+  double completionPercentage = 0.0;
+
+  updatePercentage(index) {
+    // Get completion percentage based on tab index
+    if (index == 0 && _maintenanceSectionKey.currentState != null) {
+      completionPercentage =
+          _maintenanceSectionKey.currentState!.getCompletionPercentage();
+    } else if (index == 1 && _adminSectionKey.currentState != null) {
+      completionPercentage =
+          _adminSectionKey.currentState!.getCompletionPercentage();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isLastTab = _selectedTabIndex == _tabContents.length - 1;
     bool isTruckConditionTab =
         _tabTitles[_selectedTabIndex] == 'TRUCK CONDITION';
 
-    return Stack(
-      children: [
-        Scaffold(
-          body: GradientBackground(
-            child: Column(
-              children: [
-                // Custom AppBar
-                Container(
-                  color: AppColors.blue,
-                  padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        "Ref#: ${widget.vehicleRef}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        "Make/Model: ${widget.makeModel}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Container(
-                        width: 50,
-                        height: 50,
-                        margin: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          image: DecorationImage(
-                            image: NetworkImage(widget.mainImageUrl),
-                            fit: BoxFit.cover,
-                            onError: (error, stackTrace) {
-                              print('Error loading image: $error');
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                  ),
-                ),
-
-                // Modified tab buttons section
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  child: Row(
-                    children: List.generate(_tabTitles.length, (index) {
-                      return _buildCustomTabButton(_tabTitles[index], index);
-                    }),
-                  ),
-                ),
-
-                // Rest of the existing content
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildContent(),
-                  ),
-                ),
-
-                // Modified buttons section
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 10.0),
-                  child: Row(
-                    children: [
-                      if (!isTruckConditionTab) ...[
-                        Expanded(
-                          child: CustomButton(
-                            text: 'Continue',
-                            onPressed:
-                                _selectedTabIndex < _tabContents.length - 1
-                                    ? _onContinuePressed
-                                    : null,
-                            borderColor: AppColors.blue,
-                          ),
-                        ),
-                        const SizedBox(width: 16.0),
-                      ],
-                      Expanded(
-                        child: CustomButton(
-                          text: 'Done',
-                          onPressed: _onDonePressed,
-                          borderColor: AppColors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+    // ignore: deprecated_member_use
+    return WillPopScope(
+      onWillPop: () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomePage(),
           ),
-        ),
-        if (_isLoading)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.5),
-              child: Center(
-                child: Image.asset(
-                  'lib/assets/Loading_Logo_CTP.gif',
-                  width: 100,
-                  height: 100,
+        );
+        return Future.value(true);
+      },
+      child: Builder(builder: (context) {
+        return Stack(
+          children: [
+            Scaffold(
+              body: GradientBackground(
+                child: Column(
+                  children: [
+                    // Custom AppBar
+                    Container(
+                      color: AppColors.blue,
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).padding.top,
+                        left: 10,
+                        right: 10,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            "Ref#: ${widget.vehicleRef}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Text(
+                              "Make/Model: ${widget.makeModel}",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            width: 50,
+                            height: 50,
+                            margin: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: DecorationImage(
+                                image: NetworkImage(widget.mainImageUrl),
+                                fit: BoxFit.cover,
+                                onError: (error, stackTrace) {
+                                  print('Error loading image: $error');
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
+                      ),
+                    ),
+
+                    // Modified tab buttons section
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10.0),
+                      child: Row(
+                        children: List.generate(_tabTitles.length, (index) {
+                          return _buildCustomTabButton(
+                              _tabTitles[index], index);
+                        }),
+                      ),
+                    ),
+
+                    // Rest of the existing content
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _buildContent(),
+                      ),
+                    ),
+
+                    // Modified buttons section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 10.0),
+                      child: Row(
+                        children: [
+                          if (!isTruckConditionTab) ...[
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Continue',
+                                onPressed:
+                                    _selectedTabIndex < _tabContents.length - 1
+                                        ? _onContinuePressed
+                                        : null,
+                                borderColor: AppColors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 16.0),
+                          ],
+                          Expanded(
+                            child: CustomButton(
+                              text: 'Done',
+                              onPressed: _onDonePressed,
+                              borderColor: AppColors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-      ],
+            if (_isLoading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: Center(
+                    child: Image.asset(
+                      'lib/assets/Loading_Logo_CTP.gif',
+                      width: 100,
+                      height: 100,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      }),
     );
   }
 }

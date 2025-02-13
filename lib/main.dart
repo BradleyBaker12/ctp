@@ -5,6 +5,11 @@ import 'package:ctp/pages/add_profile_photo_admin_page.dart';
 import 'package:ctp/pages/add_profile_photo_transporter.dart';
 import 'package:ctp/pages/admin_home_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
+import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/internal_cab_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/tyres_edit_page.dart';
 import 'package:ctp/pages/error_page.dart';
 import 'package:ctp/pages/first_name_page.dart';
 import 'package:ctp/pages/home_page.dart';
@@ -63,7 +68,6 @@ void main() async {
   if (!kIsWeb) {
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
   }
-
   setPathUrlStrategy();
   runApp(
     MultiProvider(
@@ -130,10 +134,56 @@ class MyApp extends StatelessWidget {
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
-        '/wishlist': (context) => const WishlistPage(),
-        '/transporterList': (context) => const VehiclesListPage(),
         '/in-progress': (context) => const AcceptedOffersPage(),
+        '/transporterList': (context) => const VehiclesListPage(),
+        '/wishist': (context) => const WishlistPage(),
         '/error': (context) => ErrorPage(), // Create a basic error page
+        '/waitingApproval': (context) => AccountStatusPage(), // Create a b
+        '/external_cab': (context) {
+          final vehicleId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return ExternalCabEditPage(
+            vehicleId: vehicleId,
+            onProgressUpdate: () {},
+            inTabsPage: false,
+          );
+        },
+        '/internal_cab': (context) {
+          final vehicleId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return InternalCabEditPage(
+            vehicleId: vehicleId,
+            onProgressUpdate: () {},
+            inTabsPage: false,
+          );
+        },
+        '/chassis': (context) {
+          final vehicleId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return ChassisEditPage(
+            vehicleId: vehicleId,
+            onProgressUpdate: () {},
+            inTabsPage: false,
+          );
+        },
+        '/drive_train': (context) {
+          final vehicleId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return DriveTrainEditPage(
+            vehicleId: vehicleId,
+            onProgressUpdate: () {},
+            inTabsPage: false,
+          );
+        },
+        '/tyres': (context) {
+          final vehicleId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return TyresEditPage(
+            vehicleId: vehicleId,
+            onProgressUpdate: () {},
+            inTabsPage: false,
+          );
+        },
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspectionDetails') {
@@ -141,9 +191,10 @@ class MyApp extends StatelessWidget {
           return MaterialPageRoute(
             builder: (context) => InspectionDetailsPage(
               offerId: args['offerId'] as String,
-              makeModel: args['makeModel'] as String,
               offerAmount: args['offerAmount'] as String,
               vehicleId: args['vehicleId'] as String,
+              brand: args['brands'] as String,
+              variant: args['variant'] as String,
             ),
           );
         }
@@ -206,3 +257,46 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 }
+
+Map<String, WidgetBuilder> routes = {
+  '/external_cab': (context) {
+    final vehicleId = ModalRoute.of(context)!.settings.arguments as String;
+    return ExternalCabEditPage(
+      vehicleId: vehicleId,
+      onProgressUpdate: () {},
+      inTabsPage: false,
+    );
+  },
+  '/internal_cab': (context) {
+    final vehicleId = ModalRoute.of(context)!.settings.arguments as String;
+    return InternalCabEditPage(
+      vehicleId: vehicleId,
+      onProgressUpdate: () {},
+      inTabsPage: false,
+    );
+  },
+  '/chassis': (context) {
+    final vehicleId = ModalRoute.of(context)!.settings.arguments as String;
+    return ChassisEditPage(
+      vehicleId: vehicleId,
+      onProgressUpdate: () {},
+      inTabsPage: false,
+    );
+  },
+  '/drive_train': (context) {
+    final vehicleId = ModalRoute.of(context)!.settings.arguments as String;
+    return DriveTrainEditPage(
+      vehicleId: vehicleId,
+      onProgressUpdate: () {},
+      inTabsPage: false,
+    );
+  },
+  '/tyres': (context) {
+    final vehicleId = ModalRoute.of(context)!.settings.arguments as String;
+    return TyresEditPage(
+      vehicleId: vehicleId,
+      onProgressUpdate: () {},
+      inTabsPage: false,
+    );
+  },
+};

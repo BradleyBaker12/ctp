@@ -21,7 +21,8 @@ class ConfirmationPage extends StatefulWidget {
   final DateTime date;
   final String time;
   final LatLng latLng;
-  final String makeModel;
+  final String brand; // Changed from makeModel
+  final String variant; // Added new property
   final String offerAmount;
   final String vehicleId;
 
@@ -33,7 +34,8 @@ class ConfirmationPage extends StatefulWidget {
     required this.date,
     required this.time,
     required this.latLng,
-    required this.makeModel,
+    required this.brand, // Changed from makeModel
+    required this.variant, // Added new parameter
     required this.offerAmount,
     required this.vehicleId,
   });
@@ -53,11 +55,14 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
       1; // Variable to keep track of the selected bottom nav item
   bool _inspectionCompleteClicked =
       false; // To prevent double clicks on "Inspection Complete"
+  bool _dealerInspectionComplete = false;
+  bool _transporterInspectionComplete = false;
 
   @override
   void initState() {
     super.initState();
     _updateOfferStatus();
+    _fetchInspectionStatus();
   }
 
   void _updateOfferStatus() {
@@ -65,6 +70,20 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
         .collection('offers')
         .doc(widget.offerId)
         .update({'offerStatus': 'inspection pending'});
+  }
+
+  Future<void> _fetchInspectionStatus() async {
+    DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .get();
+
+    setState(() {
+      _dealerInspectionComplete =
+          offerSnapshot['dealerInspectionComplete'] ?? false;
+      _transporterInspectionComplete =
+          offerSnapshot['transporterInspectionComplete'] ?? false;
+    });
   }
 
   void _onItemTapped(int index) {
@@ -95,41 +114,34 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
       fieldToUpdate: true,
     });
 
-    // Check if both the dealer and transporter have completed the inspection
-    DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
-        .collection('offers')
-        .doc(widget.offerId)
-        .get();
-    bool dealerInspectionComplete =
-        offerSnapshot['dealerInspectionComplete'] ?? false;
-    bool transporterInspectionComplete =
-        offerSnapshot['transporterInspectionComplete'] ?? false;
+    await _fetchInspectionStatus();
 
-    // Transporter waits for dealer to complete the inspection
-    if (userRole == 'transporter' && !dealerInspectionComplete) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Waiting for the dealer to complete the inspection.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } else if (dealerInspectionComplete && transporterInspectionComplete) {
-      // Navigate to Final Inspection Approval Page only if both parties have completed
+    if (_dealerInspectionComplete && _transporterInspectionComplete) {
+      // Update offer status to next stage
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({'offerStatus': 'inspection completed'});
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => FinalInspectionApprovalPage(
             offerId: widget.offerId,
             oldOffer: widget.offerAmount,
-            vehicleName: widget.makeModel,
+            vehicleName:
+                "${widget.brand} ${widget.variant}", // Updated to use brand and variant
           ),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Waiting for the other party to complete the inspection.'),
+        SnackBar(
+          content: Text(
+            userRole == 'dealer'
+                ? 'Waiting for the transporter to complete the inspection.'
+                : 'Waiting for the dealer to complete the inspection.',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -310,7 +322,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                           ),
                           SizedBox(height: screenHeight * 0.04),
                           Text(
-                            widget.makeModel.toUpperCase(),
+                            "${widget.brand} ${widget.variant}".toUpperCase(),
                             style: _getTextStyle(
                               fontSize: _adaptiveTextSize(context, 20, 28),
                               fontWeight: FontWeight.w800,
@@ -356,7 +368,9 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                       // Buttons section
                       Column(
                         children: [
-                          if (userRole == 'dealer')
+                          if (userRole == 'dealer' &&
+                              !_dealerInspectionComplete &&
+                              !_transporterInspectionComplete)
                             Padding(
                               padding:
                                   EdgeInsets.only(bottom: screenHeight * 0.02),
@@ -370,7 +384,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                       builder: (context) =>
                                           InspectionDetailsPage(
                                         offerId: widget.offerId,
-                                        makeModel: widget.makeModel,
+                                        brand: widget
+                                            .brand, // Changed from makeModel
+                                        variant:
+                                            widget.variant, // Added variant
                                         offerAmount: widget.offerAmount,
                                         vehicleId: widget.vehicleId,
                                       ),
@@ -379,15 +396,36 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                 },
                               ),
                             ),
-                          Padding(
-                            padding:
-                                EdgeInsets.only(bottom: screenHeight * 0.02),
-                            child: CustomButton(
-                              text: 'INSPECTION COMPLETE',
-                              borderColor: const Color(0xFFFF4E00),
-                              onPressed: () => _completeInspection(userRole),
+                          if ((userRole == 'dealer' &&
+                                  !_dealerInspectionComplete) ||
+                              (userRole == 'transporter' &&
+                                  !_transporterInspectionComplete))
+                            Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: screenHeight * 0.02),
+                              child: CustomButton(
+                                text: 'INSPECTION COMPLETE',
+                                borderColor: const Color(0xFFFF4E00),
+                                onPressed: () => _completeInspection(userRole),
+                              ),
                             ),
-                          ),
+                          if ((userRole == 'dealer' &&
+                                  _dealerInspectionComplete) ||
+                              (userRole == 'transporter' &&
+                                  _transporterInspectionComplete))
+                            Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: screenHeight * 0.02),
+                              child: Text(
+                                'Waiting for ${userRole == 'dealer' ? 'transporter' : 'dealer'} to complete the inspection',
+                                style: _getTextStyle(
+                                  fontSize: _adaptiveTextSize(context, 16, 20),
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orange,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           CustomButton(
                             text: 'BACK TO HOME',
                             borderColor: const Color(0xFFFF4E00),

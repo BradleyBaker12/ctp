@@ -5,6 +5,7 @@ import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:typed_data';
 
 class MaintenanceSection extends StatefulWidget {
   final String vehicleId;
@@ -14,8 +15,8 @@ class MaintenanceSection extends StatefulWidget {
   final String oemInspectionExplanation;
   final String? maintenanceDocUrl;
   final String? warrantyDocUrl;
-  final Function(File?) onMaintenanceFileSelected;
-  final Function(File?) onWarrantyFileSelected;
+  final Function(Uint8List?) onMaintenanceFileSelected;
+  final Function(Uint8List?) onWarrantyFileSelected;
   final String maintenanceSelection;
   final String warrantySelection;
   final File? maintenanceDocFile;
@@ -48,8 +49,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     with AutomaticKeepAliveClientMixin {
   late TextEditingController _oemReasonController;
   late String _oemInspectionType;
-  File? _maintenanceDocFile;
-  File? _warrantyDocFile;
+  Uint8List? _maintenanceDocFile;
+  String? _maintenanceDocFileName;
+  Uint8List? _warrantyDocFile;
+  String? _warrantyDocFileName;
 
   // New variables to store download URLs
   String? _maintenanceDocUrl;
@@ -65,6 +68,8 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     // Initialize files to null or with existing data if needed
     _maintenanceDocFile = null;
     _warrantyDocFile = null;
+    _maintenanceDocFileName = null;
+    _warrantyDocFileName = null;
 
     _oemReasonController.addListener(() {
       notifyProgress();
@@ -83,6 +88,8 @@ class MaintenanceSectionState extends State<MaintenanceSection>
       _oemReasonController.clear();
       _maintenanceDocFile = null;
       _warrantyDocFile = null;
+      _maintenanceDocFileName = null;
+      _warrantyDocFileName = null;
     });
   }
 
@@ -97,10 +104,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     }
   }
 
-  Future<String?> _uploadFile(File file, String storagePath) async {
+  Future<String?> _uploadFile(Uint8List file, String storagePath) async {
     try {
       UploadTask uploadTask =
-          FirebaseStorage.instance.ref(storagePath).putFile(file);
+          FirebaseStorage.instance.ref(storagePath).putData(file);
 
       TaskSnapshot taskSnapshot = await uploadTask;
 
@@ -173,15 +180,26 @@ class MaintenanceSectionState extends State<MaintenanceSection>
   Future<void> _pickMaintenanceDocument() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
       );
 
-      if (result != null && result.files.single.path != null) {
-        File selectedFile = File(result.files.single.path!);
+      if (result != null) {
+        final bytes = await result.xFiles.first.readAsBytes();
+        final fileName = result.xFiles.first.name;
         setState(() {
-          _maintenanceDocFile = selectedFile;
-          print('Selected maintenance file: ${_maintenanceDocFile!.path}');
-          widget.onMaintenanceFileSelected(selectedFile);
+          _maintenanceDocFile = bytes;
+          _maintenanceDocFileName = fileName;
+          widget.onMaintenanceFileSelected(_maintenanceDocFile);
         });
       }
     } catch (e) {
@@ -194,15 +212,26 @@ class MaintenanceSectionState extends State<MaintenanceSection>
   Future<void> _pickWarrantyDocument() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
       );
 
-      if (result != null && result.files.single.path != null) {
-        File selectedFile = File(result.files.single.path!);
+      if (result != null) {
+        final bytes = await result.xFiles.first.readAsBytes();
+        final fileName = result.xFiles.first.name;
         setState(() {
-          _warrantyDocFile = selectedFile;
-          print('Selected warranty file: ${_warrantyDocFile!.path}');
-          widget.onWarrantyFileSelected(selectedFile);
+          _warrantyDocFile = bytes;
+          _warrantyDocFileName = fileName;
+          widget.onWarrantyFileSelected(_warrantyDocFile);
         });
       }
     } catch (e) {
@@ -247,14 +276,14 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     return url.split('/').last.split('?').first;
   }
 
-  void updateMaintenanceFile(File? file) {
+  void updateMaintenanceFile(Uint8List? file) {
     setState(() {
       _maintenanceDocFile = file;
     });
     notifyProgress();
   }
 
-  void updateWarrantyFile(File? file) {
+  void updateWarrantyFile(Uint8List? file) {
     setState(() {
       _warrantyDocFile = file;
     });
@@ -305,9 +334,9 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     super.build(context); // Required for AutomaticKeepAliveClientMixin
 
     print('Building MaintenanceSection');
-    print('_maintenanceDocFile: ${_maintenanceDocFile?.path}');
+    //print('_maintenanceDocFile: ${_maintenanceDocFile?.path}');
     print('widget.maintenanceDocUrl: ${widget.maintenanceDocUrl}');
-    print('_warrantyDocFile: ${_warrantyDocFile?.path}');
+    //print('_warrantyDocFile: ${_warrantyDocFile?.path}');
     print('widget.warrantyDocUrl: ${widget.warrantyDocUrl}');
 
     return SingleChildScrollView(
@@ -340,7 +369,9 @@ class MaintenanceSectionState extends State<MaintenanceSection>
             ),
             const SizedBox(height: 15),
             InkWell(
-              onTap: _pickMaintenanceDocument,
+              onTap: () {
+                _pickMaintenanceDocument();
+              },
               borderRadius: BorderRadius.circular(10.0),
               child: Container(
                 width: double.infinity,
@@ -372,10 +403,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                         children: [
                           // Display the image or icon
                           if (_maintenanceDocFile != null)
-                            if (_isImageFile(_maintenanceDocFile!.path))
+                            if (_isImageFile(_maintenanceDocFileName!))
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
-                                child: Image.file(
+                                child: Image.memory(
                                   _maintenanceDocFile!,
                                   width: 100,
                                   height: 100,
@@ -386,7 +417,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                               Column(
                                 children: [
                                   Icon(
-                                    _getFileIcon(_maintenanceDocFile!.path
+                                    _getFileIcon(_maintenanceDocFileName!
                                         .split('.')
                                         .last),
                                     color: Colors.white,
@@ -399,7 +430,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                       horizontal: 16.0,
                                     ),
                                     child: Text(
-                                      _maintenanceDocFile!.path.split('/').last,
+                                       _maintenanceDocFileName!.split('/').last,
                                       style: const TextStyle(
                                         fontSize: 14,
                                         color: Colors.white,
@@ -623,10 +654,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                         alignment: Alignment.center,
                         children: [
                           if (_warrantyDocFile != null)
-                            if (_isImageFile(_warrantyDocFile!.path))
+                            if (_isImageFile(_warrantyDocFileName!))
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
-                                child: Image.file(
+                                child: Image.memory(
                                   _warrantyDocFile!,
                                   width: 100,
                                   height: 100,
@@ -638,7 +669,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                 children: [
                                   Icon(
                                     _getFileIcon(
-                                        _warrantyDocFile!.path.split('.').last),
+                                        _warrantyDocFileName!.split('.').last),
                                     color: Colors.white,
                                     size: 50.0,
                                   ),
@@ -649,7 +680,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                       horizontal: 16.0,
                                     ),
                                     child: Text(
-                                      _warrantyDocFile!.path.split('/').last,
+                                      _warrantyDocFileName!.split('/').last,
                                       style: const TextStyle(
                                         fontSize: 14,
                                         color: Colors.white,

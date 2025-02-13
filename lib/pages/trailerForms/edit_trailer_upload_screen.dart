@@ -21,6 +21,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:ctp/utils/navigation.dart';
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -499,16 +500,14 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     );
   }
 
-  void _showImagePreview({File? file, String? url, required String title}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DocumentPreviewScreen(
+  void _showImagePreview(
+      {File? file, String? url, required String title}) async {
+    await MyNavigator.push(
+        context,
+        DocumentPreviewScreen(
           file: file,
           url: url,
-        ),
-      ),
-    );
+        ));
   }
 
   // -----------------------------------------------------------------------------

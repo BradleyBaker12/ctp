@@ -42,6 +42,34 @@ class _RateTransporterPageTwoState extends State<RateTransporterPageTwo> {
     _startImageLoadingTimer();
     _fetchTransporterProfileImage();
     _checkIfSecondRating();
+    _verifyOfferStatus(); // Add this line
+  }
+
+  // Add this method to verify offer status
+  Future<void> _verifyOfferStatus() async {
+    try {
+      DocumentSnapshot offerDoc = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .get();
+
+      if (offerDoc.exists) {
+        final status = offerDoc.get('offerStatus');
+        if (status != 'sold') {
+          await FirebaseFirestore.instance
+              .collection('offers')
+              .doc(widget.offerId)
+              .update({
+            'offerStatus': 'sold',
+            'finalStatus': true,
+            'isCompleted': true,
+            'isSold': true,
+          });
+        }
+      }
+    } catch (e) {
+      print('Error verifying offer status: $e');
+    }
   }
 
   void _startImageLoadingTimer() {
@@ -64,7 +92,7 @@ class _RateTransporterPageTwoState extends State<RateTransporterPageTwo> {
           offerId: '', // Default or fallback values
           dealerId: '',
           vehicleId: '',
-          transporterId: '', offerStatus: '',
+          transporterId: '', offerStatus: 'sold',
         ),
       );
 
@@ -143,6 +171,18 @@ class _RateTransporterPageTwoState extends State<RateTransporterPageTwo> {
   Future<void> _submitRating() async {
     if (_transportId != null) {
       try {
+        // First ensure the offer status is still 'sold'
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .update({
+          'offerStatus': 'sold',
+          'finalStatus': true,
+          'isCompleted': true,
+          'isSold': true,
+        });
+
+        // Add rating
         CollectionReference ratingsRef = FirebaseFirestore.instance
             .collection('users')
             .doc(_transportId)
@@ -154,6 +194,7 @@ class _RateTransporterPageTwoState extends State<RateTransporterPageTwo> {
           'offerId': widget.offerId,
         });
 
+        // Update average rating
         QuerySnapshot ratingsSnapshot = await ratingsRef.get();
         List<DocumentSnapshot> ratingsDocs = ratingsSnapshot.docs;
 
@@ -172,11 +213,8 @@ class _RateTransporterPageTwoState extends State<RateTransporterPageTwo> {
           'ratingCount': ratingsDocs.length,
         });
 
-        // Update the offer status to 'Collection Location Confirmation'
-        // await FirebaseFirestore.instance
-        //     .collection('offers')
-        //     .doc(widget.offerId)
-        //     .update({'offerStatus': 'Done'});
+        // Remove the status update since we want to keep it as 'sold'
+        // DO NOT update offerStatus here
       } catch (e) {
         print('Error submitting rating: $e');
       }

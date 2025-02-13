@@ -1,7 +1,9 @@
 // lib/pages/truckForms/chassis_edit_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,17 +11,21 @@ import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ctp/components/truck_info_web_nav.dart';
 
 class ChassisEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
+  final bool inTabsPage; // Add this parameter
 
   const ChassisEditPage({
     super.key,
     required this.vehicleId,
     required this.onProgressUpdate,
     this.isEditing = false,
+    this.inTabsPage = false, // Default to false
   });
 
   @override
@@ -31,13 +37,14 @@ class ChassisEditPageState extends State<ChassisEditPage>
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   String _selectedCondition = 'good';
   String _additionalFeaturesCondition = 'no';
   String _damagesCondition = 'no';
 
   // Maps to store selected images and their URLs
-  final Map<String, File?> _selectedImages = {
+  final Map<String, Uint8List?> _selectedImages = {
     'Right Brake': null,
     'Left Brake': null,
     'Front Axel': null,
@@ -66,202 +73,283 @@ class ChassisEditPageState extends State<ChassisEditPage>
   bool get wantKeepAlive => true; // Properly implementing the getter
 
   @override
+  void initState() {
+    super.initState();
+    // Load data directly if not already initialized
+    if (!_isInitialized) {
+      _loadExistingData();
+    }
+  }
+
+  Future<void> _loadExistingData() async {
+    print('Chassis: Loading existing data for vehicle ${widget.vehicleId}');
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+
+      if (!doc.exists) {
+        print('Chassis: No document found for vehicle ${widget.vehicleId}');
+        return;
+      }
+
+      final data = doc.data();
+      if (data == null || data['truckConditions'] == null) {
+        print('Chassis: No truck conditions data found');
+        return;
+      }
+
+      final chassisData = data['truckConditions']['chassis'];
+      if (chassisData == null) {
+        print('Chassis: No chassis data found');
+        return;
+      }
+
+      print('Chassis: Found data to initialize with: $chassisData');
+      initializeWithData(chassisData);
+      _isInitialized = true;
+    } catch (e) {
+      print('Chassis: Error loading existing data: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16.0),
-            Text(
-              'Chassis Inspection'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 25,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            const Text(
-              'Condition of the Chassis',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            // Condition Radio Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                CustomRadioButton(
-                  label: 'Poor',
-                  value: 'poor',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                  enabled: !isDealer,
+    Widget content = Material(
+      type: MaterialType.transparency,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 16.0),
+              Text(
+                'Chassis Inspection'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 25,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
                 ),
-                CustomRadioButton(
-                  label: 'Good',
-                  value: 'good',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                  enabled: !isDealer,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16.0),
+              const Text(
+                'Condition of the Chassis',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w500,
                 ),
-                CustomRadioButton(
-                  label: 'Excellent',
-                  value: 'excellent',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                  enabled: !isDealer,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16.0),
+              // Condition Radio Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  CustomRadioButton(
+                    label: 'Poor',
+                    value: 'poor',
+                    groupValue: _selectedCondition,
+                    onChanged: (value) {
+                      if (value != null) {
+                        _updateAndNotify(() {
+                          _selectedCondition = value;
+                        });
+                      }
+                    },
+                    enabled: !isDealer,
+                  ),
+                  CustomRadioButton(
+                    label: 'Good',
+                    value: 'good',
+                    groupValue: _selectedCondition,
+                    onChanged: (value) {
+                      if (value != null) {
+                        _updateAndNotify(() {
+                          _selectedCondition = value;
+                        });
+                      }
+                    },
+                    enabled: !isDealer,
+                  ),
+                  CustomRadioButton(
+                    label: 'Excellent',
+                    value: 'excellent',
+                    groupValue: _selectedCondition,
+                    onChanged: (value) {
+                      if (value != null) {
+                        _updateAndNotify(() {
+                          _selectedCondition = value;
+                        });
+                      }
+                    },
+                    enabled: !isDealer,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+
+              // Front Axel Section
+              Text(
+                'Front Axel'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Front Axel Section
-            Text(
-              'Front Axel'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            _buildImageGrid([
-              'Right Brake',
-              'Left Brake',
-              'Front Axel',
-              'Suspension',
-            ]),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
+              const SizedBox(height: 16.0),
+              _buildImageGrid([
+                'Right Brake',
+                'Left Brake',
+                'Front Axel',
+                'Suspension',
+              ]),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
 
-            // Center of Chassis Section
-            Text(
-              'Center of Chassis'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+              // Center of Chassis Section
+              Text(
+                'Center of Chassis'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            _buildImageGrid([
-              'Fuel Tank',
-              'Battery',
-              'Cat Walk',
-              'Electrical Cable Black',
-              'Air Cable Yellow',
-              'Air Cable Red',
-            ]),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
+              const SizedBox(height: 16.0),
+              _buildImageGrid([
+                'Fuel Tank',
+                'Battery',
+                'Cat Walk',
+                'Electrical Cable Black',
+                'Air Cable Yellow',
+                'Air Cable Red',
+              ]),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
 
-            // Rear Axel Section
-            Text(
-              'Rear Axel'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+              // Rear Axel Section
+              Text(
+                'Rear Axel'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            _buildImageGrid([
-              'Tail Board',
-              '5th Wheel',
-              'Left Brake Rear Axel',
-              'Right Brake Rear Axel',
-            ]),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
+              const SizedBox(height: 16.0),
+              _buildImageGrid([
+                'Tail Board',
+                '5th Wheel',
+                'Left Brake Rear Axel',
+                'Right Brake Rear Axel',
+              ]),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
 
-            // Damages Section
-            _buildAdditionalSection(
-              title: 'Are there any damages?',
-              anyItemsType: _damagesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _damagesCondition = value!;
-                  if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                    _damageList.add({
-                      'description': '',
-                      'image': null,
-                      'imageUrl': null,
-                      'key': UniqueKey().toString(),
-                    });
-                  } else if (_damagesCondition == 'no') {
-                    _damageList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildDamageSection,
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
+              // Damages Section
+              _buildAdditionalSection(
+                title: 'Are there any damages?',
+                anyItemsType: _damagesCondition,
+                onChange: (value) {
+                  _updateAndNotify(() {
+                    _damagesCondition = value!;
+                    if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                      _damageList.add({
+                        'description': '',
+                        'image': null,
+                        'imageUrl': null,
+                        'key': UniqueKey().toString(),
+                      });
+                    } else if (_damagesCondition == 'no') {
+                      _damageList.clear();
+                    }
+                  });
+                },
+                buildItemSection: _buildDamageSection,
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
 
-            // Additional Features Section
-            _buildAdditionalSection(
-              title: 'Are there any additional features?',
-              anyItemsType: _additionalFeaturesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _additionalFeaturesCondition = value!;
-                  if (_additionalFeaturesCondition == 'yes' &&
-                      _additionalFeaturesList.isEmpty) {
-                    _additionalFeaturesList.add({
-                      'description': '',
-                      'image': null,
-                      'imageUrl': null,
-                      'key': UniqueKey().toString(),
-                    });
-                  } else if (_additionalFeaturesCondition == 'no') {
-                    _additionalFeaturesList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildAdditionalFeaturesSection,
-            ),
-            const SizedBox(height: 16.0),
-          ],
+              // Additional Features Section
+              _buildAdditionalSection(
+                title: 'Are there any additional features?',
+                anyItemsType: _additionalFeaturesCondition,
+                onChange: (value) {
+                  _updateAndNotify(() {
+                    _additionalFeaturesCondition = value!;
+                    if (_additionalFeaturesCondition == 'yes' &&
+                        _additionalFeaturesList.isEmpty) {
+                      _additionalFeaturesList.add({
+                        'description': '',
+                        'image': null,
+                        'imageUrl': null,
+                        'key': UniqueKey().toString(),
+                      });
+                    } else if (_additionalFeaturesCondition == 'no') {
+                      _additionalFeaturesList.clear();
+                    }
+                  });
+                },
+                buildItemSection: _buildAdditionalFeaturesSection,
+              ),
+              const SizedBox(height: 16.0),
+            ],
+          ),
         ),
       ),
+    );
+
+    // If not in tabs page, wrap with GradientBackground
+    if (!widget.inTabsPage) {
+      content = GradientBackground(child: content);
+    }
+
+    return Scaffold(
+      key: _scaffoldKey,
+      appBar: kIsWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: TruckInfoWebNavBar(
+                scaffoldKey: _scaffoldKey,
+                selectedTab: "Chassis",
+                vehicleId: widget.vehicleId, // Add this line
+                onHomePressed: () => Navigator.pushNamed(context, '/home'),
+                onBasicInfoPressed: () =>
+                    Navigator.pushNamed(context, '/basic_information'),
+                onTruckConditionsPressed: () =>
+                    Navigator.pushNamed(context, '/truck_conditions'),
+                onMaintenanceWarrantyPressed: () =>
+                    Navigator.pushNamed(context, '/maintenance_warranty'),
+                onExternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/external_cab'),
+                onInternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/internal_cab'),
+                onChassisPressed: () =>
+                    Navigator.pushNamed(context, '/chassis'),
+                onDriveTrainPressed: () =>
+                    Navigator.pushNamed(context, '/drive_train'),
+                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+              ),
+            )
+          : null,
+      body: content, // your existing content
     );
   }
 
@@ -301,7 +389,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   onTap: () => Navigator.pop(context),
                   child: Center(
                     child: hasFile
-                        ? Image.file(_selectedImages[title]!)
+                        ? Image.memory(_selectedImages[title]!)
                         : Image.network(
                             _imageUrls[title]!,
                             errorBuilder: (context, error, stackTrace) {
@@ -331,7 +419,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
             if (hasFile)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
+                child: Image.memory(
                   _selectedImages[title]!,
                   fit: BoxFit.cover,
                   width: double.infinity,
@@ -352,24 +440,27 @@ class ChassisEditPageState extends State<ChassisEditPage>
                 ),
               )
             else
-              // Placeholder
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!isDealer)
-                    const Icon(Icons.add_circle_outline,
-                        color: Colors.white, size: 40.0),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+              // Placeholder with centered content
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (!isDealer)
+                      const Icon(Icons.add_circle_outline,
+                          color: Colors.white, size: 40.0),
+                    const SizedBox(height: 8.0),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                  ],
+                ),
               ),
 
             // "X" button in the top-right corner (only if not dealer and has an image)
@@ -384,6 +475,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       _selectedImages[title] = null;
                       _imageUrls[title] = '';
                     });
+                    widget.onProgressUpdate();
                   },
                 ),
               ),
@@ -411,8 +503,9 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    var image = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = image;
                       _imageUrls[title] = '';
                     });
                   }
@@ -426,8 +519,9 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    var image = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = image;
                       _imageUrls[title] = '';
                     });
                   }
@@ -636,7 +730,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       onTap: () => Navigator.pop(context),
                       child: Center(
                         child: hasFile
-                            ? Image.file(item['image'])
+                            ? Image.memory(item['image'])
                             : Image.network(
                                 item['imageUrl'],
                                 errorBuilder: (context, error, stackTrace) {
@@ -668,7 +762,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                 if (hasFile)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
+                    child: Image.memory(
                       item['image'],
                       fit: BoxFit.cover,
                       width: double.infinity,
@@ -715,20 +809,24 @@ class ChassisEditPageState extends State<ChassisEditPage>
   }
 
   Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-        SizedBox(height: 8.0),
-        Text(
-          'Add Image',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: const [
+          Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+          SizedBox(height: 8.0),
+          Text(
+            'Add Image',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -792,12 +890,13 @@ class ChassisEditPageState extends State<ChassisEditPage>
   // ===========================================================================
   // 6) FIREBASE METHODS / GET DATA
   // ===========================================================================
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     try {
       String fileName =
           'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       Reference storageRef = _storage.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(imageFile);
+      UploadTask uploadTask = storageRef.putData(imageFile);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
@@ -896,9 +995,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
   // 7) INITIALIZATION / RESET
   // ===========================================================================
   void initializeWithData(Map<String, dynamic> data) {
-    if (data.isEmpty) {
-      return;
-    }
+    print('Chassis: Starting initialization with data: $data');
+    if (data.isEmpty) return;
 
     setState(() {
       _selectedCondition = data['condition'] ?? 'good';
@@ -910,12 +1008,14 @@ class ChassisEditPageState extends State<ChassisEditPage>
       if (data['images'] != null) {
         final images = Map<String, dynamic>.from(data['images']);
         images.forEach((key, value) {
+          print('Chassis: Processing image for $key: $value');
           if (value is Map && value.containsKey('url')) {
-            final url = value['url']?.toString() ?? '';
-            if (url.isNotEmpty) {
+            final url = value['url']?.toString();
+            if (url != null && url.isNotEmpty) {
+              print('Chassis: Setting URL for $key: $url');
               _imageUrls[key] = url;
+              _selectedImages[key] = null; // Clear any existing file data
             }
-            _selectedImages[key] = null;
           }
         });
       }
@@ -923,6 +1023,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
       // Initialize damages
       if (data['damages'] != null) {
         _damageList = (data['damages'] as List).map((damage) {
+          print('Chassis: Processing damage: $damage');
           return {
             'description': damage['description'] ?? '',
             'image': null,
@@ -936,6 +1037,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
       if (data['additionalFeatures'] != null) {
         _additionalFeaturesList =
             (data['additionalFeatures'] as List).map((feature) {
+          print('Chassis: Processing feature: $feature');
           return {
             'description': feature['description'] ?? '',
             'image': null,
@@ -945,6 +1047,12 @@ class ChassisEditPageState extends State<ChassisEditPage>
         }).toList();
       }
     });
+
+    // Print final state of images
+    _imageUrls.forEach((key, value) {
+      print('Chassis: Final URL for $key: $value');
+    });
+    print('Chassis: Initialization complete');
   }
 
   void reset() {

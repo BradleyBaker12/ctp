@@ -1,7 +1,6 @@
 // transporter_offer_details_page.dart
 
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/pages/truck_page.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +9,7 @@ import 'package:ctp/pages/setup_inspection.dart';
 import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart'; // Import CustomButton
+import 'package:ctp/utils/navigation.dart';
 
 class TransporterOfferDetailsPage extends StatefulWidget {
   final Offer offer;
@@ -172,22 +172,19 @@ class _TransporterOfferDetailsPageState
   }
 
   Future<void> _setupInspection() async {
-    await Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SetupInspectionPage(
-          offerId: widget.offer.offerId,
-        ),
+      SetupInspectionPage(
+        offerId: widget.offer.offerId, // Change from widget.vehicle.id
       ),
     );
   }
 
   Future<void> _setupCollection() async {
-    await Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) =>
-            SetupCollectionPage(offerId: widget.offer.offerId),
+      SetupCollectionPage(
+        offerId: widget.offer.offerId, // Change from widget.vehicle.id
       ),
     );
   }
@@ -285,226 +282,174 @@ class _TransporterOfferDetailsPageState
             );
           }
 
-          // Get the latest offer status
+          // Get the latest offer data
           Map<String, dynamic> offerData =
               offerSnapshot.data!.data() as Map<String, dynamic>;
           String offerStatus = offerData['offerStatus'] ?? 'in-progress';
 
-          return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('vehicles')
-                .doc(widget.vehicle.id)
-                .snapshots(),
-            builder: (context, vehicleSnapshot) {
-              if (vehicleSnapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Error fetching vehicle data',
-                    style: customFont(18, FontWeight.bold, Colors.red),
-                  ),
-                );
-              }
+          // Get inspection and collection details from the offer document
+          bool hasInspectionDetails = offerData['inspectionDetails'] != null;
+          bool hasCollectionDetails = offerData['collectionDetails'] != null;
 
-              if (vehicleSnapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.blue,
-                  ),
-                );
-              }
-
-              if (!vehicleSnapshot.hasData || !vehicleSnapshot.data!.exists) {
-                return Center(
-                  child: Text(
-                    'Vehicle not found',
-                    style: customFont(18, FontWeight.bold, Colors.red),
-                  ),
-                );
-              }
-
-              Map<String, dynamic> vehicleData =
-                  vehicleSnapshot.data!.data() as Map<String, dynamic>;
-
-              // Adjusted data parsing to match Firestore structure
-              List<Map<String, dynamic>> inspectionLocations = _parseLocations(
-                  vehicleData['inspectionDetails']?['inspectionLocations']
-                      ?['locations'] as List<dynamic>?);
-
-              List<Map<String, dynamic>> collectionLocations = _parseLocations(
-                  vehicleData['collectionDetails']?['collectionLocations']
-                      ?['locations'] as List<dynamic>?);
-
-              // Compute local variables based on parsed data
-              bool isInspectionComplete = inspectionLocations.isNotEmpty;
-              bool isCollectionComplete = collectionLocations.isNotEmpty;
-
-              // Use the latest offerStatus
-              return SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // Use the latest offerStatus
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Vehicle Image Section
+                Stack(
                   children: [
-                    // Vehicle Image Section
-                    Stack(
-                      children: [
-                        SizedBox(
-                          height: screenSize.height * 0.3,
-                          width: double.infinity,
-                          child: allPhotos.isEmpty
-                              ? Image.asset(
-                                  'assets/default_vehicle_image.png',
-                                  fit: BoxFit.cover,
-                                )
-                              : PageView.builder(
-                                  controller: _pageController,
-                                  itemCount: allPhotos.length,
-                                  onPageChanged: (index) {
-                                    setState(() {
-                                      _currentImageIndex = index;
-                                    });
-                                  },
-                                  itemBuilder: (context, index) {
-                                    return allPhotos[index]
-                                            .startsWith('assets/')
-                                        ? Image.asset(
-                                            allPhotos[index],
+                    SizedBox(
+                      height: screenSize.height * 0.3,
+                      width: double.infinity,
+                      child: allPhotos.isEmpty
+                          ? Image.asset(
+                              'assets/default_vehicle_image.png',
+                              fit: BoxFit.cover,
+                            )
+                          : PageView.builder(
+                              controller: _pageController,
+                              itemCount: allPhotos.length,
+                              onPageChanged: (index) {
+                                setState(() {
+                                  _currentImageIndex = index;
+                                });
+                              },
+                              itemBuilder: (context, index) {
+                                return allPhotos[index].startsWith('assets/')
+                                    ? Image.asset(
+                                        allPhotos[index],
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.network(
+                                        allPhotos[index],
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Image.asset(
+                                            'assets/default_vehicle_image.png',
                                             fit: BoxFit.cover,
-                                          )
-                                        : Image.network(
-                                            allPhotos[index],
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                              return Image.asset(
-                                                'assets/default_vehicle_image.png',
-                                                fit: BoxFit.cover,
-                                              );
-                                            },
                                           );
-                                  },
-                                ),
+                                        },
+                                      );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+
+                // Accept and Reject Buttons
+                if (offerStatus == 'in-progress' && !_hasResponded)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Accept',
+                            borderColor: Colors.blue,
+                            onPressed: _handleAccept,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Reject',
+                            borderColor: const Color(0xFFFF4E00),
+                            onPressed: () => _handleReject(context),
+                          ),
                         ),
                       ],
                     ),
-
-                    // Accept and Reject Buttons
-                    if (offerStatus == 'in-progress' && !_hasResponded)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Expanded(
-                              child: CustomButton(
-                                text: 'Accept',
-                                borderColor: Colors.blue,
-                                onPressed: _handleAccept,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: CustomButton(
-                                text: 'Reject',
-                                borderColor: const Color(0xFFFF4E00),
-                                onPressed: () => _handleReject(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 16.0),
-                        child: Center(
-                          child: Text(
-                            _responseMessage,
-                            style:
-                                customFont(18, FontWeight.bold, Colors.white),
-                          ),
-                        ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 16.0),
+                    child: Center(
+                      child: Text(
+                        _responseMessage,
+                        style: customFont(18, FontWeight.bold, Colors.white),
                       ),
+                    ),
+                  ),
 
-                    // Setup Inspection and Collection Buttons
-                    Column(
+                // Setup Inspection and Collection Buttons
+                if (offerStatus ==
+                    'accepted') // Only show when offer is accepted
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
                       children: [
-                        isInspectionComplete
-                            ? Center(
-                                child: Text(
-                                  'Inspection Setup Complete',
-                                  style: customFont(
-                                      18, FontWeight.bold, Colors.green),
-                                  textAlign: TextAlign.center,
-                                ),
-                              )
-                            : Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0),
-                                child: CustomButton(
-                                  text: 'Setup Inspection',
-                                  borderColor: Colors.blue,
-                                  onPressed: _setupInspection,
-                                ),
-                              ),
+                        if (hasInspectionDetails)
+                          Center(
+                            child: Text(
+                              'Inspection has been set up',
+                              style:
+                                  customFont(18, FontWeight.bold, Colors.green),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        else
+                          CustomButton(
+                            text: 'Setup Inspection',
+                            borderColor: Colors.blue,
+                            onPressed: _setupInspection,
+                          ),
                         const SizedBox(height: 16),
-                        isCollectionComplete
-                            ? Center(
-                                child: Text(
-                                  'Collection Setup Complete',
-                                  style: customFont(
-                                      18, FontWeight.bold, Colors.green),
-                                  textAlign: TextAlign.center,
-                                ),
-                              )
-                            : Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0),
-                                child: CustomButton(
+                        if (hasInspectionDetails) // Only show collection after inspection is set up
+                          hasCollectionDetails
+                              ? Center(
+                                  child: Text(
+                                    'Collection has been set up',
+                                    style: customFont(
+                                        18, FontWeight.bold, Colors.green),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )
+                              : CustomButton(
                                   text: 'Setup Collection',
                                   borderColor: Colors.blue,
                                   onPressed: _setupCollection,
                                 ),
-                              ),
                       ],
                     ),
+                  ),
 
-                    // Offer Details Section
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 16),
-                          Text(
-                            'Offer Details',
-                            style:
-                                customFont(20, FontWeight.bold, Colors.white),
-                          ),
-                          const SizedBox(height: 10),
-                          _buildInfoRow('Offer Amount',
-                              'R ${widget.offer.offerAmount.toString()}'),
-                          const SizedBox(height: 20),
-
-                          // Vehicle Details Section
-                          Text(
-                            'Vehicle Details',
-                            style:
-                                customFont(20, FontWeight.bold, Colors.white),
-                          ),
-                          const SizedBox(height: 10),
-                          _buildInfoRow(
-                              'Make/Model',
-                              _safeCapitalize(
-                                  widget.vehicle.makeModel.toString() ??
-                                      'N/A')),
-                          _buildInfoRow('Year', widget.vehicle.year.toString()),
-                        ],
+                // Offer Details Section
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        'Offer Details',
+                        style: customFont(20, FontWeight.bold, Colors.white),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      _buildInfoRow('Offer Amount',
+                          'R ${widget.offer.offerAmount.toString()}'),
+                      const SizedBox(height: 20),
+
+                      // Vehicle Details Section
+                      Text(
+                        'Vehicle Details',
+                        style: customFont(20, FontWeight.bold, Colors.white),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildInfoRow(
+                          'Make/Model',
+                          _safeCapitalize(
+                              widget.vehicle.makeModel.toString() ?? 'N/A')),
+                      _buildInfoRow('Year', widget.vehicle.year.toString()),
+                    ],
+                  ),
                 ),
-              );
-            },
+              ],
+            ),
           );
         },
       ),

@@ -1,12 +1,28 @@
 // lib/pages/truckForms/internal_cab_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Added for Firebase Storage
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+
+class ImageData {
+  final Uint8List? file;
+  final String? url;
+  final String? fileName;
+
+  ImageData({this.file, this.url, this.fileName});
+}
+
+class ItemData {
+  String description;
+  ImageData imageData;
+
+  ItemData({required this.description, required this.imageData});
+}
 
 class InternalCabPage extends StatefulWidget {
   final String vehicleId;
@@ -36,27 +52,27 @@ class InternalCabPageState extends State<InternalCabPage>
   String _faultCodesCondition = 'no';
 
   // Map to store selected images for different sections
-  final Map<String, File?> _selectedImages = {
-    'Center Dash': null,
-    'Left Dash': null,
-    'Right Dash (Vehicle On)': null,
-    'Mileage': null,
-    'Sun Visors': null,
-    'Center Console': null,
-    'Steering': null,
-    'Left Door Panel': null,
-    'Left Seat': null,
-    'Roof': null,
-    'Bunk Beds': null,
-    'Rear Panel': null,
-    'Right Door Panel': null,
-    'Right Seat': null,
+  final Map<String, ImageData> _selectedImages = {
+    'Center Dash': ImageData(),
+    'Left Dash': ImageData(),
+    'Right Dash (Vehicle On)': ImageData(),
+    'Mileage': ImageData(),
+    'Sun Visors': ImageData(),
+    'Center Console': ImageData(),
+    'Steering': ImageData(),
+    'Left Door Panel': ImageData(),
+    'Left Seat': ImageData(),
+    'Roof': ImageData(),
+    'Bunk Beds': ImageData(),
+    'Rear Panel': ImageData(),
+    'Right Door Panel': ImageData(),
+    'Right Seat': ImageData(),
   };
 
   // Lists to store damages, additional features, and fault codes
-  List<Map<String, dynamic>> _damageList = [];
-  List<Map<String, dynamic>> _additionalFeaturesList = [];
-  List<Map<String, dynamic>> _faultCodesList = [];
+  List<ItemData> _damageList = [];
+  List<ItemData> _additionalFeaturesList = [];
+  List<ItemData> _faultCodesList = [];
 
   bool _isInitialized = false; // Flag to prevent re-initialization
 
@@ -255,7 +271,8 @@ class InternalCabPageState extends State<InternalCabPage>
                 _updateAndNotify(() {
                   _damagesCondition = value!;
                   if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                    _damageList.add({'description': '', 'image': null});
+                    _damageList
+                        .add(ItemData(description: '', imageData: ImageData()));
                   } else if (_damagesCondition == 'no') {
                     _damageList.clear();
                   }
@@ -277,7 +294,7 @@ class InternalCabPageState extends State<InternalCabPage>
                   if (_additionalFeaturesCondition == 'yes' &&
                       _additionalFeaturesList.isEmpty) {
                     _additionalFeaturesList
-                        .add({'description': '', 'image': null});
+                        .add(ItemData(description: '', imageData: ImageData()));
                   } else if (_additionalFeaturesCondition == 'no') {
                     _additionalFeaturesList.clear();
                   }
@@ -298,7 +315,8 @@ class InternalCabPageState extends State<InternalCabPage>
                   _faultCodesCondition = value!;
                   if (_faultCodesCondition == 'yes' &&
                       _faultCodesList.isEmpty) {
-                    _faultCodesList.add({'description': '', 'image': null});
+                    _faultCodesList
+                        .add(ItemData(description: '', imageData: ImageData()));
                   } else if (_faultCodesCondition == 'no') {
                     _faultCodesList.clear();
                   }
@@ -322,7 +340,7 @@ class InternalCabPageState extends State<InternalCabPage>
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: _selectedImages[title] == null
+        child: _selectedImages[title]?.file == null
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -344,8 +362,8 @@ class InternalCabPageState extends State<InternalCabPage>
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
-                      _selectedImages[title]!,
+                    child: Image.memory(
+                      _selectedImages[title]!.file!,
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
@@ -359,8 +377,10 @@ class InternalCabPageState extends State<InternalCabPage>
                       onTap: () {
                         // Stop event propagation so tapping 'X' doesn't open the picker
                         setState(() {
-                          _selectedImages[title] = null;
+                          _selectedImages[title] = ImageData();
                         });
+                        widget.onProgressUpdate();
+                        setState(() {});
                       },
                       child: Container(
                         decoration: BoxDecoration(
@@ -400,10 +420,15 @@ class InternalCabPageState extends State<InternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] =
+                          ImageData(file: bytes, fileName: fileName);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -414,10 +439,15 @@ class InternalCabPageState extends State<InternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] =
+                          ImageData(file: bytes, fileName: fileName);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],
@@ -476,7 +506,7 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _damageList,
       addItem: () {
         setState(() {
-          _damageList.add({'description': '', 'image': null});
+          _damageList.add(ItemData(description: '', imageData: ImageData()));
         });
       },
       showImageSourceDialog: _showDamageImageSourceDialog,
@@ -489,7 +519,8 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _additionalFeaturesList,
       addItem: () {
         setState(() {
-          _additionalFeaturesList.add({'description': '', 'image': null});
+          _additionalFeaturesList
+              .add(ItemData(description: '', imageData: ImageData()));
         });
       },
       showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
@@ -502,7 +533,8 @@ class InternalCabPageState extends State<InternalCabPage>
       items: _faultCodesList,
       addItem: () {
         setState(() {
-          _faultCodesList.add({'description': '', 'image': null});
+          _faultCodesList
+              .add(ItemData(description: '', imageData: ImageData()));
         });
       },
       showImageSourceDialog: _showFaultCodesImageSourceDialog,
@@ -511,9 +543,9 @@ class InternalCabPageState extends State<InternalCabPage>
 
   // Helper method to build an item section (Damages, Additional Features, Fault Codes)
   Widget _buildItemSection({
-    required List<Map<String, dynamic>> items,
+    required List<ItemData> items,
     required VoidCallback addItem,
-    required void Function(Map<String, dynamic>) showImageSourceDialog,
+    required void Function(ItemData) showImageSourceDialog,
   }) {
     return Column(
       children: [
@@ -550,8 +582,8 @@ class InternalCabPageState extends State<InternalCabPage>
   // Helper method to create an item widget (Damages, Additional Features, Fault Codes)
   Widget _buildItemWidget(
     int index,
-    Map<String, dynamic> item,
-    void Function(Map<String, dynamic>) showImageSourceDialog,
+    ItemData item,
+    void Function(ItemData) showImageSourceDialog,
   ) {
     return Column(
       children: [
@@ -562,7 +594,7 @@ class InternalCabPageState extends State<InternalCabPage>
               child: TextField(
                 onChanged: (value) {
                   _updateAndNotify(() {
-                    item['description'] = value;
+                    item.description = value;
                   });
                 },
                 decoration: InputDecoration(
@@ -600,14 +632,14 @@ class InternalCabPageState extends State<InternalCabPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: item['image'] == null
+            child: item.imageData.file == null
                 ? _buildImagePlaceholder()
                 : Stack(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
-                        child: Image.file(
-                          item['image'],
+                        child: Image.memory(
+                          item.imageData.file!,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
@@ -619,7 +651,7 @@ class InternalCabPageState extends State<InternalCabPage>
                         child: GestureDetector(
                           onTap: () {
                             setState(() {
-                              item['image'] = null;
+                              item.imageData = ImageData();
                             });
                           },
                           child: Container(
@@ -664,7 +696,7 @@ class InternalCabPageState extends State<InternalCabPage>
   }
 
   // Method to remove an item from the appropriate list
-  void _removeItem(int index, Map<String, dynamic> item) {
+  void _removeItem(int index, ItemData item) {
     if (_damageList.contains(item)) {
       _damageList.removeAt(index);
     }
@@ -678,20 +710,20 @@ class InternalCabPageState extends State<InternalCabPage>
 
   // The following methods open a dialog to pick images for each item type
 
-  void _showDamageImageSourceDialog(Map<String, dynamic> damage) {
+  void _showDamageImageSourceDialog(ItemData damage) {
     _showImageSourceDialogForItem(damage);
   }
 
-  void _showAdditionalFeatureImageSourceDialog(Map<String, dynamic> feature) {
+  void _showAdditionalFeatureImageSourceDialog(ItemData feature) {
     _showImageSourceDialogForItem(feature);
   }
 
-  void _showFaultCodesImageSourceDialog(Map<String, dynamic> faultCode) {
+  void _showFaultCodesImageSourceDialog(ItemData faultCode) {
     _showImageSourceDialogForItem(faultCode);
   }
 
   // Generic method to show dialog for selecting image source for a given item
-  void _showImageSourceDialogForItem(Map<String, dynamic> item) {
+  void _showImageSourceDialogForItem(ItemData item) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -708,8 +740,11 @@ class InternalCabPageState extends State<InternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
                     setState(() {
-                      item['image'] = File(pickedFile.path);
+                      item.imageData =
+                          ImageData(file: bytes, fileName: fileName);
                     });
                   }
                 },
@@ -722,8 +757,11 @@ class InternalCabPageState extends State<InternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    final fileName = pickedFile.name;
                     setState(() {
-                      item['image'] = File(pickedFile.path);
+                      item.imageData =
+                          ImageData(file: bytes, fileName: fileName);
                     });
                   }
                 },
@@ -736,13 +774,21 @@ class InternalCabPageState extends State<InternalCabPage>
   }
 
   // Method to upload an image to Firebase Storage
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
-    String fileName =
-        'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    Reference storageRef = _storage.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(imageFile);
-    TaskSnapshot snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
+    try {
+      String fileName =
+          'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+      UploadTask uploadTask = storageRef.putData(imageFile);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading image: $e')),
+      );
+      return '';
+    }
   }
 
   // Method to upload all images and retrieve their URLs
@@ -750,12 +796,13 @@ class InternalCabPageState extends State<InternalCabPage>
     // Serialize and upload view images
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
-      if (entry.value != null) {
+      if (entry.value.file != null) {
         String section = entry.key.replaceAll(' ', '_').toLowerCase();
-        String imageUrl = await _uploadImageToFirebase(entry.value!, section);
+        String imageUrl =
+            await _uploadImageToFirebase(entry.value.file!, section);
         serializedImages[entry.key] = {
           'url': imageUrl,
-          'path': entry.value!.path,
+          'fileName': entry.value.fileName,
           'isNew': true
         };
       }
@@ -764,20 +811,20 @@ class InternalCabPageState extends State<InternalCabPage>
     // Serialize and upload damages
     List<Map<String, dynamic>> serializedDamages = [];
     for (var damage in _damageList) {
-      if (damage['image'] != null) {
+      if (damage.imageData.file != null) {
         String imageUrl =
-            await _uploadImageToFirebase(damage['image'], 'damage');
+            await _uploadImageToFirebase(damage.imageData.file!, 'damage');
         serializedDamages.add({
-          'description': damage['description'] ?? '',
+          'description': damage.description,
           'imageUrl': imageUrl,
-          'path': damage['image']!.path,
+          'fileName': damage.imageData.fileName,
           'isNew': true
         });
       } else {
         serializedDamages.add({
-          'description': damage['description'] ?? '',
-          'imageUrl': damage['imageUrl'] ?? '',
-          'path': damage['imagePath'] ?? '',
+          'description': damage.description,
+          'imageUrl': damage.imageData.url,
+          'fileName': damage.imageData.fileName,
           'isNew': false
         });
       }
@@ -786,20 +833,20 @@ class InternalCabPageState extends State<InternalCabPage>
     // Serialize and upload additional features
     List<Map<String, dynamic>> serializedFeatures = [];
     for (var feature in _additionalFeaturesList) {
-      if (feature['image'] != null) {
+      if (feature.imageData.file != null) {
         String imageUrl =
-            await _uploadImageToFirebase(feature['image'], 'feature');
+            await _uploadImageToFirebase(feature.imageData.file!, 'feature');
         serializedFeatures.add({
-          'description': feature['description'] ?? '',
+          'description': feature.description,
           'imageUrl': imageUrl,
-          'path': feature['image']!.path,
+          'fileName': feature.imageData.fileName,
           'isNew': true
         });
       } else {
         serializedFeatures.add({
-          'description': feature['description'] ?? '',
-          'imageUrl': feature['imageUrl'] ?? '',
-          'path': feature['imagePath'] ?? '',
+          'description': feature.description,
+          'imageUrl': feature.imageData.url,
+          'fileName': feature.imageData.fileName,
           'isNew': false
         });
       }
@@ -808,20 +855,20 @@ class InternalCabPageState extends State<InternalCabPage>
     // Serialize and upload fault codes
     List<Map<String, dynamic>> serializedFaultCodes = [];
     for (var faultCode in _faultCodesList) {
-      if (faultCode['image'] != null) {
-        String imageUrl =
-            await _uploadImageToFirebase(faultCode['image'], 'fault_code');
+      if (faultCode.imageData.file != null) {
+        String imageUrl = await _uploadImageToFirebase(
+            faultCode.imageData.file!, 'fault_code');
         serializedFaultCodes.add({
-          'description': faultCode['description'] ?? '',
+          'description': faultCode.description,
           'imageUrl': imageUrl,
-          'path': faultCode['image']!.path,
+          'fileName': faultCode.imageData.fileName,
           'isNew': true
         });
       } else {
         serializedFaultCodes.add({
-          'description': faultCode['description'] ?? '',
-          'imageUrl': faultCode['imageUrl'] ?? '',
-          'path': faultCode['imagePath'] ?? '',
+          'description': faultCode.description,
+          'imageUrl': faultCode.imageData.url,
+          'fileName': faultCode.imageData.fileName,
           'isNew': false
         });
       }
@@ -871,8 +918,16 @@ class InternalCabPageState extends State<InternalCabPage>
         Map<String, dynamic> viewImages =
             Map<String, dynamic>.from(data['viewImages']);
         viewImages.forEach((key, value) {
-          if (value is Map && value['path'] != null) {
-            _selectedImages[key] = File(value['path']);
+          if (value is Map) {
+            if (value['fileName'] != null) {
+              _selectedImages[key] = ImageData(
+                file: File(value['fileName']).readAsBytesSync(),
+                url: value['url'],
+                fileName: value['fileName'],
+              );
+            } else if (value['url'] != null) {
+              _selectedImages[key] = ImageData(url: value['url']);
+            }
           }
         });
       }
@@ -880,12 +935,16 @@ class InternalCabPageState extends State<InternalCabPage>
       // Initialize damages list
       if (data['damages'] != null) {
         _damageList = (data['damages'] as List).map((damage) {
-          return {
-            'description': damage['description'] ?? '',
-            'image':
-                damage['imagePath'] != null ? File(damage['imagePath']) : null,
-            'imageUrl': damage['imageUrl'] ?? '',
-          };
+          return ItemData(
+            description: damage['description'] ?? '',
+            imageData: ImageData(
+              file: damage['fileName'] != null
+                  ? File(damage['fileName']).readAsBytesSync()
+                  : null,
+              url: damage['imageUrl'],
+              fileName: damage['fileName'],
+            ),
+          );
         }).toList();
       }
 
@@ -893,26 +952,32 @@ class InternalCabPageState extends State<InternalCabPage>
       if (data['additionalFeatures'] != null) {
         _additionalFeaturesList =
             (data['additionalFeatures'] as List).map((feature) {
-          return {
-            'description': feature['description'] ?? '',
-            'image': feature['imagePath'] != null
-                ? File(feature['imagePath'])
-                : null,
-            'imageUrl': feature['imageUrl'] ?? '',
-          };
+          return ItemData(
+            description: feature['description'] ?? '',
+            imageData: ImageData(
+              file: feature['fileName'] != null
+                  ? File(feature['fileName']).readAsBytesSync()
+                  : null,
+              url: feature['imageUrl'],
+              fileName: feature['fileName'],
+            ),
+          );
         }).toList();
       }
 
       // Initialize fault codes list
       if (data['faultCodes'] != null) {
         _faultCodesList = (data['faultCodes'] as List).map((faultCode) {
-          return {
-            'description': faultCode['description'] ?? '',
-            'image': faultCode['imagePath'] != null
-                ? File(faultCode['imagePath'])
-                : null,
-            'imageUrl': faultCode['imageUrl'] ?? '',
-          };
+          return ItemData(
+            description: faultCode['description'] ?? '',
+            imageData: ImageData(
+              file: faultCode['fileName'] != null
+                  ? File(faultCode['fileName']).readAsBytesSync()
+                  : null,
+              url: faultCode['imageUrl'],
+              fileName: faultCode['fileName'],
+            ),
+          );
         }).toList();
       }
     });
@@ -926,7 +991,7 @@ class InternalCabPageState extends State<InternalCabPage>
       _faultCodesCondition = 'no';
 
       _selectedImages.forEach((key, _) {
-        _selectedImages[key] = null;
+        _selectedImages[key] = ImageData();
       });
 
       _damageList.clear();
@@ -946,7 +1011,7 @@ class InternalCabPageState extends State<InternalCabPage>
 
     // Check all images (14 fields)
     _selectedImages.forEach((key, value) {
-      if (value != null) filledFields++;
+      if (value.file != null) filledFields++;
     });
 
     // Check damages section (1 field)
@@ -954,7 +1019,7 @@ class InternalCabPageState extends State<InternalCabPage>
       filledFields++;
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
       bool isDamagesComplete = _damageList.every((damage) =>
-          damage['description']?.isNotEmpty == true && damage['image'] != null);
+          damage.description.isNotEmpty && damage.imageData.file != null);
       if (isDamagesComplete) filledFields++;
     }
 
@@ -964,8 +1029,7 @@ class InternalCabPageState extends State<InternalCabPage>
     } else if (_additionalFeaturesCondition == 'yes' &&
         _additionalFeaturesList.isNotEmpty) {
       bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
-          feature['description']?.isNotEmpty == true &&
-          feature['image'] != null);
+          feature.description.isNotEmpty && feature.imageData.file != null);
       if (isFeaturesComplete) filledFields++;
     }
 
@@ -974,8 +1038,7 @@ class InternalCabPageState extends State<InternalCabPage>
       filledFields++;
     } else if (_faultCodesCondition == 'yes' && _faultCodesList.isNotEmpty) {
       bool isFaultCodesComplete = _faultCodesList.every((faultCode) =>
-          faultCode['description']?.isNotEmpty == true &&
-          faultCode['image'] != null);
+          faultCode.description.isNotEmpty && faultCode.imageData.file != null);
       if (isFaultCodesComplete) filledFields++;
     }
 

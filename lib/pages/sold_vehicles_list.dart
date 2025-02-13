@@ -12,6 +12,7 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/utils/navigation.dart';
 
 class SoldVehiclesListPage extends StatefulWidget {
   const SoldVehiclesListPage({super.key});
@@ -191,13 +192,11 @@ class _SoldVehiclesListPageState extends State<SoldVehiclesListPage> {
                         final vehicle = soldVehicles[index];
 
                         return ListingCard(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => VehicleDetailsPage(
-                                  vehicle: vehicle,
-                                ),
+                              VehicleDetailsPage(
+                                vehicle: vehicle,
                               ),
                             );
                           }, vehicle: vehicle,

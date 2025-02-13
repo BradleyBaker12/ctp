@@ -15,6 +15,12 @@ class VehicleProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get vehicleId => _vehicleId;
 
+  // Add a list for bought vehicles
+  List<Vehicle> _boughtVehicles = [];
+
+  // Add getter for bought vehicles
+  List<Vehicle> getBoughtVehicles() => _boughtVehicles;
+
   // Setter for vehicleId
   void setVehicleId(String id) {
     _vehicleId = id;
@@ -512,6 +518,49 @@ class VehicleProvider with ChangeNotifier {
     } catch (e) {
       print('Error fetching yesterday\'s vehicles: $e');
       return [];
+    }
+  }
+
+  // Update the method to fetch bought vehicles
+  Future<void> fetchBoughtVehicles(UserProvider userProvider,
+      {required String userId}) async {
+    try {
+      // First, get all offers where this dealer is the buyer and the offer is successful/completed
+      final QuerySnapshot offerSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .where('dealerId', isEqualTo: userId)
+          .where('offerStatus', whereIn: ['sold', 'completed']).get();
+
+      // Extract vehicle IDs from the offers
+      final vehicleIds = offerSnapshot.docs
+          .map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['vehicleId'] as String?;
+          })
+          .where((id) => id != null)
+          .toList();
+
+      if (vehicleIds.isEmpty) {
+        _boughtVehicles = [];
+        notifyListeners();
+        return;
+      }
+
+      // Fetch the actual vehicles using the vehicle IDs
+      final vehiclesSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where(FieldPath.documentId, whereIn: vehicleIds)
+          .get();
+
+      _boughtVehicles = vehiclesSnapshot.docs
+          .map((doc) => Vehicle.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching bought vehicles: $e');
+      _boughtVehicles = [];
+      notifyListeners();
     }
   }
 }

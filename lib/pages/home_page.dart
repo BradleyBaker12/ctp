@@ -1,3 +1,5 @@
+import 'dart:math' as Math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_app_bar.dart';
@@ -23,6 +25,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart';
+import 'package:ctp/utils/navigation.dart';
 
 // Import your new truck card
 import 'package:ctp/components/truck_card.dart';
@@ -45,7 +48,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // Providers & variables
   final OfferProvider _offerProvider = OfferProvider();
-  bool _showEndMessage = false;
+  final bool _showEndMessage = false;
   late List<String> likedVehicles;
   late List<String> dislikedVehicles;
 
@@ -55,7 +58,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   List<Vehicle> swipedVehicles = []; // (If you want to track them, can remove)
   int loadedVehicleIndex = 0;
-  bool _hasReachedEnd = false;
+  final bool _hasReachedEnd = false;
   List<Vehicle> recentVehicles = [];
   List<Offer> recentOffers = [];
   List<Vehicle> todayVehicles = [];
@@ -93,6 +96,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
+    // Add immediate account status check
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAccountStatus();
+    });
+
     _initialization = _initializeData();
     _checkPaymentStatusForOffers();
 
@@ -103,6 +111,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadTransporterVehicles();
     });
+  }
+
+  // Add this new method
+  Future<void> _checkAccountStatus() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.fetchUserData(); // Make sure we have latest data
+
+    if (userProvider.getAccountStatus.toLowerCase() == 'pending') {
+      if (mounted) {
+        // Check if widget is still in tree
+        Navigator.of(context).pushReplacementNamed('/waiting-for-approval');
+      }
+    }
   }
 
   @override
@@ -837,7 +858,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Text(
             "🔥 NEW ARRIVALS",
             style: _getTextStyle(
-              fontSize: _adaptiveTextSize(context, 24, 26),
+              fontSize: _adaptiveTextSize(
+                context,
+                24, // Mobile size
+                Math.min(
+                    80,
+                    MediaQuery.of(context).size.width *
+                        0.04), // Cap at 40 for web
+              ),
               fontWeight: FontWeight.bold,
               color: const Color(0xFF2F7FFF),
             ),
@@ -846,8 +874,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Text(
             "Discover the newest additions to our fleet, ready for your next venture.",
             style: _getTextStyle(
-              fontSize: _adaptiveTextSize(context, 16, 18),
-              color: Colors.white70,
+              fontSize: _adaptiveTextSize(
+                context,
+                24, // Mobile size
+                Math.min(
+                    30,
+                    MediaQuery.of(context).size.width *
+                        0.03), // Cap at 40 for web
+              ),
+              fontWeight: FontWeight.w400,
+              color: const Color.fromARGB(255, 255, 255, 255),
             ),
             textAlign: TextAlign.center,
           ),
@@ -875,7 +911,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Text(
                         'NO NEW TRUCKS AVAILABLE',
                         style: _getTextStyle(
-                          fontSize: _adaptiveTextSize(context, 18, 20),
+                          fontSize: _adaptiveTextSize(context, 20, 22),
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
@@ -915,14 +951,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 children: [
                   Image.asset(
                     'lib/assets/shaking_hands.png',
-                    width: screenHeight * 0.03,
-                    height: screenHeight * 0.03,
+                    width: MediaQuery.of(context).size.width * 0.04,
+                    height: MediaQuery.of(context).size.width * 0.04,
                   ),
                   SizedBox(width: screenHeight * 0.01),
                   Text(
                     'RECENT PENDING OFFERS',
                     style: _getTextStyle(
-                      fontSize: _adaptiveTextSize(context, 24, 26),
+                      fontSize: _adaptiveTextSize(
+                        context,
+                        24, // Mobile size
+                        Math.min(
+                            80,
+                            MediaQuery.of(context).size.width *
+                                0.04), // Cap at 40 for web
+                      ),
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF2F7FFF),
                     ),
@@ -933,7 +976,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Text(
                 'Track and manage your active trading offers here.',
                 style: _getTextStyle(
-                  fontSize: _adaptiveTextSize(context, 16, 18),
+                  fontSize: _adaptiveTextSize(
+                    context,
+                    24, // Mobile size
+                    Math.min(
+                        30,
+                        MediaQuery.of(context).size.width *
+                            0.03), // Cap at 40 for web
+                  ),
+                  fontWeight: FontWeight.w400,
+                  color: const Color.fromARGB(255, 255, 255, 255),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -966,7 +1018,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Text(
                   'NO OFFERS YET',
                   style: _getTextStyle(
-                    fontSize: _adaptiveTextSize(context, 18, 20),
+                    fontSize: _adaptiveTextSize(context, 20, 22),
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
@@ -1028,32 +1080,50 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       return const SizedBox.shrink();
     }
 
+    final bool isMobile = MediaQuery.of(context).size.width <= 600;
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Container(
       height: 616, // 600 for card + 16 for margins
       alignment: Alignment.center,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Left Arrow
-          IconButton(
-            icon: const Icon(Icons.arrow_left, color: Colors.white, size: 40),
-            onPressed: _currentPageIndex > 0
-                ? () {
-                    setState(() {
-                      _currentPageIndex--;
-                    });
-                    _pageController.animateToPage(
-                      _currentPageIndex,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                : null, // disable if we're at page 0
-          ),
-
-          // The PageView that shows one TruckCard at a time
+          // Left Arrow and spacing - only on non-mobile devices
+          if (!isMobile) ...[
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 1,
+                ),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.keyboard_arrow_left_outlined,
+                  color: Color(0xFF2F7FFD),
+                  size: 40,
+                ),
+                onPressed: _currentPageIndex > 0
+                    ? () {
+                        setState(() {
+                          _currentPageIndex--;
+                        });
+                        _pageController.animateToPage(
+                          _currentPageIndex,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 50),
+          ],
+          // PageView that shows the TruckCard(s)
           SizedBox(
-            width: 400, // Constrain the width of each card
+            width: isMobile ? screenWidth : 400,
             child: PageView.builder(
               controller: _pageController,
               itemCount: vehicles.length,
@@ -1064,142 +1134,163 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               },
               itemBuilder: (context, index) {
                 final vehicle = vehicles[index];
-                return Center(
-                  heightFactor: 1,
-                  child: TruckCard(
-                    vehicle: vehicle,
-                    onInterested: _handleInterestedVehicle,
-                    borderColor: Color(0xFFFFC82F),
+                return Padding(
+                  // Only add extra horizontal padding on mobile for visual appeal
+                  padding: isMobile
+                      ? EdgeInsets.symmetric(horizontal: screenWidth * 0.1)
+                      : EdgeInsets.zero,
+                  child: Center(
+                    child: TruckCard(
+                      vehicle: vehicle,
+                      onInterested: _handleInterestedVehicle,
+                      borderColor: const Color(0xFFFFC82F),
+                    ),
                   ),
                 );
               },
             ),
           ),
-
-          // Right Arrow
-          IconButton(
-            icon: const Icon(Icons.arrow_right, color: Colors.white, size: 40),
-            onPressed: _currentPageIndex < vehicles.length - 1
-                ? () {
-                    setState(() {
-                      _currentPageIndex++;
-                    });
-                    _pageController.animateToPage(
-                      _currentPageIndex,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                : null, // disable if we're at the last page
-          ),
+          // Right Arrow and spacing - only on non-mobile devices
+          if (!isMobile) ...[
+            const SizedBox(width: 50),
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 1,
+                ),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.keyboard_arrow_right_outlined,
+                  color: Color(0xFF2F7FFD),
+                  size: 40,
+                ),
+                onPressed: _currentPageIndex < vehicles.length - 1
+                    ? () {
+                        setState(() {
+                          _currentPageIndex++;
+                        });
+                        _pageController.animateToPage(
+                          _currentPageIndex,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    : null,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
   /// Builds the "I AM SELLING A / I AM LOOKING FOR" row with two cards
+  /// Builds the "I AM SELLING A / I AM LOOKING FOR" section.
+  /// The truck and trailer buttons will always be side by side.
   Widget _buildVehicleTypeSelection(
     String userRole,
     BoxConstraints constraints,
     bool isTablet,
   ) {
     final screenWidth = constraints.maxWidth;
-    final screenHeight = constraints.maxHeight;
+    // Define some constants for padding and spacing
+    const double containerPadding = 16.0;
+    const double horizontalSpacing = 16.0;
 
-    final double cardWidth = isTablet ? screenWidth * 0.2 : screenWidth * 0.35;
-    final double cardHeight = cardWidth; // Square
+    // Set the overall container width to 85% of the screen width to prevent overflow
+    final double containerWidth = screenWidth * 0.85;
+    // Calculate the inner width available after subtracting the container's padding
+    final double innerWidth = containerWidth - (2 * containerPadding);
+    // Each card gets half of the inner width minus half the spacing
+    final double cardWidth = (innerWidth - horizontalSpacing) / 2;
 
-    final double containerWidth =
-        isTablet ? screenWidth * 0.5 : screenWidth * 0.9;
+    // Rest of the method remains the same
+    final double titleFontSize = screenWidth < 600 ? 16 : 24;
 
     return Center(
       child: Container(
         width: containerWidth,
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(containerPadding),
         decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(10),
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey[600]!,
+            width: 2.0,
+          ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Title text
             Text(
               userRole == 'transporter' ? "I AM SELLING A" : "I AM LOOKING FOR",
               style: _getTextStyle(
-                fontSize: _adaptiveTextSize(context, 18, 20),
+                fontSize: titleFontSize,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: horizontalSpacing),
+            // Row with two vehicle type cards
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // Truck card
                 SizedBox(
                   width: cardWidth,
-                  height: cardHeight,
-                  child: GestureDetector(
-                    onTap: () {
+                  child: _buildVehicleTypeCard(
+                    context,
+                    cardWidth,
+                    'lib/assets/truck_image.jpeg',
+                    "TRUCKS",
+                    const Color(0xFF2F7FFF),
+                    onTap: () async {
                       if (userRole == 'transporter') {
-                        Navigator.push(
+                        await MyNavigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => VehicleUploadScreen(
-                              isNewUpload: true,
-                            ),
+                          VehicleUploadScreen(
+                            isNewUpload: true,
                           ),
                         );
                       } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                TruckPage(vehicleType: 'truck'),
-                          ),
-                        );
+                        await MyNavigator.push(
+                            context, TruckPage(vehicleType: 'truck'));
                       }
                     },
-                    child: _buildVehicleTypeCard(
-                      context,
-                      cardHeight,
-                      'lib/assets/truck_image.jpeg',
-                      "TRUCKS",
-                      const Color(0xFF2F7FFF),
-                    ),
                   ),
                 ),
-                SizedBox(width: screenWidth * 0.02),
+                SizedBox(width: 10),
+                // Trailer card
                 SizedBox(
                   width: cardWidth,
-                  height: cardHeight,
-                  child: GestureDetector(
-                    onTap: () {
+                  child: _buildVehicleTypeCard(
+                    context,
+                    cardWidth,
+                    'lib/assets/trailer_image.jpeg',
+                    "TRAILERS",
+                    const Color(0xFFFF4E00),
+                    onTap: () async {
                       if (userRole == 'transporter') {
-                        Navigator.push(
+                        await MyNavigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const TrailerUploadScreen(),
-                          ),
+                          const TrailerUploadScreen(),
                         );
                       } else {
-                        Navigator.push(
+                        await MyNavigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                TruckPage(vehicleType: 'trailer'),
-                          ),
+                          TruckPage(vehicleType: 'trailer'),
                         );
                       }
                     },
-                    child: _buildVehicleTypeCard(
-                      context,
-                      cardHeight,
-                      'lib/assets/trailer_image.jpeg',
-                      "TRAILERS",
-                      const Color(0xFFFF4E00),
-                    ),
                   ),
                 ),
               ],
             ),
+            SizedBox(height: horizontalSpacing),
           ],
         ),
       ),
@@ -1208,49 +1299,78 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _buildVehicleTypeCard(
     BuildContext context,
-    double cardHeight,
+    double cardSize,
     String imagePath,
     String label,
-    Color borderColor,
-  ) {
-    return Container(
-      height: cardHeight,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: borderColor,
-          width: 3,
+    Color borderColor, {
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: cardSize,
+        height: cardSize,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(cardSize * 0.04),
+          border: Border.all(
+            color: borderColor,
+            width: cardSize * 0.01,
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              color: Colors.black54,
-              width: double.infinity,
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                label,
-                style: _getTextStyle(
-                  fontSize: _adaptiveTextSize(context, 16, 18),
-                  fontWeight: FontWeight.bold,
-                  color: borderColor,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(cardSize * 0.04),
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.cover,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
-          ),
-        ],
+            // Gradient overlay
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(cardSize * 0.04),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.7),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Label at bottom
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: cardSize * 0.05),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(cardSize * 0.04),
+                    bottomRight: Radius.circular(cardSize * 0.04),
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: _getTextStyle(
+                    fontSize: cardSize * 0.08,
+                    fontWeight: FontWeight.bold,
+                    color: borderColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1268,7 +1388,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final double maxContentWidth = isTablet ? screenWidth * 0.8 : screenWidth;
     final double logoSize = kIsWeb
         ? (screenWidth > 1200
-            ? 80
+            ? 120
             : screenWidth > 900
                 ? 85
                 : 70)
@@ -1278,7 +1398,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: maxContentWidth,
+          maxWidth: isTablet ? screenWidth : screenWidth,
         ),
         child: Container(
           padding: EdgeInsets.symmetric(
@@ -1286,7 +1406,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             vertical: screenHeight * 0.02,
           ),
           decoration: BoxDecoration(
-            color: Colors.grey[900]?.withOpacity(0.5),
+            color: Colors.black,
             borderRadius: BorderRadius.circular(isTablet ? 10 : 0),
           ),
           child: Column(
@@ -1340,8 +1460,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Center(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth:
-                            isTablet ? screenWidth * 0.7 : screenWidth * 0.9,
+                        maxWidth: isTablet ? screenWidth : screenWidth,
                       ),
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
@@ -1351,15 +1470,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           final logoPath = _getBrandLogoPath(brand);
 
                           return GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TruckPage(
+                            onTap: () async {
+                              await MyNavigator.push(
+                                context,
+                                TruckPage(
                                   vehicleType: 'all',
                                   selectedBrand: brand,
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                             child: Container(
                               margin: EdgeInsets.symmetric(
                                 horizontal: kIsWeb

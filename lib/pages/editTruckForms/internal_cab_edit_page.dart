@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -9,13 +10,17 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ctp/components/truck_info_web_nav.dart';
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
-  final File? file;
+  final Uint8List? file;
   final String? url;
+  final String? fileName;
 
-  ImageData({this.file, this.url});
+  ImageData({this.file, this.url, this.fileName});
 }
 
 /// Class to represent items with descriptions and images
@@ -30,12 +35,14 @@ class InternalCabEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
+  final bool inTabsPage; // Add this parameter
 
   const InternalCabEditPage({
     super.key,
     required this.vehicleId,
     required this.onProgressUpdate,
     this.isEditing = false,
+    this.inTabsPage = false, // Default to false
   });
 
   @override
@@ -47,6 +54,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   String _selectedCondition = 'good'; // Default selected value
   String _damagesCondition = 'no';
@@ -72,11 +80,53 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   };
 
   // Lists to store damages, additional features, and fault codes
-  List<ItemData> _damageList = [];
-  List<ItemData> _additionalFeaturesList = [];
-  List<ItemData> _faultCodesList = [];
+  final List<ItemData> _damageList = [];
+  final List<ItemData> _additionalFeaturesList = [];
+  final List<ItemData> _faultCodesList = [];
 
   bool _isInitialized = false; // Flag to prevent re-initialization
+
+  @override
+  void initState() {
+    super.initState();
+    // Load data directly if not already initialized
+    if (!_isInitialized) {
+      _loadExistingData();
+    }
+  }
+
+  Future<void> _loadExistingData() async {
+    print('InternalCab: Loading existing data for vehicle ${widget.vehicleId}');
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+
+      if (!doc.exists) {
+        print('InternalCab: No document found for vehicle ${widget.vehicleId}');
+        return;
+      }
+
+      final data = doc.data();
+      if (data == null || data['truckConditions'] == null) {
+        print('InternalCab: No truck conditions data found');
+        return;
+      }
+
+      final internalCabData = data['truckConditions']['internalCab'];
+      if (internalCabData == null) {
+        print('InternalCab: No internal cab data found');
+        return;
+      }
+
+      print('InternalCab: Found data to initialize with: $internalCabData');
+      initializeWithData(internalCabData);
+      _isInitialized = true;
+    } catch (e) {
+      print('InternalCab: Error loading existing data: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,251 +134,290 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16.0),
-            Text(
-              'Details for INTERNAL CAB'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 25,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            const Text(
-              'Condition of the Inside CAB',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            // Condition Selection
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                CustomRadioButton(
-                  label: 'Poor',
-                  value: 'poor',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                  enabled: !isDealer,
+    Widget content = Material(
+      type: MaterialType.transparency,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 16.0),
+              Text(
+                'Details for INTERNAL CAB'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 25,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
                 ),
-                CustomRadioButton(
-                  label: 'Good',
-                  value: 'good',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                  enabled: !isDealer,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16.0),
+              const Text(
+                'Condition of the Inside CAB',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w500,
                 ),
-                CustomRadioButton(
-                  label: 'Excellent',
-                  value: 'excellent',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
-                  enabled: !isDealer,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16.0),
+              // Condition Selection
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  CustomRadioButton(
+                    label: 'Poor',
+                    value: 'poor',
+                    groupValue: _selectedCondition,
+                    onChanged: (value) {
+                      if (value != null) {
+                        _updateAndNotify(() {
+                          _selectedCondition = value;
+                        });
+                      }
+                    },
+                    enabled: !isDealer,
+                  ),
+                  CustomRadioButton(
+                    label: 'Good',
+                    value: 'good',
+                    groupValue: _selectedCondition,
+                    onChanged: (value) {
+                      if (value != null) {
+                        _updateAndNotify(() {
+                          _selectedCondition = value;
+                        });
+                      }
+                    },
+                    enabled: !isDealer,
+                  ),
+                  CustomRadioButton(
+                    label: 'Excellent',
+                    value: 'excellent',
+                    groupValue: _selectedCondition,
+                    onChanged: (value) {
+                      if (value != null) {
+                        _updateAndNotify(() {
+                          _selectedCondition = value;
+                        });
+                      }
+                    },
+                    enabled: !isDealer,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              // Front Side of Cab
+              Text(
+                'Front Side of Cab'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Front Side of Cab
-            Text(
-              'Front Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            // Grid of Images
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: [
-                ..._selectedImages.keys
-                    .where((key) =>
-                        key.contains('Dash') ||
-                        key.contains('Mileage') ||
-                        key.contains('Visors') ||
-                        key.contains('Console'))
-                    .map((key) => _buildPhotoBlock(key)),
-                _buildPhotoBlock('Steering'),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Left Side of Cab
-            Text(
-              'Left Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+              const SizedBox(height: 16.0),
+              // Grid of Images
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                children: [
+                  ..._selectedImages.keys
+                      .where((key) =>
+                          key.contains('Dash') ||
+                          key.contains('Mileage') ||
+                          key.contains('Visors') ||
+                          key.contains('Console'))
+                      .map((key) => _buildPhotoBlock(key)),
+                  _buildPhotoBlock('Steering'),
+                ],
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: _selectedImages.keys
-                  .where((key) => key.startsWith('Left'))
-                  .map((key) => _buildPhotoBlock(key))
-                  .toList(),
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Rear Side of Cab
-            Text(
-              'Rear Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              // Left Side of Cab
+              Text(
+                'Left Side of Cab'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: [
-                ..._selectedImages.keys
-                    .where((key) => key == 'Roof' || key == 'Bunk Beds')
-                    .map((key) => _buildPhotoBlock(key)),
-                _buildPhotoBlock('Rear Panel'),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Right Side of Cab
-            Text(
-              'Right Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+              const SizedBox(height: 16.0),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                children: _selectedImages.keys
+                    .where((key) => key.startsWith('Left'))
+                    .map((key) => _buildPhotoBlock(key))
+                    .toList(),
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: _selectedImages.keys
-                  .where((key) => key.startsWith('Right'))
-                  .map((key) => _buildPhotoBlock(key))
-                  .toList(),
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Damages Section
-            _buildAdditionalSection(
-              title: 'Are there any damages?',
-              anyItemsType: _damagesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _damagesCondition = value!;
-                  if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                    _damageList
-                        .add(ItemData(description: '', imageData: ImageData()));
-                  } else if (_damagesCondition == 'no') {
-                    _damageList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildDamageSection,
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Additional Features Section
-            _buildAdditionalSection(
-              title: 'Are there any additional features?',
-              anyItemsType: _additionalFeaturesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _additionalFeaturesCondition = value!;
-                  if (_additionalFeaturesCondition == 'yes' &&
-                      _additionalFeaturesList.isEmpty) {
-                    _additionalFeaturesList
-                        .add(ItemData(description: '', imageData: ImageData()));
-                  } else if (_additionalFeaturesCondition == 'no') {
-                    _additionalFeaturesList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildAdditionalFeaturesSection,
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-            // Fault Codes Section
-            _buildAdditionalSection(
-              title: 'Are there any fault codes?',
-              anyItemsType: _faultCodesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _faultCodesCondition = value!;
-                  if (_faultCodesCondition == 'yes' &&
-                      _faultCodesList.isEmpty) {
-                    _faultCodesList
-                        .add(ItemData(description: '', imageData: ImageData()));
-                  } else if (_faultCodesCondition == 'no') {
-                    _faultCodesList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildFaultCodesSection,
-            ),
-          ],
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              // Rear Side of Cab
+              Text(
+                'Rear Side of Cab'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16.0),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                children: [
+                  ..._selectedImages.keys
+                      .where((key) => key == 'Roof' || key == 'Bunk Beds')
+                      .map((key) => _buildPhotoBlock(key)),
+                  _buildPhotoBlock('Rear Panel'),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              // Right Side of Cab
+              Text(
+                'Right Side of Cab'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16.0),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                children: _selectedImages.keys
+                    .where((key) => key.startsWith('Right'))
+                    .map((key) => _buildPhotoBlock(key))
+                    .toList(),
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              // Damages Section
+              _buildAdditionalSection(
+                title: 'Are there any damages?',
+                anyItemsType: _damagesCondition,
+                onChange: (value) {
+                  _updateAndNotify(() {
+                    _damagesCondition = value!;
+                    if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                      _damageList.add(
+                          ItemData(description: '', imageData: ImageData()));
+                    } else if (_damagesCondition == 'no') {
+                      _damageList.clear();
+                    }
+                  });
+                },
+                buildItemSection: _buildDamageSection,
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              // Additional Features Section
+              _buildAdditionalSection(
+                title: 'Are there any additional features?',
+                anyItemsType: _additionalFeaturesCondition,
+                onChange: (value) {
+                  _updateAndNotify(() {
+                    _additionalFeaturesCondition = value!;
+                    if (_additionalFeaturesCondition == 'yes' &&
+                        _additionalFeaturesList.isEmpty) {
+                      _additionalFeaturesList.add(
+                          ItemData(description: '', imageData: ImageData()));
+                    } else if (_additionalFeaturesCondition == 'no') {
+                      _additionalFeaturesList.clear();
+                    }
+                  });
+                },
+                buildItemSection: _buildAdditionalFeaturesSection,
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              // Fault Codes Section
+              _buildAdditionalSection(
+                title: 'Are there any fault codes?',
+                anyItemsType: _faultCodesCondition,
+                onChange: (value) {
+                  _updateAndNotify(() {
+                    _faultCodesCondition = value!;
+                    if (_faultCodesCondition == 'yes' &&
+                        _faultCodesList.isEmpty) {
+                      _faultCodesList.add(
+                          ItemData(description: '', imageData: ImageData()));
+                    } else if (_faultCodesCondition == 'no') {
+                      _faultCodesList.clear();
+                    }
+                  });
+                },
+                buildItemSection: _buildFaultCodesSection,
+              ),
+            ],
+          ),
         ),
       ),
+    );
+
+    // If not in tabs page, wrap with GradientBackground
+    if (!widget.inTabsPage) {
+      content = GradientBackground(child: content);
+    }
+
+    return Scaffold(
+      key: _scaffoldKey,
+      appBar: kIsWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: TruckInfoWebNavBar(
+                scaffoldKey: _scaffoldKey,
+                selectedTab: "Internal Cab",
+                vehicleId: widget.vehicleId, // Add this line
+                onHomePressed: () => Navigator.pushNamed(context, '/home'),
+                onBasicInfoPressed: () =>
+                    Navigator.pushNamed(context, '/basic_information'),
+                onTruckConditionsPressed: () =>
+                    Navigator.pushNamed(context, '/truck_conditions'),
+                onMaintenanceWarrantyPressed: () =>
+                    Navigator.pushNamed(context, '/maintenance_warranty'),
+                onExternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/external_cab'),
+                onInternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/internal_cab'),
+                onChassisPressed: () =>
+                    Navigator.pushNamed(context, '/chassis'),
+                onDriveTrainPressed: () =>
+                    Navigator.pushNamed(context, '/drive_train'),
+                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+              ),
+            )
+          : null,
+      body: content, // your existing content
     );
   }
 
@@ -355,13 +444,21 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   onTap: () => Navigator.pop(context),
                   child: Center(
                     child: hasFile
-                        ? Image.file(_selectedImages[title]!.file!)
+                        ? Image.memory(_selectedImages[title]!.file!)
                         : Image.network(
                             _selectedImages[title]!.url!,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(Icons.error_outline,
                                   color: Colors.red);
                             },
+                            loadingBuilder: (context, url, _) => Container(
+                              color: Colors.white,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                           ),
                   ),
                 ),
@@ -385,7 +482,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
             if (hasFile)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
+                child: Image.memory(
                   _selectedImages[title]!.file!,
                   fit: BoxFit.cover,
                   width: double.infinity,
@@ -406,24 +503,29 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                 ),
               )
             else
-              // Placeholder
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!isDealer)
-                    const Icon(Icons.add_circle_outline,
-                        color: Colors.white, size: 40.0),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (!isDealer)
+                      const Icon(Icons.add_circle_outline,
+                          color: Colors.white, size: 40.0),
+                    const SizedBox(height: 8.0),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                  ],
+                ),
               ),
 
             // The "X" button (only if user is a transporter and there's an image)
@@ -437,6 +539,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                     setState(() {
                       _selectedImages[title] = ImageData(); // Clear the image
                     });
+                    widget.onProgressUpdate();
                   },
                 ),
               ),
@@ -513,8 +616,22 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       onTap: () => Navigator.pop(context),
                       child: Center(
                         child: hasFile
-                            ? Image.file(item.imageData.file!)
-                            : Image.network(item.imageData.url!),
+                            ? Image.memory(item.imageData.file!)
+                            : Image.network(
+                                item.imageData.url!,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.error_outline,
+                                      color: Colors.red);
+                                },
+                                loadingBuilder: (context, url, _) => Container(
+                                  color: Colors.white,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -543,7 +660,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
                     child: hasFile
-                        ? Image.file(
+                        ? Image.memory(
                             item.imageData.file!,
                             fit: BoxFit.cover,
                             width: double.infinity,
@@ -595,20 +712,27 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
   // Placeholder widget for item images
   Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-        SizedBox(height: 8.0),
-        Text(
-          'Clear Picture of Item',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: const [
+          Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+          SizedBox(height: 8.0),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              'Clear Picture of Item',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -643,11 +767,12 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: File(pickedFile.path));
-                    });
+                    var file = await pickedFile.readAsBytes();
+
+                    _selectedImages[title] = ImageData(file: file);
+                    setState(() {});
                   }
+                  widget.onProgressUpdate();
                 },
               ),
               ListTile(
@@ -658,10 +783,11 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    var file = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: File(pickedFile.path));
+                      _selectedImages[title] = ImageData(file: file);
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -690,8 +816,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    var file = await pickedFile.readAsBytes();
                     setState(() {
-                      item.imageData = ImageData(file: File(pickedFile.path));
+                      item.imageData = ImageData(file: file);
                     });
                   }
                 },
@@ -704,8 +831,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    var file = await pickedFile.readAsBytes();
                     setState(() {
-                      item.imageData = ImageData(file: File(pickedFile.path));
+                      item.imageData = ImageData(file: file);
                     });
                   }
                 },
@@ -862,11 +990,12 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   // =============================================================================
   // Firebase Methods / Data Methods
   // =============================================================================
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     String fileName =
         'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(imageFile);
+    UploadTask uploadTask = storageRef.putData(imageFile);
     TaskSnapshot snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }
@@ -891,11 +1020,14 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
         );
         serializedImages[entry.key] = {
           'url': imageUrl,
+          'fileName': entry.value.fileName ??
+              '${entry.key}_${DateTime.now().millisecondsSinceEpoch}.jpg',
           'isNew': true,
         };
       } else if (entry.value.url != null) {
         serializedImages[entry.key] = {
           'url': entry.value.url,
+          'fileName': entry.value.fileName,
           'isNew': false,
         };
       }
@@ -977,9 +1109,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
   // Method to initialize data
   void initializeWithData(Map<String, dynamic> data) {
-    if (data.isEmpty) {
-      return;
-    }
+    print('InternalCab: Starting initialization with data: $data');
+    if (data.isEmpty) return;
+
     setState(() {
       _selectedCondition = data['condition'] ?? 'good';
       _damagesCondition = data['damagesCondition'] ?? 'no';
@@ -987,52 +1119,57 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
           data['additionalFeaturesCondition'] ?? 'no';
       _faultCodesCondition = data['faultCodesCondition'] ?? 'no';
 
-      // Initialize images
-      if (data['images'] != null) {
-        final images = Map<String, dynamic>.from(data['images']);
+      // Initialize images - check both 'images' and 'viewImages' fields
+      Map<String, dynamic>? images = data['images'] as Map<String, dynamic>? ??
+          data['viewImages'] as Map<String, dynamic>?;
+
+      if (images != null) {
+        print('InternalCab: Found images data: $images');
         images.forEach((key, value) {
-          if (value is Map && value.containsKey('url')) {
+          print('InternalCab: Processing image for $key: $value');
+          if (value is Map) {
             String? url = value['url']?.toString();
             if (url != null && url.isNotEmpty) {
-              _selectedImages[key] = ImageData(url: url);
+              print('InternalCab: Setting URL for $key: $url');
+              _selectedImages[key] = ImageData(
+                url: url,
+                fileName: value['fileName']?.toString(),
+              );
             }
-          } else if (value is String && value.isNotEmpty) {
-            _selectedImages[key] = ImageData(url: value);
           }
         });
+      } else {
+        print('InternalCab: No images data found');
       }
 
-      // Initialize damages
-      if (data['damages'] != null) {
-        _damageList = (data['damages'] as List).map((damage) {
-          return ItemData(
-            description: damage['description'] ?? '',
-            imageData: ImageData(url: damage['imageUrl']),
-          );
-        }).toList();
-      }
-
-      // Initialize additional features
-      if (data['additionalFeatures'] != null) {
-        _additionalFeaturesList =
-            (data['additionalFeatures'] as List).map((feature) {
-          return ItemData(
-            description: feature['description'] ?? '',
-            imageData: ImageData(url: feature['imageUrl']),
-          );
-        }).toList();
-      }
-
-      // Initialize fault codes
-      if (data['faultCodes'] != null) {
-        _faultCodesList = (data['faultCodes'] as List).map((faultCode) {
-          return ItemData(
-            description: faultCode['description'] ?? '',
-            imageData: ImageData(url: faultCode['imageUrl']),
-          );
-        }).toList();
-      }
+      // Initialize lists
+      _initializeList('damages', data['damages'], _damageList);
+      _initializeList(
+          'features', data['additionalFeatures'], _additionalFeaturesList);
+      _initializeList('faultCodes', data['faultCodes'], _faultCodesList);
     });
+
+    // Print final state of images
+    _selectedImages.forEach((key, value) {
+      print(
+          'InternalCab: Final image state for $key: ${value.url != null ? 'Has URL' : 'No URL'}');
+    });
+    print('InternalCab: Initialization complete');
+  }
+
+  void _initializeList(String type, dynamic data, List<ItemData> list) {
+    if (data != null) {
+      list.clear();
+      for (var item in data) {
+        if (item['imageUrl'] != null) {
+          list.add(ItemData(
+            description: item['description'] ?? '',
+            imageData: ImageData(url: item['imageUrl']),
+          ));
+        }
+      }
+      print('InternalCab: Initialized $type list with ${list.length} items');
+    }
   }
 
   // Method to reset the form

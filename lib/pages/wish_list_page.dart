@@ -17,6 +17,7 @@ import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'package:ctp/utils/navigation.dart';
 
 /// Simple data class for navigation items.
 class NavigationItem {
@@ -152,9 +153,9 @@ class _WishlistPageState extends State<WishlistPage> {
   /// Updated cross-axis count for handling the card's aspect ratio.
   int _calculateCrossAxisCountUpdated(BuildContext context) {
     double width = MediaQuery.of(context).size.width;
-    if (width >= 1500)
+    if (width >= 1500) {
       return 4;
-    else if (width >= 1100)
+    } else if (width >= 1100)
       return 3;
     else if (width >= 700)
       return 2;
@@ -182,13 +183,8 @@ class _WishlistPageState extends State<WishlistPage> {
         );
       },
       hasOffer: hasOffer,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-          ),
-        );
+      onTap: () async {
+        await MyNavigator.push(context, VehicleDetailsPage(vehicle: vehicle));
       },
       onDelete: () async {
         User? user = FirebaseAuth.instance.currentUser;
@@ -226,16 +222,16 @@ class _WishlistPageState extends State<WishlistPage> {
   bool _hasReachedEnd = false;
 
   // ***** Filter State Fields *****
-  List<String> _selectedYears = [];
-  List<String> _selectedBrands = [];
+  final List<String> _selectedYears = [];
+  final List<String> _selectedBrands = [];
   List<String> _selectedMakeModels = [];
-  List<String> _selectedVehicleStatuses = [];
-  List<String> _selectedTransmissions = [];
-  List<String> _selectedCountries = [];
-  List<String> _selectedProvinces = [];
-  List<String> _selectedApplicationOfUse = [];
-  List<String> _selectedConfigs = [];
-  List<String> _selectedVehicleType = [];
+  final List<String> _selectedVehicleStatuses = [];
+  final List<String> _selectedTransmissions = [];
+  final List<String> _selectedCountries = [];
+  final List<String> _selectedProvinces = [];
+  final List<String> _selectedApplicationOfUse = [];
+  final List<String> _selectedConfigs = [];
+  final List<String> _selectedVehicleType = [];
   // ********************************
 
   // Hard-coded filter options.

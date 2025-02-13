@@ -16,6 +16,7 @@ import 'package:path/path.dart' as path;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:ctp/utils/navigation.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -96,6 +97,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _cipcCertificateUrl = userProvider.getCipcCertificateUrl;
     _proxyUrl = userProvider.getProxyUrl;
     _brncUrl = userProvider.getBrncUrl;
+    print("_bankConfirmationUrl : $_bankConfirmationUrl");
+    print("_bankConfirmationUrl1 : $_cipcCertificateUrl");
+    print("_bankConfirmationUrl2 : $_proxyUrl");
+    print("_bankConfirmationUrl3 : $_brncUrl");
   }
 
   @override
@@ -132,9 +137,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ],
     );
 
-    if (result != null && result.files.single.bytes != null) {
+    print("result: $result");
+
+    if (result != null) {
       String selectedFileName = result.files.single.name;
-      Uint8List? selectedFile = result.files.single.bytes;
+      Uint8List? selectedFile = kIsWeb
+          ? result.files.single.bytes
+          : await File(result.files.single.path!).readAsBytes();
+      // String? selectedFilePath = result.files.single.path;
+      print("SelectedFileName: $selectedFileName");
+      print("SelectedFile: $selectedFile");
       
       setState(() {
         switch (field) {
@@ -142,21 +154,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
             _bankConfirmationFile = selectedFile;
             _bankConfirmationFileName = selectedFileName;
             _bankConfirmationUrl = null; // Reset existing URL
+            print("bank confirmation executed ------------------------");
             break;
           case 'cipcCertificate':
             _cipcCertificateFile = selectedFile;
             _cipcCertificateFileName = selectedFileName;
             _cipcCertificateUrl = null; // Reset existing URL
+            print("cipc certificate executed ------------------------");
             break;
           case 'proxy':
             _proxyFile = selectedFile;
             _proxyFileName = selectedFileName;
             _proxyUrl = null; // Reset existing URL
+            print("proxy executed ------------------------");
             break;
           case 'brnc':
             _brncFile = selectedFile;
             _brncFileName = selectedFileName;
             _brncUrl = null; // Reset existing URL
+            print("brnc executed ------------------------");
             break;
         }
       });
@@ -327,6 +343,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       // We have a newly picked file in memory
       displayName = fileName;
       iconData = _getIconForFileType(fileName);
+      log("Display name: $displayName");
     } else if (fileUrl != null && fileUrl.isNotEmpty) {
       // Using existing URL from Firestore
       displayName = _getFileNameFromUrl(fileUrl);
@@ -336,7 +353,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Stack(
       children: [
         GestureDetector(
-          onTap: () => _pickFile(field),
+           onTap: () {
+            _pickFile(field);
+          },
           child: Container(
             height: 100,
             width: double.infinity,
@@ -455,24 +474,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _bankConfirmationFile!,
           _bankConfirmationFileName!,
         );
+        setState(() {});
       }
       if (_cipcCertificateFile != null && _cipcCertificateFileName != null) {
         cipcCertificateDownloadUrl = await userProvider.uploadFile(
           _cipcCertificateFile!,
           _cipcCertificateFileName!,
         );
+        setState(() {});
       }
       if (_proxyFile != null && _proxyFileName != null) {
         proxyDownloadUrl = await userProvider.uploadFile(
           _proxyFile!,
           _proxyFileName!,
         );
+        setState(() {});
       }
       if (_brncFile != null && _brncFileName != null) {
         brncDownloadUrl = await userProvider.uploadFile(
           _brncFile!,
           _brncFileName!,
         );
+        setState(() {});
       }
     } catch (e) {
       debugPrint('Error uploading documents: $e');
@@ -511,11 +534,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       // Navigate to ProfilePage instead of popping
-      Navigator.pushReplacement(
+      await MyNavigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => ProfilePage(),
-        ),
+        ProfilePage(),
       );
     } catch (e) {
       debugPrint('Error saving profile: $e');

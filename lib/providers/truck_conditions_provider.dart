@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-class TruckConditionsProvider with ChangeNotifier {
-  final String vehicleId;
+class TruckConditionsProvider extends ChangeNotifier {
+  String _vehicleId = '';
+  double _progress = 0.0;
   Map<String, dynamic> _cachedData = {};
   bool _isInitialized = false;
 
-  TruckConditionsProvider(this.vehicleId);
+  TruckConditionsProvider(String vehicleId) {
+    _vehicleId = vehicleId;
+  }
 
   bool get isInitialized => _isInitialized;
 
@@ -38,7 +41,8 @@ class TruckConditionsProvider with ChangeNotifier {
   }
 
   // Method to update section data
-  Future<void> updateSectionData(String section, Map<String, dynamic> data) async {
+  Future<void> updateSectionData(
+      String section, Map<String, dynamic> data) async {
     _cachedData[section] = data;
     notifyListeners();
 
@@ -61,4 +65,12 @@ class TruckConditionsProvider with ChangeNotifier {
     _isInitialized = false;
     notifyListeners();
   }
-} 
+
+  void updateProgress(double progress) {
+    _progress = progress;
+    notifyListeners();
+  }
+
+  double get progress => _progress;
+  String get vehicleId => _vehicleId;
+}

@@ -23,6 +23,7 @@ import 'custom_radio_button.dart';
 import 'image_picker_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
@@ -251,7 +252,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Future<void> _loadTruckData() async {
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response) as Map<String, dynamic>;
+    final Map<String, dynamic> data = json.decode(response);
     setState(() {
       // Fix: Properly handle the nested structure
       _makeModelOptions = {};
@@ -409,10 +410,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     if (widget.vehicle != null) {
       debugPrint('=== Populating Duplicated Data ===');
       formData.setYear(widget.vehicle!.year);
-      _loadBrandsForYear(widget.vehicle!.year!).then((_) {
-        if (widget.vehicle!.brands?.isNotEmpty == true) {
+      _loadBrandsForYear(widget.vehicle!.year).then((_) {
+        if (widget.vehicle!.brands.isNotEmpty == true) {
           formData.setBrands(widget.vehicle!.brands);
-          _loadModelsForBrand(widget.vehicle!.brands!.first).then((_) {
+          _loadModelsForBrand(widget.vehicle!.brands.first).then((_) {
             formData.setMakeModel(widget.vehicle!.makeModel);
           });
         }
@@ -425,12 +426,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       formData.setTransmissionType(widget.vehicle!.transmissionType);
       if (widget.vehicle!.application is String) {
         formData.setApplication(widget.vehicle!.application as String);
-      } else if (widget.vehicle!.application is List) {
-        final List appList = widget.vehicle!.application as List;
+      } else {
+        final List appList = widget.vehicle!.application;
         formData
             .setApplication(appList.isNotEmpty ? appList.first.toString() : '');
       }
-      _updateProvinceOptions(widget.vehicle!.country!);
+
+      _updateProvinceOptions(widget.vehicle!.country);
       debugPrint('=== Duplication Data Population Complete ===');
     }
   }
@@ -517,11 +519,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         style: TextStyle(color: Colors.white70),
       );
     } else {
-      String _fileName = fileName;
-      String extension = _fileName.split('.').last;
+      String fileName0 = fileName;
+      String extension = fileName0.split('.').last;
       return Column(
         children: [
-          if (_isImageFile(_fileName))
+          if (_isImageFile(fileName0))
             ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
               child: Image.memory(
@@ -541,7 +543,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _fileName,
+                  fileName0,
                   style: const TextStyle(
                       fontSize: 14,
                       color: Colors.white,
@@ -1617,7 +1619,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           try {
             String? vehicleId = await _saveSection1Data();
             if (vehicleId != null) {
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => MaintenanceWarrantyScreen(
@@ -1889,6 +1891,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final url = _natisRc1File != null ? null : _existingNatisRc1Url;
     if (url != null) {
       debugPrint("View document: URL = $url");
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => ViewerPage(url: url)));
+      return;
       // Implement document viewing logic here (e.g., using url_launcher)
     }
   }

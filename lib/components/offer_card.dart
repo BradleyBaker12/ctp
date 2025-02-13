@@ -20,15 +20,16 @@ import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/complaints_provider.dart';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 class OfferCard extends StatefulWidget {
   final Offer offer;
+  final Function? onPop;
 
   const OfferCard({
     super.key,
     required this.offer,
+    this.onPop,
   });
 
   @override
@@ -74,18 +75,35 @@ class _OfferCardState extends State<OfferCard> {
   /// Fetch basic vehicle details from Firestore (including the year).
   Future<void> _fetchVehicleDetails() async {
     try {
+      debugPrint('Fetching vehicle details for ID: ${widget.offer.vehicleId}');
       final vehicleDoc = await FirebaseFirestore.instance
           .collection('vehicles')
           .doc(widget.offer.vehicleId)
           .get();
 
       if (vehicleDoc.exists && mounted) {
+        final data = vehicleDoc.data();
+        debugPrint('Firestore data: $data');
+
         setState(() {
-          transmissionType = vehicleDoc.data()?['transmissionType'];
-          vehicleConfig = vehicleDoc.data()?['config'];
-          mileage = vehicleDoc.data()?['mileage'];
-          // Retrieve the year from the vehicle document.
-          vehicleYear = vehicleDoc.data()?['year']?.toString();
+          transmissionType = data?['transmissionType'];
+          vehicleConfig = data?['config'];
+          mileage = data?['mileage'];
+          vehicleYear = data?['year']?.toString();
+
+          // Update both the brand and variant
+          if (data?['brands'] != null) {
+            if (data?['brands'] is List) {
+              widget.offer.vehicleBrand =
+                  (data?['brands'] as List).first.toString();
+            } else {
+              widget.offer.vehicleBrand = data?['brands'].toString();
+            }
+          }
+          widget.offer.variant = data?['variant']?.toString();
+
+          debugPrint('Updated brand: ${widget.offer.vehicleBrand}');
+          debugPrint('Updated variant: ${widget.offer.variant}');
         });
       }
     } catch (e) {
@@ -102,7 +120,12 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   Color getStatusColor(String? status) {
-    switch ((status ?? '').toLowerCase()) {
+    final normalizedStatus = (status ?? '').toLowerCase().trim();
+    print('Getting status color for normalized status: $normalizedStatus');
+
+    switch (normalizedStatus) {
+      case 'sold':
+        return Colors.red; // Make sold status stand out
       // Success states - Green
       case 'accepted':
       case 'done':
@@ -111,7 +134,7 @@ class _OfferCardState extends State<OfferCard> {
       case 'completed':
       case 'inspection done':
       case 'payment approved':
-      case 'awaiting collection': // Add this case
+      case 'sold': // Add explicit case for 'sold'
         return Colors.green;
 
       // Failed states - Red
@@ -157,7 +180,12 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   IconData getStatusIcon(String? status) {
-    switch ((status ?? '').toLowerCase()) {
+    final normalizedStatus = (status ?? '').toLowerCase().trim();
+    print('Getting status icon for normalized status: $normalizedStatus');
+
+    switch (normalizedStatus) {
+      case 'sold':
+        return Icons.sell; // Use distinct icon for sold status
       // Completed/Success states
       case 'accepted':
       case 'done':
@@ -197,6 +225,8 @@ class _OfferCardState extends State<OfferCard> {
       // In-progress/Default state
       case 'in-progress':
         return Icons.sync; // Changed from Icons.refresh to Icons.sync
+      case 'sold': // Add explicit case for 'sold'
+        return Icons.check_circle;
       default:
         return Icons.sync; // Changed default icon as well
     }
@@ -205,6 +235,13 @@ class _OfferCardState extends State<OfferCard> {
   void navigateBasedOnStatus(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? '';
+
+    // Add check for sold status
+    if (widget.offer.offerStatus.toLowerCase() == 'sold') {
+      print('Offer status is sold, showing sold state');
+      // Optional: Add any specific navigation or UI updates for sold state
+      return;
+    }
 
     // Handle Payment Approved status for both roles
     if (widget.offer.offerStatus.toLowerCase() == 'payment approved') {
@@ -249,7 +286,8 @@ class _OfferCardState extends State<OfferCard> {
                   widget.offer.latLng?.latitude ?? 0,
                   widget.offer.latLng?.longitude ?? 0,
                 ),
-                makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+                brand: widget.offer.vehicleBrand ?? '',
+                variant: widget.offer.variant ?? '',
                 offerAmount: formatOfferAmount(widget.offer.offerAmount),
                 vehicleId: widget.offer.vehicleId,
               ),
@@ -300,9 +338,9 @@ class _OfferCardState extends State<OfferCard> {
           );
           return;
         default:
-          _getVehicle().then((vehicle) {
+          _getVehicle().then((vehicle) async {
             if (vehicle != null) {
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => TransporterOfferDetailsPage(
@@ -311,6 +349,9 @@ class _OfferCardState extends State<OfferCard> {
                   ),
                 ),
               );
+              if (widget.onPop != null) {
+                widget.onPop!();
+              }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -332,9 +373,10 @@ class _OfferCardState extends State<OfferCard> {
           MaterialPageRoute(
             builder: (context) => InspectionDetailsPage(
               offerId: widget.offer.offerId,
-              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
               offerAmount: formatOfferAmount(widget.offer.offerAmount),
               vehicleId: widget.offer.vehicleId,
+              brand: widget.offer.vehicleBrand ?? 'Unknown',
+              variant: widget.offer.variant ?? 'Unknown',
             ),
           ),
         );
@@ -351,9 +393,10 @@ class _OfferCardState extends State<OfferCard> {
                   widget.offer.dealerSelectedInspectionLocation ?? 'Unknown',
               date: widget.offer.dealerSelectedInspectionDate!,
               time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
-              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
+              brand: widget.offer.vehicleBrand ?? 'Unknown',
               offerAmount: formatOfferAmount(widget.offer.offerAmount),
               vehicleId: widget.offer.vehicleId,
+              variant: widget.offer.variant ?? "",
             ),
           ),
         );
@@ -396,9 +439,10 @@ class _OfferCardState extends State<OfferCard> {
           MaterialPageRoute(
             builder: (context) => InspectionDetailsPage(
               offerId: widget.offer.offerId,
-              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
               offerAmount: formatOfferAmount(widget.offer.offerAmount),
               vehicleId: widget.offer.vehicleId,
+              brand: widget.offer.vehicleBrand ?? 'Unknown',
+              variant: widget.offer.variant ?? 'Unknown',
             ),
           ),
         );
@@ -493,9 +537,10 @@ class _OfferCardState extends State<OfferCard> {
                 widget.offer.latLng?.latitude ?? 0,
                 widget.offer.latLng?.longitude ?? 0,
               ),
-              makeModel: widget.offer.vehicleMakeModel ?? 'Unknown',
               offerAmount: formatOfferAmount(widget.offer.offerAmount),
               vehicleId: widget.offer.vehicleId,
+              brand: widget.offer.vehicleBrand ?? '',
+              variant: widget.offer.variant ?? '',
             ),
           ),
         );
@@ -564,6 +609,8 @@ class _OfferCardState extends State<OfferCard> {
 
   /// The main Offer Card layout with fixed dimensions like TruckCard
   Widget _buildWebCard(Color statusColor, BoxConstraints constraints) {
+    print(
+        'Offer status in web card: ${widget.offer.offerStatus}'); // Add debug log
     // Determine if we're on web
     const bool isWeb = kIsWeb;
 
@@ -575,9 +622,26 @@ class _OfferCardState extends State<OfferCard> {
     // Get brand/model and year
     final String brandModel = [
       widget.offer.vehicleBrand,
-      widget.offer.vehicleMakeModel,
+      widget.offer.variant,
     ].where((element) => element != null && element.isNotEmpty).join(' ');
     final String year = vehicleYear ?? 'N/A';
+
+    // Update brand and variant combination logic with debug checks
+    String brandVariant = '';
+    debugPrint('Building card with brand: ${widget.offer.vehicleBrand}');
+    debugPrint('Building card with variant: ${widget.offer.variant}');
+
+    if (widget.offer.vehicleBrand?.isNotEmpty == true ||
+        widget.offer.variant?.isNotEmpty == true) {
+      List<String> parts = [
+        widget.offer.vehicleBrand ?? '',
+        widget.offer.variant ?? '',
+      ].where((element) => element.isNotEmpty).toList();
+
+      debugPrint('Parts to combine: $parts');
+      brandVariant = parts.join(' ');
+      debugPrint('Final brandVariant: $brandVariant');
+    }
 
     return Center(
       child: Container(
@@ -770,9 +834,13 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   Widget _buildStatusBadge(String status) {
-    final icon = getStatusIcon(status);
-    final bgColor = getStatusColor(status);
-    final displayText = status.isEmpty ? 'UNKNOWN' : status.toUpperCase();
+    final normalizedStatus = status.toLowerCase().trim();
+    print('Building status badge for normalized status: $normalizedStatus');
+
+    final String displayText =
+        status.isEmpty ? 'UNKNOWN' : status.toUpperCase();
+    final icon = getStatusIcon(normalizedStatus);
+    final bgColor = getStatusColor(normalizedStatus);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

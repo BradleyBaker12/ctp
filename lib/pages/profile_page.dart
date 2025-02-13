@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ctp/adminScreens/viewer_page.dart';
+import 'package:ctp/pages/bought_vehicles_list.dart';
 import 'package:ctp/pages/edit_profile_page.dart';
 import 'package:ctp/pages/sold_vehicles_list.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,7 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_back_button.dart'; // Import the Custom Back Button
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart'; // Add this import
+import 'package:ctp/utils/navigation.dart';
 
 class ProfilePage extends StatelessWidget {
   ProfilePage({super.key});
@@ -83,6 +85,9 @@ class ProfilePage extends StatelessWidget {
       if (value == null || value.isEmpty) return '';
       return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
+
+    print(
+        "userProvider.getBankConfirmationUrl : ${userProvider.getBankConfirmationUrl}");
 
     return Scaffold(
       key: _scaffoldKey,
@@ -222,14 +227,10 @@ class ProfilePage extends StatelessWidget {
                                     ),
                                   ),
                                   GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const EditProfilePage(),
-                                        ),
-                                      );
+                                    onTap: () async {
+                                      await MyNavigator.push(
+                                          context, EditProfilePage());
+                                      print("Back from page");
                                     },
                                     child: Text(
                                       'Edit Profile'.toUpperCase(),
@@ -295,13 +296,36 @@ class ProfilePage extends StatelessWidget {
                     _buildProfileAction(
                       'VIEW SOLD VEHICLES',
                       Icons.history,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SoldVehiclesListPage(),
+                      () async {
+                        await MyNavigator.push(
+                            context, const SoldVehiclesListPage());
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  // Add the new section for dealers
+                  if (isDealer) ...[
+                    const Padding(
+                      padding: EdgeInsets.only(left: 16.0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'VEHICLE HISTORY',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                        );
+                        ),
+                      ),
+                    ),
+                    const Divider(color: Colors.white),
+                    _buildProfileAction(
+                      'VIEW BOUGHT VEHICLES',
+                      Icons.history,
+                      () async {
+                        await MyNavigator.push(
+                            context, const BoughtVehiclesListPage());
                       },
                     ),
                     const SizedBox(height: 20),
@@ -461,6 +485,7 @@ class ProfilePage extends StatelessWidget {
 
   Widget _buildDocumentItem(
       String title, String? url, IconData icon, BuildContext context) {
+    print("URL :: $url");
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       child: Row(
@@ -478,13 +503,8 @@ class ProfilePage extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: url != null
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ViewerPage(url: url),
-                          ),
-                        );
+                    ? () async {
+                        await MyNavigator.push(context, ViewerPage(url: url));
                       }
                     : null,
                 child: Text(

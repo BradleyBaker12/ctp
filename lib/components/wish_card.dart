@@ -3,7 +3,6 @@
 import 'dart:math';
 import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -143,21 +142,19 @@ class WishCard extends StatelessWidget {
     final (filledFields, totalFields) = _calculateFieldsRatio(vehicle);
     final progressRatio = totalFields > 0 ? filledFields / totalFields : 0.0;
 
-    // Determine display title: prefer provided vehicleMakeModel if available.
-    final String displayTitle = vehicleMakeModel.isNotEmpty
-        ? vehicleMakeModel.toUpperCase()
-        : ([vehicle.brands.join(" "), vehicle.makeModel]
-                .where((e) => e.isNotEmpty)
-                .join(" "))
-            .toUpperCase();
+    // Determine display title: show brand, variant and year
+    final String displayTitle = [
+      vehicle.brands.isNotEmpty ? vehicle.brands.join(" ") : 'NO BRAND',
+      vehicle.variant ?? '',
+    ].where((e) => e.isNotEmpty).join(" ").toUpperCase();
+
+    // Year string.
+    final String year = vehicle.year.toString();
 
     // Determine image URL: use provided vehicleImageUrl if available, else fallback.
     final String imageUrl = vehicleImageUrl.isNotEmpty
         ? vehicleImageUrl
         : (vehicle.mainImageUrl ?? '');
-
-    // Year string.
-    final String year = vehicle.year.toString();
 
     return Dismissible(
       key: Key(vehicleId),

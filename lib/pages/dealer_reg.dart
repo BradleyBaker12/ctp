@@ -13,7 +13,6 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as path;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter/services.dart'; // Import the services package for input formatters
 
@@ -69,6 +68,12 @@ class _DealerRegPageState extends State<DealerRegPage> {
   Uint8List? _brncByte;
   bool _isLoading = false;
 
+  // Add these new state variables for file names
+  String? _bankConfirmationFileName;
+  String? _cipcCertificateFileName;
+  String? _proxyFileName;
+  String? _brncFileName;
+
   @override
   void initState() {
     super.initState();
@@ -90,29 +95,35 @@ class _DealerRegPageState extends State<DealerRegPage> {
 
   Future<void> _pickFile(String fieldName) async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles();
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
+      );
+
       if (result != null) {
+        final bytes = await result.files.single.xFile.readAsBytes();
         setState(() {
-          if (!kIsWeb) {
-            if (fieldName == 'bankConfirmation') {
-              _bankConfirmationFile = result.files.single.path;
-            } else if (fieldName == 'cipcCertificate') {
-              _cipcCertificateFile = result.files.single.path;
-            } else if (fieldName == 'proxy') {
-              _proxyFile = result.files.single.path;
-            } else if (fieldName == 'brnc') {
-              _brncFile = result.files.single.path;
-            }
-          } else {
-            if (fieldName == 'bankConfirmation') {
-              _bankConfirmationByte = result.files.single.bytes;
-            } else if (fieldName == 'cipcCertificate') {
-              _cipcCertificateByte = result.files.single.bytes;
-            } else if (fieldName == 'proxy') {
-              _proxyByte = result.files.single.bytes;
-            } else if (fieldName == 'brnc') {
-              _brncByte = result.files.single.bytes;
-            }
+          if (fieldName == 'bankConfirmation') {
+            _bankConfirmationByte = bytes;
+            _bankConfirmationFileName = result.files.single.name;
+          } else if (fieldName == 'cipcCertificate') {
+            _cipcCertificateByte = bytes;
+            _cipcCertificateFileName = result.files.single.name;
+          } else if (fieldName == 'proxy') {
+            _proxyByte = bytes;
+            _proxyFileName = result.files.single.name;
+          } else if (fieldName == 'brnc') {
+            _brncByte = bytes;
+            _brncFileName = result.files.single.name;
           }
         });
       }
@@ -204,7 +215,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
 
       // Flatten data structure to match transporter
       Map<String, dynamic> dealerData = {
-        'userType': 'dealer',
+        'userRole': 'dealer',
         'companyName': _companyNameController.text,
         'tradingName': _tradingNameController.text,
         'registrationNumber': _registrationNumberController.text,
@@ -664,45 +675,42 @@ class _DealerRegPageState extends State<DealerRegPage> {
 
   Widget _buildUploadButton(String fieldName, String? fileName) {
     var screenSize = MediaQuery.of(context).size;
+    String? displayFileName;
+    Uint8List? fileBytes;
+
+    switch (fieldName) {
+      case 'bankConfirmation':
+        displayFileName = _bankConfirmationFileName;
+        fileBytes = _bankConfirmationByte;
+        break;
+      case 'cipcCertificate':
+        displayFileName = _cipcCertificateFileName;
+        fileBytes = _cipcCertificateByte;
+        break;
+      case 'proxy':
+        displayFileName = _proxyFileName;
+        fileBytes = _proxyByte;
+        break;
+      case 'brnc':
+        displayFileName = _brncFileName;
+        fileBytes = _brncByte;
+        break;
+    }
+
     return Stack(
       children: [
         GestureDetector(
-          onTap: () async {
-            if (fileName != null) {
-              final extension = path.extension(fileName).toLowerCase();
-              if (extension == '.pdf') {
-                // Open the PDF file using flutter_pdfview
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PDFViewerScreen(filePath: fileName),
-                  ),
-                );
-              } else {
-                // Open the file using the default file viewer
-                final Uri fileUri = Uri.file(fileName);
-                if (await canLaunch(fileUri.toString())) {
-                  await launch(fileUri.toString());
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not open the file')),
-                  );
-                }
-              }
-            } else {
-              _pickFile(fieldName);
-            }
-          },
+          onTap: () => _pickFile(fieldName),
           child: Container(
             height: 100,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.2), // Set grey background
+              color: Colors.grey.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10.0),
               border: Border.all(color: Colors.white70, width: 1),
             ),
             child: Center(
-              child: fileName == null
+              child: displayFileName == null
                   ? Stack(
                       alignment: Alignment.center,
                       children: [
@@ -710,29 +718,30 @@ class _DealerRegPageState extends State<DealerRegPage> {
                             color: Colors.blue, size: 40),
                         Positioned(
                           bottom: screenSize.height * 0.009,
-                          child: Icon(
-                            Icons.arrow_upward,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                          child: Icon(Icons.arrow_upward,
+                              color: Colors.white, size: 20),
                         ),
                       ],
                     )
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          _getIconForFileType(fileName),
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                        Icon(_getIconForFileType(displayFileName),
+                            color: Colors.white, size: 40),
                         const SizedBox(height: 5),
-                        Flexible(
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Text(
-                            path.basename(fileName),
-                            style: GoogleFonts.montserrat(color: Colors.white),
-                            textAlign: TextAlign.center,
+                            displayFileName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
@@ -740,29 +749,34 @@ class _DealerRegPageState extends State<DealerRegPage> {
             ),
           ),
         ),
-        if (fileName != null)
+        if (displayFileName != null)
           Positioned(
             top: 5,
             right: 5,
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  if (fieldName == 'bankConfirmation') {
-                    _bankConfirmationFile = null;
-                  } else if (fieldName == 'cipcCertificate') {
-                    _cipcCertificateFile = null;
-                  } else if (fieldName == 'proxy') {
-                    _proxyFile = null;
-                  } else if (fieldName == 'brnc') {
-                    _brncFile = null;
+                  switch (fieldName) {
+                    case 'bankConfirmation':
+                      _bankConfirmationFileName = null;
+                      _bankConfirmationByte = null;
+                      break;
+                    case 'cipcCertificate':
+                      _cipcCertificateFileName = null;
+                      _cipcCertificateByte = null;
+                      break;
+                    case 'proxy':
+                      _proxyFileName = null;
+                      _proxyByte = null;
+                      break;
+                    case 'brnc':
+                      _brncFileName = null;
+                      _brncByte = null;
+                      break;
                   }
                 });
               },
-              child: const Icon(
-                Icons.close,
-                color: Colors.red,
-                size: 24,
-              ),
+              child: const Icon(Icons.close, color: Colors.red, size: 24),
             ),
           ),
       ],

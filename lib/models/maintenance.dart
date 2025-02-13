@@ -27,14 +27,20 @@ class Maintenance {
     print('=== MAINTENANCE MODEL DEBUG ===');
     print('Raw maintenance data received: $data');
 
+    // Ensure string conversion for potentially non-string values
+    String ensureString(dynamic value) {
+      if (value == null) return '';
+      return value.toString();
+    }
+
     return Maintenance(
-      vehicleId: data['vehicleId'] ?? '',
-      oemInspectionType: data['oemInspectionType'],
-      oemReason: data['oemReason'],
-      maintenanceDocUrl: data['maintenanceDocUrl'],
-      warrantyDocUrl: data['warrantyDocUrl'],
-      maintenanceSelection: data['maintenanceSelection'],
-      warrantySelection: data['warrantySelection'],
+      vehicleId: ensureString(data['vehicleId']),
+      oemInspectionType: ensureString(data['oemInspectionType']),
+      oemReason: ensureString(data['oemReason']),
+      maintenanceDocUrl: ensureString(data['maintenanceDocUrl']),
+      warrantyDocUrl: ensureString(data['warrantyDocUrl']),
+      maintenanceSelection: ensureString(data['maintenanceSelection']),
+      warrantySelection: ensureString(data['warrantySelection']),
       lastUpdated: data['lastUpdated']?.toDate(),
     );
   }
@@ -48,7 +54,8 @@ class Maintenance {
       'warrantyDocUrl': warrantyDocUrl ?? '',
       'maintenanceSelection': maintenanceSelection ?? '',
       'warrantySelection': warrantySelection ?? '',
-      'lastUpdated': lastUpdated != null ? Timestamp.fromDate(lastUpdated!) : null,
+      'lastUpdated':
+          lastUpdated != null ? Timestamp.fromDate(lastUpdated!) : null,
     };
   }
 

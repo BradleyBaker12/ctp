@@ -1,12 +1,24 @@
 // lib/pages/truckForms/tyres_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+
+class ImageData {
+  File? file;
+  Uint8List? webImage;
+  String? url;
+
+  ImageData({this.file, this.webImage, this.url});
+
+  bool get hasImage =>
+      file != null || webImage != null || (url != null && url!.isNotEmpty);
+}
 
 class TyresPage extends StatefulWidget {
   final String vehicleId;
@@ -38,11 +50,8 @@ class TyresPageState extends State<TyresPage>
   final Map<int, String> _virginOrRecaps = {};
   final Map<int, String> _rimTypes = {};
 
-  // Map to store selected images for different tyre positions
-  final Map<String, File?> _selectedImages = {};
-
-  // Map to store image URLs
-  final Map<String, String> _imageUrls = {};
+  // Map to store selected image files
+  final Map<String, ImageData> _selectedImages = {};
 
   bool _isInitialized = false; // Flag to prevent re-initialization
   bool _isSaving = false; // Flag to indicate saving state
@@ -86,7 +95,7 @@ class TyresPageState extends State<TyresPage>
 
             // Handle image data
             if (data['imageUrl'] != null) {
-              _imageUrls[photoKey] = data['imageUrl'];
+              _selectedImages[photoKey] = ImageData(url: data['imageUrl']);
             }
             // Note: imagePath is not typically stored; if needed, handle accordingly
           }
@@ -193,6 +202,8 @@ class TyresPageState extends State<TyresPage>
                   _updateAndNotify(() {
                     _chassisConditions[pos] = value;
                   });
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -203,6 +214,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _chassisConditions[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -213,6 +226,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _chassisConditions[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -240,6 +255,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -250,6 +267,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -277,6 +296,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _rimTypes[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -287,6 +308,8 @@ class TyresPageState extends State<TyresPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _rimTypes[pos] = value;
+                  widget.onProgressUpdate();
+                  setState(() {});
                 }
               },
             ),
@@ -317,7 +340,7 @@ class TyresPageState extends State<TyresPage>
             child: _buildImageDisplay(key, title),
           ),
           // Overlay hint for editing
-          if (_selectedImages[key] != null || _imageUrls[key] != null)
+          if (_selectedImages[key]?.hasImage == true)
             Positioned(
               bottom: 8,
               right: 8,
@@ -337,7 +360,7 @@ class TyresPageState extends State<TyresPage>
               ),
             ),
           // Delete button
-          if (_selectedImages[key] != null || _imageUrls[key] != null)
+          if (_selectedImages[key]?.hasImage == true)
             Positioned(
               top: 8,
               right: 8,
@@ -345,8 +368,9 @@ class TyresPageState extends State<TyresPage>
                 onTap: () {
                   setState(() {
                     _selectedImages.remove(key);
-                    _imageUrls.remove(key);
                   });
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
                 child: Container(
                   decoration: BoxDecoration(
@@ -368,21 +392,33 @@ class TyresPageState extends State<TyresPage>
 
   /// Displays the appropriate image based on the current state
   Widget _buildImageDisplay(String key, String title) {
-    if (_selectedImages[key] != null) {
+    final imageData = _selectedImages[key];
+
+    if (imageData?.webImage != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
-        child: Image.file(
-          _selectedImages[key]!,
+        child: Image.memory(
+          imageData!.webImage!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
         ),
       );
-    } else if (_imageUrls[key] != null) {
+    } else if (imageData?.file != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.file(
+          imageData!.file!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      );
+    } else if (imageData?.url != null && imageData!.url!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Image.network(
-          _imageUrls[key]!,
+          imageData.url!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -398,7 +434,7 @@ class TyresPageState extends State<TyresPage>
             );
           },
           errorBuilder: (context, error, stackTrace) {
-            return Center(
+            return const Center(
               child: Text(
                 'Failed to load image',
                 style: TextStyle(color: Colors.red, fontSize: 16),
@@ -446,13 +482,17 @@ class TyresPageState extends State<TyresPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    _updateAndNotify(() {
-                      _selectedImages[key] = File(pickedFile.path);
-                      _imageUrls.remove(key); // Remove existing URL if any
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _selectedImages[key] = ImageData(
+                        file: File(pickedFile.path),
+                        webImage: bytes,
+                      );
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -461,13 +501,17 @@ class TyresPageState extends State<TyresPage>
                 title: const Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    _updateAndNotify(() {
-                      _selectedImages[key] = File(pickedFile.path);
-                      _imageUrls.remove(key); // Remove existing URL if any
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _selectedImages[key] = ImageData(
+                        file: File(pickedFile.path),
+                        webImage: bytes,
+                      );
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -483,7 +527,8 @@ class TyresPageState extends State<TyresPage>
     // Validate data before saving
     for (int pos = 1; pos <= widget.numberOfTyrePositions; pos++) {
       String photoKey = 'Tyre_Pos_$pos Photo';
-      if ((_selectedImages[photoKey] == null && _imageUrls[photoKey] == null) ||
+      if ((_selectedImages[photoKey] == null &&
+              _selectedImages[photoKey]?.url == null) ||
           (_chassisConditions[pos]?.isEmpty ?? true) ||
           (_virginOrRecaps[pos]?.isEmpty ?? true) ||
           (_rimTypes[pos]?.isEmpty ?? true)) {
@@ -524,22 +569,29 @@ class TyresPageState extends State<TyresPage>
       String posKey = 'Tyre_Pos_$pos';
       String photoKey = '$posKey Photo';
 
-      // Upload image if selected
       String? imageUrl;
-      if (_selectedImages[photoKey] != null) {
-        imageUrl = await _uploadImageToFirebase(
-            _selectedImages[photoKey]!, 'position_$pos');
-        _imageUrls[photoKey] = imageUrl; // Update image URLs map
+      final imageData = _selectedImages[photoKey];
+      if (imageData != null) {
+        if (imageData.webImage != null) {
+          imageUrl = await _uploadWebImageToFirebase(
+            imageData.webImage!,
+            'position_$pos',
+          );
+        } else if (imageData.file != null) {
+          imageUrl = await _uploadImageToFirebase(
+            imageData.file!,
+            'position_$pos',
+          );
+        }
       }
 
       Map<String, dynamic> tyreData = {
         'chassisCondition': _chassisConditions[pos] ?? '',
         'virginOrRecap': _virginOrRecaps[pos] ?? '',
         'rimType': _rimTypes[pos] ?? '',
-        'imageUrl': imageUrl ?? _imageUrls[photoKey] ?? '',
+        'imageUrl': imageUrl ?? imageData?.url ?? '',
       };
 
-      // Save to Firestore
       await _firestore
           .collection('vehicles')
           .doc(widget.vehicleId)
@@ -566,6 +618,21 @@ class TyresPageState extends State<TyresPage>
     return await snapshot.ref.getDownloadURL();
   }
 
+  Future<String> _uploadWebImageToFirebase(
+      Uint8List imageData, String section) async {
+    try {
+      String fileName =
+          'tyres/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+      UploadTask uploadTask = storageRef.putData(imageData);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print('Error uploading web image: $e');
+      return '';
+    }
+  }
+
   /// Resets all fields and clears images
   void reset() {
     setState(() {
@@ -578,7 +645,6 @@ class TyresPageState extends State<TyresPage>
 
       // Clear images
       _selectedImages.clear();
-      _imageUrls.clear();
 
       _isInitialized = false;
     });
@@ -595,7 +661,7 @@ class TyresPageState extends State<TyresPage>
       String photoKey = 'Tyre_Pos_$pos Photo';
 
       // Check image (1 field per position)
-      if (_selectedImages[photoKey] != null || _imageUrls[photoKey] != null) {
+      if (_selectedImages[photoKey]?.hasImage == true) {
         filledFields++;
       }
 
@@ -641,10 +707,11 @@ class TyresPageState extends State<TyresPage>
 
           // Handle image data
           if (value['imageUrl'] != null) {
-            _imageUrls[photoKey] = value['imageUrl'];
+            _selectedImages[photoKey] = ImageData(url: value['imageUrl']);
           }
           if (value['imagePath'] != null) {
-            _selectedImages[photoKey] = File(value['imagePath']);
+            _selectedImages[photoKey] =
+                ImageData(file: File(value['imagePath']));
           }
         }
       });

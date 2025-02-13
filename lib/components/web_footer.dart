@@ -82,14 +82,6 @@ class WebFooter extends StatelessWidget {
                     ),
                   ),
 
-                  // Vertical Divider
-                  Container(
-                    height: 100,
-                    width: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 32),
-                    color: Colors.grey,
-                  ),
-
                   // Social Media Icons (Right)
                   Expanded(
                     child: Row(
@@ -102,6 +94,7 @@ class WebFooter extends StatelessWidget {
                       ],
                     ),
                   ),
+                  Divider()
                 ],
               ),
               const SizedBox(height: 24),

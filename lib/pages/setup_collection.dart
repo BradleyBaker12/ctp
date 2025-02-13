@@ -438,9 +438,9 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       final data = doc.data() as Map<String, dynamic>;
       print('Data structure: ${data['inspectionDetails']}');
 
-      // Navigate nested structure correctly
-      final inspectionDetails = data['inspectionDetails']['inspectionDetails']
-          as Map<String, dynamic>?;
+      // Change this section to match the correct data structure
+      final inspectionDetails =
+          data['inspectionDetails'] as Map<String, dynamic>?;
       if (inspectionDetails == null) {
         throw Exception('Missing inspection details structure');
       }
@@ -502,8 +502,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
         _showBackToFormButton = true;
       });
     } catch (e) {
-      print('Error: $e');
-      _showErrorDialog(e.toString());
+      print('Error in _populateFromInspectionDetails: $e');
+      _showErrorDialog('Failed to load inspection details: $e');
       setState(() => _useInspectionDetails = false);
     } finally {
       setState(() => _isLoading = false);

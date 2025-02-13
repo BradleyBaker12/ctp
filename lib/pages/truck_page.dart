@@ -1,7 +1,6 @@
 // lib/pages/truck_page.dart
 
 import 'dart:convert';
-
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/truck_card.dart';
@@ -13,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
 
 class NavigationItem {
@@ -949,6 +949,7 @@ class _TruckPageState extends State<TruckPage> {
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
+    final size = MediaQuery.of(context).size;
 
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
@@ -1104,12 +1105,109 @@ class _TruckPageState extends State<TruckPage> {
           // Main body
           Expanded(
             child: _isLoading || _isFiltering
-                ? Center(
-                    child: Image.asset(
-                      'lib/assets/Loading_Logo_CTP.gif',
-                      width: 100,
-                      height: 100,
+                ? GridView.builder(
+                    padding: const EdgeInsets.all(24),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: _calculateCrossAxisCount(context),
+                      crossAxisSpacing: 24,
+                      mainAxisSpacing: 24,
+                      mainAxisExtent: 600,
                     ),
+                    itemCount: 8, // Show 8 shimmer cards
+                    itemBuilder: (context, index) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2F7FFF).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(
+                            color: const Color(0xFF2F7FFF),
+                            width: 2,
+                          ),
+                        ),
+                        child: Shimmer.fromColors(
+                          baseColor: Colors.grey[900]!,
+                          highlightColor: Colors.grey[800]!,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Image placeholder
+                              Container(
+                                height: 360, // 60% of 600
+                                decoration: const BoxDecoration(
+                                  color: Colors.black12,
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(24),
+                                  ),
+                                ),
+                              ),
+                              // Content area
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Title placeholder
+                                      Container(
+                                        height: 24,
+                                        width: double.infinity,
+                                        color: Colors.black12,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Subtitle placeholder
+                                      Container(
+                                        height: 16,
+                                        width: 100,
+                                        color: Colors.black12,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      // Spec boxes
+                                      Row(
+                                        children: [
+                                          for (var i = 0; i < 3; i++) ...[
+                                            if (i > 0) const SizedBox(width: 8),
+                                            Container(
+                                              height: 36,
+                                              width: 80,
+                                              decoration: BoxDecoration(
+                                                color: Colors.black12,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+                                      // Progress bar placeholder
+                                      Container(
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black12,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      // Button placeholder
+                                      Container(
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black12,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   )
                 : displayedVehicles.isNotEmpty
                     ? NotificationListener<ScrollNotification>(

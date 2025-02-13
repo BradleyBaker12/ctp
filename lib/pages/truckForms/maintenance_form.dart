@@ -7,6 +7,7 @@ import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:typed_data';
 
 class MaintenanceForm extends StatefulWidget {
   final Map<String, dynamic> formData;
@@ -24,8 +25,8 @@ class _MaintenanceFormState extends State<MaintenanceForm> {
   bool? canSendToOEM;
   final TextEditingController _reasonController = TextEditingController();
   String _oemInspectionType = '';
-  File? maintenanceDocFile;
-  File? warrantyDocFile;
+  Uint8List? maintenanceDocFile;
+  Uint8List? warrantyDocFile;
   String? maintenanceDocUrl;
   String? warrantyDocUrl;
   bool isUploading = false;
@@ -63,9 +64,9 @@ class _MaintenanceFormState extends State<MaintenanceForm> {
       );
 
       if (result != null) {
-        setState(() {
-          maintenanceDocFile = File(result.files.single.path!);
-        });
+        maintenanceDocFile =
+            await File(result.files.single.path!).readAsBytes();
+        setState(() {});
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
@@ -80,9 +81,8 @@ class _MaintenanceFormState extends State<MaintenanceForm> {
       );
 
       if (result != null) {
-        setState(() {
-          warrantyDocFile = File(result.files.single.path!);
-        });
+        warrantyDocFile = await File(result.files.single.path!).readAsBytes();
+        setState(() {});
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
@@ -95,7 +95,7 @@ class _MaintenanceFormState extends State<MaintenanceForm> {
 
   Widget _buildDocumentUploadContainer({
     required String title,
-    required File? file,
+    required Uint8List? file,
     required String? url,
     required VoidCallback onTap,
   }) {
@@ -134,13 +134,13 @@ class _MaintenanceFormState extends State<MaintenanceForm> {
             ] else ...[
               if (file != null) ...[
                 Icon(
-                  _getFileIcon(file.path.split('.').last),
+                  _getFileIcon(File.fromRawPath(file).path.split('.').last),
                   size: 50,
                   color: Colors.white,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  file.path.split('/').last,
+                  File.fromRawPath(file).path.split('/').last,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -175,15 +175,15 @@ class _MaintenanceFormState extends State<MaintenanceForm> {
     );
   }
 
-  Future<String?> _uploadFile(File file, String folder) async {
+  Future<String?> _uploadFile(Uint8List file, String folder) async {
     try {
       final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+          '${DateTime.now().millisecondsSinceEpoch}_${File.fromRawPath(file).path.split('/').last}';
       final ref = _storage
           .ref()
           .child('vehicles/${widget.formData['vehicleId']}/$folder/$fileName');
 
-      final uploadTask = await ref.putFile(file);
+      final uploadTask = await ref.putData(file);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
       debugPrint('Error uploading file: $e');

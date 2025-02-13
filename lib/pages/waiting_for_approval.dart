@@ -85,13 +85,13 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
       case 'active':
         return 'Your account is active. You can now access all features.';
       case 'pending':
-        return 'Your account is awaiting approval from an admin. You will be notified once it is active. Thank you for your patience!';
+        return 'Your account is currently under review. The admin team needs to approve your account before you can start trading. This usually takes 1-2 business days. You will receive a notification once your account is approved. Thank you for your patience!';
       case 'suspended':
         return 'Your account has been suspended. Please contact support for more information.';
       case 'deactivated':
         return 'Your account has been deactivated. Please contact support to reactivate.';
       default:
-        return 'We are unable to determine your account status at this time.';
+        return 'Please wait while we verify your account status.';
     }
   }
 
@@ -194,7 +194,7 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
                             CustomButton(
                               text: 'LOG OUT',
                               borderColor: blue,
-                              onPressed: () {
+                              onPressed: () async {
                                 // Add logic to log out the user
                                 FirebaseAuth.instance.signOut();
                                 Navigator.pushReplacementNamed(

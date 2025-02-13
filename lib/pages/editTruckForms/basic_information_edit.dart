@@ -2,7 +2,9 @@
 
 import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/services.dart'; // Added for loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,6 +25,8 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ctp/components/truck_info_web_nav.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class BasicInformationEdit extends StatefulWidget {
   final bool isDuplicating;
@@ -118,7 +122,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   String? _initialVehicleStatus;
 
   // Variable to hold selected NATIS/RC1 file
-  File? _natisRc1File;
+  Uint8List? _natisRc1File;
+  String? _natisRc1FileName;
   bool isNewUpload = false;
   String? _existingNatisRc1Url;
   String? _existingNatisRc1Name;
@@ -143,6 +148,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   String? _selectedSalesRepId;
   String? _selectedSalesRepEmail;
   // ------------------------------------------------------------------
+
+  // Add new properties for web navigation
+  bool _isDrawerOpen = false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -557,6 +566,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
       // Prepopulate the assigned sales rep if available
       String? currentSalesRepId;
+      // final vehMap = widget.vehicle!.toMap();
       if (vehMap.containsKey('assignedSalesRepId') &&
           (vehMap['assignedSalesRepId'] as String).isNotEmpty) {
         currentSalesRepId = vehMap['assignedSalesRepId'];
@@ -606,15 +616,26 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // Function to pick NATIS/RC1 file
   Future<void> _pickNatisRc1File() async {
     try {
-      FilePickerResult? result =
-          await FilePicker.platform.pickFiles(type: FileType.any);
-      if (result != null && result.files.single.path != null) {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx'
+        ],
+      );
+      if (result != null) {
+        final bytes = await result.xFiles.first.readAsBytes();
+        final fileName = result.xFiles.first.name;
         setState(() {
-          _natisRc1File = File(result.files.single.path!);
+          _natisRc1File = bytes;
+          _natisRc1FileName = fileName;
         });
-        debugPrint('NATIS/RC1 File Selected: ${_natisRc1File!.path}');
-      } else {
-        debugPrint('No NATIS/RC1 file selected.');
       }
     } catch (e) {
       debugPrint('Error picking NATIS/RC1 file: $e');
@@ -914,6 +935,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     // New flag for sales representatives
     final bool isSalesRep = userRole == 'sales representative';
 
+    // Get the screen width
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isCompactNavigation = screenWidth < 800;
+
     return WillPopScope(
       onWillPop: () async {
         if (widget.isNewUpload) {
@@ -927,18 +952,85 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       child: Stack(
         children: [
           Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_left),
-                color: Colors.white,
-                iconSize: 40,
-              ),
-              backgroundColor: const Color(0xFF0E4CAF),
-              elevation: 0.0,
-              systemOverlayStyle: SystemUiOverlayStyle.light,
-              centerTitle: true,
-            ),
+            key: _scaffoldKey,
+            drawer: kIsWeb && isCompactNavigation
+                ? Drawer(
+                    child: Container(
+                      color: Colors.white,
+                      child: ListView(
+                        children: [
+                          DrawerHeader(
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF0E4CAF),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.vehicle?.referenceNumber ??
+                                      'New Vehicle',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  widget.vehicle?.makeModel ?? '',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Add your drawer items here
+                        ],
+                      ),
+                    ),
+                  )
+                : null,
+            appBar: kIsWeb
+                ? PreferredSize(
+                    preferredSize: const Size.fromHeight(70),
+                    child: TruckInfoWebNavBar(
+                      scaffoldKey: _scaffoldKey,
+                      selectedTab: "Basic Information",
+                      vehicleId:
+                          _vehicleId ?? '', // Add this line using _vehicleId
+                      onHomePressed: () =>
+                          Navigator.pushNamed(context, '/home'),
+                      onBasicInfoPressed: () =>
+                          Navigator.pushNamed(context, '/basic_information'),
+                      onTruckConditionsPressed: () =>
+                          Navigator.pushNamed(context, '/truck_conditions'),
+                      onMaintenanceWarrantyPressed: () =>
+                          Navigator.pushNamed(context, '/maintenance_warranty'),
+                      onExternalCabPressed: () =>
+                          Navigator.pushNamed(context, '/external_cab'),
+                      onInternalCabPressed: () =>
+                          Navigator.pushNamed(context, '/internal_cab'),
+                      onChassisPressed: () =>
+                          Navigator.pushNamed(context, '/chassis'),
+                      onDriveTrainPressed: () =>
+                          Navigator.pushNamed(context, '/drive_train'),
+                      onTyresPressed: () =>
+                          Navigator.pushNamed(context, '/tyres'),
+                    ),
+                  )
+                : AppBar(
+                    leading: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_left),
+                      color: Colors.white,
+                      iconSize: 40,
+                    ),
+                    backgroundColor: const Color(0xFF0E4CAF),
+                    elevation: 0.0,
+                    systemOverlayStyle: SystemUiOverlayStyle.light,
+                    centerTitle: true,
+                  ),
             body: GradientBackground(
               child: NotificationListener<ScrollNotification>(
                 onNotification: (scrollNotification) {
@@ -1110,7 +1202,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 onImagePicked: (Uint8List? image, fileName) {
                   if (image != null) {
                     formData.setSelectedMainImage(image, fileName);
-                    debugPrint('Main image picked: ${fileName}');
+                    debugPrint('Main image picked: $fileName');
                   }
                 },
               ),
@@ -1696,8 +1788,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       if (_natisRc1File != null) {
         debugPrint('Uploading NATIS/RC1 file...');
         final ref = FirebaseStorage.instance.ref().child('vehicle_documents').child(
-            '${DateTime.now().millisecondsSinceEpoch}_${_natisRc1File!.path.split('/').last}');
-        await ref.putFile(_natisRc1File!);
+            '${DateTime.now().millisecondsSinceEpoch}_${_natisRc1FileName!.split('/').last}');
+        await ref.putData(_natisRc1File!);
         natisRc1Url = await ref.getDownloadURL();
         debugPrint('NATIS/RC1 file uploaded. URL: $natisRc1Url');
       }
@@ -1812,8 +1904,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     content: Text('Changes saved successfully'),
                     duration: Duration(seconds: 2)),
               );
+              await MyNavigator.pushReplacement(context, VehiclesListPage());
               debugPrint('Navigating back after successful save.');
-              Navigator.pop(context);
+              setState(() {});
             }
           } finally {
             setState(() => _isLoading = false);
@@ -1842,6 +1935,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     formData.setMainImageUrl(null);
     setState(() {
       _natisRc1File = null;
+      _natisRc1FileName = null;
       _existingNatisRc1Url = null;
       _existingNatisRc1Name = null;
     });
@@ -1856,7 +1950,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       if (image != null) {
         final bytes = await image.readAsBytes();
         final fileName = image.name;
-        formData.setSelectedMainImage(bytes, fileName); // Changed to pass both parameters
+        formData.setSelectedMainImage(
+            bytes, fileName); // Changed to pass both parameters
         debugPrint('Image picked from $source: ${image.path}');
       } else {
         debugPrint('No image selected from $source.');
@@ -1915,7 +2010,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
             ),
             child: _natisRc1File != null
-                ? buildFileDisplay(_natisRc1File!.path.split('/').last, false)
+                ? buildFileDisplay(_natisRc1FileName?.split('/').last, false)
                 : _existingNatisRc1Url != null &&
                         _existingNatisRc1Url!.isNotEmpty
                     ? buildFileDisplay(_existingNatisRc1Name, true)
@@ -1973,7 +2068,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   }
 
   void _viewDocument() async {
-    final url = _natisRc1File != null ? null : _existingNatisRc1Url;
+    final url = _natisRc1FileName != null ? null : _existingNatisRc1Url;
     if (url != null && url.isNotEmpty) {
       debugPrint('Attempting to view document at URL: $url');
       try {
@@ -1996,7 +2091,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         }
       }
     } else if (_natisRc1File != null) {
-      debugPrint('Viewing local NATIS/RC1 file: ${_natisRc1File!.path}');
+      debugPrint('Viewing local NATIS/RC1 file: $_natisRc1FileName');
     }
   }
 

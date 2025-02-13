@@ -1,5 +1,7 @@
 // lib/models/external_cab.dart
 
+import 'package:flutter/material.dart';
+
 import 'damage.dart';
 import 'additional_feature.dart';
 
@@ -21,7 +23,15 @@ class ExternalCab {
   });
 
   factory ExternalCab.fromMap(Map<String, dynamic> data) {
-    return ExternalCab(
+    debugPrint('=== ExternalCab fromMap ===');
+    debugPrint('Raw data: $data');
+    debugPrint('condition: ${data['condition']}');
+    debugPrint('damagesCondition: ${data['damagesCondition']}');
+    debugPrint(
+        'additionalFeaturesCondition: ${data['additionalFeaturesCondition']}');
+    debugPrint('images: ${data['images']}');
+
+    final result = ExternalCab(
       condition: data['condition'] ?? '',
       damagesCondition: data['damagesCondition'] ?? '',
       additionalFeaturesCondition: data['additionalFeaturesCondition'] ?? '',
@@ -35,6 +45,12 @@ class ExternalCab {
               .toList() ??
           [],
     );
+
+    debugPrint('=== Created ExternalCab ===');
+    debugPrint('Final condition: ${result.condition}');
+    debugPrint('Final images count: ${result.images.length}');
+
+    return result;
   }
 
   Map<String, dynamic> toMap() {
@@ -49,19 +65,31 @@ class ExternalCab {
   }
 
   static Map<String, PhotoData> _parseImages(Map<String, dynamic> imagesData) {
+    debugPrint('=== Parsing Images ===');
+    debugPrint('Raw images data: $imagesData');
+
     Map<String, PhotoData> result = {};
     imagesData.forEach((key, value) {
       if (value is Map<String, dynamic>) {
         result[key] = PhotoData.fromMap(value);
+        debugPrint(
+            'Parsed image for $key: {path: ${result[key]?.path}, imageUrl: ${result[key]?.imageUrl}}');
       }
     });
+    debugPrint('Finished parsing images. Count: ${result.length}');
     return result;
   }
 
   Map<String, dynamic> _imagesToMap() {
     Map<String, dynamic> result = {};
     images.forEach((key, value) {
-      result[key] = value.toMap();
+      if (value != null) {
+        result[key] = {
+          'isNew': value.isNew,
+          'path': value.path,
+          'url': value.imageUrl,
+        };
+      }
     });
     return result;
   }
@@ -81,23 +109,34 @@ class ExternalCab {
 class PhotoData {
   final bool isNew;
   final String path;
+  final String? imageUrl; // Add URL field
 
   PhotoData({
-    required this.isNew,
-    required this.path,
+    this.isNew = false,
+    this.path = '',
+    this.imageUrl,
   });
 
   factory PhotoData.fromMap(Map<String, dynamic> data) {
-    return PhotoData(
+    debugPrint('PhotoData.fromMap input: $data');
+    final result = PhotoData(
       isNew: data['isNew'] ?? false,
       path: data['path'] ?? '',
+      imageUrl: data['url'] ?? '', // Try 'url' first for back-compat
     );
+    debugPrint(
+        'PhotoData.fromMap result: {path: ${result.path}, imageUrl: ${result.imageUrl}}');
+    return result;
   }
 
   Map<String, dynamic> toMap() {
     return {
       'isNew': isNew,
       'path': path,
+      'url': imageUrl,
     };
   }
+
+  @override
+  String toString() => 'PhotoData(path: $path, imageUrl: $imageUrl)';
 }

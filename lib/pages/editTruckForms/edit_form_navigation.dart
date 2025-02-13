@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
@@ -9,6 +7,8 @@ import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/pages/vehicles_list.dart';
+import 'package:ctp/utils/navigation.dart';
 
 class EditFormNavigation extends StatefulWidget {
   final Vehicle vehicle;
@@ -367,9 +367,11 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(width: 16),
-            Text(
-              vehicle!.makeModel.toString().toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+            Expanded(
+              child: Text(
+                vehicle!.makeModel.toString().toUpperCase(),
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              ),
             ),
             const SizedBox(width: 16),
           ],
@@ -425,6 +427,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
 
                       // Fetch updated vehicle data
                       await _fetchVehicleData();
+                      await MyNavigator.pushReplacement(
+                          context, VehiclesListPage());
                     },
                     text: 'PUSH TO LIVE',
                     borderColor: Colors.green,
@@ -442,6 +446,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
 
                       // Fetch updated vehicle data
                       await _fetchVehicleData();
+                      await MyNavigator.pushReplacement(
+                          context, VehiclesListPage());
                     },
                     text: 'MOVE TO DRAFT',
                     borderColor: Colors.blueAccent,

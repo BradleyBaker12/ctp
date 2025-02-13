@@ -7,6 +7,31 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:typed_data';
+
+class ImageData {
+  File? file;
+  Uint8List? webImage;
+  String? url;
+
+  ImageData({this.file, this.webImage, this.url});
+
+  bool get hasImage =>
+      file != null || webImage != null || (url != null && url!.isNotEmpty);
+}
+
+class ItemData {
+  String description;
+  ImageData imageData;
+  String key;
+
+  ItemData({
+    this.description = '',
+    ImageData? imageData,
+    String? key,
+  })  : imageData = imageData ?? ImageData(),
+        key = key ?? UniqueKey().toString();
+}
 
 class ChassisPage extends StatefulWidget {
   final String vehicleId;
@@ -35,43 +60,26 @@ class ChassisPageState extends State<ChassisPage>
   String _damagesCondition = 'no';
 
   // Maps to store selected images and their URLs
-  final Map<String, String?> _imageUrls = {
-    'Right Brake': null,
-    'Left Brake': null,
-    'Front Axel': null,
-    'Suspension': null,
-    'Fuel Tank': null,
-    'Battery': null,
-    'Cat Walk': null,
-    'Electrical Cable Black': null,
-    'Air Cable Yellow': null,
-    'Air Cable Red': null,
-    'Tail Board': null,
-    '5th Wheel': null,
-    'Left Brake Rear Axel': null,
-    'Right Brake Rear Axel': null,
-  };
-
-  final Map<String, File?> _selectedImages = {
-    'Right Brake': null,
-    'Left Brake': null,
-    'Front Axel': null,
-    'Suspension': null,
-    'Fuel Tank': null,
-    'Battery': null,
-    'Cat Walk': null,
-    'Electrical Cable Black': null,
-    'Air Cable Yellow': null,
-    'Air Cable Red': null,
-    'Tail Board': null,
-    '5th Wheel': null,
-    'Left Brake Rear Axel': null,
-    'Right Brake Rear Axel': null,
+  final Map<String, ImageData> _selectedImages = {
+    'Right Brake': ImageData(),
+    'Left Brake': ImageData(),
+    'Front Axel': ImageData(),
+    'Suspension': ImageData(),
+    'Fuel Tank': ImageData(),
+    'Battery': ImageData(),
+    'Cat Walk': ImageData(),
+    'Electrical Cable Black': ImageData(),
+    'Air Cable Yellow': ImageData(),
+    'Air Cable Red': ImageData(),
+    'Tail Board': ImageData(),
+    '5th Wheel': ImageData(),
+    'Left Brake Rear Axel': ImageData(),
+    'Right Brake Rear Axel': ImageData(),
   };
 
   // Lists to store damages and additional features
-  List<Map<String, dynamic>> _damageList = [];
-  List<Map<String, dynamic>> _additionalFeaturesList = [];
+  List<ItemData> _damageList = [];
+  List<ItemData> _additionalFeaturesList = [];
 
   bool _isInitialized = false; // Flag to prevent re-initialization
 
@@ -222,12 +230,7 @@ class ChassisPageState extends State<ChassisPage>
                 _updateAndNotify(() {
                   _damagesCondition = value!;
                   if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                    _damageList.add({
-                      'description': '',
-                      'image': null,
-                      'imageUrl': null,
-                      'key': UniqueKey().toString(),
-                    });
+                    _damageList.add(ItemData());
                   } else if (_damagesCondition == 'no') {
                     _damageList.clear();
                   }
@@ -248,12 +251,7 @@ class ChassisPageState extends State<ChassisPage>
                   _additionalFeaturesCondition = value!;
                   if (_additionalFeaturesCondition == 'yes' &&
                       _additionalFeaturesList.isEmpty) {
-                    _additionalFeaturesList.add({
-                      'description': '',
-                      'image': null,
-                      'imageUrl': null,
-                      'key': UniqueKey().toString(),
-                    });
+                    _additionalFeaturesList.add(ItemData());
                   } else if (_additionalFeaturesCondition == 'no') {
                     _additionalFeaturesList.clear();
                   }
@@ -282,154 +280,94 @@ class ChassisPageState extends State<ChassisPage>
 
   /// Adds an 'X' overlay button to remove the image if present
   Widget _buildPhotoBlock(String title) {
-    final imageFile = _selectedImages[title];
-    final imageUrl = _imageUrls[title];
-
-    // If there's a local file, show it in a Stack with an X button
-    if (imageFile != null) {
-      return GestureDetector(
-        onTap: () => _showImageSourceDialog(title),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.blue.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(color: AppColors.blue, width: 2.0),
-          ),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
-                  imageFile,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
-              // "X" button to remove the image
-              Positioned(
-                top: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedImages[title] = null;
-                      // Optionally clear URL if you wish:
-                      // _imageUrls[title] = null;
-                    });
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    padding: const EdgeInsets.all(4.0),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return GestureDetector(
+      onTap: () => _showImageSourceDialog(title),
+      child: Container(
+        width: double.infinity,
+        height: 130,
+        decoration: BoxDecoration(
+          color: AppColors.blue.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8.0),
+          border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-      );
-    }
-    // Else if there's an existing URL (and isEditing == true), display it in a Stack with an X button
-    else if (imageUrl != null && widget.isEditing) {
-      return GestureDetector(
-        onTap: () => _showImageSourceDialog(title),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.blue.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(color: AppColors.blue, width: 2.0),
-          ),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: progress.expectedTotalBytes != null
-                            ? progress.cumulativeBytesLoaded /
-                                progress.expectedTotalBytes!
-                            : null,
+        child: !_selectedImages[title]!.hasImage
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.add_circle_outline,
+                      color: Colors.white, size: 40.0),
+                  const SizedBox(height: 8.0),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              )
+            : Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: _getImageWidget(_selectedImages[title]!),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedImages[title] = ImageData();
+                        });
+                        widget.onProgressUpdate();
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(4.0),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              // "X" button to remove the URL
-              Positioned(
-                top: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _imageUrls[title] = null;
-                      // If you want to allow re-upload, keep _selectedImages[title] = null
-                      _selectedImages[title] = null;
-                    });
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    padding: const EdgeInsets.all(4.0),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 18,
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+      ),
+    );
+  }
+
+  Widget _getImageWidget(ImageData imageData) {
+    if (imageData.webImage != null) {
+      return Image.memory(
+        imageData.webImage!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    } else if (imageData.file != null) {
+      return Image.file(
+        imageData.file!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    } else if (imageData.url != null && imageData.url!.isNotEmpty) {
+      return Image.network(
+        imageData.url!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
       );
     }
-    // Else show a placeholder
-    else {
-      return GestureDetector(
-        onTap: () => _showImageSourceDialog(title),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.blue.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(color: AppColors.blue, width: 2.0),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add_circle_outline,
-                  color: Colors.white, size: 40.0),
-              const SizedBox(height: 8.0),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    return Container();
   }
 
   // Method to show the dialog for selecting image source (Camera or Gallery)
@@ -447,14 +385,17 @@ class ChassisPageState extends State<ChassisPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
-                      // Optionally clear old URL
-                      _imageUrls[title] = null;
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _selectedImages[title] = ImageData(
+                        file: File(pickedFile.path),
+                        webImage: bytes,
+                      );
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -463,14 +404,17 @@ class ChassisPageState extends State<ChassisPage>
                 title: const Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
-                      // Optionally clear old URL
-                      _imageUrls[title] = null;
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _selectedImages[title] = ImageData(
+                        file: File(pickedFile.path),
+                        webImage: bytes,
+                      );
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -530,12 +474,7 @@ class ChassisPageState extends State<ChassisPage>
       items: _damageList,
       addItem: () {
         _updateAndNotify(() {
-          _damageList.add({
-            'description': '',
-            'image': null,
-            'imageUrl': null,
-            'key': UniqueKey().toString(),
-          });
+          _damageList.add(ItemData());
         });
       },
       showImageSourceDialog: _showDamageImageSourceDialog,
@@ -548,12 +487,7 @@ class ChassisPageState extends State<ChassisPage>
       items: _additionalFeaturesList,
       addItem: () {
         _updateAndNotify(() {
-          _additionalFeaturesList.add({
-            'description': '',
-            'image': null,
-            'imageUrl': null,
-            'key': UniqueKey().toString(),
-          });
+          _additionalFeaturesList.add(ItemData());
         });
       },
       showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
@@ -562,9 +496,9 @@ class ChassisPageState extends State<ChassisPage>
 
   // Helper method to build the item section (Damages, Additional Features)
   Widget _buildItemSection({
-    required List<Map<String, dynamic>> items,
+    required List<ItemData> items,
     required VoidCallback addItem,
-    required void Function(Map<String, dynamic>) showImageSourceDialog,
+    required void Function(ItemData) showImageSourceDialog,
   }) {
     return Column(
       children: [
@@ -602,9 +536,9 @@ class ChassisPageState extends State<ChassisPage>
   /// Wraps the image in a Stack with an "X" button if present
   Widget _buildItemWidget(
     int index,
-    Map<String, dynamic> item,
-    void Function(Map<String, dynamic>) showImageSourceDialog,
-    List<Map<String, dynamic>> list,
+    ItemData item,
+    void Function(ItemData) showImageSourceDialog,
+    List<ItemData> list,
   ) {
     return Column(
       children: [
@@ -613,13 +547,13 @@ class ChassisPageState extends State<ChassisPage>
           children: [
             Expanded(
               child: TextField(
-                controller: TextEditingController(text: item['description'])
+                controller: TextEditingController(text: item.description)
                   ..selection = TextSelection.fromPosition(
-                    TextPosition(offset: item['description']?.length ?? 0),
+                    TextPosition(offset: item.description.length),
                   ),
                 onChanged: (value) {
                   _updateAndNotify(() {
-                    item['description'] = value;
+                    item.description = value;
                   });
                 },
                 decoration: InputDecoration(
@@ -657,13 +591,13 @@ class ChassisPageState extends State<ChassisPage>
             ),
             child: () {
               // If local file is present, show in a Stack
-              if (item['image'] != null) {
+              if (item.imageData.file != null) {
                 return Stack(
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
                       child: Image.file(
-                        item['image'],
+                        item.imageData.file!,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
@@ -675,7 +609,7 @@ class ChassisPageState extends State<ChassisPage>
                       child: GestureDetector(
                         onTap: () {
                           setState(() {
-                            item['image'] = null;
+                            item.imageData.file = null;
                             // Optionally clear URL too:
                             // item['imageUrl'] = null;
                           });
@@ -698,13 +632,13 @@ class ChassisPageState extends State<ChassisPage>
                 );
               }
               // Else if there's an existing URL and we're editing
-              else if (item['imageUrl'] != null && widget.isEditing) {
+              else if (item.imageData.url != null && widget.isEditing) {
                 return Stack(
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
                       child: Image.network(
-                        item['imageUrl'],
+                        item.imageData.url!,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
@@ -727,7 +661,7 @@ class ChassisPageState extends State<ChassisPage>
                       child: GestureDetector(
                         onTap: () {
                           setState(() {
-                            item['imageUrl'] = null;
+                            item.imageData.url = null;
                             // Keep item['image'] = null
                             // so user can re-upload if they want
                           });
@@ -780,17 +714,17 @@ class ChassisPageState extends State<ChassisPage>
   }
 
   // Method to show dialog for selecting image source for damages
-  void _showDamageImageSourceDialog(Map<String, dynamic> damage) {
+  void _showDamageImageSourceDialog(ItemData damage) {
     _showImageSourceDialogForItem(damage);
   }
 
   // Method to show dialog for selecting image source for additional features
-  void _showAdditionalFeatureImageSourceDialog(Map<String, dynamic> feature) {
+  void _showAdditionalFeatureImageSourceDialog(ItemData feature) {
     _showImageSourceDialogForItem(feature);
   }
 
   // Generic method to show dialog for selecting image source for a given item
-  void _showImageSourceDialogForItem(Map<String, dynamic> item) {
+  void _showImageSourceDialogForItem(ItemData item) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -808,7 +742,7 @@ class ChassisPageState extends State<ChassisPage>
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     _updateAndNotify(() {
-                      item['image'] = File(pickedFile.path);
+                      item.imageData.file = File(pickedFile.path);
                       // Optionally set item['imageUrl'] = null
                     });
                   }
@@ -823,7 +757,7 @@ class ChassisPageState extends State<ChassisPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     _updateAndNotify(() {
-                      item['image'] = File(pickedFile.path);
+                      item.imageData.file = File(pickedFile.path);
                       // Optionally set item['imageUrl'] = null
                     });
                   }
@@ -858,9 +792,9 @@ class ChassisPageState extends State<ChassisPage>
         images.forEach((key, value) {
           if (value is Map) {
             if (value['path'] != null) {
-              _selectedImages[key] = File(value['path']);
+              _selectedImages[key]?.file = File(value['path']);
             } else if (value['url'] != null) {
-              _imageUrls[key] = value['url'];
+              _selectedImages[key]?.url = value['url'];
             }
           }
         });
@@ -869,14 +803,17 @@ class ChassisPageState extends State<ChassisPage>
       // Initialize damage list
       if (data['damages'] != null) {
         _damageList = (data['damages'] as List).map((damage) {
-          return {
-            'description': damage['description'] ?? '',
-            'image':
-                damage['imagePath'] != null ? File(damage['imagePath']) : null,
-            'imageUrl': damage['imageUrl'],
-            'key': damage['key'] ??
+          return ItemData(
+            description: damage['description'] ?? '',
+            imageData: ImageData(
+              file: damage['imagePath'] != null
+                  ? File(damage['imagePath'])
+                  : null,
+              url: damage['imageUrl'],
+            ),
+            key: damage['key'] ??
                 DateTime.now().millisecondsSinceEpoch.toString(),
-          };
+          );
         }).toList();
       }
 
@@ -884,15 +821,17 @@ class ChassisPageState extends State<ChassisPage>
       if (data['additionalFeatures'] != null) {
         _additionalFeaturesList =
             (data['additionalFeatures'] as List).map((feature) {
-          return {
-            'description': feature['description'] ?? '',
-            'image': feature['imagePath'] != null
-                ? File(feature['imagePath'])
-                : null,
-            'imageUrl': feature['imageUrl'],
-            'key': feature['key'] ??
+          return ItemData(
+            description: feature['description'] ?? '',
+            imageData: ImageData(
+              file: feature['imagePath'] != null
+                  ? File(feature['imagePath'])
+                  : null,
+              url: feature['imageUrl'],
+            ),
+            key: feature['key'] ??
                 DateTime.now().millisecondsSinceEpoch.toString(),
-          };
+          );
         }).toList();
       }
     });
@@ -907,23 +846,48 @@ class ChassisPageState extends State<ChassisPage>
     return await snapshot.ref.getDownloadURL();
   }
 
+  Future<String> _uploadWebImageToFirebase(
+      Uint8List imageData, String section) async {
+    try {
+      String fileName =
+          'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+      UploadTask uploadTask = storageRef.putData(imageData);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print('Error uploading web image: $e');
+      return '';
+    }
+  }
+
   Future<Map<String, dynamic>> getData() async {
-    // Upload main images
-    final Map<String, dynamic> serializedImages = {};
-    for (final entry in _selectedImages.entries) {
-      if (entry.value != null) {
-        final imageUrl = await _uploadImageToFirebase(
-          entry.value!,
-          entry.key.replaceAll(' ', '_').toLowerCase(),
-        );
+    Map<String, dynamic> serializedImages = {};
+    for (var entry in _selectedImages.entries) {
+      if (entry.value.hasImage) {
+        String? imageUrl;
+        if (entry.value.webImage != null) {
+          imageUrl = await _uploadWebImageToFirebase(
+            entry.value.webImage!,
+            entry.key.replaceAll(' ', '_').toLowerCase(),
+          );
+        } else if (entry.value.file != null) {
+          imageUrl = await _uploadImageToFirebase(
+            entry.value.file!,
+            entry.key.replaceAll(' ', '_').toLowerCase(),
+          );
+        }
+
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          serializedImages[entry.key] = {
+            'url': imageUrl,
+            'path': entry.value.file?.path,
+            'isNew': true,
+          };
+        }
+      } else if (entry.value.url != null && entry.value.url!.isNotEmpty) {
         serializedImages[entry.key] = {
-          'url': imageUrl,
-          'path': entry.value!.path,
-          'isNew': true,
-        };
-      } else if (_imageUrls[entry.key] != null) {
-        serializedImages[entry.key] = {
-          'url': _imageUrls[entry.key],
+          'url': entry.value.url,
           'isNew': false,
         };
       }
@@ -932,21 +896,21 @@ class ChassisPageState extends State<ChassisPage>
     // Upload damages
     final List<Map<String, dynamic>> serializedDamages = [];
     for (final damage in _damageList) {
-      if (damage['image'] != null) {
+      if (damage.imageData.file != null) {
         final imageUrl =
-            await _uploadImageToFirebase(damage['image'], 'damage');
+            await _uploadImageToFirebase(damage.imageData.file!, 'damage');
         serializedDamages.add({
-          'description': damage['description'] ?? '',
+          'description': damage.description,
           'imageUrl': imageUrl,
-          'path': damage['image'].path,
-          'key': damage['key'],
+          'path': damage.imageData.file!.path,
+          'key': damage.key,
           'isNew': true,
         });
-      } else if (damage['imageUrl'] != null) {
+      } else if (damage.imageData.url != null) {
         serializedDamages.add({
-          'description': damage['description'] ?? '',
-          'imageUrl': damage['imageUrl'],
-          'key': damage['key'],
+          'description': damage.description,
+          'imageUrl': damage.imageData.url,
+          'key': damage.key,
           'isNew': false,
         });
       }
@@ -955,21 +919,21 @@ class ChassisPageState extends State<ChassisPage>
     // Upload additional features
     final List<Map<String, dynamic>> serializedFeatures = [];
     for (final feature in _additionalFeaturesList) {
-      if (feature['image'] != null) {
+      if (feature.imageData.file != null) {
         final imageUrl =
-            await _uploadImageToFirebase(feature['image'], 'feature');
+            await _uploadImageToFirebase(feature.imageData.file!, 'feature');
         serializedFeatures.add({
-          'description': feature['description'] ?? '',
+          'description': feature.description,
           'imageUrl': imageUrl,
-          'path': feature['image'].path,
-          'key': feature['key'],
+          'path': feature.imageData.file!.path,
+          'key': feature.key,
           'isNew': true,
         });
-      } else if (feature['imageUrl'] != null) {
+      } else if (feature.imageData.url != null) {
         serializedFeatures.add({
-          'description': feature['description'] ?? '',
-          'imageUrl': feature['imageUrl'],
-          'key': feature['key'],
+          'description': feature.description,
+          'imageUrl': feature.imageData.url,
+          'key': feature.key,
           'isNew': false,
         });
       }
@@ -992,16 +956,14 @@ class ChassisPageState extends State<ChassisPage>
       _additionalFeaturesCondition = 'no';
 
       // Clear selected images
-      _selectedImages.forEach((key, _) {
-        _selectedImages[key] = null;
+      _selectedImages.forEach((key, value) {
+        value.file = null;
+        value.url = null;
       });
 
       // Clear lists
       _damageList.clear();
       _additionalFeaturesList.clear();
-
-      // Clear image URLs
-      _imageUrls.clear();
 
       _isInitialized = false; // Allow re-initialization if needed
     });
@@ -1017,7 +979,7 @@ class ChassisPageState extends State<ChassisPage>
 
     // Check all images (14 fields)
     _selectedImages.forEach((key, value) {
-      if (value != null) filledFields++;
+      if (value.file != null) filledFields++;
     });
 
     // Check damages section (1 field)
@@ -1025,7 +987,7 @@ class ChassisPageState extends State<ChassisPage>
       filledFields++;
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
       final isDamagesComplete = _damageList.every((damage) =>
-          damage['description']?.isNotEmpty == true && damage['image'] != null);
+          damage.description.isNotEmpty && damage.imageData.file != null);
       if (isDamagesComplete) filledFields++;
     }
 
@@ -1035,8 +997,7 @@ class ChassisPageState extends State<ChassisPage>
     } else if (_additionalFeaturesCondition == 'yes' &&
         _additionalFeaturesList.isNotEmpty) {
       final isFeaturesComplete = _additionalFeaturesList.every((feature) =>
-          feature['description']?.isNotEmpty == true &&
-          feature['image'] != null);
+          feature.description.isNotEmpty && feature.imageData.file != null);
       if (isFeaturesComplete) filledFields++;
     }
 

@@ -1,8 +1,6 @@
 // File: upload_proof_of_payment_page.dart
 
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -12,7 +10,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
-import 'package:provider/provider.dart';
 
 class UploadProofOfPaymentPage extends StatefulWidget {
   final String offerId;
@@ -28,28 +25,20 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
   bool _isUploaded = false;
+  Uint8List? _selectedFile;
+  String? _selectedFileName;
   final FirebaseStorage storage = FirebaseStorage.instance;
-
-  Future<String> uploadByte(Uint8List fileByte, String fileName) async {
-    final userId = Provider.of<UserProvider>(context, listen: false).userId!;
-    final ref = storage.ref().child('documents/$userId/$fileName');
-    final task = ref.putData(fileByte);
-    final snapshot = await task;
-    return await snapshot.ref.getDownloadURL();
-  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
       final pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
-        if (kIsWeb) {
-          final bytes = await pickedFile.readAsBytes();
-          await uploadByte(bytes, pickedFile.name);
-        } else {
-          await _uploadFile(File(pickedFile.path));
-        }
-      } else {
-        print('No image selected.');
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _selectedFile = bytes;
+          _selectedFileName = pickedFile.name;
+        });
+        await _uploadFile();
       }
     } catch (e) {
       print('Error picking image: $e');
@@ -61,16 +50,20 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
 
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles();
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+      );
+
       if (result != null) {
-        if (kIsWeb) {
-          await uploadByte(
-              result.files.single.bytes!, result.files.single.xFile.name);
-        } else {
-          await _uploadFile(File(result.files.single.path!));
+        final bytes = result.files.single.bytes;
+        if (bytes != null) {
+          setState(() {
+            _selectedFile = bytes;
+            _selectedFileName = result.files.single.name;
+          });
+          await _uploadFile();
         }
-      } else {
-        print('No file selected.');
       }
     } catch (e) {
       print('Error picking file: $e');
@@ -80,35 +73,43 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
     }
   }
 
-  Future<void> _uploadFile(File file) async {
+  Future<void> _uploadFile() async {
+    if (_selectedFile == null || _selectedFileName == null) return;
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      String fileExtension = file.path.split('.').last;
       String fileName =
-          'proof_of_payment/${widget.offerId}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+          'proof_of_payment/${widget.offerId}/${DateTime.now().millisecondsSinceEpoch}_$_selectedFileName';
       Reference storageReference =
           FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageReference.putFile(file);
 
+      // Upload the file bytes
+      UploadTask uploadTask = storageReference.putData(_selectedFile!);
       await uploadTask.whenComplete(() => null);
+
       String fileURL = await storageReference.getDownloadURL();
 
-      // Save the file URL to Firestore under the offer document
+      // Save the file URL to Firestore
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
-          .update({'proofOfPaymentUrl': fileURL});
+          .update({
+        'proofOfPaymentUrl': fileURL,
+        'proofOfPaymentFileName': _selectedFileName,
+        'uploadTimestamp': FieldValue.serverTimestamp(),
+      });
 
       setState(() {
         _isLoading = false;
         _isUploaded = true;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Proof of payment uploaded successfully')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Proof of payment uploaded successfully')),
+      );
 
       // Navigate back to the PaymentPendingPage after 2 seconds
       Future.delayed(const Duration(seconds: 2), () {
@@ -124,8 +125,9 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
         _isLoading = false;
       });
       print('Error uploading file: $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Error uploading file')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading file: $e')),
+      );
     }
   }
 

@@ -15,6 +15,7 @@ import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/utils/navigation.dart';
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
@@ -295,7 +296,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             ? null
             : CustomBottomNavigation(
                 selectedIndex: _selectedIndex,
-                onItemTapped: (index) {
+                onItemTapped: (index) async {
                   _onItemTapped(index);
                   final userRole =
                       userProvider.getUserRole.toLowerCase().trim();
@@ -304,53 +305,32 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                   if (userRole == 'dealer') {
                     // 0: Home, 1: Vehicles, 2: Offers
                     if (index == 0) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomePage()),
-                      );
+                      await MyNavigator.pushReplacement(
+                          context, const HomePage());
                     } else if (index == 1) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const VehiclesListPage(),
-                        ),
-                      );
+                       await MyNavigator.pushReplacement(
+                          context, const VehiclesListPage());
                     } else if (index == 2) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const OffersPage()),
-                      );
+                      await MyNavigator.pushReplacement(
+                          context, const OffersPage());
                     }
                   }
                   // Example for transporters
                   else if (userRole == 'transporter') {
                     // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
                     if (index == 0) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomePage()),
-                      );
+                       await MyNavigator.pushReplacement(
+                          context, const HomePage());
                     } else if (index == 1) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const VehiclesListPage(),
-                        ),
+                      await MyNavigator.pushReplacement(
+                    context, const VehiclesListPage(),
                       );
                     } else if (index == 2) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const OffersPage()),
-                      );
+                      await MyNavigator.pushReplacement(
+                          context, const OffersPage());
                     } else if (index == 3) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => ProfilePage()),
-                      );
+                      await MyNavigator.pushReplacement(
+                          context, ProfilePage());
                     }
                   } else {
                     // Handle other roles if needed
@@ -390,12 +370,10 @@ class _VehiclesListPageState extends State<VehiclesListPage>
           itemBuilder: (context, index) {
             final vehicle = vehicles[index];
             return ListingCard(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                await MyNavigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-                  ),
+                  VehicleDetailsPage(vehicle: vehicle),
                 );
               },
               vehicle: vehicle,

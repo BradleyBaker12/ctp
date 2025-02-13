@@ -21,6 +21,7 @@ class Offer extends ChangeNotifier {
   String? vehicleBrand;
   String? externalInvoice;
   bool? needsInvoice;
+  String? variant; // Add this field
 
   List<String> vehicleImages = [];
   Map<String, String?> additionalInfo = {};
@@ -80,6 +81,7 @@ class Offer extends ChangeNotifier {
     this.vehicleTransmission,
     this.externalInvoice,
     this.needsInvoice,
+    this.variant, // Add this parameter
   });
 
   /// IMPORTANT: Ensure these keys match your Firestore fields.
@@ -104,6 +106,7 @@ class Offer extends ChangeNotifier {
       vehicleBrand: data['brands'] is List
           ? (data['brands'] as List).first.toString()
           : data['brands']?.toString(),
+      variant: data['variant']?.toString(), // Add this mapping
 
       /// Add these mappings to pull fields from Firestore
       vehicleYear: data['vehicleYear'],
@@ -355,32 +358,33 @@ class OfferProvider with ChangeNotifier {
   /// Updates the status of an offer.
   Future<void> updateOfferStatus(String offerId, String newStatus) async {
     try {
-      await _firestore
+      // First check if the offer is in a final state
+      DocumentSnapshot offerDoc = await FirebaseFirestore.instance
           .collection('offers')
           .doc(offerId)
-          .update({'paymentStatus': newStatus});
+          .get();
 
-      await _firestore
-          .collection('offers')
-          .doc(offerId)
-          .update({'offerStatus': newStatus});
-      // await _firestore
-      //     .collection('offers')
-      //     .doc(offerId)
-      //     .update({'offerStatus': newStatus});
+      if (offerDoc.exists) {
+        Map<String, dynamic> data = offerDoc.data() as Map<String, dynamic>;
+        bool isFinalStatus = data['finalStatus'] ?? false;
 
-      // Update local state
-      Offer? offer = getOfferById(offerId);
-      if (offer != null) {
-        offer.offerStatus = newStatus;
-        notifyListeners();
+        // Don't update if it's in final status
+        if (isFinalStatus) {
+          print('Offer is in final status (sold), preventing status update');
+          return;
+        }
+
+        // Otherwise proceed with update
+        await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(offerId)
+            .update({'offerStatus': newStatus});
       }
     } catch (e) {
-      print('ERROR: Failed to update offer status: $e');
-      _errorMessage = 'Failed to update offer status. Please try again.';
-      notifyListeners();
+      print('Error updating offer status: $e');
     }
   }
+  
 
   /// Deletes an offer from Firestore and updates the local list.
   Future<void> deleteOffer(String offerId) async {

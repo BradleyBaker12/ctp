@@ -16,14 +16,9 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:http/http.dart' as http;
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:image/image.dart' as img;
-import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:ctp/components/truck_info_web_nav.dart';
 
 class MaintenanceEditSection extends StatefulWidget {
   final String vehicleId;
@@ -61,11 +56,17 @@ class MaintenanceEditSection extends StatefulWidget {
       required this.isFromAdmin});
 
   @override
-  MaintenanceEditSectionState createState() => MaintenanceEditSectionState();
+  MaintenanceEditSectionState createState() {
+    debugPrint('DEBUG: Creating MaintenanceEditSection with:');
+    debugPrint('maintenanceDocUrl: "$maintenanceDocUrl"');
+    debugPrint('warrantyDocUrl: "$warrantyDocUrl"');
+    return MaintenanceEditSectionState();
+  }
 }
 
 class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     with AutomaticKeepAliveClientMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late TextEditingController _oemReasonController;
   late String _oemInspectionType;
   Uint8List? _maintenanceDocFile;
@@ -73,22 +74,72 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   String? _maintenanceDocFileName;
   String? _warrantyDocFileName;
 
+  // Add these state variables to track document URLs
+  String? _currentMaintenanceDocUrl;
+  String? _currentWarrantyDocUrl;
+
   @override
   void initState() {
     super.initState();
+    debugPrint('DEBUG: MaintenanceEditSection initState');
+    debugPrint(
+        'DEBUG: Initial maintenanceDocUrl: "${widget.maintenanceDocUrl}"');
+    debugPrint('DEBUG: Initial warrantyDocUrl: "${widget.warrantyDocUrl}"');
 
+    // Initialize state variables
     _oemInspectionType = widget.oemInspectionType;
     _oemReasonController =
         TextEditingController(text: widget.oemInspectionExplanation);
+    _currentMaintenanceDocUrl = widget.maintenanceDocUrl;
+    _currentWarrantyDocUrl = widget.warrantyDocUrl;
 
-    // Initialize files with existing data if available
-    // _maintenanceDocFile = widget.maintenanceDocFile;
-    // _warrantyDocFile = widget.warrantyDocFile;
+    // Fetch fresh data
+    _fetchMaintenanceData();
 
-    // Add listener for progress updates
-    _oemReasonController.addListener(() {
-      notifyProgress();
-    });
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    _oemReasonController.addListener(notifyProgress);
+  }
+
+  Future<void> _fetchMaintenanceData() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+
+      if (!doc.exists) {
+        debugPrint('ERROR: Document does not exist');
+        return;
+      }
+
+      final data = doc.data();
+      debugPrint('DEBUG: Retrieved document data: $data');
+
+      // Try both paths for maintenance data
+      final maintenanceData = data?['maintenance'] ?? data?['maintenanceData'];
+      debugPrint('DEBUG: Parsed maintenance data: $maintenanceData');
+
+      if (maintenanceData != null) {
+        setState(() {
+          _oemInspectionType =
+              maintenanceData['oemInspectionType']?.toString() ?? 'yes';
+          _oemReasonController.text =
+              maintenanceData['oemReason']?.toString() ?? '';
+          _currentMaintenanceDocUrl =
+              maintenanceData['maintenanceDocUrl']?.toString();
+          _currentWarrantyDocUrl =
+              maintenanceData['warrantyDocUrl']?.toString();
+
+          debugPrint('DEBUG: Updated state with:');
+          debugPrint('maintenanceDocUrl: "$_currentMaintenanceDocUrl"');
+          debugPrint('warrantyDocUrl: "$_currentWarrantyDocUrl"');
+        });
+      }
+    } catch (e, stack) {
+      debugPrint('ERROR: Failed to fetch maintenance data: $e');
+      debugPrint('Stack trace: $stack');
+    }
   }
 
   @override
@@ -382,90 +433,68 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
   Future<void> _viewPdf(String url, String title) async {
     try {
-      // Show loading indicator
+      debugPrint('DEBUG: _viewPdf called with URL: "$url" and title: "$title"');
+      debugPrint('DEBUG: maintenanceDocUrl: "${widget.maintenanceDocUrl}"');
+      debugPrint('DEBUG: warrantyDocUrl: "${widget.warrantyDocUrl}"');
 
-      if (kIsWeb) {
-        Navigator.push(
-            context, MaterialPageRoute(builder: (_) => ViewerPage(url: url)));
-        // html.window.open(url, "_blank");
+      if (url.isEmpty) {
+        debugPrint('ERROR: Empty URL detected');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Document URL is empty')),
+        );
         return;
       }
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          );
-        },
+
+      debugPrint('DEBUG: Opening document URL: $url');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ViewerPage(url: url),
+        ),
       );
-      // Download and cache the PDF
-      final response = await http.get(Uri.parse(url));
-      final bytes = response.bodyBytes;
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/temp.pdf');
-      await file.writeAsBytes(bytes);
-
-      // Dismiss loading indicator
-      if (mounted) Navigator.pop(context);
-
-      // Show PDF viewer
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Scaffold(
-              appBar: AppBar(
-                title: Text(title),
-                backgroundColor: const Color(0xFF0E4CAF),
-              ),
-              body: PDFView(
-                filePath: file.path,
-                enableSwipe: true,
-                swipeHorizontal: false,
-                autoSpacing: true,
-                pageFling: true,
-                pageSnap: true,
-                defaultPage: 0,
-                fitPolicy: FitPolicy.BOTH,
-                preventLinkNavigation: false,
-                onError: (error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $error')),
-                  );
-                },
-                onPageError: (page, error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error on page $page: $error')),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      // Dismiss loading indicator if showing
-      if (mounted) Navigator.pop(context);
-
+    } catch (e, stackTrace) {
+      debugPrint('ERROR: Error viewing document: $e');
+      debugPrint('STACK TRACE: $stackTrace');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error viewing PDF: $e')),
+        SnackBar(content: Text('Error viewing document: $e')),
       );
     }
   }
 
   void _showDocumentOptions(bool isMaintenance) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin';
+    final bool isDealer = userRole == 'dealer';
+    final bool isTransporter = userRole == 'transporter';
+    final bool isSales = userRole == 'sales';
+    final bool canEdit = isAdmin || isSales || isTransporter;
+
     final String? url =
-        isMaintenance ? widget.maintenanceDocUrl : widget.warrantyDocUrl;
+        isMaintenance ? _currentMaintenanceDocUrl : _currentWarrantyDocUrl;
     final Uint8List? file =
         isMaintenance ? _maintenanceDocFile : _warrantyDocFile;
     final String title =
         isMaintenance ? 'Maintenance Document' : 'Warranty Document';
-    final bool canEdit =
-        Provider.of<UserProvider>(context, listen: false).getUserRole !=
-            'dealer';
+
+    debugPrint('DEBUG: _showDocumentOptions called');
+    debugPrint('DEBUG: isMaintenance: $isMaintenance');
+    debugPrint(
+        'DEBUG: current maintenanceDocUrl: "$_currentMaintenanceDocUrl"');
+    debugPrint('DEBUG: current warrantyDocUrl: "$_currentWarrantyDocUrl"');
+    debugPrint('DEBUG: selected url: "$url"');
+    debugPrint('DEBUG: file exists: ${file != null}');
+    debugPrint('DEBUG: title: "$title"');
+
+    if (url == null || url.isEmpty) {
+      debugPrint('ERROR: URL is null or empty. Widget URLs:');
+      debugPrint('maintenanceDocUrl: "${widget.maintenanceDocUrl}"');
+      debugPrint('warrantyDocUrl: "${widget.warrantyDocUrl}"');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Document URL not available')),
+      );
+      return;
+    }
 
     showDialog(
       context: context,
@@ -481,7 +510,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                 title: const Text('View'),
                 onTap: () async {
                   Navigator.pop(context);
-                  if (url != null && file == null) {
+                  if (file == null) {
                     await _viewPdf(url, title);
                   } else if (file != null) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -532,6 +561,33 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
     // Change the onTap/enabled conditions to exclude dealers
     return Scaffold(
+      key: _scaffoldKey,
+      appBar: kIsWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: TruckInfoWebNavBar(
+                scaffoldKey: _scaffoldKey,
+                selectedTab: "Maintenance and Warranty",
+                vehicleId: widget.vehicleId, // Add this line
+                onHomePressed: () => Navigator.pushNamed(context, '/home'),
+                onBasicInfoPressed: () =>
+                    Navigator.pushNamed(context, '/basic_information'),
+                onTruckConditionsPressed: () =>
+                    Navigator.pushNamed(context, '/truck_conditions'),
+                onMaintenanceWarrantyPressed: () =>
+                    Navigator.pushNamed(context, '/maintenance_warranty'),
+                onExternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/external_cab'),
+                onInternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/internal_cab'),
+                onChassisPressed: () =>
+                    Navigator.pushNamed(context, '/chassis'),
+                onDriveTrainPressed: () =>
+                    Navigator.pushNamed(context, '/drive_train'),
+                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+              ),
+            )
+          : null,
       body: GradientBackground(
         child: SizedBox(
           height: MediaQuery.of(context).size.height,
@@ -1069,7 +1125,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
                             // Update the vehicle document in Firestore
 
-                            log("Maintenance data before save ${maintenanceData}");
+                            log("Maintenance data before save $maintenanceData");
                             await FirebaseFirestore.instance
                                 .collection('vehicles')
                                 .doc(widget.vehicleId)

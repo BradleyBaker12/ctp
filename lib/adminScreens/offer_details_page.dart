@@ -1,6 +1,5 @@
 // lib/adminScreens/offer_details_page.dart
 
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/pages/setup_collection.dart';
@@ -929,45 +928,48 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   /// Upload/replace the external invoice
   Future<void> _uploadExternalInvoice() async {
     debugText('_uploadExternalInvoice: invoked');
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'gif'],
+        withData: true,
       );
 
-      if (result != null && result.files.single.path != null) {
-        File file = File(result.files.single.path!);
-        String fileName = result.files.single.name;
+      if (result != null && result.files.isNotEmpty) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const Center(child: CircularProgressIndicator());
+          },
+        );
 
-        // Validate MIME type
-        final mimeType = lookupMimeType(file.path);
-        if (mimeType == null ||
-            (!mimeType.startsWith('image/') && mimeType != 'application/pdf')) {
-          throw Exception('Unsupported file type.');
+        final file = result.files.first;
+        final fileBytes = file.bytes;
+        final fileName = file.name;
+
+        if (fileBytes == null) {
+          throw Exception('Could not read file data');
         }
 
-        debugText('Uploading invoice: $fileName, mimeType: $mimeType');
-
-        // Upload path with timestamp
-        String storagePath =
-            'invoices/${widget.offer.offerId}/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+        // Generate a unique filename using timestamp
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final storagePath =
+            'invoices/${widget.offer.offerId}/${timestamp}_$fileName';
+        debugText('Uploading invoice to path: $storagePath');
 
         final storageRef = FirebaseStorage.instance.ref(storagePath);
-        final uploadTask = storageRef.putFile(file);
+        final metadata = SettableMetadata(
+          contentType: lookupMimeType(fileName) ?? 'application/octet-stream',
+        );
 
-        // Wait for upload
+        final uploadTask = storageRef.putData(fileBytes, metadata);
+
+        // Wait for upload to complete
         final snapshot = await uploadTask;
         final downloadUrl = await snapshot.ref.getDownloadURL();
 
-        debugText('Invoice uploaded. Download URL: $downloadUrl');
+        debugText('Invoice uploaded successfully. Download URL: $downloadUrl');
 
         // Update Firestore
         await FirebaseFirestore.instance
@@ -989,26 +991,27 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           Provider.of<OfferProvider>(context, listen: false).refreshOffers();
         }
 
-        Navigator.pop(context); // Dismiss loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invoice uploaded successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        debugText('User canceled file picker or no file selected.');
-        Navigator.pop(context); // user canceled
+        if (context.mounted) {
+          Navigator.pop(context); // Dismiss loading dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invoice uploaded successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugText('ERROR: Failed to upload invoice: $e');
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to upload invoice: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog if showing
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload invoice: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

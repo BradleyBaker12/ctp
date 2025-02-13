@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/utils/navigation.dart';
 
 class PaymentPendingPage extends StatefulWidget {
   final String offerId;
@@ -71,12 +72,9 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
               .doc(widget.offerId)
               .update({'offerStatus': 'paid'});
 
-          Navigator.pushReplacement(
+          await MyNavigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  PaymentApprovedPage(offerId: widget.offerId),
-            ),
+            PaymentApprovedPage(offerId: widget.offerId),
           );
         } else {
           // Keep checking the payment status if not yet accepted
@@ -282,13 +280,10 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                         CustomButton(
                           text: 'UPLOAD PROOF OF PAYMENT',
                           borderColor: Colors.blue,
-                          onPressed: () {
-                            Navigator.push(
+                          onPressed: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => UploadProofOfPaymentPage(
-                                    offerId: widget.offerId),
-                              ),
+                             UploadProofOfPaymentPage(offerId: widget.offerId),
                             ).then((_) {
                               // Refresh the proof of payment status when returning
                               _checkProofOfPayment();
@@ -300,7 +295,7 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Text(
-                            'Proof of payment has been uploaded.',
+                            'Proof of payment has been uploaded and an admin will get back to you shortly.',
                             style: TextStyle(
                               color: Colors.greenAccent,
                               fontWeight: FontWeight.bold,
@@ -311,13 +306,11 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                       CustomButton(
                         text: 'REPORT AN ISSUE',
                         borderColor: const Color(0xFFFF4E00),
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                         await MyNavigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => ReportIssuePage(
-                                offerId: widget.offerId,
-                              ),
+                            ReportIssuePage(
+                              offerId: widget.offerId,
                             ),
                           );
                         },

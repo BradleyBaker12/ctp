@@ -23,6 +23,7 @@ import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:ctp/providers/offer_provider.dart'; // Import OfferProvider
 import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground
+import 'package:ctp/utils/navigation.dart';
 
 class WishlistOffersPage extends StatefulWidget {
   const WishlistOffersPage({super.key});
@@ -132,7 +133,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
               const SizedBox(height: 16),
               // Text Button for "View More"
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   // Navigate to the WishlistPage
                   Navigator.push(
                     context,
@@ -348,13 +349,10 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             );
                           },
                           hasOffer: hasOffer,
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    VehicleDetailsPage(vehicle: vehicle),
-                              ),
+                              VehicleDetailsPage(vehicle: vehicle),
                             );
                           },
                           onDelete: () async {
@@ -395,28 +393,16 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
         ),
         bottomNavigationBar: CustomBottomNavigation(
           selectedIndex: 3,
-          onItemTapped: (index) {
+          onItemTapped: (index) async {
             if (index == 0) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HomePage()),
-              );
+              await MyNavigator.pushReplacement(context, const HomePage());
             } else if (index == 1) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const TruckPage()),
-              );
+              await MyNavigator.pushReplacement(context, const TruckPage());
             } else if (index == 2) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const WishlistOffersPage()),
-              );
+              await MyNavigator.pushReplacement(
+                  context, const WishlistOffersPage());
             } else if (index == 3) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const OffersPage()),
-              );
+              await MyNavigator.pushReplacement(context, const OffersPage());
             }
           },
         ),

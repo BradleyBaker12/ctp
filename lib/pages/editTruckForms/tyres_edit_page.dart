@@ -1,6 +1,5 @@
 // lib/pages/truckForms/tyres_edit_page.dart
 
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -10,17 +9,23 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart';
+import 'package:ctp/utils/navigation.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ctp/components/truck_info_web_nav.dart';
 
 class TyresEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
+  final bool inTabsPage; // Add this parameter
 
   const TyresEditPage({
     super.key,
     required this.vehicleId,
     required this.onProgressUpdate,
     this.isEditing = false,
+    this.inTabsPage = false, // Default to false
   });
 
   @override
@@ -29,6 +34,7 @@ class TyresEditPage extends StatefulWidget {
 
 class TyresEditPageState extends State<TyresEditPage>
     with AutomaticKeepAliveClientMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage =
@@ -88,6 +94,7 @@ class TyresEditPageState extends State<TyresEditPage>
             // Handle image data
             if (data['imageUrl'] != null) {
               _imageUrls[photoKey] = data['imageUrl'];
+              print("ImageUrls: $_imageUrls");
             }
             // Note: imagePath is not typically stored; if needed, handle accordingly
           }
@@ -109,28 +116,70 @@ class TyresEditPageState extends State<TyresEditPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16.0),
-            Text(
-              'Details for TYRES'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 25,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
+    Widget content = Material(
+      type: MaterialType.transparency,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 16.0),
+              Text(
+                'Details for TYRES'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 25,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            // Generate Tyre Position Sections
-            ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
-            const SizedBox(height: 16.0),
-          ],
+              const SizedBox(height: 16.0),
+              // Generate Tyre Position Sections
+              ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
+              const SizedBox(height: 16.0),
+            ],
+          ),
         ),
       ),
+    );
+
+    // If not in tabs page, wrap with GradientBackground
+    if (!widget.inTabsPage) {
+      content = GradientBackground(child: content);
+    }
+
+    return Scaffold(
+      key: _scaffoldKey,
+      appBar: kIsWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: TruckInfoWebNavBar(
+                scaffoldKey: _scaffoldKey,
+                selectedTab: "Tyres",
+                vehicleId: widget.vehicleId, // Add this line
+                onHomePressed: () => Navigator.pushNamed(context, '/home'),
+                onBasicInfoPressed: () =>
+                    Navigator.pushNamed(context, '/basic_information'),
+                onTruckConditionsPressed: () =>
+                    Navigator.pushNamed(context, '/truck_conditions'),
+                onMaintenanceWarrantyPressed: () =>
+                    Navigator.pushNamed(context, '/maintenance_warranty'),
+                onExternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/external_cab'),
+                onInternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/internal_cab'),
+                onChassisPressed: () =>
+                    Navigator.pushNamed(context, '/chassis'),
+                onDriveTrainPressed: () =>
+                    Navigator.pushNamed(context, '/drive_train'),
+                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+              ),
+            )
+          : null,
+      body: content, // your existing content
     );
   }
 
@@ -181,6 +230,8 @@ class TyresEditPageState extends State<TyresEditPage>
                     _chassisConditions[pos] = value;
                   });
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -192,6 +243,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _chassisConditions[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -203,6 +256,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _chassisConditions[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -231,6 +286,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -242,6 +299,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -270,6 +329,9 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _rimTypes[pos] = value;
                 }
+
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -281,6 +343,8 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _rimTypes[pos] = value;
                 }
+                widget.onProgressUpdate();
+                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -296,13 +360,12 @@ class TyresEditPageState extends State<TyresEditPage>
     final bool isDealer = userProvider.getUserRole == 'dealer';
     String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (isDealer &&
             (_selectedImages[key] != null || _imageUrls[key] != null)) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => Scaffold(
+          await MyNavigator.push(
+              context,
+              Scaffold(
                 backgroundColor: Colors.black,
                 appBar: AppBar(
                   backgroundColor: Colors.transparent,
@@ -322,9 +385,7 @@ class TyresEditPageState extends State<TyresEditPage>
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
+              ));
         } else if (!isDealer) {
           _showImageSourceDialog(key);
         }
@@ -354,12 +415,15 @@ class TyresEditPageState extends State<TyresEditPage>
                 else if (_imageUrls[key] != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      _imageUrls[key]!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
+                    child: _imageUrls[key] == null || _imageUrls[key] == ""
+                        ? Center(child: Text("Invalid Image"))
+                        : Image.network(
+                            _imageUrls[key]!,
+                            // "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaNLiTGLsYuLJw2qP6ICVQWQJ3SSjuqQVsEQ&s",
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
                   )
                 else
                   Center(
@@ -413,6 +477,7 @@ class TyresEditPageState extends State<TyresEditPage>
                           _selectedImages.remove(key);
                           _imageUrls.remove(key);
                         });
+                        widget.onProgressUpdate();
                       },
                       child: Container(
                         decoration: const BoxDecoration(
@@ -460,6 +525,7 @@ class TyresEditPageState extends State<TyresEditPage>
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
               ListTile(
@@ -477,6 +543,7 @@ class TyresEditPageState extends State<TyresEditPage>
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
             ],

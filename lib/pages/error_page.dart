@@ -6,6 +6,7 @@ import 'package:ctp/pages/login.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'signup_page.dart'; // Import the SignUp page
+import 'package:ctp/utils/navigation.dart';
 
 class ErrorPage extends StatelessWidget {
   const ErrorPage({super.key});
@@ -59,13 +60,8 @@ class ErrorPage extends StatelessWidget {
                         CustomButton(
                           text: 'CREATE NEW ACCOUNT',
                           borderColor: blue,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const SignUpPage()),
-                            );
-                          },
+                         onPressed: () async {
+                            await MyNavigator.push(context, const SignUpPage());},
                         ),
                         const SizedBox(height: 16),
                         CustomButton(

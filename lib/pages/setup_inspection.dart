@@ -6,7 +6,6 @@ import 'package:intl/intl.dart'; // For date formatting
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:ctp/components/custom_back_button.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // For Firebase Auth
@@ -113,14 +112,19 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
           .get();
 
       if (userDoc.exists) {
-        List<dynamic> savedLocations = userDoc.get('savedLocations') ?? [];
+        // Safely access savedLocations field, defaulting to empty list if it doesn't exist
+        final data = userDoc.data() as Map<String, dynamic>?;
+        List<dynamic> savedLocations = data?['savedLocations'] ?? [];
         setState(() {
           _savedLocations = List<Map<String, dynamic>>.from(savedLocations);
         });
       }
     } catch (e) {
       print('Error fetching saved locations: $e');
-      // Handle errors appropriately
+      // Initialize with empty list on error
+      setState(() {
+        _savedLocations = [];
+      });
     }
   }
 
@@ -268,49 +272,57 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
   }
 
   Future<void> _saveInspectionDetails() async {
-    if (_locations.isNotEmpty) {
-      // Prepare the data to save under 'inspectionDetails' -> 'inspectionLocations' -> 'locations'
-      Map<String, dynamic> inspectionDetails = {
+    if (_locations.isEmpty) {
+      _showErrorDialog('Please save at least one location.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Get a reference to the offer document
+      DocumentReference offerRef =
+          FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
+
+      // Get the current offer data
+      DocumentSnapshot offerDoc = await offerRef.get();
+
+      if (!offerDoc.exists) {
+        throw Exception('Offer document not found');
+      }
+
+      // Prepare the inspection details
+      Map<String, dynamic> updateData = {
         'inspectionDetails': {
           'inspectionLocations': {
             'locations': _locations,
           },
+          'status': 'completed',
+          'lastUpdated': FieldValue.serverTimestamp(),
         },
       };
 
+      // Update the offer document
+      await offerRef.update(updateData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Inspection details saved successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      print('Error saving inspection details: $e');
+      _showErrorDialog(
+          'Failed to save inspection details. Please check if the offer still exists and try again.');
+    } finally {
       setState(() {
-        _isLoading = true; // Start loading
+        _isLoading = false;
       });
-
-      try {
-        // Save the inspection details to the offer document in Firestore
-        await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(widget.offerId) // Need to pass offerId to this page
-            .update({
-          'inspectionDetails': inspectionDetails,
-        });
-
-        // Optionally, navigate back or show a confirmation
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Inspection details saved successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        Navigator.pop(context);
-      } catch (e) {
-        _showErrorDialog(
-            'Failed to save inspection details. Please try again.');
-        print('Error saving inspection details: $e');
-      } finally {
-        setState(() {
-          _isLoading = false; // Stop loading
-        });
-      }
-    } else {
-      _showErrorDialog('Please save at least one location.');
     }
   }
 
@@ -404,23 +416,28 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       DocumentReference userDoc =
           FirebaseFirestore.instance.collection('users').doc(userId);
 
-      // Fetch existing saved locations
-      DocumentSnapshot userSnapshot = await userDoc.get();
-      List<dynamic> existingLocations =
-          userSnapshot.get('savedLocations') ?? [];
+      // First ensure the document exists with an empty savedLocations array
+      await userDoc.set({
+        'savedLocations': [],
+      }, SetOptions(merge: true));
 
-      // Check if the location already exists
+      // Then fetch current data
+      DocumentSnapshot userSnapshot = await userDoc.get();
+      final data = userSnapshot.data() as Map<String, dynamic>?;
+      List<dynamic> existingLocations = data?['savedLocations'] ?? [];
+
+      // Check if location already exists
       bool locationExists = existingLocations
           .any((location) => location['address'] == locationData['address']);
 
       if (!locationExists) {
-        await userDoc.set({
+        // Update with new location
+        await userDoc.update({
           'savedLocations': FieldValue.arrayUnion([locationData]),
-        }, SetOptions(merge: true));
+        });
       }
     } catch (e) {
       print('Error saving location to user profile: $e');
-      // Handle errors appropriately
     }
   }
 

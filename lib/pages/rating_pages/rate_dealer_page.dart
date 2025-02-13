@@ -6,6 +6,7 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/utils/navigation.dart';
 
 class RateDealerPage extends StatefulWidget {
   final String offerId;
@@ -185,10 +186,13 @@ class _RateDealerPageState extends State<RateDealerPage> {
     await _submitRating();
 
     // Navigate to setup collection page instead of home
-    Navigator.push(
+    await MyNavigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SetupCollectionPage(offerId: widget.offerId),
+      SetupCollectionPage(
+        offerId: Provider.of<OfferProvider>(context, listen: false)
+            .offers
+            .firstWhere((offer) => offer.offerId == widget.offerId)
+            .vehicleId,
       ),
     );
   }

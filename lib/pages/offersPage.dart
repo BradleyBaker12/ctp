@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:provider/provider.dart';
+import 'package:ctp/utils/navigation.dart';
 
 // Simple data class for navigation items.
 class NavigationItem {
@@ -154,12 +155,15 @@ class OffersPageState extends State<OffersPage> with RouteAware {
   /// 4. REJECTED: Show only "rejected".
   ///
   List<dynamic> _filterOffers(String status) {
-    // Assuming Offer is a class; adjust type as needed.
-    final offers = _offerProvider.offers;
+    // First, filter out any sold offers
+    final offers = _offerProvider.offers.where((offer) {
+      final lowerStatus = offer.offerStatus.toLowerCase();
+      return lowerStatus != 'sold';
+    }).toList();
 
     switch (status.toUpperCase()) {
       case 'ALL':
-        return offers; // Show everything
+        return offers; // Show everything except sold
       case 'IN PROGRESS':
         // Exclude "rejected", "successful", "completed"
         return offers.where((offer) {
@@ -557,55 +561,33 @@ class OffersPageState extends State<OffersPage> with RouteAware {
               bottomNavigationBar: showBottomNav
                   ? CustomBottomNavigation(
                       selectedIndex: selectedIndex,
-                      onItemTapped: (index) {
+                      onItemTapped: (index) async {
                         if (userRole == 'dealer') {
                           // Dealer navigation.
                           if (index == 0) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const HomePage()),
-                            );
+                            await MyNavigator.pushReplacement(
+                                context, const HomePage());
                           } else if (index == 1) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const TruckPage()),
-                            );
+                            await MyNavigator.pushReplacement(
+                                context, const TruckPage());
                           } else if (index == 2) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const OffersPage()),
-                            );
+                            await MyNavigator.pushReplacement(
+                                context, const OffersPage());
                           }
                         } else if (userRole == 'transporter') {
                           // Transporter navigation.
                           if (index == 0) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const HomePage()),
-                            );
+                            await MyNavigator.pushReplacement(
+                                context, const HomePage());
                           } else if (index == 1) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      const VehiclesListPage()),
-                            );
+                            await MyNavigator.pushReplacement(
+                                context, const VehiclesListPage());
                           } else if (index == 2) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const OffersPage()),
-                            );
+                            await MyNavigator.pushReplacement(
+                                context, const OffersPage());
                           } else if (index == 3) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => ProfilePage()),
-                            );
+                            await MyNavigator.pushReplacement(
+                                context, ProfilePage());
                           }
                         }
                       },

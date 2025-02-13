@@ -2,6 +2,9 @@
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/components/truck_info_web_nav.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +12,7 @@ import 'package:image_picker/image_picker.dart'; // Image picker for uploading i
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart'; // Ensure this import path is correct
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
@@ -32,6 +36,7 @@ class ExternalCabEditPage extends StatefulWidget {
   final VoidCallback? onContinue;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
+  final bool inTabsPage; // Add this parameter
 
   const ExternalCabEditPage({
     super.key,
@@ -39,6 +44,7 @@ class ExternalCabEditPage extends StatefulWidget {
     this.onContinue,
     required this.onProgressUpdate,
     this.isEditing = false,
+    this.inTabsPage = false, // Default to false
   });
 
   @override
@@ -47,6 +53,7 @@ class ExternalCabEditPage extends StatefulWidget {
 
 class ExternalCabEditPageState extends State<ExternalCabEditPage>
     with AutomaticKeepAliveClientMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String _selectedCondition = 'good'; // Default selected value
   String _anyDamagesType = 'no'; // Default selected value
   String _anyAdditionalFeaturesType =
@@ -83,121 +90,198 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   bool get wantKeepAlive => true;
 
   @override
+  void initState() {
+    super.initState();
+    // Load data directly if accessed as dealer
+    if (!_isInitialized) {
+      _loadExistingData();
+    }
+  }
+
+  Future<void> _loadExistingData() async {
+    print('ExternalCab: Loading existing data for vehicle ${widget.vehicleId}');
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+
+      if (!doc.exists) {
+        print('ExternalCab: No document found for vehicle ${widget.vehicleId}');
+        return;
+      }
+
+      final data = doc.data();
+      if (data == null || data['truckConditions'] == null) {
+        print('ExternalCab: No truck conditions data found');
+        return;
+      }
+
+      final externalCabData = data['truckConditions']['externalCab'];
+      if (externalCabData == null) {
+        print('ExternalCab: No external cab data found');
+        return;
+      }
+
+      print('ExternalCab: Found data to initialize with: $externalCabData');
+      initializeWithData(externalCabData);
+      _isInitialized = true;
+    } catch (e) {
+      print('ExternalCab: Error loading existing data: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isDealer = userRole == 'dealer';
 
-    return SingleChildScrollView(
-      controller: _scrollController, // Attach the scroll controller
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 16.0),
-          Text(
-            'Details for EXTERNAL CAB'.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 25,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w900,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16.0),
-          const Text(
-            'Condition of the Outside CAB',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16.0),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              CustomRadioButton(
-                label: 'Poor',
-                value: 'poor',
-                enabled: !isDealer,
-                groupValue: _selectedCondition,
-                onChanged: _updateCondition,
+    Widget content = Material(
+      type: MaterialType.transparency,
+      child: SingleChildScrollView(
+        controller: _scrollController, // Attach the scroll controller
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 16.0),
+            Text(
+              'Details for EXTERNAL CAB'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
               ),
-              CustomRadioButton(
-                label: 'Good',
-                value: 'good',
-                groupValue: _selectedCondition,
-                enabled: !isDealer,
-                onChanged: _updateCondition,
-              ),
-              CustomRadioButton(
-                label: 'Excellent',
-                value: 'excellent',
-                groupValue: _selectedCondition,
-                enabled: !isDealer,
-                onChanged: _updateCondition,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16.0),
-          const Divider(thickness: 1.0),
-          const SizedBox(height: 16.0),
-          Text(
-            'Front Side of Cab'.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 25,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w900,
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16.0),
-          // Photo Blocks Section
-          GridView.count(
-            shrinkWrap: true, // Allows GridView to fit inside the Column
-            physics:
-                const NeverScrollableScrollPhysics(), // Prevent GridView from scrolling independently
-            crossAxisCount: 2,
-            crossAxisSpacing: 16.0,
-            mainAxisSpacing: 16.0,
-            childAspectRatio: 1.5, // Controls the aspect ratio of the blocks
-            children: _selectedImages.keys
-                .map((title) => _buildPhotoBlock(title))
-                .toList(),
-          ),
-          const SizedBox(height: 70.0),
-          // Damage Section
-          _buildAdditionalSection(
-            title: 'Are there any damages on the cab',
-            anyItemsType: _anyDamagesType,
-            onChange: _updateDamagesType,
-            buildItemSection: _buildDamageSection,
-          ),
-          const SizedBox(height: 16.0),
-          const Divider(thickness: 1.0),
-          const SizedBox(height: 16.0),
-          // Additional Features Section
-          _buildAdditionalSection(
-            title: 'Are there any additional features on the cab',
-            anyItemsType: _anyAdditionalFeaturesType,
-            onChange: _updateAdditionalFeaturesType,
-            buildItemSection: _buildAdditionalFeaturesSection,
-          ),
-        ],
+            const SizedBox(height: 16.0),
+            const Text(
+              'Condition of the Outside CAB',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                CustomRadioButton(
+                  label: 'Poor',
+                  value: 'poor',
+                  enabled: !isDealer,
+                  groupValue: _selectedCondition,
+                  onChanged: _updateCondition,
+                ),
+                CustomRadioButton(
+                  label: 'Good',
+                  value: 'good',
+                  groupValue: _selectedCondition,
+                  enabled: !isDealer,
+                  onChanged: _updateCondition,
+                ),
+                CustomRadioButton(
+                  label: 'Excellent',
+                  value: 'excellent',
+                  groupValue: _selectedCondition,
+                  enabled: !isDealer,
+                  onChanged: _updateCondition,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+            Text(
+              'Front Side of Cab'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            // Photo Blocks Section
+            GridView.count(
+              shrinkWrap: true, // Allows GridView to fit inside the Column
+              physics:
+                  const NeverScrollableScrollPhysics(), // Prevent GridView from scrolling independently
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              childAspectRatio: 1.5, // Controls the aspect ratio of the blocks
+              children: _selectedImages.keys
+                  .map((title) => _buildPhotoBlock(title))
+                  .toList(),
+            ),
+            const SizedBox(height: 70.0),
+            // Damage Section
+            _buildAdditionalSection(
+              title: 'Are there any damages on the cab',
+              anyItemsType: _anyDamagesType,
+              onChange: _updateDamagesType,
+              buildItemSection: _buildDamageSection,
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+            // Additional Features Section
+            _buildAdditionalSection(
+              title: 'Are there any additional features on the cab',
+              anyItemsType: _anyAdditionalFeaturesType,
+              onChange: _updateAdditionalFeaturesType,
+              buildItemSection: _buildAdditionalFeaturesSection,
+            ),
+          ],
+        ),
       ),
+    );
+
+    // If not in tabs page, wrap with GradientBackground
+    if (!widget.inTabsPage) {
+      content = GradientBackground(child: content);
+    }
+
+    return Scaffold(
+      key: _scaffoldKey,
+      appBar: kIsWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: TruckInfoWebNavBar(
+                scaffoldKey: _scaffoldKey,
+                selectedTab: "External Cab", // Set selected tab
+                vehicleId: widget.vehicleId, // Pass the vehicleId
+                onHomePressed: () => Navigator.pushNamed(context, '/home'),
+                onBasicInfoPressed: () =>
+                    Navigator.pushNamed(context, '/basic_information'),
+                onTruckConditionsPressed: () =>
+                    Navigator.pushNamed(context, '/truck_conditions'),
+                onMaintenanceWarrantyPressed: () =>
+                    Navigator.pushNamed(context, '/maintenance_warranty'),
+                onExternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/external_cab'),
+                onInternalCabPressed: () =>
+                    Navigator.pushNamed(context, '/internal_cab'),
+                onChassisPressed: () =>
+                    Navigator.pushNamed(context, '/chassis'),
+                onDriveTrainPressed: () =>
+                    Navigator.pushNamed(context, '/drive_train'),
+                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+              ),
+            )
+          : null,
+      body: content, // your existing content
     );
   }
 
   void initializeWithData(Map<String, dynamic> data) {
-    print('initializeWithData called with data: $data');
-
-    if (data.isEmpty) {
-      print('Data is empty, returning from initializeWithData.');
-      return;
-    }
+    print('ExternalCab: Initializing with data: $data');
+    if (data.isEmpty) return;
 
     setState(() {
       _selectedCondition = data['condition'] ?? 'good';
@@ -206,65 +290,41 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
       // Initialize images
       if (data['images'] != null) {
-        Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
+        final images = Map<String, dynamic>.from(data['images']);
         images.forEach((key, value) {
-          print('Initializing image for key $key with value: $value');
+          print('ExternalCab: Processing image for $key');
           if (value is Map && value.containsKey('url')) {
             String? imageUrl = value['url']?.toString();
-            if (imageUrl == null || imageUrl.isEmpty) {
-              print(
-                  'URL for key $key is null or empty, setting imageUrl to null');
-              imageUrl = null;
-            } else {
-              print('Setting image URL for $key: $imageUrl');
+            if (imageUrl != null && imageUrl.isNotEmpty) {
+              print('ExternalCab: Setting URL for $key: $imageUrl');
+              _selectedImages[key] = ImageData(url: imageUrl);
             }
-            _selectedImages[key] = ImageData(file: null, url: imageUrl);
-          } else {
-            print(
-                'Value for key $key is not a Map or does not contain "url" key.');
           }
         });
-      } else {
-        print('No "images" found in data.');
       }
 
       // Initialize damage list
       if (data['damages'] != null) {
         _damageList = (data['damages'] as List).map((damage) {
-          print('Processing damage: $damage');
-          String? imageUrl = damage['imageUrl']?.toString();
-          if (imageUrl == null || imageUrl.isEmpty) {
-            print('Image URL for damage is null or empty.');
-            imageUrl = null;
-          }
           return ItemData(
             description: damage['description'] ?? '',
-            imageData: ImageData(file: null, url: imageUrl),
+            imageData: ImageData(url: damage['imageUrl']),
           );
         }).toList();
-      } else {
-        print('No "damages" found in data.');
       }
 
       // Initialize additional features list
       if (data['additionalFeatures'] != null) {
         _additionalFeaturesList =
             (data['additionalFeatures'] as List).map((feature) {
-          print('Processing additional feature: $feature');
-          String? imageUrl = feature['imageUrl']?.toString();
-          if (imageUrl == null || imageUrl.isEmpty) {
-            print('Image URL for feature is null or empty.');
-            imageUrl = null;
-          }
           return ItemData(
             description: feature['description'] ?? '',
-            imageData: ImageData(file: null, url: imageUrl),
+            imageData: ImageData(url: feature['imageUrl']),
           );
         }).toList();
-      } else {
-        print('No "additionalFeatures" found in data.');
       }
     });
+    print('ExternalCab: Initialization complete');
   }
 
   Widget _getImageWidget(ImageData? imageData, String title, bool isDealer) {
@@ -305,24 +365,29 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         ),
       );
     } else {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (!isDealer)
-            const Icon(Icons.add_circle_outline,
-                color: Colors.white, size: 40.0),
-          const SizedBox(height: 8.0),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (!isDealer)
+              const Icon(Icons.add_circle_outline,
+                  color: Colors.white, size: 40.0),
+            const SizedBox(height: 8.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       );
     }
   }
@@ -524,6 +589,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       // Remove the image by resetting it
                       _selectedImages[title] = ImageData();
                     });
+                    widget.onProgressUpdate();
                   },
                 ),
               ),
@@ -558,6 +624,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                           ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
               ListTile(
@@ -575,6 +643,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                           ImageData(file: bytes, url: null, fileName: fileName);
                     });
                   }
+                  widget.onProgressUpdate();
+                  setState(() {});
                 },
               ),
             ],
@@ -843,20 +913,27 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         ),
       );
     } else {
-      return const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-          SizedBox(height: 8.0),
-          Text(
-            'Clear Picture of Item',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: const [
+            Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
+            SizedBox(height: 8.0),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                'Clear Picture of Item',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
   }
@@ -923,34 +1000,36 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   }
 
   double getCompletionPercentage() {
+    int totalFields = 7; // 3 conditions + 4 required images
     int filledFields = 0;
-    int totalFields = 7; // Total number of sections
 
-    // Check condition selection
-    if (_selectedCondition.isNotEmpty) filledFields++;
+    // Debug logging
+    debugPrint("\n=== External Cab Completion Check ===");
 
-    // Check images
-    _selectedImages.forEach((key, value) {
-      if (value.file != null || (value.url != null && value.url!.isNotEmpty)) {
-        filledFields++;
-      }
-    });
+    // Check condition selections (3 fields)
+    if (_selectedCondition.isNotEmpty) {
+      filledFields++;
+      debugPrint("Main condition filled: $_selectedCondition");
+    }
 
-    // Check damages section
     if (_anyDamagesType == 'no') {
-      filledFields++; // Count as completed if no damages
+      filledFields++;
+      debugPrint("Damages condition filled: no damages");
     } else if (_anyDamagesType == 'yes' && _damageList.isNotEmpty) {
       bool isDamagesComplete = _damageList.every((damage) =>
           damage.description.isNotEmpty &&
           (damage.imageData.file != null ||
               (damage.imageData.url != null &&
                   damage.imageData.url!.isNotEmpty)));
-      if (isDamagesComplete) filledFields++;
+      if (isDamagesComplete) {
+        filledFields++;
+        debugPrint("Damages condition filled: has complete damages");
+      }
     }
 
-    // Check additional features section
     if (_anyAdditionalFeaturesType == 'no') {
-      filledFields++; // Count as completed if no additional features
+      filledFields++;
+      debugPrint("Additional features condition filled: no features");
     } else if (_anyAdditionalFeaturesType == 'yes' &&
         _additionalFeaturesList.isNotEmpty) {
       bool isFeaturesComplete = _additionalFeaturesList.every((feature) =>
@@ -958,11 +1037,29 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
           (feature.imageData.file != null ||
               (feature.imageData.url != null &&
                   feature.imageData.url!.isNotEmpty)));
-      if (isFeaturesComplete) filledFields++;
+      if (isFeaturesComplete) {
+        filledFields++;
+        debugPrint(
+            "Additional features condition filled: has complete features");
+      }
     }
 
-    // Calculate and return percentage
-    return (filledFields / totalFields).clamp(0.0, 1.0);
+    // Check required images (4 fields)
+    _selectedImages.forEach((key, imageData) {
+      bool hasImage = imageData.file != null ||
+          (imageData.url != null && imageData.url!.isNotEmpty);
+      if (hasImage) {
+        filledFields++;
+        debugPrint("Image filled for: $key");
+      }
+    });
+
+    double percentage = (filledFields / totalFields).clamp(0.0, 1.0);
+    debugPrint("Total fields filled: $filledFields out of $totalFields");
+    debugPrint("Completion percentage: ${percentage * 100}%");
+    debugPrint("=== End Completion Check ===\n");
+
+    return percentage;
   }
 
   void _updateAndNotify(VoidCallback updateFunction) {

@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/utils/navigation.dart';
 
 class PaymentApprovedPage extends StatefulWidget {
   final String offerId;
@@ -317,12 +318,9 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                           text: 'VEHICLE COLLECTED',
                           borderColor: Colors.blue,
                           onPressed: () async {
-                            Navigator.push(
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    CollectVehiclePage(offerId: widget.offerId),
-                              ),
+                             CollectVehiclePage(offerId: widget.offerId),
                             );
                           },
                         ),
@@ -330,15 +328,12 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                         CustomButton(
                           text: 'REPORT AN ISSUE',
                           borderColor: const Color(0xFFFF4E00),
-                          onPressed: () {
-                            Navigator.push(
+                          onPressed: () async {
+                            await MyNavigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => ReportIssuePage(
-                                  offerId: widget.offerId,
-                                ),
-                              ),
-                            );
+                              ReportIssuePage(
+                                offerId: widget.offerId,
+                            ));
                           },
                         ),
                       ],

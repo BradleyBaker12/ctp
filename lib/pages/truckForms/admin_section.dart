@@ -173,7 +173,7 @@ class AdminSectionState extends State<AdminSection>
   }
 
   // Updated helper method to display uploaded files with a DELETE ("X") button
-  Widget _buildUploadedFile(Uint8List? file, String? fileUrl, bool isUploading,
+ Widget _buildUploadedFile(Uint8List? file, String? fileUrl, bool isUploading,
       int docNumber, String? filesName) {
     // If no file or URL, show placeholder text
     if (file == null && fileUrl == null) {
@@ -579,7 +579,9 @@ class AdminSectionState extends State<AdminSection>
                   ),
                   const SizedBox(height: 15),
                   InkWell(
-                    onTap: () => _pickFile(1),
+                    onTap: () {
+                      _pickFile(1);
+                    },
                     borderRadius: BorderRadius.circular(10.0),
                     child: Container(
                       width: double.infinity,
@@ -633,7 +635,9 @@ class AdminSectionState extends State<AdminSection>
                   ),
                   const SizedBox(height: 15),
                   InkWell(
-                    onTap: () => _pickFile(2),
+                    onTap: () {
+                      _pickFile(2);
+                    },
                     borderRadius: BorderRadius.circular(10.0),
                     child: Container(
                       width: double.infinity,
@@ -695,7 +699,9 @@ class AdminSectionState extends State<AdminSection>
                     ),
                     const SizedBox(height: 15),
                     InkWell(
-                      onTap: () => _pickFile(3),
+                      onTap: () {
+                        _pickFile(3);
+                      },
                       borderRadius: BorderRadius.circular(10.0),
                       child: Container(
                         width: double.infinity,

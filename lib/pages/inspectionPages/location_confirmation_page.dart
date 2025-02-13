@@ -22,9 +22,10 @@ class LocationConfirmationPage extends StatefulWidget {
   final String address;
   final DateTime date;
   final String time;
-  final String makeModel;
+  final String brand; // Changed from makeModel
+  final String variant; // Added new property
   final String offerAmount;
-  final String vehicleId; // Add this line
+  final String vehicleId;
 
   const LocationConfirmationPage({
     super.key,
@@ -33,9 +34,10 @@ class LocationConfirmationPage extends StatefulWidget {
     required this.address,
     required this.date,
     required this.time,
-    required this.makeModel,
+    required this.brand, // Changed from makeModel
+    required this.variant, // Added new parameter
     required this.offerAmount,
-    required this.vehicleId, // Add this line
+    required this.vehicleId,
   });
 
   @override
@@ -54,22 +56,20 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
   bool _isLoading = false;
   LatLng? _latLng;
   int _selectedIndex = 0;
-  bool _isInitialized = false;
+  final bool _isInitialized = false;
   static const int _maxRetries = 3;
 
   @override
   void initState() {
     super.initState();
+    _getCoordinatesFromAddress();
     _updateOfferStatus();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_isInitialized) {
-      _getCoordinatesFromAddress();
-      _isInitialized = true;
-    }
+    // Remove the initialization check since we're handling it in initState
   }
 
   void _showSnackBar(String message) {
@@ -100,31 +100,44 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
   }
 
   Future<void> _getCoordinatesFromAddress() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
 
     try {
       print('Getting coordinates for address: ${widget.address}');
-      final coordinates = await GeocodingService.getCoordinates(widget.address);
+      final formattedAddress = _formatAddress(widget.address);
+      print('Formatted address: $formattedAddress');
+
+      final coordinates =
+          await GeocodingService.getCoordinates(formattedAddress);
+
+      if (!mounted) return;
 
       if (coordinates != null) {
+        print(
+            "Location found: lat=${coordinates.latitude}, lng=${coordinates.longitude}");
         setState(() {
           _latLng = coordinates;
-          print('Coordinates found: $_latLng');
+          _isLoading = false;
         });
       } else {
-        _showSnackBar('Unable to find location. Please verify the address.');
-      }
-    } catch (e) {
-      print('Error getting coordinates: $e');
-      _showSnackBar('Failed to get coordinates: $e');
-    } finally {
-      if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        _showSnackBar(
+            'Unable to find exact location. Using approximate coordinates.');
       }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+      print('Error getting coordinates: $e');
+      _showSnackBar('Using approximate location for South Africa.');
     }
   }
 
@@ -158,9 +171,10 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
               date: widget.date,
               time: widget.time,
               latLng: _latLng!,
-              makeModel: widget.makeModel,
+              brand: widget.brand, // Changed from makeModel
+              variant: widget.variant, // Added variant
               offerAmount: widget.offerAmount,
-              vehicleId: widget.vehicleId, // Add this line
+              vehicleId: widget.vehicleId,
             ),
           ),
         );
@@ -467,13 +481,13 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
                                     borderRadius: BorderRadius.circular(15),
                                     child: GoogleMap(
                                       initialCameraPosition: CameraPosition(
-                                        target: _latLng!,
+                                        target: _latLng ?? LatLng(0, 0),
                                         zoom: 14.0,
                                       ),
                                       markers: {
                                         Marker(
                                           markerId: MarkerId(widget.location),
-                                          position: _latLng!,
+                                          position: _latLng ?? LatLng(0, 0),
                                         ),
                                       },
                                     ),

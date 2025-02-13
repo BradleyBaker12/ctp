@@ -14,14 +14,16 @@ import 'package:ctp/components/web_navigation_bar.dart'; // Add this import
 
 class InspectionDetailsPage extends StatefulWidget {
   final String offerId;
-  final String makeModel;
+  final String brand; // Changed from makeModel
+  final String variant; // Added new property
   final String offerAmount;
   final String vehicleId; // Add vehicleId to fetch vehicle data
 
   const InspectionDetailsPage({
     super.key,
     required this.offerId,
-    required this.makeModel,
+    required this.brand, // Changed from makeModel
+    required this.variant, // Added new parameter
     required this.offerAmount,
     required this.vehicleId,
   });
@@ -115,13 +117,21 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
           offerSnapshot.data() as Map<String, dynamic>?;
       print('DEBUG: Raw data: $data');
 
-      // 2. Parse inspection locations
-      var inspectionDetails = data?['inspectionDetails']?['inspectionDetails']
-          ?['inspectionLocations']?['locations'];
-      print('DEBUG: Inspection details: $inspectionDetails');
+      // 2. Parse inspection locations following the correct path
+      var inspectionLocations = data?['inspectionDetails']
+              ?['inspectionLocations']?['locations'] ??
+          [];
+      print('DEBUG: Inspection locations: $inspectionLocations');
 
-      if (inspectionDetails == null) {
-        print('DEBUG: No inspection details found');
+      // Also check collectionDetails.locations as a fallback
+      if (inspectionLocations.isEmpty) {
+        inspectionLocations = data?['collectionDetails']?['locations'] ?? [];
+        print(
+            'DEBUG: Falling back to collection details locations: $inspectionLocations');
+      }
+
+      if (inspectionLocations.isEmpty) {
+        print('DEBUG: No inspection locations found in either path');
         setState(() {
           _isLoading = false;
           _locations = [];
@@ -135,7 +145,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
       List<List<DateTime>> tempDates = [];
       List<List<Map<String, dynamic>>> tempTimeSlots = [];
 
-      for (var location in inspectionDetails) {
+      for (var location in inspectionLocations) {
         print('DEBUG: Processing location: $location');
 
         String address = location['address'] ?? '';
@@ -153,10 +163,18 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
         List<DateTime> locationDates = [];
         for (var dateStr in dates) {
           try {
-            DateTime date = DateFormat('dd-MM-yyyy').parse(dateStr);
+            // Handle both formats: "11-2-2025" and "11-02-2025"
+            DateTime date = DateFormat('dd-M-yyyy').parse(dateStr);
             locationDates.add(date);
           } catch (e) {
             print('DEBUG: Date parsing error: $e for date: $dateStr');
+            try {
+              // Try alternative format
+              DateTime date = DateFormat('dd-MM-yyyy').parse(dateStr);
+              locationDates.add(date);
+            } catch (e) {
+              print('DEBUG: Alternative date parsing also failed: $e');
+            }
           }
         }
         tempDates.add(locationDates);
@@ -164,7 +182,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
         // Process time slots
         List<Map<String, dynamic>> locationTimeSlots = [];
         for (var slot in timeSlots) {
-          locationTimeSlots.add(slot);
+          locationTimeSlots.add(Map<String, dynamic>.from(slot));
         }
         tempTimeSlots.add(locationTimeSlots);
       }
@@ -339,6 +357,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
     ];
 
     if (_locations.isEmpty) {
+      // Update the message to be more accurate
       return GradientBackground(
         child: Material(
           color: Colors.transparent,
@@ -346,7 +365,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
             children: [
               Center(
                 child: Text(
-                  'Waiting on transporter to setup inspection.',
+                  'No inspection locations available.\nPlease try again later.',
                   style: TextStyle(color: Colors.white, fontSize: 18),
                   textAlign: TextAlign.center,
                 ),
@@ -842,10 +861,11 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                                   date: _selectedDay!,
                                                   time: _availableTimes[
                                                       _selectedTimeSlot],
-                                                  makeModel: widget.makeModel,
                                                   offerAmount:
                                                       widget.offerAmount,
                                                   vehicleId: widget.vehicleId,
+                                                  brand: widget.brand,
+                                                  variant: widget.variant,
                                                 ),
                                               ),
                                             );

@@ -14,7 +14,9 @@ import 'package:path/path.dart' as p;
 class ViewerPage extends StatefulWidget {
   final String url;
 
-  const ViewerPage({super.key, required this.url});
+  ViewerPage({super.key, required this.url}) {
+    debugPrint('DEBUG: ViewerPage constructor called with URL: "$url"');
+  }
 
   @override
   _ViewerPageState createState() => _ViewerPageState();
@@ -22,22 +24,56 @@ class ViewerPage extends StatefulWidget {
 
 class _ViewerPageState extends State<ViewerPage> {
   bool _isLoading = true;
-  String? _localPDFPath; // Used on mobile after downloading the PDF
+  String? _localPDFPath;
+  late String _fileType; // Change from boolean flags to a string type
 
   @override
   void initState() {
     super.initState();
-    debugPrint('DEBUG: initState -> Widget URL: ${widget.url}');
+    debugPrint('DEBUG: ViewerPage initState');
+    debugPrint('DEBUG: Received URL: "${widget.url}"');
+    debugPrint('DEBUG: URL length: ${widget.url.length}');
+    debugPrint('DEBUG: URL characters: ${widget.url.codeUnits}');
+
+    if (widget.url.isEmpty) {
+      debugPrint('ERROR: Empty URL provided to ViewerPage');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: No file URL provided')),
+        );
+        Navigator.pop(context);
+      });
+      return;
+    }
+
+    _fileType = _determineFileType(widget.url);
+    debugPrint('DEBUG: Determined file type: $_fileType');
     _prepareFile();
   }
 
+  String _determineFileType(String url) {
+    final lowercaseUrl = url.toLowerCase().split('?').first;
+    debugPrint('DEBUG: Determining file type for URL: "$lowercaseUrl"');
+
+    if (lowercaseUrl.endsWith('.pdf')) {
+      debugPrint('DEBUG: Detected PDF file');
+      return 'pdf';
+    } else if (lowercaseUrl.endsWith('.jpg') ||
+        lowercaseUrl.endsWith('.jpeg') ||
+        lowercaseUrl.endsWith('.png') ||
+        lowercaseUrl.endsWith('.gif') ||
+        lowercaseUrl.endsWith('.webp') ||
+        lowercaseUrl.endsWith('.bmp')) {
+      debugPrint('DEBUG: Detected image file');
+      return 'image';
+    }
+    debugPrint('DEBUG: Unknown file type');
+    return 'unknown';
+  }
+
   /// Prepares the file for viewing.
-  ///
-  /// On mobile, if the file is a PDF, it downloads it to a temporary directory.
-  /// On the web, no download is needed and the file is loaded directly from the network.
   Future<void> _prepareFile() async {
     if (kIsWeb) {
-      // On the web, simply mark as loaded.
       setState(() {
         _isLoading = false;
       });
@@ -45,17 +81,11 @@ class _ViewerPageState extends State<ViewerPage> {
     }
 
     try {
-      // Remove any query parameters and check if the file is a PDF.
       final sanitizedUrl = widget.url.split('?').first.toLowerCase();
       final isPDF = sanitizedUrl.endsWith('.pdf');
-      debugPrint(
-          'DEBUG: _prepareFile -> isPDF: $isPDF (sanitizedUrl=$sanitizedUrl)');
 
       if (isPDF) {
-        debugPrint('DEBUG: Attempting to download PDF from: ${widget.url}');
         final response = await http.get(Uri.parse(widget.url));
-        debugPrint('DEBUG: HTTP GET -> status code: ${response.statusCode}');
-
         if (response.statusCode == 200) {
           final bytes = response.bodyBytes;
           final tempDir = await getTemporaryDirectory();
@@ -64,19 +94,17 @@ class _ViewerPageState extends State<ViewerPage> {
           final file = File(filePath);
 
           await file.writeAsBytes(bytes, flush: true);
-          debugPrint('DEBUG: PDF downloaded to local path: $filePath');
 
-          setState(() {
-            _localPDFPath = filePath;
-            _isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              _localPDFPath = filePath;
+              _isLoading = false;
+            });
+          }
         } else {
-          throw Exception(
-              'HTTP Error: ${response.statusCode} for ${widget.url}');
+          throw Exception('Failed to download PDF');
         }
       } else {
-        // For non-PDF files, no downloading is necessary.
-        debugPrint('DEBUG: File is not PDF, skipping download...');
         setState(() {
           _isLoading = false;
         });
@@ -92,36 +120,94 @@ class _ViewerPageState extends State<ViewerPage> {
             backgroundColor: Colors.red,
           ),
         );
-        Navigator.pop(context);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Remove query parameters for the purpose of file type detection.
-    final sanitizedUrl = widget.url.split('?').first.toLowerCase();
-    final isPDF = sanitizedUrl.endsWith('.pdf');
-
-    debugPrint('DEBUG: build -> isPDF: $isPDF, _isLoading: $_isLoading');
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('View File'),
-      ),
+          title: const Text('View File'),
+          backgroundColor: const Color(0xFF0E4CAF)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : isPDF
-              // ----- PDF Mode -----
-              ? kIsWeb
-                  // On web, load the PDF directly from the network.
-                  ? SfPdfViewer.network(widget.url)
-                  // On mobile, use the downloaded local PDF file.
-                  : (_localPDFPath != null
-                      ? _buildPDFView()
-                      : const Center(child: Text('Failed to load PDF.')))
-              // ----- Image Mode -----
-              : _buildImageView(),
+          : _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    debugPrint('Building content for fileType: $_fileType');
+    switch (_fileType) {
+      case 'image':
+        return _buildImageView();
+      case 'pdf':
+        if (kIsWeb) {
+          return SfPdfViewer.network(
+            widget.url,
+            onDocumentLoadFailed: (details) {
+              debugPrint('PDF Error: ${details.description}');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text('Error loading PDF: ${details.description}')),
+              );
+              return;
+            },
+          );
+        } else {
+          return _localPDFPath != null
+              ? _buildPDFView()
+              : const Center(child: Text('Failed to load PDF.'));
+        }
+      default:
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 40, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Unsupported file type: $_fileType\nURL: ${widget.url}',
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+    }
+  }
+
+  Widget _buildImageView() {
+    return Center(
+      child: PhotoView(
+        imageProvider: NetworkImage(widget.url),
+        loadingBuilder: (context, event) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('ERROR: PhotoView -> $error');
+          debugPrint('STACK TRACE:\n$stackTrace');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 40, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading image: ${error.toString()}',
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
+        backgroundDecoration: const BoxDecoration(
+          color: Colors.transparent,
+        ),
+        minScale: PhotoViewComputedScale.contained,
+        maxScale: PhotoViewComputedScale.covered * 2,
+      ),
     );
   }
 
@@ -142,28 +228,6 @@ class _ViewerPageState extends State<ViewerPage> {
       },
       onViewCreated: (controller) {
         debugPrint('DEBUG: PDFView -> onViewCreated');
-      },
-    );
-  }
-
-  /// Builds the image viewer widget.
-  Widget _buildImageView() {
-    debugPrint(
-        'DEBUG: _buildImageView -> using PhotoView with URL: ${widget.url}');
-    return PhotoView(
-      imageProvider: NetworkImage(widget.url),
-      loadingBuilder: (context, event) {
-        debugPrint('DEBUG: _buildImageView -> Loading image...');
-        return const Center(child: CircularProgressIndicator());
-      },
-      errorBuilder: (context, error, stackTrace) {
-        debugPrint('ERROR: PhotoView -> errorBuilder: $error');
-        return const Center(
-          child: Text(
-            'Error loading image',
-            style: TextStyle(color: Colors.red),
-          ),
-        );
       },
     );
   }

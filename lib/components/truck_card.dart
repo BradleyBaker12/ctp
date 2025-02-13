@@ -216,8 +216,8 @@ class TruckCard extends StatelessWidget {
     // BRAND + MODEL + YEAR text.
     final brandModel = [
       vehicle.brands.join(" "),
-      vehicle.makeModel,
-    ].where((e) => e.isNotEmpty).join(" ");
+      vehicle.variant,
+    ].where((e) => e!.isNotEmpty).join(" ");
     final year = vehicle.year.toString();
 
     // Wrap the entire card in an InkWell so that tapping anywhere (except on interactive widgets)
