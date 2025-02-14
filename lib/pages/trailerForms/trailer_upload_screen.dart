@@ -19,6 +19,12 @@ import 'package:intl/intl.dart';
 import '../truckForms/custom_text_field.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/pages/truckForms/custom_dropdown.dart';
+
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
@@ -120,7 +126,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _makersPlateImage;
 
   // Additional Images (multiple)
-  final List<Uint8List> _additionalImages = [];
+  final List<Map<String, dynamic>> _additionalImagesList =
+      []; // Will store {description: String, image: Uint8List}
 
   // Damages & Additional Features
   String _damagesCondition = 'no';
@@ -131,15 +138,43 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   bool _isLoading = false;
   String? _vehicleId;
 
+  // --- Add missing fields for Sales Rep selection ---
+  String? _selectedSalesRep;
+  String? _existingNatisRc1Url;
+  String? _existingNatisRc1Name;
+  String? _selectedMainImageFileName;
+
+  // Form validations
+  final List<GlobalKey<FormState>> _formKeys =
+      List.generate(1, (index) => GlobalKey<FormState>());
+
+  // For loading data from JSON
+  List<String> _yearOptions = [];
+  List<String> _brandOptions = [];
+  List<String> _countryOptions = [];
+  List<String> _provinceOptions = [];
+
   @override
   void initState() {
     super.initState();
+    _loadCountryOptions();
+    _updateProvinceOptions('South Africa');
+    _loadYearOptions();
+
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.isNewUpload) {
-        Provider.of<FormDataProvider>(context, listen: false).clearAllData();
-      } else if (widget.vehicle != null && !widget.isDuplicating) {
-        _vehicleId = widget.vehicle!.id;
+        _clearAllData(formData);
+      } else if (widget.vehicle != null) {
+        if (widget.isDuplicating) {
+          _populateDuplicatedData(formData);
+        } else {
+          _vehicleId = widget.vehicle!.id;
+          _populateVehicleData();
+        }
       }
+      _initializeTextControllers(formData);
+      _addControllerListeners(formData);
     });
 
     _scrollController.addListener(() {
@@ -155,6 +190,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   @override
   Widget build(BuildContext context) {
     final formData = Provider.of<FormDataProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWebView = screenWidth > 600; // Add this threshold for web view
 
     return WillPopScope(
       onWillPop: () async {
@@ -169,9 +206,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             appBar: AppBar(
               leading: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(
+                    Icons.arrow_left), // Changed to match vehicle upload
                 color: Colors.white,
-                iconSize: 30,
+                iconSize: 40, // Match vehicle upload size
               ),
               backgroundColor: const Color(0xFF0E4CAF),
               elevation: 0.0,
@@ -179,13 +217,39 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               centerTitle: true,
             ),
             body: GradientBackground(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                child: Column(
-                  children: [
-                    _buildMainImageSection(formData),
-                    _buildFormSection(formData),
-                  ],
+              child: Center(
+                // Add Center widget
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: isWebView ? 800 : double.infinity,
+                  ),
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isWebView ? 40.0 : 16.0,
+                        vertical: 8.0,
+                      ),
+                      child: Column(
+                        children: [
+                          // Constrain image section for web
+                          Container(
+                            constraints: BoxConstraints(
+                              maxWidth: isWebView ? 600 : double.infinity,
+                            ),
+                            child: _buildMainImageSection(formData),
+                          ),
+                          // Constrain form section for web
+                          Container(
+                            constraints: BoxConstraints(
+                              maxWidth: isWebView ? 600 : double.infinity,
+                            ),
+                            child: _buildFormSection(formData),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -194,9 +258,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             Positioned.fill(
               child: Container(
                 color: Colors.black.withOpacity(0.5),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                child: Center(
+                  child: Image.asset(
+                    'lib/assets/Loading_Logo_CTP.gif', // Add loading logo
+                    width: 100,
+                    height: 100,
                   ),
                 ),
               ),
@@ -452,13 +518,16 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   //                              FORM SECTION
   // -----------------------------------------------------------------------------
   Widget _buildFormSection(FormDataProvider formData) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWebView = screenWidth > 600;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          const Text(
-            'TRAILER FORM',
-            style: TextStyle(
+          Text(
+            'TRAILER FORM'.toUpperCase(),
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -470,6 +539,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             'Please fill out all required details below.',
             style: TextStyle(
                 fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            'Your trusted partner on the road.', // Add this line to match vehicle upload
+            style: const TextStyle(fontSize: 14, color: Colors.white),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -1025,83 +1099,46 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Additional Images',
+          'Additional Images with Description',
           style: TextStyle(
               fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (int i = 0; i < _additionalImages.length; i++)
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.memory(
-                      _additionalImages[i],
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                    ),
+        for (int i = 0; i < _additionalImagesList.length; i++)
+          _buildItemWidget(
+            i,
+            _additionalImagesList[i],
+            _additionalImagesList,
+            (item) => _showAdditionalImageSourceDialog(item),
+          ),
+        const SizedBox(height: 16.0),
+        // Updated Add button to match external cab style
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _additionalImagesList.add({
+                  'description': '',
+                  'image': null,
+                });
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text(
+                  'Add Additional Item',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.w600,
                   ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _additionalImages.removeAt(i);
-                        });
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(Icons.close, color: Colors.white),
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            GestureDetector(
-              onTap: () {
-                _pickImageOrFile(
-                  title: 'Additional Image',
-                  pickImageOnly: true,
-                  callback: (file, fileName) {
-                    if (file != null) {
-                      setState(() {
-                        _additionalImages.add(file);
-                      });
-                    }
-                  },
-                );
-              },
-              child: _buildStyledContainer(
-                child: const Column(
-                  children: [
-                    Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 50,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Add Image',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ],
     );
@@ -1148,18 +1185,24 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         for (int i = 0; i < items.length; i++)
           _buildItemWidget(i, items[i], items, showImageSourceDialog),
         const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerRight,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue,
-              elevation: 0,
-            ),
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text(
-              'Add Another',
-              style: TextStyle(color: Colors.white),
+        // Updated Add button to match external cab style
+        Center(
+          child: GestureDetector(
+            onTap: onAdd,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text(
+                  'Add Additional Item',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1193,7 +1236,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             child: item['image'] != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
+                    child: Image.memory(
                       item['image'],
                       fit: BoxFit.cover,
                       height: 150,
@@ -1363,6 +1406,65 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     }
   }
 
+  void _showAdditionalImageSourceDialog(Map<String, dynamic> item) {
+    if (item['image'] != null) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Additional Image'),
+          content: const Text('What would you like to do with this image?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _pickImageOrFile(
+                  title: 'Change Additional Image',
+                  pickImageOnly: true,
+                  callback: (file, fileName) {
+                    if (file != null) {
+                      setState(() {
+                        item['image'] = file;
+                      });
+                    }
+                  },
+                );
+              },
+              child: const Text('Change Image'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  item['image'] = null;
+                });
+              },
+              child: const Text(
+                'Remove Image',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      _pickImageOrFile(
+        title: 'Additional Image',
+        pickImageOnly: true,
+        callback: (file, fileName) {
+          if (file != null) {
+            setState(() {
+              item['image'] = file;
+            });
+          }
+        },
+      );
+    }
+  }
+
   // -----------------------------------------------------------------------------
   //                             DONE BUTTON
   // -----------------------------------------------------------------------------
@@ -1380,6 +1482,14 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   //                     SAVE METHOD (Uploads All Images)
   // -----------------------------------------------------------------------------
   Future<void> _saveDataAndFinish() async {
+    if (widget.isAdminUpload &&
+        (_selectedSalesRep == null || _selectedSalesRep!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a Sales Rep')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -1493,12 +1603,19 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       //======================
       // 2) UPLOAD ADDITIONAL IMAGES
       //======================
-      List<String> additionalImagesUrls = [];
-      for (Uint8List img in _additionalImages) {
-        final url = await _uploadFileToFirebaseStorage(img, 'vehicle_images');
-        if (url != null) {
-          additionalImagesUrls.add(url);
+      List<Map<String, dynamic>> additionalImagesToSave = [];
+      for (Map<String, dynamic> item in _additionalImagesList) {
+        String description = item['description'] ?? '';
+        Uint8List? imageFile = item['image'];
+        String? imageUrl;
+        if (imageFile != null) {
+          imageUrl =
+              await _uploadFileToFirebaseStorage(imageFile, 'vehicle_images');
         }
+        additionalImagesToSave.add({
+          'description': description,
+          'imageUrl': imageUrl ?? '',
+        });
       }
 
       //======================
@@ -1565,7 +1682,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'makersPlateImageUrl': makersPlateImageUrl ?? '',
 
         // multiple images
-        'additionalImages': additionalImagesUrls,
+        'additionalImages': additionalImagesToSave,
 
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -1583,6 +1700,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'damages': damagesToSave,
         'featuresCondition': _featuresCondition,
         'features': featuresToSave,
+        'assignedSalesRepId': widget.isAdminUpload
+            ? _selectedSalesRep
+            : FirebaseAuth.instance.currentUser?.uid,
       };
 
       //======================
@@ -1680,6 +1800,224 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       return await storageRef.getDownloadURL();
     } catch (e) {
       debugPrint('File upload error: $e');
+      return null;
+    }
+  }
+
+  Future<void> _loadYearOptions() async {
+    final String response =
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
+    final data = json.decode(response);
+    setState(() {
+      _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
+    });
+  }
+
+  void _updateProvinceOptions(String selectedCountry) async {
+    final String response =
+        await rootBundle.loadString('lib/assets/countries.json');
+    final List<dynamic> data = json.decode(response);
+    setState(() {
+      final country = data.firstWhere(
+        (country) => country['name'] == selectedCountry,
+        orElse: () => {'states': []},
+      );
+      _provinceOptions = (country['states'] as List<dynamic>)
+          .map((state) => state['name'] as String)
+          .toList();
+    });
+  }
+
+  Future<void> _loadCountryOptions() async {
+    final String response =
+        await rootBundle.loadString('lib/assets/country-by-name.json');
+    final List<dynamic> data = json.decode(response);
+    setState(() {
+      _countryOptions =
+          data.map((country) => country['country'] as String).toList();
+    });
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    if (formData.country == null && _countryOptions.contains('South Africa')) {
+      formData.setCountry('South Africa');
+    }
+  }
+
+  Widget _buildSalesRepField() {
+    if (!widget.isAdminUpload) return const SizedBox.shrink();
+
+    return FutureBuilder<List<Map<String, String>>>(
+      future: _getSalesReps(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final salesReps = snapshot.data!;
+        return Column(
+          children: [
+            CustomDropdown(
+              hintText: 'Select Sales Rep',
+              value: _selectedSalesRep,
+              items: salesReps.map((rep) => rep['display']!).toList(),
+              onChanged: (value) {
+                final match = salesReps.firstWhere(
+                  (rep) => rep['display'] == value,
+                  orElse: () => {},
+                );
+                setState(() {
+                  _selectedSalesRep = match['id'];
+                });
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select a Sales Rep';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 15),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, String>>> _getSalesReps() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.fetchAdmins();
+    return userProvider.dealers.map((dealer) {
+      String displayName =
+          dealer.tradingName ?? '${dealer.firstName} ${dealer.lastName}'.trim();
+      return {'id': dealer.id, 'display': displayName};
+    }).toList();
+  }
+
+  void _clearAllData(FormDataProvider formData) {
+    formData.clearAllData();
+    formData.setSelectedMainImage(null, null);
+    formData.setMainImageUrl(null);
+    formData.setNatisRc1Url(null);
+    formData.setYear(null);
+    formData.setMakeModel(null);
+    formData.setVinNumber(null);
+    formData.setMileage(null);
+    formData.setEngineNumber(null);
+    formData.setRegistrationNumber(null);
+    formData.setSellingPrice(null);
+    formData.setVehicleType('trailer');
+    formData.setWarrantyDetails(null);
+    formData.setReferenceNumber(null);
+    formData.setBrands([]);
+    _clearFormControllers();
+    setState(() {
+      _natisRc1File = null;
+      _existingNatisRc1Url = null;
+      _existingNatisRc1Name = null;
+      _selectedMainImage = null;
+    });
+    _vehicleId = null;
+    _isLoading = false;
+  }
+
+  void _clearFormControllers() {
+    _sellingPriceController.clear();
+    _vinNumberController.clear();
+    _mileageController.clear();
+    _engineNumberController.clear();
+    _warrantyDetailsController.clear();
+    _registrationNumberController.clear();
+    _referenceNumberController.clear();
+    _makeController.clear();
+    _yearController.clear();
+    _trailerTypeController.clear();
+    _axlesController.clear();
+    _lengthController.clear();
+  }
+
+  void _populateDuplicatedData(FormDataProvider formData) {
+    if (widget.vehicle != null) {
+      debugPrint('=== Populating Duplicated Data ===');
+      formData.setYear(widget.vehicle!.year);
+      formData.setMake(widget.vehicle!.makeModel);
+      formData.setCountry(widget.vehicle!.country);
+      formData.setProvince(widget.vehicle!.province);
+      _updateProvinceOptions(widget.vehicle!.country);
+      debugPrint('=== Duplication Data Population Complete ===');
+    }
+  }
+
+  void _populateVehicleData() {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    if (widget.vehicle != null) {
+      _existingNatisRc1Url = widget.vehicle!.rc1NatisFile;
+      _existingNatisRc1Name = _getFileNameFromUrl(_existingNatisRc1Url);
+      formData.setNatisRc1Url(widget.vehicle!.rc1NatisFile, notify: false);
+      formData.setVehicleType(widget.vehicle!.vehicleType, notify: false);
+      formData.setYear(widget.vehicle!.year, notify: false);
+      formData.setMake(widget.vehicle!.makeModel, notify: false);
+      formData.setVinNumber(widget.vehicle!.vinNumber, notify: false);
+      formData.setMileage(widget.vehicle!.mileage, notify: false);
+      formData.setEngineNumber(widget.vehicle!.engineNumber, notify: false);
+      formData.setRegistrationNumber(widget.vehicle!.registrationNumber,
+          notify: false);
+      formData.setSellingPrice(widget.vehicle!.adminData.settlementAmount,
+          notify: false);
+      formData.setMainImageUrl(widget.vehicle!.mainImageUrl, notify: false);
+      formData.setWarrantyDetails(widget.vehicle!.warrantyDetails,
+          notify: false);
+      formData.setReferenceNumber(widget.vehicle!.referenceNumber,
+          notify: false);
+      formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
+    }
+  }
+
+  void _initializeTextControllers(FormDataProvider formData) {
+    _vinNumberController.text = formData.vinNumber ?? '';
+    _mileageController.text = formData.mileage ?? '';
+    _engineNumberController.text = formData.engineNumber ?? '';
+    _registrationNumberController.text = formData.registrationNumber ?? '';
+    _sellingPriceController.text = formData.sellingPrice ?? '';
+    _warrantyDetailsController.text = formData.warrantyDetails ?? '';
+    _referenceNumberController.text = formData.referenceNumber ?? '';
+    _makeController.text = formData.make ?? '';
+    _yearController.text = formData.year ?? '';
+  }
+
+  void _addControllerListeners(FormDataProvider formData) {
+    _vinNumberController.addListener(() {
+      formData.setVinNumber(_vinNumberController.text);
+    });
+    _mileageController.addListener(() {
+      formData.setMileage(_mileageController.text);
+    });
+    _engineNumberController.addListener(() {
+      formData.setEngineNumber(_engineNumberController.text);
+    });
+    _registrationNumberController.addListener(() {
+      formData.setRegistrationNumber(_registrationNumberController.text);
+    });
+    _sellingPriceController.addListener(() {
+      formData.setSellingPrice(_sellingPriceController.text);
+    });
+    _warrantyDetailsController.addListener(() {
+      formData.setWarrantyDetails(_warrantyDetailsController.text);
+    });
+    _referenceNumberController.addListener(() {
+      formData.setReferenceNumber(_referenceNumberController.text);
+    });
+    _makeController.addListener(() {
+      formData.setMake(_makeController.text);
+    });
+    _yearController.addListener(() {
+      formData.setYear(_yearController.text);
+    });
+  }
+
+  String? _getFileNameFromUrl(String? url) {
+    if (url == null) return null;
+    try {
+      return url.split('/').last.split('?').first;
+    } catch (e) {
+      debugPrint('Error extracting filename from URL: $e');
       return null;
     }
   }

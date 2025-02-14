@@ -80,6 +80,44 @@ class UserProvider extends ChangeNotifier {
 
   StreamSubscription? _statusSubscription;
 
+  bool _hasAcceptedTerms = false;
+
+  bool get hasAcceptedTerms => _hasAcceptedTerms;
+
+  Future<void> setTermsAcceptance(bool accepted) async {
+    try {
+      if (_user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({
+          'hasAcceptedTerms': accepted,
+        });
+        _hasAcceptedTerms = accepted;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating terms acceptance: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> loadTermsAcceptance() async {
+    try {
+      if (_user != null) {
+        final userData = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .get();
+        _hasAcceptedTerms = userData.data()?['hasAcceptedTerms'] ?? false;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error loading terms acceptance: $e');
+      rethrow;
+    }
+  }
+
   UserProvider() {
     _checkAuthState();
     FirebaseAuth.instance.authStateChanges().listen((User? newUser) async {
@@ -309,6 +347,7 @@ class UserProvider extends ChangeNotifier {
 
           _isLoading = false;
           await checkForNotifications();
+          await loadTermsAcceptance();
           notifyListeners();
         } else {
           _clearUserData();

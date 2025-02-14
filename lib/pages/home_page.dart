@@ -26,6 +26,7 @@ import 'dart:typed_data';
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Import your new truck card
 import 'package:ctp/components/truck_card.dart';
@@ -91,6 +92,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ADDED FOR CAROUSEL
   late PageController _pageController;
   int _currentPageIndex = 0;
+
+  bool _termsDialogShown = false;
 
   @override
   void initState() {
@@ -569,6 +572,92 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  Future<void> _launchURL(String url) async {
+    Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      throw 'Could not launch $url';
+    }
+  }
+
+  Future<void> _showTermsAndConditionsDialog() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: Text(
+            'Terms and Conditions',
+            style: _getTextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please review and accept our Terms and Conditions before proceeding.',
+                style: _getTextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => _launchURL(
+                  'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
+                ),
+                child: Text(
+                  'View Terms and Conditions',
+                  style: _getTextStyle(
+                    fontSize: 16,
+                    color: const Color(0xFF2F7FFD),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await userProvider.signOut();
+                if (mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
+              },
+              child: Text(
+                'Decline',
+                style: _getTextStyle(
+                  fontSize: 16,
+                  color: const Color(0xFFFF4E00),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                await userProvider.setTermsAcceptance(true);
+                if (mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text(
+                'Accept',
+                style: _getTextStyle(
+                  fontSize: 16,
+                  color: const Color(0xFF2F7FFD),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -709,6 +798,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         );
                       } else {
+                        // Show Terms & Conditions dialog if needed
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final userProvider =
+                              Provider.of<UserProvider>(context, listen: false);
+                          if (!_termsDialogShown &&
+                              !userProvider.hasAcceptedTerms) {
+                            _termsDialogShown = true;
+                            _showTermsAndConditionsDialog();
+                          }
+                        });
+
                         return SingleChildScrollView(
                           child: _buildHomePageContent(
                               context, constraints, isTablet),

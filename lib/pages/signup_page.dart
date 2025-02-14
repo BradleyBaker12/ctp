@@ -33,6 +33,7 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _has8Chars = false;
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
+  bool _hasCapitalLetter = false; // Add this new state variable
 
   bool _isEmailValid(String email) {
     final RegExp emailRegExp = RegExp(
@@ -43,7 +44,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   bool _isPasswordValid(String password) {
     final RegExp passwordRegExp = RegExp(
-      r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&\-])[A-Za-z\d@$!%*?&\-]{8,}$',
+      r'^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*\(\)\-_\+=\[\]{}\|;:,.<>?\/]).[A-Za-z0-9!@#\$%\^&\*\(\)\-_\+=\[\]{}\|;:,.<>?\/]{7,}$',
     );
     return passwordRegExp.hasMatch(password);
   }
@@ -52,7 +53,9 @@ class _SignUpPageState extends State<SignUpPage> {
     setState(() {
       _has8Chars = password.length >= 8;
       _hasNumber = password.contains(RegExp(r'[0-9]'));
-      _hasSpecialChar = password.contains(RegExp(r'[@$!%*?&\-]'));
+      _hasSpecialChar = password
+          .contains(RegExp(r'[!@#\$%\^&\*\(\)\-_\+=\[\]{}\|;:,.<>?\/]'));
+      _hasCapitalLetter = password.contains(RegExp(r'[A-Z]')); // Add this check
     });
   }
 
@@ -212,11 +215,11 @@ class _SignUpPageState extends State<SignUpPage> {
             const SizedBox(height: 4),
             _buildPasswordRequirementItem(
               'At least one Capital Letter',
-              _hasSpecialChar, // This currently checks special chars, adjust if needed
+              _hasCapitalLetter, // Use the new state variable instead of _hasSpecialChar
             ),
             const SizedBox(height: 4),
             _buildPasswordRequirementItem(
-              'Include at least one special character (@\$!%*?&-)',
+              'Include at least one special character.',
               _hasSpecialChar,
             ),
           ],

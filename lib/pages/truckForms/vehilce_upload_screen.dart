@@ -1665,7 +1665,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Future<void> _pickImage(ImageSource source) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: source);
+    final XFile? image = await picker.pickImage(
+      source: source,
+    );
 
     if (image != null) {
       final bytes = await image.readAsBytes();
