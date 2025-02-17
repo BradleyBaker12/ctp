@@ -105,13 +105,8 @@ class WishCard extends StatelessWidget {
       vehicle.warrentyType, // 20.
       vehicle.warrantyDetails, // 21.
       vehicle.availableDate, // 22.
-      vehicle.trailerType, // 23.
-      vehicle.axles, // 24.
-      vehicle.trailerLength, // 25.
       vehicle.natisRc1Url, // 26.
       vehicle.referenceNumber, // 27.
-      vehicle.length, // 28.
-      vehicle.vinTrailer, // 29.
       vehicle.damagesDescription, // 30.
       vehicle.additionalFeatures, // 31.
       vehicle.requireToSettleType, // 32.

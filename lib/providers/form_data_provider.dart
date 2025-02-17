@@ -193,9 +193,9 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  void setMaintenance(String? value, {bool notify = true}) {
-    _maintenance = value;
-    if (notify) notifyListeners();
+  void setMaintenance(String? value) {
+    _maintenance = (value?.trim().isNotEmpty == true) ? value : 'no';
+    debugPrint('FormDataProvider: maintenance set to "$_maintenance"');
   }
 
   void setWarranty(String? value, {bool notify = true}) {

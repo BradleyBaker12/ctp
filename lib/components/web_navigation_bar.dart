@@ -13,12 +13,14 @@ class NavigationItem {
 }
 
 class WebNavigationBar extends StatelessWidget {
+  final GlobalKey<ScaffoldState>? scaffoldKey;
   final bool isCompactNavigation;
   final String currentRoute;
   final VoidCallback? onMenuPressed;
 
   const WebNavigationBar({
     super.key,
+    this.scaffoldKey,
     required this.isCompactNavigation,
     required this.currentRoute,
     this.onMenuPressed,

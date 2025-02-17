@@ -46,7 +46,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.ctp"
+    namespace = "com.commericaltradersportal.ctp"
     compileSdkVersion 35
     ndkVersion = "27.0.12077973"
 
@@ -60,7 +60,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.ctp"
+        applicationId "com.commericaltradersportal.ctp"
         minSdkVersion 23
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
@@ -72,7 +72,7 @@ android {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
             storePassword keystoreProperties['storePassword']
         }
     }

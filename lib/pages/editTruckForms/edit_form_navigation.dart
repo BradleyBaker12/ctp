@@ -1,6 +1,7 @@
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
+import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
@@ -9,6 +10,9 @@ import 'package:ctp/models/vehicle.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class EditFormNavigation extends StatefulWidget {
   final Vehicle vehicle;
@@ -24,6 +28,9 @@ class EditFormNavigation extends StatefulWidget {
 
 class _EditFormNavigationState extends State<EditFormNavigation> {
   Vehicle? vehicle;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isDrawerOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -327,138 +334,379 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         _calculateTyresProgress();
   }
 
+  void _showNavigationDrawer(List<NavigationItem> items) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final currentRoute =
+            ModalRoute.of(context)?.settings.name ?? '/editForm';
+        return Stack(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(color: Colors.black54),
+            ),
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(-1, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: ModalRoute.of(context)!.animation!,
+                curve: Curves.easeOut,
+              )),
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  height: MediaQuery.of(context).size.height,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: const [Colors.black, Color(0xFF2F7FFD)],
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).padding.top + 20,
+                          bottom: 20,
+                          left: 16,
+                          right: 16,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Image.network(
+                              'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                              height: 40,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 40,
+                                  width: 40,
+                                  color: Colors.grey[900],
+                                  child: const Icon(Icons.local_shipping,
+                                      color: Colors.white),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon:
+                                  const Icon(Icons.close, color: Colors.white),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(color: Colors.white24),
+                      Expanded(
+                        child: ListView(
+                          padding: EdgeInsets.zero,
+                          children: [
+                            _buildDrawerItem('Basic Information', Icons.info,
+                                () {
+                              Navigator.pop(context);
+                              _navigateToBasicInfo();
+                            }),
+                            _buildDrawerItem('Truck Conditions', Icons.build,
+                                () {
+                              Navigator.pop(context);
+                              _navigateToTruckConditions();
+                            }),
+                            _buildDrawerItem('Maintenance', Icons.settings, () {
+                              Navigator.pop(context);
+                              _navigateToMaintenance();
+                            }),
+                            _buildDrawerItem(
+                                'Admin', Icons.admin_panel_settings, () {
+                              Navigator.pop(context);
+                              _navigateToAdmin();
+                            }),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDrawerItem(String title, IconData icon, VoidCallback onTap) {
+    return ListTile(
+      title: Text(
+        title,
+        style: GoogleFonts.montserrat(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  // Navigation helper methods
+  void _navigateToBasicInfo() async {
+    var updatedVehicle = await Navigator.of(context).push<Vehicle>(
+      MaterialPageRoute(
+        builder: (context) => BasicInformationEdit(vehicle: vehicle!),
+      ),
+    );
+    if (updatedVehicle != null) {
+      setState(() => vehicle = updatedVehicle);
+    }
+  }
+
+  void _navigateToTruckConditions() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ExternalCabEditPage(
+          vehicleId: vehicle!.id,
+          isEditing: true,
+          onProgressUpdate: () {
+            setState(() {
+              // Refresh the UI when progress is updated
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  void _navigateToMaintenance() async {
+    try {
+      // Fetch the maintenance data from Firestore
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(vehicle!.id)
+          .get();
+
+      if (!doc.exists) {
+        throw Exception('Vehicle document not found');
+      }
+
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      Map<String, dynamic> maintenanceData =
+          data['maintenanceData'] as Map<String, dynamic>? ?? {};
+
+      // Navigate to maintenance section with existing data
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (BuildContext context) => MaintenanceEditSection(
+            vehicleId: vehicle!.id,
+            isUploading: false,
+            isEditing: true,
+            isFromAdmin: true,
+            onMaintenanceFileSelected: (file) {},
+            onWarrantyFileSelected: (file) {},
+            oemInspectionType: maintenanceData['oemInspectionType'] ?? 'yes',
+            oemInspectionExplanation: maintenanceData['oemReason'] ?? '',
+            onProgressUpdate: () {
+              setState(() {});
+            },
+            maintenanceSelection:
+                maintenanceData['maintenanceSelection'] ?? 'yes',
+            warrantySelection: maintenanceData['warrantySelection'] ?? 'yes',
+            maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
+            warrantyDocUrl: maintenanceData['warrantyDocUrl'],
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error loading maintenance data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading maintenance data: $e')),
+      );
+    }
+  }
+
+  void _navigateToAdmin() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AdminEditSection(
+          vehicle: vehicle!,
+          isUploading: false,
+          isEditing: true,
+          onAdminDoc1Selected: (file, fileName) {},
+          onAdminDoc2Selected: (file, fileName) {},
+          onAdminDoc3Selected: (file, fileName) {},
+          requireToSettleType: vehicle!.requireToSettleType ?? 'no',
+          settlementAmount: vehicle!.adminData.settlementAmount,
+          natisRc1Url: vehicle!.adminData.natisRc1Url,
+          licenseDiskUrl: vehicle!.adminData.licenseDiskUrl,
+          settlementLetterUrl: vehicle!.adminData.settlementLetterUrl,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (vehicle == null) {
       return Center(child: CircularProgressIndicator());
     }
 
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isCompactNavigation = screenWidth < 800;
+    final bool showHamburger = screenWidth <= 1024; // Added this line
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.blueAccent,
-        leading: Container(
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(
-              minWidth: 30,
-              minHeight: 30,
-            ),
-            icon: const Text(
-              'BACK',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+      key: _scaffoldKey,
+      drawer: null,
+      appBar: !kIsWeb
+          ? AppBar(
+              backgroundColor: Colors.blueAccent,
+              leading: showHamburger
+                  ? Builder(
+                      builder: (BuildContext context) => IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.white),
+                        onPressed: () => _showNavigationDrawer([]),
+                      ),
+                    )
+                  : Container(
+                      margin: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 30,
+                          minHeight: 30,
+                        ),
+                        icon: const Text(
+                          'BACK',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    vehicle!.referenceNumber ?? 'REF',
+                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      vehicle!.makeModel.toString().toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
               ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundImage: vehicle!.mainImageUrl != null
+                        ? NetworkImage(vehicle!.mainImageUrl!) as ImageProvider
+                        : const AssetImage('assets/truck_image.png'),
+                  ),
+                ),
+              ],
+            )
+          : null,
+      body: Column(
+        children: [
+          if (kIsWeb)
+            WebNavigationBar(
+              scaffoldKey: _scaffoldKey,
+              isCompactNavigation: isCompactNavigation,
+              currentRoute: '/editForm',
+              onMenuPressed: () => _showNavigationDrawer([]),
             ),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              vehicle!.referenceNumber ?? 'REF',
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                vehicle!.makeModel.toString().toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontSize: 15),
+          Expanded(
+            child: GradientBackground(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    const Text(
+                      'COMPLETE ALL STEPS AS\nPOSSIBLE TO RECEIVE\nBETTER OFFERS',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildSection(context, 'BASIC\nINFORMATION',
+                        '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED'),
+                    _buildSection(context, 'TRUCK CONDITION',
+                        '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED'),
+                    _buildSection(
+                      context,
+                      'MAINTENANCE\nAND WARRANTY',
+                      '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
+                    ),
+                    _buildSection(context, 'ADMIN',
+                        '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
+                    const SizedBox(height: 20),
+                    // if (vehicle?.vehicleStatus == 'Draft')
+                    //   Padding(
+                    //     padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                    //     child: CustomButton(
+                    //       onPressed: () async {
+                    //         await FirebaseFirestore.instance
+                    //             .collection('vehicles')
+                    //             .doc(vehicle!.id)
+                    //             .update({'vehicleStatus': 'Live'});
+
+                    //         // Fetch updated vehicle data
+                    //         await _fetchVehicleData();
+                    //         await MyNavigator.pushReplacement(
+                    //             context, VehiclesListPage());
+                    //       },
+                    //       text: 'PUSH TO LIVE',
+                    //       borderColor: Colors.green,
+                    //     ),
+                    //   )
+                    // else if (vehicle?.vehicleStatus == 'Live')
+                    //   Padding(
+                    //     padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                    //     child: CustomButton(
+                    //       onPressed: () async {
+                    //         await FirebaseFirestore.instance
+                    //             .collection('vehicles')
+                    //             .doc(vehicle!.id)
+                    //             .update({'vehicleStatus': 'Draft'});
+
+                    //         // Fetch updated vehicle data
+                    //         await _fetchVehicleData();
+                    //         await MyNavigator.pushReplacement(
+                    //             context, VehiclesListPage());
+                    //       },
+                    //       text: 'MOVE TO DRAFT',
+                    //       borderColor: Colors.blueAccent,
+                    //     ),
+                    //   ),
+                    const SizedBox(height: 20),
+                    _buildBottomButtons(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              radius: 24,
-              backgroundImage: vehicle!.mainImageUrl != null
-                  ? NetworkImage(vehicle!.mainImageUrl!) as ImageProvider
-                  : const AssetImage('assets/truck_image.png'),
             ),
           ),
         ],
-      ),
-      body: GradientBackground(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'COMPLETE ALL STEPS AS\nPOSSIBLE TO RECEIVE\nBETTER OFFERS',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSection(context, 'BASIC\nINFORMATION',
-                  '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED'),
-              _buildSection(context, 'TRUCK CONDITION',
-                  '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED'),
-              _buildSection(
-                context,
-                'MAINTENANCE\nAND WARRANTY',
-                '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
-              ),
-              _buildSection(context, 'ADMIN',
-                  '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
-              const SizedBox(height: 20),
-              if (vehicle?.vehicleStatus == 'Draft')
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                  child: CustomButton(
-                    onPressed: () async {
-                      await FirebaseFirestore.instance
-                          .collection('vehicles')
-                          .doc(vehicle!.id)
-                          .update({'vehicleStatus': 'Live'});
-
-                      // Fetch updated vehicle data
-                      await _fetchVehicleData();
-                      await MyNavigator.pushReplacement(
-                          context, VehiclesListPage());
-                    },
-                    text: 'PUSH TO LIVE',
-                    borderColor: Colors.green,
-                  ),
-                )
-              else if (vehicle?.vehicleStatus == 'Live')
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                  child: CustomButton(
-                    onPressed: () async {
-                      await FirebaseFirestore.instance
-                          .collection('vehicles')
-                          .doc(vehicle!.id)
-                          .update({'vehicleStatus': 'Draft'});
-
-                      // Fetch updated vehicle data
-                      await _fetchVehicleData();
-                      await MyNavigator.pushReplacement(
-                          context, VehiclesListPage());
-                    },
-                    text: 'MOVE TO DRAFT',
-                    borderColor: Colors.blueAccent,
-                  ),
-                ),
-              const SizedBox(height: 20),
-              _buildBottomButtons(),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -482,91 +730,34 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
             Map<String, dynamic> maintenanceData =
                 data['maintenanceData'] as Map<String, dynamic>? ?? {};
 
-            // Navigate to maintenance section with existing data
+            // Navigate to maintenance section with existing data - Modified this part
             await Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (BuildContext context) => Scaffold(
-                  appBar: AppBar(
-                    backgroundColor: Colors.blueAccent,
-                    leading: Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 30,
-                          minHeight: 30,
-                        ),
-                        icon: const Text(
-                          'BACK',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          vehicle!.referenceNumber ?? 'REF',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 15),
-                        ),
-                        const SizedBox(width: 16),
-                        Text(
-                          vehicle!.makeModel.toString().toUpperCase(),
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 15),
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 16.0),
-                        child: CircleAvatar(
-                          radius: 24,
-                          backgroundImage: vehicle!.mainImageUrl != null
-                              ? NetworkImage(vehicle!.mainImageUrl!)
-                                  as ImageProvider
-                              : const AssetImage('assets/truck_image.png'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  body: MaintenanceEditSection(
-                    vehicleId: vehicle!.id,
-                    isUploading: false,
-                    isEditing: true,
-                    isFromAdmin: true,
-                    onMaintenanceFileSelected: (file) {
-                      // Handle maintenance file selection
-                    },
-                    onWarrantyFileSelected: (file) {
-                      // Handle warranty file selection
-                    },
-                    oemInspectionType:
-                        maintenanceData['oemInspectionType'] ?? 'yes',
-                    oemInspectionExplanation:
-                        maintenanceData['oemReason'] ?? '',
-                    onProgressUpdate: () {
-                      setState(() {
-                        // Update progress if needed
-                      });
-                    },
-                    maintenanceSelection:
-                        maintenanceData['maintenanceSelection'] ?? 'yes',
-                    warrantySelection:
-                        maintenanceData['warrantySelection'] ?? 'yes',
-                    maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
-                    warrantyDocUrl: maintenanceData['warrantyDocUrl'],
-                  ),
+                builder: (BuildContext context) => MaintenanceEditSection(
+                  vehicleId: vehicle!.id,
+                  isUploading: false,
+                  isEditing: true,
+                  isFromAdmin: true,
+                  onMaintenanceFileSelected: (file) {
+                    // Handle maintenance file selection
+                  },
+                  onWarrantyFileSelected: (file) {
+                    // Handle warranty file selection
+                  },
+                  oemInspectionType:
+                      maintenanceData['oemInspectionType'] ?? 'yes',
+                  oemInspectionExplanation: maintenanceData['oemReason'] ?? '',
+                  onProgressUpdate: () {
+                    setState(() {
+                      // Update progress if needed
+                    });
+                  },
+                  maintenanceSelection:
+                      maintenanceData['maintenanceSelection'] ?? 'yes',
+                  warrantySelection:
+                      maintenanceData['warrantySelection'] ?? 'yes',
+                  maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
+                  warrantyDocUrl: maintenanceData['warrantyDocUrl'],
                 ),
               ),
             );
@@ -598,12 +789,14 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         } else if (title.contains('TRUCK CONDITION')) {
           await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (BuildContext context) => TruckConditionsTabsEditPage(
-                initialIndex: 0,
+              builder: (BuildContext context) => ExternalCabEditPage(
                 vehicleId: vehicle!.id,
-                mainImageUrl: vehicle!.mainImageUrl,
-                referenceNumber: vehicle!.referenceNumber ?? 'REF',
                 isEditing: true,
+                onProgressUpdate: () {
+                  setState(() {
+                    // Refresh the UI when progress is updated
+                  });
+                },
               ),
             ),
           );
@@ -679,7 +872,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         onPressed: () {
           Navigator.pop(context);
         },
-        text: 'DONE',
+        text: 'Save Changes',
         borderColor: Colors.deepOrange,
       ),
     );

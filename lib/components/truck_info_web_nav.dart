@@ -176,21 +176,31 @@ class TruckInfoWebNavBar extends StatelessWidget {
                               context,
                               "Basic Information",
                               selectedTab == "Basic Information",
-                              onBasicInfoPressed,
+                              () => Navigator.pushReplacementNamed(
+                                context,
+                                '/basic_information',
+                                arguments: vehicleId,
+                              ),
                             ),
                             _buildNavItem(
                               context,
                               "Truck Conditions",
                               selectedTab == "Truck Conditions",
                               () => Navigator.pushReplacementNamed(
-                                  context, '/external_cab',
-                                  arguments: vehicleId),
+                                context,
+                                '/external_cab',
+                                arguments: vehicleId,
+                              ),
                             ),
                             _buildNavItem(
                               context,
                               "Maintenance and Warranty",
                               selectedTab == "Maintenance and Warranty",
-                              onMaintenanceWarrantyPressed,
+                              () => Navigator.pushReplacementNamed(
+                                context,
+                                '/maintenance_warranty',
+                                arguments: vehicleId,
+                              ),
                             ),
                           ],
                         ],
@@ -329,7 +339,22 @@ class TruckInfoWebNavBar extends StatelessWidget {
       ),
       onTap: () {
         Navigator.pop(context);
-        onPressed();
+        switch (title) {
+          case "Basic Information":
+            Navigator.pushReplacementNamed(context, '/basic_information',
+                arguments: vehicleId);
+            break;
+          case "Truck Conditions":
+            Navigator.pushReplacementNamed(context, '/external_cab',
+                arguments: vehicleId);
+            break;
+          case "Maintenance and Warranty":
+            Navigator.pushReplacementNamed(context, '/maintenance_warranty',
+                arguments: vehicleId);
+            break;
+          default:
+            onPressed();
+        }
       },
     );
   }

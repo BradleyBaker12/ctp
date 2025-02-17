@@ -3,33 +3,26 @@ import 'dart:math' as Math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_app_bar.dart';
-import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
+import 'package:ctp/components/truck_card.dart'; // Your custom TruckCard
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/trailerForms/trailer_upload_screen.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:ctp/providers/offer_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/foundation.dart'
-    show kIsWeb; // <-- Import this for kIsWeb
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-// Import your new truck card
-import 'package:ctp/components/truck_card.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -39,25 +32,26 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  // Add this getter for compact navigation
+  /// If the screen width is <= 1100, we use a more "compact" navigation approach (mobile/tablet).
   bool get _isCompactNavigation => MediaQuery.of(context).size.width <= 1100;
 
-  // Bottom nav index
+  /// Bottom nav index
   int _selectedIndex = 0;
-  // Initialization future
+
+  /// Initialization future
   late Future<void> _initialization;
 
-  // Providers & variables
+  /// Providers & variables
   final OfferProvider _offerProvider = OfferProvider();
   final bool _showEndMessage = false;
   late List<String> likedVehicles;
   late List<String> dislikedVehicles;
 
-  // The main vehicles we display
+  /// ValueNotifier for the main vehicles we display
   ValueNotifier<List<Vehicle>> displayedVehiclesNotifier =
       ValueNotifier<List<Vehicle>>([]);
 
-  List<Vehicle> swipedVehicles = []; // (If you want to track them, can remove)
+  List<Vehicle> swipedVehicles = [];
   int loadedVehicleIndex = 0;
   final bool _hasReachedEnd = false;
   List<Vehicle> recentVehicles = [];
@@ -65,88 +59,112 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<Vehicle> todayVehicles = [];
   List<Vehicle> yesterdayVehicles = [];
 
-  // Add new properties for web navigation
+  /// Add new properties for web navigation
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
 
-  // Add web navigation items
-  List<NavigationItem> get _webNavigationItems => [
-        NavigationItem(
-          title: 'Home',
-          route: '/home',
-        ),
-        NavigationItem(
-          title: 'Trucks',
-          route: '/truckPage',
-        ),
-        NavigationItem(
-          title: 'Wishlist',
-          route: '/wishlist',
-        ),
-        NavigationItem(
-          title: 'Offers',
-          route: '/offers',
-        ),
-      ];
-
-  // ADDED FOR CAROUSEL
+  /// Variables for carousel usage
   late PageController _pageController;
   int _currentPageIndex = 0;
 
+  /// Track if we’ve shown the Terms & Conditions dialog
   bool _termsDialogShown = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Add immediate account status check
+    // Immediately check the user's account & role status after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAccountStatus();
     });
 
+    // Initialize data
     _initialization = _initializeData();
     _checkPaymentStatusForOffers();
 
-    // Initialize the page controller for the carousel
     _pageController = PageController(initialPage: 0);
 
-    // Load filtered transporter vehicles after first frame
+    // Load any "transporter vehicles" if relevant
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadTransporterVehicles();
     });
   }
 
-  // Add this new method
-  Future<void> _checkAccountStatus() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    await userProvider.fetchUserData(); // Make sure we have latest data
-
-    if (userProvider.getAccountStatus.toLowerCase() == 'pending') {
-      if (mounted) {
-        // Check if widget is still in tree
-        Navigator.of(context).pushReplacementNamed('/waiting-for-approval');
-      }
-    }
-  }
-
   @override
   void dispose() {
-    // Dispose the page controller
     _pageController.dispose();
     super.dispose();
   }
 
-  /// Helper function to provide different font sizes for phone vs. tablet.
-  /// Adjust the breakpoint or sizes as desired.
+  /// Checks user role & account status, and also checks VAT/Reg. Number:
+  ///
+  /// 1) If `userRole == 'pending'`, route to `/tradingCategory`
+  /// 2) Else if `accountStatus == 'pending'`, route to `/waiting-for-approval`
+  /// 3) Else if `userRole == 'dealer'` and missing VAT or Reg. => `/dealerRegistration`
+  /// 4) Else if `userRole == 'transporter'` and missing VAT or Reg. => `/transporterRegistration`
+  Future<void> _checkAccountStatus() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.fetchUserData();
+
+    // Break chain at first missing requirement
+
+    // 1. Phone number check is most important
+    final String? phoneNumber = userProvider.getPhoneNumber;
+    if (phoneNumber == null || phoneNumber.isEmpty) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/phoneNumber');
+      }
+      return; // Phone number page will handle next steps
+    }
+
+    // 2. User role check
+    final userRole = userProvider.getUserRole.toLowerCase();
+    if (userRole == 'pending') {
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/tradingCategory');
+      }
+      return; // Trading category page will handle next steps
+    }
+
+    // 3. VAT/Registration check
+    final vatNumber = userProvider.getVatNumber;
+    final regNumber = userProvider.getRegistrationNumber;
+
+    bool hasValidRegistration = !(vatNumber == null ||
+        vatNumber.isEmpty ||
+        regNumber == null ||
+        regNumber.isEmpty);
+
+    if (!hasValidRegistration) {
+      if (mounted) {
+        if (userRole == 'dealer') {
+          Navigator.of(context).pushReplacementNamed('/dealerRegister');
+        } else if (userRole == 'transporter') {
+          Navigator.of(context).pushReplacementNamed('/transporterRegister');
+        }
+      }
+      return; // Registration pages will handle next steps
+    }
+
+    // 4. Account status check (only if all above are valid)
+    final accountStatus = userProvider.getAccountStatus.toLowerCase();
+    if (accountStatus == 'pending') {
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/waiting-for-approval');
+      }
+      return;
+    }
+  }
+
+  /// Adaptive text size helper
   double _adaptiveTextSize(
-    BuildContext context,
-    double phoneSize,
-    double tabletSize,
-  ) {
+      BuildContext context, double phoneSize, double tabletSize) {
     bool isTablet = MediaQuery.of(context).size.width >= 600;
     return isTablet ? tabletSize : phoneSize;
   }
 
+  /// Helper to unify text styling with Google Fonts
   TextStyle _getTextStyle({
     required double fontSize,
     FontWeight fontWeight = FontWeight.normal,
@@ -159,7 +177,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // Fetch user data, vehicles, offers, etc.
+  /// Initialize data: user data, vehicles, offers, etc.
   Future<void> _initializeData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final vehicleProvider =
@@ -170,37 +188,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser == null || userProvider.userId == null) {
+        // If not logged in or userId is null, go to /login
         await FirebaseAuth.instance.signOut();
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
 
-      String userRole = userProvider.getUserRole;
-
-      // Determine route based on role
-      String targetRoute =
-          (userRole == 'admin' || userRole == 'sales representative')
-              ? '/admin-home'
-              : '/home';
-
-      if (ModalRoute.of(context)?.settings.name != targetRoute) {
-        Navigator.pushReplacementNamed(context, targetRoute);
-        return;
+      // Check if phone number is empty
+      final String? phoneNumber = userProvider.getPhoneNumber;
+      if (phoneNumber == null || phoneNumber.isEmpty) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/phoneNumber');
+          return;
+        }
       }
 
-      // Fetch today's and yesterday's vehicles
+      // Possibly check if user is admin or normal user
+      String userRole = userProvider.getUserRole;
+
+      // Example route decision for admin vs. normal user
+      if (userRole == 'admin' || userRole == 'sales representative') {
+        // If on /home but is admin -> /admin-home
+        if (ModalRoute.of(context)?.settings.name != '/admin-home') {
+          Navigator.pushReplacementNamed(context, '/admin-home');
+        }
+      } else {
+        // Else normal user -> /home
+        if (ModalRoute.of(context)?.settings.name != '/home') {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+
+      // Fetch today’s/yesterday’s vehicles
       todayVehicles = await vehicleProvider.fetchVehiclesForToday();
       yesterdayVehicles = await vehicleProvider.fetchVehiclesForYesterday();
 
-      // Combine both lists -> displayedVehicles
+      // Combine them into the displayed list
       displayedVehiclesNotifier.value = [...todayVehicles, ...yesterdayVehicles]
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // newest first
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      // Fetch offers + user preferences
+      // Fetch offers & user preferences (liked/disliked)
       await _offerProvider.fetchOffers(
-        currentUser.uid,
-        userProvider.getUserRole,
-      );
+          currentUser.uid, userProvider.getUserRole);
       likedVehicles = List<String>.from(userProvider.getLikedVehicles);
       dislikedVehicles = List<String>.from(userProvider.getDislikedVehicles);
     } catch (e, stackTrace) {
@@ -213,8 +242,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // Loads vehicles uploaded by the current user with at least one offer (for transporters)
-  void _loadTransporterVehicles() async {
+  /// Loads vehicles uploaded by the current user that have at least one offer (transporter flow)
+  Future<void> _loadTransporterVehicles() async {
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -224,19 +253,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final userId = userProvider.userId;
     await offerProvider.fetchOffers(userId!, userProvider.getUserRole);
 
-    // Filter vehicles:
+    // If needed, you can filter vehicles this user has posted that have offers
     final transporterVehicles = vehicleProvider.vehicles.where((vehicle) {
-      final hasOffers = offerProvider.offers.any(
-        (offer) => offer.vehicleId == vehicle.id,
-      );
+      final hasOffers =
+          offerProvider.offers.any((offer) => offer.vehicleId == vehicle.id);
       return vehicle.userId == userId && hasOffers;
     }).toList();
 
-    // Could assign them to displayedVehicles if desired, or keep for later usage
+    // You could display these, or keep for any other purpose
     // displayedVehiclesNotifier.value = transporterVehicles;
   }
 
-  // Check each offer's payment status, update if accepted
+  /// Check each offer’s payment status, update if accepted
   Future<void> _checkPaymentStatusForOffers() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
@@ -248,7 +276,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             .get();
 
         if (offerSnapshot.exists) {
-          String paymentStatus = offerSnapshot['paymentStatus'];
+          String paymentStatus = offerSnapshot['paymentStatus'] ?? '';
 
           if (paymentStatus == 'accepted') {
             await FirebaseFirestore.instance
@@ -274,7 +302,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // If you previously had a "like" action from swiping, you can keep it:
+  /// Like a vehicle
   Future<void> _likeVehicle(String vehicleId) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     if (!likedVehicles.contains(vehicleId)) {
@@ -296,7 +324,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // For "dislike"
+  /// Dislike a vehicle
   Future<void> _dislikeVehicle(String vehicleId) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     try {
@@ -312,20 +340,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // This callback can be used by the TruckCard "heart" icon:
-  void _handleInterestedVehicle(Vehicle vehicle) async {
-    await _likeVehicle(vehicle.id);
-    setState(() {});
+  /// When TruckCard user taps the 'Interested' heart button
+  void _handleInterestedVehicle(dynamic vehicle) async {
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (userProvider.getLikedVehicles.contains(vehicle.id)) {
+        await userProvider.unlikeVehicle(vehicle.id);
+      } else {
+        await userProvider.likeVehicle(vehicle.id);
+      }
+      setState(() {});
+    } catch (e) {
+      print('Error in _handleInterestedVehicle: $e');
+    }
   }
 
-  // Nav item tapped
+  /// Bottom nav item tapped
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // Web navigation bar
+  /// Build the top web navigation bar (if using your own)
   Widget _buildWebNavigationBar() {
     final currentRoute = ModalRoute.of(context)?.settings.name ?? '/home';
     final userProvider = Provider.of<UserProvider>(context);
@@ -365,7 +402,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Left section - Hamburger menu (only shown in compact mode)
+            // Left section - Hamburger menu for compact screens
             if (_isCompactNavigation)
               IconButton(
                 icon: const Icon(Icons.menu, color: Colors.white, size: 24),
@@ -373,7 +410,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   _showNavigationDrawer(navigationItems);
                 },
               ),
-            // Center section - Logo
+            // Center - Logo and full nav items (if not compact)
             Expanded(
               child: Row(
                 mainAxisAlignment: _isCompactNavigation
@@ -393,7 +430,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       );
                     },
                   ),
-                  // Navigation links (only in full mode)
                   if (!_isCompactNavigation) ...[
                     const SizedBox(width: 60),
                     Expanded(
@@ -412,7 +448,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ],
               ),
             ),
-            // Right section - Profile
+            // Right - Profile avatar
             Consumer<UserProvider>(
               builder: (context, userProvider, child) {
                 return CircleAvatar(
@@ -430,7 +466,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // The sliding drawer for small screens
+  /// Display a sliding drawer (for mobile) with navigation items
   void _showNavigationDrawer(List<NavigationItem> items) {
     showDialog(
       context: context,
@@ -439,12 +475,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         final currentRoute = ModalRoute.of(context)?.settings.name ?? '/home';
         return Stack(
           children: [
-            // Semi-transparent background
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(color: Colors.black54),
             ),
-            // Sliding drawer
             SlideTransition(
               position: Tween<Offset>(
                 begin: const Offset(-1, 0),
@@ -500,33 +534,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       const Divider(color: Colors.white24),
-                      // Navigation items
                       Expanded(
                         child: ListView(
                           padding: EdgeInsets.zero,
-                          children: items
-                              .map((item) => ListTile(
-                                    selected: currentRoute == item.route,
-                                    selectedColor: const Color(0xFFFF4E00),
-                                    title: Text(
-                                      item.title,
-                                      style: TextStyle(
-                                        color: currentRoute == item.route
-                                            ? const Color(0xFFFF4E00)
-                                            : Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.pop(context);
-                                      if (currentRoute != item.route) {
-                                        Navigator.pushNamed(
-                                            context, item.route);
-                                      }
-                                    },
-                                  ))
-                              .toList(),
+                          children: items.map((item) {
+                            bool isActive = currentRoute == item.route;
+                            return ListTile(
+                              selected: isActive,
+                              selectedColor: const Color(0xFFFF4E00),
+                              title: Text(
+                                item.title,
+                                style: TextStyle(
+                                  color: isActive
+                                      ? const Color(0xFFFF4E00)
+                                      : Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                if (!isActive) {
+                                  Navigator.pushNamed(context, item.route);
+                                }
+                              },
+                            );
+                          }).toList(),
                         ),
                       ),
                     ],
@@ -552,10 +585,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: isActive
               ? BoxDecoration(
-                  border: Border.all(
-                    color: const Color(0xFFFF4E00),
-                    width: 2,
-                  ),
+                  border: Border.all(color: const Color(0xFFFF4E00), width: 2),
                   borderRadius: BorderRadius.circular(4),
                 )
               : null,
@@ -573,12 +603,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Future<void> _launchURL(String url) async {
-    Uri uri = Uri.parse(url);
+    final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
       throw 'Could not launch $url';
     }
   }
 
+  /// Show Terms and Conditions dialog if user hasn’t accepted them yet
   Future<void> _showTermsAndConditionsDialog() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     await showDialog(
@@ -624,6 +655,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           actions: [
             TextButton(
               onPressed: () async {
+                // If user declines, sign out
                 await userProvider.signOut();
                 if (mounted) {
                   Navigator.pushReplacementNamed(context, '/login');
@@ -639,6 +671,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
             TextButton(
               onPressed: () async {
+                // Accept T&C in Firestore
                 await userProvider.setTermsAcceptance(true);
                 if (mounted) {
                   Navigator.of(context).pop();
@@ -667,7 +700,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         final userProvider = Provider.of<UserProvider>(context);
         final userRole = userProvider.getUserRole;
 
-        // Define navigation items
+        // Build a list of nav items depending on userRole
         List<NavigationItem> navigationItems = userRole == 'dealer'
             ? [
                 NavigationItem(title: 'Home', route: '/home'),
@@ -798,10 +831,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         );
                       } else {
-                        // Show Terms & Conditions dialog if needed
+                        // Show T&C if not accepted
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          final userProvider =
-                              Provider.of<UserProvider>(context, listen: false);
                           if (!_termsDialogShown &&
                               !userProvider.hasAcceptedTerms) {
                             _termsDialogShown = true;
@@ -809,6 +840,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           }
                         });
 
+                        // Main content
                         return SingleChildScrollView(
                           child: _buildHomePageContent(
                               context, constraints, isTablet),
@@ -831,34 +863,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// Main HomePage content, made responsive via constraints + isTablet
+  /// Builds the main content of the home page
   Widget _buildHomePageContent(
-    BuildContext context,
-    BoxConstraints constraints,
-    bool isTablet,
-  ) {
+      BuildContext context, BoxConstraints constraints, bool isTablet) {
     final screenWidth = constraints.maxWidth;
     final screenHeight = constraints.maxHeight;
 
-    // Get userProvider and userRole
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
     return Column(
       children: [
-        // Hero Section
+        // Hero section
         Column(
           children: [
             if (!kIsWeb) SizedBox(height: screenHeight * 0.1),
-            // Hero image
             Stack(
               children: [
                 Container(
                   width: double.infinity,
                   constraints: BoxConstraints(
                     maxHeight: screenWidth > 900
-                        ? screenHeight * 0.6 // Web view - taller
-                        : screenHeight * 0.45, // Mobile view - shorter
+                        ? screenHeight * 0.6
+                        : screenHeight * 0.45,
                   ),
                   child: Image.asset(
                     'lib/assets/HomePageHero.png',
@@ -866,7 +893,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     fit: screenWidth > 900 ? BoxFit.cover : BoxFit.fill,
                   ),
                 ),
-                // Gradient overlay
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
@@ -885,7 +911,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ],
             ),
-            // Welcome text
             Padding(
               padding: EdgeInsets.symmetric(
                 vertical: screenHeight * 0.02,
@@ -894,8 +919,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: Column(
                 children: [
                   Text(
-                    'Welcome ${userProvider.getUserName.toUpperCase()}'
-                        .toUpperCase(),
+                    'Welcome ${userProvider.getUserName.toUpperCase()}',
                     style: _getTextStyle(
                       fontSize: _adaptiveTextSize(context, 24, 32),
                       fontWeight: FontWeight.w900,
@@ -919,20 +943,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
         SizedBox(height: screenHeight * 0.02),
 
-        // Vehicle Type Selection
+        // "I AM SELLING A" / "I AM LOOKING FOR" block
         Padding(
           padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
           child: _buildVehicleTypeSelection(userRole, constraints, isTablet),
         ),
         SizedBox(height: screenHeight * 0.05),
 
-        // Only for dealer: show preferred brands
+        // If the user is a dealer, show "Preferred Brands"
         if (userRole == 'dealer')
           _buildPreferredBrandsSection(userProvider, constraints, isTablet),
-
         SizedBox(height: screenHeight * 0.05),
 
-        // End message if needed
         if (_showEndMessage) ...[
           Text(
             "You've seen all the available trucks.",
@@ -953,18 +975,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ],
 
-        // For dealers: NEW ARRIVALS
+        // Dealer: "NEW ARRIVALS"
         if (userRole == 'dealer') ...[
           Text(
             "🔥 NEW ARRIVALS",
             style: _getTextStyle(
               fontSize: _adaptiveTextSize(
                 context,
-                24, // Mobile size
-                Math.min(
-                    80,
-                    MediaQuery.of(context).size.width *
-                        0.04), // Cap at 40 for web
+                24,
+                Math.min(80, MediaQuery.of(context).size.width * 0.04),
               ),
               fontWeight: FontWeight.bold,
               color: const Color(0xFF2F7FFF),
@@ -976,14 +995,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             style: _getTextStyle(
               fontSize: _adaptiveTextSize(
                 context,
-                24, // Mobile size
-                Math.min(
-                    30,
-                    MediaQuery.of(context).size.width *
-                        0.03), // Cap at 40 for web
+                24,
+                Math.min(30, MediaQuery.of(context).size.width * 0.03),
               ),
               fontWeight: FontWeight.w400,
-              color: const Color.fromARGB(255, 255, 255, 255),
+              color: Colors.white,
             ),
             textAlign: TextAlign.center,
           ),
@@ -998,10 +1014,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   decoration: BoxDecoration(
                     color: Colors.grey[900],
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: const Color(0xFF2F7FFF),
-                      width: 1,
-                    ),
+                    border:
+                        Border.all(color: const Color(0xFF2F7FFF), width: 1),
                   ),
                   child: Column(
                     children: [
@@ -1029,19 +1043,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 );
               }
-
-              // ADDED FOR CAROUSEL:
+              // Carousel for new arrivals
               return _buildTruckCarousel(displayedVehicles);
             },
           ),
           SizedBox(height: screenHeight * 0.03),
         ],
 
-        // For transporter, show "YOUR VEHICLES WITH OFFERS" (Optional)...
-
+        // Example pending offers section
         SizedBox(height: screenHeight * 0.015),
-
-        // RECENT PENDING OFFERS (example usage)
         GestureDetector(
           onTap: () => Navigator.pushNamed(context, '/pendingOffers'),
           child: Column(
@@ -1060,11 +1070,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     style: _getTextStyle(
                       fontSize: _adaptiveTextSize(
                         context,
-                        24, // Mobile size
-                        Math.min(
-                            80,
-                            MediaQuery.of(context).size.width *
-                                0.04), // Cap at 40 for web
+                        24,
+                        Math.min(80, MediaQuery.of(context).size.width * 0.04),
                       ),
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF2F7FFF),
@@ -1078,14 +1085,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 style: _getTextStyle(
                   fontSize: _adaptiveTextSize(
                     context,
-                    24, // Mobile size
-                    Math.min(
-                        30,
-                        MediaQuery.of(context).size.width *
-                            0.03), // Cap at 40 for web
+                    24,
+                    Math.min(30, MediaQuery.of(context).size.width * 0.03),
                   ),
                   fontWeight: FontWeight.w400,
-                  color: const Color.fromARGB(255, 255, 255, 255),
+                  color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1093,27 +1097,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         SizedBox(height: screenHeight * 0.02),
-
         if (recentOffers.isEmpty) ...[
-          // No offers placeholder
+          // No offers
           Container(
             padding: const EdgeInsets.all(16.0),
             margin: const EdgeInsets.symmetric(horizontal: 16.0),
             decoration: BoxDecoration(
               color: Colors.grey[900],
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFF2F7FFF),
-                width: 1,
-              ),
+              border: Border.all(color: const Color(0xFF2F7FFF), width: 1),
             ),
             child: Column(
               children: [
-                Image.asset(
-                  'lib/assets/shaking_hands.png',
-                  height: 50,
-                  width: 50,
-                ),
+                Image.asset('lib/assets/shaking_hands.png',
+                    height: 50, width: 50),
                 const SizedBox(height: 10),
                 Text(
                   'NO OFFERS YET',
@@ -1137,11 +1134,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           SizedBox(height: screenHeight * 0.02),
         ] else ...[
-          // Show your OfferCard or something similar in a grid or list
           SizedBox(height: screenHeight * 0.01),
           LayoutBuilder(
             builder: (context, constraints) {
-              // Determine number of cards per row
               int cardsPerRow;
               if (constraints.maxWidth > 1400) {
                 cardsPerRow = 4;
@@ -1184,20 +1179,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
-      height: 616, // 600 for card + 16 for margins
+      height: 616, // ~600 for card + a bit of margin
       alignment: Alignment.center,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Left Arrow and spacing - only on non-mobile devices
+          // Left arrow (only for non-mobile)
           if (!isMobile) ...[
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 1,
-                ),
+                border: Border.all(color: Colors.white, width: 1),
               ),
               child: IconButton(
                 icon: const Icon(
@@ -1221,7 +1213,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
             const SizedBox(width: 50),
           ],
-          // PageView that shows the TruckCard(s)
           SizedBox(
             width: isMobile ? screenWidth : 400,
             child: PageView.builder(
@@ -1235,7 +1226,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               itemBuilder: (context, index) {
                 final vehicle = vehicles[index];
                 return Padding(
-                  // Only add extra horizontal padding on mobile for visual appeal
                   padding: isMobile
                       ? EdgeInsets.symmetric(horizontal: screenWidth * 0.1)
                       : EdgeInsets.zero,
@@ -1250,16 +1240,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               },
             ),
           ),
-          // Right Arrow and spacing - only on non-mobile devices
+          // Right arrow (only for non-mobile)
           if (!isMobile) ...[
             const SizedBox(width: 50),
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 1,
-                ),
+                border: Border.all(color: Colors.white, width: 1),
               ),
               child: IconButton(
                 icon: const Icon(
@@ -1287,27 +1274,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// Builds the "I AM SELLING A / I AM LOOKING FOR" row with two cards
-  /// Builds the "I AM SELLING A / I AM LOOKING FOR" section.
-  /// The truck and trailer buttons will always be side by side.
+  /// "I AM SELLING A" / "I AM LOOKING FOR" section
   Widget _buildVehicleTypeSelection(
-    String userRole,
-    BoxConstraints constraints,
-    bool isTablet,
-  ) {
+      String userRole, BoxConstraints constraints, bool isTablet) {
     final screenWidth = constraints.maxWidth;
-    // Define some constants for padding and spacing
     const double containerPadding = 16.0;
-    const double horizontalSpacing = 16.0;
-
-    // Set the overall container width to 85% of the screen width to prevent overflow
     final double containerWidth = screenWidth * 0.85;
-    // Calculate the inner width available after subtracting the container's padding
     final double innerWidth = containerWidth - (2 * containerPadding);
-    // Each card gets half of the inner width minus half the spacing
+    const double horizontalSpacing = 16.0;
     final double cardWidth = (innerWidth - horizontalSpacing) / 2;
-
-    // Rest of the method remains the same
     final double titleFontSize = screenWidth < 600 ? 16 : 24;
 
     return Center(
@@ -1325,7 +1300,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Title text
             Text(
               userRole == 'transporter' ? "I AM SELLING A" : "I AM LOOKING FOR",
               style: _getTextStyle(
@@ -1335,11 +1309,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               textAlign: TextAlign.center,
             ),
             SizedBox(height: horizontalSpacing),
-            // Row with two vehicle type cards
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Truck card
+                // Trucks
                 SizedBox(
                   width: cardWidth,
                   child: _buildVehicleTypeCard(
@@ -1352,19 +1325,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       if (userRole == 'transporter') {
                         await MyNavigator.push(
                           context,
-                          VehicleUploadScreen(
-                            isNewUpload: true,
-                          ),
+                          VehicleUploadScreen(isNewUpload: true),
                         );
                       } else {
                         await MyNavigator.push(
-                            context, TruckPage(vehicleType: 'truck'));
+                          context,
+                          TruckPage(vehicleType: 'truck'),
+                        );
                       }
                     },
                   ),
                 ),
                 SizedBox(width: 10),
-                // Trailer card
+                // Trailers
                 SizedBox(
                   width: cardWidth,
                   child: _buildVehicleTypeCard(
@@ -1397,6 +1370,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  /// Builds each of the truck/trailer "cards" in the user role selection row
   Widget _buildVehicleTypeCard(
     BuildContext context,
     double cardSize,
@@ -1412,10 +1386,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         height: cardSize,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(cardSize * 0.04),
-          border: Border.all(
-            color: borderColor,
-            width: cardSize * 0.01,
-          ),
+          border: Border.all(color: borderColor, width: cardSize * 0.01),
         ),
         child: Stack(
           children: [
@@ -1428,7 +1399,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
             ),
-            // Gradient overlay
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -1436,15 +1406,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                   ),
                 ),
               ),
             ),
-            // Label at bottom
             Positioned(
               left: 0,
               right: 0,
@@ -1475,7 +1441,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// Preferred brands section for dealers
+  /// Builds the "Preferred Brands" section for dealers
   Widget _buildPreferredBrandsSection(
     UserProvider userProvider,
     BoxConstraints constraints,
@@ -1485,7 +1451,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final screenWidth = constraints.maxWidth;
     final screenHeight = constraints.maxHeight;
 
-    final double maxContentWidth = isTablet ? screenWidth * 0.8 : screenWidth;
     final double logoSize = kIsWeb
         ? (screenWidth > 1200
             ? 120
@@ -1497,9 +1462,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: isTablet ? screenWidth : screenWidth,
-        ),
+        constraints: BoxConstraints(maxWidth: screenWidth),
         child: Container(
           padding: EdgeInsets.symmetric(
             horizontal: screenWidth * 0.05,
@@ -1512,7 +1475,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Heading + Edit row
+              // Heading + edit
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1538,7 +1501,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               SizedBox(height: screenHeight * 0.015),
               const Divider(color: Colors.white, thickness: 1.0),
               SizedBox(height: screenHeight * 0.015),
-
               if (preferredBrands.isEmpty)
                 Center(
                   child: Padding(
@@ -1558,52 +1520,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 SizedBox(
                   height: containerHeight,
                   child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: isTablet ? screenWidth : screenWidth,
-                      ),
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: preferredBrands.length,
-                        itemBuilder: (context, index) {
-                          final brand = preferredBrands[index];
-                          final logoPath = _getBrandLogoPath(brand);
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: preferredBrands.length,
+                      itemBuilder: (context, index) {
+                        final brand = preferredBrands[index];
+                        final logoPath = _getBrandLogoPath(brand);
 
-                          return GestureDetector(
-                            onTap: () async {
-                              await MyNavigator.push(
-                                context,
-                                TruckPage(
-                                  vehicleType: 'all',
-                                  selectedBrand: brand,
-                                ),
-                              );
-                            },
-                            child: Container(
-                              margin: EdgeInsets.symmetric(
-                                horizontal: kIsWeb
-                                    ? screenWidth * 0.015
-                                    : screenWidth * 0.02,
-                              ),
-                              width: logoSize,
-                              height: logoSize,
-                              alignment: Alignment.center,
-                              child: logoPath != null
-                                  ? Image.asset(
-                                      logoPath,
-                                      width: logoSize * 0.9,
-                                      height: logoSize * 0.9,
-                                      fit: BoxFit.contain,
-                                    )
-                                  : Icon(
-                                      Icons.image_outlined,
-                                      color: Colors.white,
-                                      size: logoSize * 0.8,
-                                    ),
+                        return GestureDetector(
+                          onTap: () async {
+                            await MyNavigator.push(
+                              context,
+                              TruckPage(
+                                  vehicleType: 'all', selectedBrand: brand),
+                            );
+                          },
+                          child: Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: kIsWeb
+                                  ? screenWidth * 0.015
+                                  : screenWidth * 0.02,
                             ),
-                          );
-                        },
-                      ),
+                            width: logoSize,
+                            height: logoSize,
+                            alignment: Alignment.center,
+                            child: logoPath != null
+                                ? Image.asset(
+                                    logoPath,
+                                    width: logoSize * 0.9,
+                                    height: logoSize * 0.9,
+                                    fit: BoxFit.contain,
+                                  )
+                                : Icon(Icons.image_outlined,
+                                    color: Colors.white, size: logoSize * 0.8),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -1763,13 +1715,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 }
 
-// Navigation item class
+// Simple navigation item class
 class NavigationItem {
   final String title;
   final String route;
 
-  NavigationItem({
-    required this.title,
-    required this.route,
-  });
+  NavigationItem({required this.title, required this.route});
 }

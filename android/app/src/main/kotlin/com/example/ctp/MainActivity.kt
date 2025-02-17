@@ -1,4 +1,4 @@
-package com.example.ctp
+package com.commericaltradersportal.ctp
 
 import io.flutter.embedding.android.FlutterActivity
 

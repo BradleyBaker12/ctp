@@ -2,6 +2,7 @@
 
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -18,14 +19,14 @@ class TyresEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
-  final bool inTabsPage; // Add this parameter
+  final bool inTabsPage; // Defaults to false
 
   const TyresEditPage({
     super.key,
     required this.vehicleId,
     required this.onProgressUpdate,
     this.isEditing = false,
-    this.inTabsPage = false, // Default to false
+    this.inTabsPage = false,
   });
 
   @override
@@ -37,82 +38,92 @@ class TyresEditPageState extends State<TyresEditPage>
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage =
-      FirebaseStorage.instance; // Firebase Storage instance
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // Replace single state variables with maps to store values for each position
+  // Maps for each tyre position
   final Map<int, String> _chassisConditions = {};
   final Map<int, String> _virginOrRecaps = {};
   final Map<int, String> _rimTypes = {};
 
-  // Map to store selected images for different tyre positions
+  // For storing image data in memory (when user picks an image)
   final Map<String, Uint8List?> _selectedImages = {};
-
-  // Map to store image URLs
+  // For storing network image URLs from Firestore/Firebase Storage
   final Map<String, String> _imageUrls = {};
 
-  bool _isInitialized = false; // Flag to prevent re-initialization
-  bool _isSaving = false; // Flag to indicate saving state
+  bool _isInitialized = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize maps without default values
+    // Initialize maps for tyre positions 1 to 6.
     for (int i = 1; i <= 6; i++) {
       _chassisConditions[i] = '';
       _virginOrRecaps[i] = '';
       _rimTypes[i] = '';
     }
-
-    if (widget.isEditing) {
+    // Unlike before, always load existing data (if any) so the saved image shows.
+    if (!_isInitialized) {
       _fetchExistingData();
     }
   }
 
-  /// Fetch existing data from Firestore if in editing mode
+  /// Loads existing tyre data from Firestore.
   Future<void> _fetchExistingData() async {
     try {
-      QuerySnapshot querySnapshot = await _firestore
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('tyres')
-          .get();
+      print(
+          "DEBUG: Fetching existing tyre data for vehicle ${widget.vehicleId}");
+      final doc =
+          await _firestore.collection('vehicles').doc(widget.vehicleId).get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        // Assuming one document per tyre position
-        for (var doc in querySnapshot.docs) {
-          String key = doc.id; // e.g., 'Tyre_Pos_1'
-          if (key.startsWith('Tyre_Pos_')) {
-            final pos = int.parse(key.split('_').last);
-            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            _chassisConditions[pos] = data['chassisCondition'] ?? '';
-            _virginOrRecaps[pos] = data['virginOrRecap'] ?? '';
-            _rimTypes[pos] = data['rimType'] ?? '';
+      if (!doc.exists) {
+        print('DEBUG: No document found for vehicle ${widget.vehicleId}');
+        return;
+      }
 
-            String photoKey = '$key Photo';
+      final data = doc.data();
+      if (data == null || !data.containsKey('truckConditions')) {
+        print('DEBUG: No truckConditions data found');
+        return;
+      }
 
-            // Handle image data
-            if (data['imageUrl'] != null) {
-              _imageUrls[photoKey] = data['imageUrl'];
-              print("ImageUrls: $_imageUrls");
-            }
-            // Note: imagePath is not typically stored; if needed, handle accordingly
+      final tyresData = data['truckConditions']?['tyres'];
+      if (tyresData == null) {
+        print('DEBUG: No tyres data found');
+        return;
+      }
+
+      print('DEBUG: Found tyres data: $tyresData');
+      // For each tyre position (1 to 6) load the saved data.
+      for (int pos = 1; pos <= 6; pos++) {
+        String posKey = 'Tyre_Pos_$pos';
+        if (tyresData[posKey] != null) {
+          Map<String, dynamic> posData =
+              Map<String, dynamic>.from(tyresData[posKey]);
+          _chassisConditions[pos] = posData['chassisCondition'] ?? '';
+          _virginOrRecaps[pos] = posData['virginOrRecap'] ?? '';
+          _rimTypes[pos] = posData['rimType'] ?? '';
+
+          if (posData['imageUrl'] != null) {
+            _imageUrls['$posKey Photo'] = posData['imageUrl'];
+            print(
+                "DEBUG: Tyre position $pos image URL loaded: ${posData['imageUrl']}");
           }
         }
-        setState(() {
-          _isInitialized = true;
-        });
       }
+      setState(() {
+        _isInitialized = true;
+      });
     } catch (e) {
-      // Handle errors appropriately
+      print("DEBUG: Error fetching tyre data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching existing data: $e')),
+        SnackBar(content: Text('Error loading tyre data: $e')),
       );
     }
   }
 
   @override
-  bool get wantKeepAlive => true; // Implementing the required getter
+  bool get wantKeepAlive => true;
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -137,16 +148,48 @@ class TyresEditPageState extends State<TyresEditPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16.0),
-              // Generate Tyre Position Sections
+              // Generate sections for tyre positions 1 through 6.
               ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
               const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              CustomButton(
+                text: 'Save Changes',
+                borderColor: Colors.deepOrange,
+                isLoading: _isSaving,
+                onPressed: () async {
+                  print("DEBUG: Save Changes button pressed");
+                  setState(() => _isSaving = true);
+                  try {
+                    final data = await getData();
+                    print("DEBUG: Data to be saved: $data");
+                    await _firestore
+                        .collection('vehicles')
+                        .doc(widget.vehicleId)
+                        .update({
+                      'truckConditions.tyres': data,
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Changes saved successfully!')),
+                    );
+                  } catch (e) {
+                    print("DEBUG: Error during save: $e");
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving changes: $e')),
+                    );
+                  } finally {
+                    setState(() => _isSaving = false);
+                  }
+                },
+              ),
             ],
           ),
         ),
       ),
     );
 
-    // If not in tabs page, wrap with GradientBackground
+    // Wrap with GradientBackground if not in tabs mode.
     if (!widget.inTabsPage) {
       content = GradientBackground(child: content);
     }
@@ -159,7 +202,7 @@ class TyresEditPageState extends State<TyresEditPage>
               child: TruckInfoWebNavBar(
                 scaffoldKey: _scaffoldKey,
                 selectedTab: "Tyres",
-                vehicleId: widget.vehicleId, // Add this line
+                vehicleId: widget.vehicleId,
                 onHomePressed: () => Navigator.pushNamed(context, '/home'),
                 onBasicInfoPressed: () =>
                     Navigator.pushNamed(context, '/basic_information'),
@@ -179,7 +222,7 @@ class TyresEditPageState extends State<TyresEditPage>
               ),
             )
           : null,
-      body: content, // your existing content
+      body: content,
     );
   }
 
@@ -228,10 +271,9 @@ class TyresEditPageState extends State<TyresEditPage>
                 if (value != null) {
                   _updateAndNotify(() {
                     _chassisConditions[pos] = value;
+                    print("DEBUG: Tyre $pos chassis condition set to $value");
                   });
                 }
-                widget.onProgressUpdate();
-                setState(() {});
               },
               enabled: !isDealer,
             ),
@@ -242,9 +284,9 @@ class TyresEditPageState extends State<TyresEditPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _chassisConditions[pos] = value;
+                  print("DEBUG: Tyre $pos chassis condition set to $value");
                 }
-                widget.onProgressUpdate();
-                setState(() {});
+                _updateAndNotify(() {});
               },
               enabled: !isDealer,
             ),
@@ -255,9 +297,9 @@ class TyresEditPageState extends State<TyresEditPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _chassisConditions[pos] = value;
+                  print("DEBUG: Tyre $pos chassis condition set to $value");
                 }
-                widget.onProgressUpdate();
-                setState(() {});
+                _updateAndNotify(() {});
               },
               enabled: !isDealer,
             ),
@@ -285,9 +327,9 @@ class TyresEditPageState extends State<TyresEditPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
+                  print("DEBUG: Tyre $pos virgin/recap set to $value");
                 }
-                widget.onProgressUpdate();
-                setState(() {});
+                _updateAndNotify(() {});
               },
               enabled: !isDealer,
             ),
@@ -298,9 +340,9 @@ class TyresEditPageState extends State<TyresEditPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _virginOrRecaps[pos] = value;
+                  print("DEBUG: Tyre $pos virgin/recap set to $value");
                 }
-                widget.onProgressUpdate();
-                setState(() {});
+                _updateAndNotify(() {});
               },
               enabled: !isDealer,
             ),
@@ -328,10 +370,9 @@ class TyresEditPageState extends State<TyresEditPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _rimTypes[pos] = value;
+                  print("DEBUG: Tyre $pos rim type set to $value");
                 }
-
-                widget.onProgressUpdate();
-                setState(() {});
+                _updateAndNotify(() {});
               },
               enabled: !isDealer,
             ),
@@ -342,9 +383,9 @@ class TyresEditPageState extends State<TyresEditPage>
               onChanged: (String? value) {
                 if (value != null) {
                   _rimTypes[pos] = value;
+                  print("DEBUG: Tyre $pos rim type set to $value");
                 }
-                widget.onProgressUpdate();
-                setState(() {});
+                _updateAndNotify(() {});
               },
               enabled: !isDealer,
             ),
@@ -361,32 +402,52 @@ class TyresEditPageState extends State<TyresEditPage>
     String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
     return GestureDetector(
       onTap: () async {
-        if (isDealer &&
-            (_selectedImages[key] != null || _imageUrls[key] != null)) {
+        print("DEBUG: Image upload block tapped for key: $key");
+        // If an image exists, allow viewing it.
+        if ((_selectedImages[key] != null ||
+            (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty))) {
+          print("DEBUG: Viewing image for key: $key");
           await MyNavigator.push(
-              context,
-              Scaffold(
-                backgroundColor: Colors.black,
-                appBar: AppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  leading: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+            context,
+            Scaffold(
+              backgroundColor: Colors.black,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              body: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Center(
+                  child: InteractiveViewer(
+                    child: _selectedImages[key] != null
+                        ? Image.memory(_selectedImages[key]!)
+                        : (_imageUrls[key] != null &&
+                                _imageUrls[key]!.isNotEmpty)
+                            ? Image.network(
+                                _imageUrls[key]!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                                errorBuilder: (context, error, stackTrace) {
+                                  print(
+                                      "DEBUG: Error loading network image: $error");
+                                  return const Icon(Icons.error_outline,
+                                      color: Colors.red);
+                                },
+                              )
+                            : const Center(child: Text('No image available')),
                   ),
                 ),
-                body: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Center(
-                    child: InteractiveViewer(
-                      child: _selectedImages[key] != null
-                          ? Image.memory(_selectedImages[key]!)
-                          : Image.network(_imageUrls[key]!),
-                    ),
-                  ),
-                ),
-              ));
-        } else if (!isDealer) {
+              ),
+            ),
+          );
+        }
+        // Otherwise, if not a dealer, allow picking a new image.
+        else if (!isDealer) {
           _showImageSourceDialog(key);
         }
       },
@@ -415,11 +476,10 @@ class TyresEditPageState extends State<TyresEditPage>
                 else if (_imageUrls[key] != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: _imageUrls[key] == null || _imageUrls[key] == ""
-                        ? Center(child: Text("Invalid Image"))
+                    child: (_imageUrls[key] == null || _imageUrls[key] == "")
+                        ? const Center(child: Text("Invalid Image"))
                         : Image.network(
                             _imageUrls[key]!,
-                            // "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaNLiTGLsYuLJw2qP6ICVQWQJ3SSjuqQVsEQ&s",
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: double.infinity,
@@ -446,33 +506,17 @@ class TyresEditPageState extends State<TyresEditPage>
                       ],
                     ),
                   ),
+                // If not a dealer and an image exists, show a modify (X) button.
                 if (!isDealer &&
-                    (_selectedImages[key] != null || _imageUrls[key] != null))
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Tap to modify image',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (!isDealer &&
-                    (_selectedImages[key] != null || _imageUrls[key] != null))
+                    (_selectedImages[key] != null ||
+                        (_imageUrls[key] != null &&
+                            _imageUrls[key]!.isNotEmpty)))
                   Positioned(
                     top: 8,
                     right: 8,
                     child: GestureDetector(
                       onTap: () {
+                        print("DEBUG: Removing image for key: $key");
                         setState(() {
                           _selectedImages.remove(key);
                           _imageUrls.remove(key);
@@ -505,6 +549,7 @@ class TyresEditPageState extends State<TyresEditPage>
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        print("DEBUG: Showing image source dialog for key: $key");
         return AlertDialog(
           title: Text('Choose Image Source for $title'),
           content: Column(
@@ -519,11 +564,13 @@ class TyresEditPageState extends State<TyresEditPage>
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
+                    print("DEBUG: Selected image from camera for key: $key");
                     _updateAndNotify(() {
                       _selectedImages[key] = bytes;
-                      _imageUrls.remove(key); // Remove existing URL if any
+                      _imageUrls.remove(key);
                     });
+                  } else {
+                    print("DEBUG: No image selected from camera for key: $key");
                   }
                   widget.onProgressUpdate();
                 },
@@ -537,11 +584,14 @@ class TyresEditPageState extends State<TyresEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
+                    print("DEBUG: Selected image from gallery for key: $key");
                     _updateAndNotify(() {
                       _selectedImages[key] = bytes;
-                      _imageUrls.remove(key); // Remove existing URL if any
+                      _imageUrls.remove(key);
                     });
+                  } else {
+                    print(
+                        "DEBUG: No image selected from gallery for key: $key");
                   }
                   widget.onProgressUpdate();
                 },
@@ -553,183 +603,112 @@ class TyresEditPageState extends State<TyresEditPage>
     );
   }
 
-  /// Validates and saves the data to Firestore
-  Future<void> saveData() async {
-    // Validate data before saving
-    for (int pos = 1; pos <= 6; pos++) {
-      String photoKey = 'Tyre_Pos_$pos Photo';
-      if ((_selectedImages[photoKey] == null && _imageUrls[photoKey] == null) ||
-          (_chassisConditions[pos]?.isEmpty ?? true) ||
-          (_virginOrRecaps[pos]?.isEmpty ?? true) ||
-          (_rimTypes[pos]?.isEmpty ?? true)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text('Please complete all fields for Tyre Position $pos')),
-        );
-        return;
-      }
-    }
-
-    setState(() {
-      _isSaving = true;
-    });
-
-    try {
-      await getData();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tyre data saved successfully!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving data: $e')),
-      );
-    } finally {
-      setState(() {
-        _isSaving = false;
-      });
-    }
-  }
-
-  /// Handles uploading images and saving data to Firestore
+  /// Uploads images (if any) and returns the full tyre data map.
   Future<Map<String, dynamic>> getData() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isTransporter = userProvider.getUserRole == 'transporter';
+    Map<String, dynamic> allTyresData = {};
 
-    if (!isTransporter) {
-      return {};
-    }
-
-    Map<String, dynamic> data = {};
-
-    // Get data for each tyre position
     for (int pos = 1; pos <= 6; pos++) {
       String posKey = 'Tyre_Pos_$pos';
       String photoKey = '$posKey Photo';
 
-      // Initialize tyre data
-      data[posKey] = {
+      print("DEBUG: Processing data for $posKey");
+
+      Map<String, dynamic> tyreData = {
         'chassisCondition': _chassisConditions[pos] ?? '',
         'virginOrRecap': _virginOrRecaps[pos] ?? '',
         'rimType': _rimTypes[pos] ?? '',
       };
 
-      // Handle image data
+      // If a new image was selected, upload it.
       if (_selectedImages[photoKey] != null) {
+        print("DEBUG: Uploading image for $photoKey");
         String imageUrl = await _uploadImageToFirebase(
-            _selectedImages[photoKey]!, 'position_$pos');
-        data[posKey]['imageUrl'] = imageUrl;
-      } else if (_imageUrls[photoKey] != null) {
-        data[posKey]['imageUrl'] = _imageUrls[photoKey];
+          _selectedImages[photoKey]!,
+          'position_$pos',
+        );
+        tyreData['imageUrl'] = imageUrl;
+        print("DEBUG: Uploaded image URL for $photoKey: $imageUrl");
+        setState(() {
+          _imageUrls[photoKey] = imageUrl;
+          _selectedImages.remove(photoKey);
+        });
+      } else if (_imageUrls[photoKey] != null &&
+          _imageUrls[photoKey]!.isNotEmpty) {
+        tyreData['imageUrl'] = _imageUrls[photoKey];
+        print(
+            "DEBUG: Using existing image URL for $photoKey: ${_imageUrls[photoKey]}");
+      } else {
+        print("DEBUG: No image found for $photoKey");
       }
 
-      // Save to Firestore
-      await _firestore
-          .collection('vehicles')
-          .doc(widget.vehicleId)
-          .collection('tyres')
-          .doc(posKey)
-          .set(data[posKey]);
+      allTyresData[posKey] = tyreData;
     }
 
-    return data;
+    print("DEBUG: Final tyre data: $allTyresData");
+    return allTyresData;
   }
 
-  /// Uploads an image file to Firebase Storage and returns the download URL
+  /// Uploads an image file to Firebase Storage and returns its download URL.
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
     String fileName =
         'tyres/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    print("DEBUG: Preparing to upload image with fileName: $fileName");
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
     UploadTask uploadTask = storageRef.putData(imageFile);
 
-    // Optionally, you can monitor upload progress here
-
     TaskSnapshot snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    String downloadURL = await snapshot.ref.getDownloadURL();
+    print("DEBUG: Image uploaded. Download URL: $downloadURL");
+    return downloadURL;
   }
 
-  /// Resets all fields and clears images
+  /// Resets all fields and clears image data.
   void reset() {
     setState(() {
-      // Reset conditions to empty strings
       for (int i = 1; i <= 6; i++) {
         _chassisConditions[i] = '';
         _virginOrRecaps[i] = '';
         _rimTypes[i] = '';
       }
-
-      // Clear images
       _selectedImages.clear();
       _imageUrls.clear();
-
       _isInitialized = false;
+      print("DEBUG: Reset all fields and cleared images");
     });
   }
 
-  /// Calculates the completion percentage based on filled fields
   double getCompletionPercentage() {
     int totalFields = 24; // 6 positions × (1 image + 3 selections) = 24 fields
     int filledFields = 0;
 
-    // Check each tyre position (6 positions)
     for (int pos = 1; pos <= 6; pos++) {
       String photoKey = 'Tyre_Pos_$pos Photo';
-
-      // Check image (1 field per position)
-      if (_selectedImages[photoKey] != null || _imageUrls[photoKey] != null) {
+      if (_selectedImages[photoKey] != null ||
+          (_imageUrls[photoKey] != null && _imageUrls[photoKey]!.isNotEmpty)) {
         filledFields++;
       }
-
-      // Check chassis condition (1 field per position)
       if (_chassisConditions[pos]?.isNotEmpty == true) {
         filledFields++;
       }
-
-      // Check virgin/recap selection (1 field per position)
       if (_virginOrRecaps[pos]?.isNotEmpty == true) {
         filledFields++;
       }
-
-      // Check rim type selection (1 field per position)
       if (_rimTypes[pos]?.isNotEmpty == true) {
         filledFields++;
       }
     }
 
-    return (filledFields / totalFields).clamp(0.0, 1.0);
+    double completion = (filledFields / totalFields).clamp(0.0, 1.0);
+    print("DEBUG: Completion percentage calculated as $completion");
+    return completion;
   }
 
-  /// Updates the state and notifies the parent widget about progress
+  /// A helper to update state and notify progress.
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(() {
       updateFunction();
     });
     widget.onProgressUpdate();
-  }
-
-  /// Initializes the state with existing data (Called from external files)
-  void initializeWithData(Map<String, dynamic> data) {
-    if (data.isEmpty) return;
-    setState(() {
-      data.forEach((key, value) {
-        if (key.startsWith('Tyre_Pos_')) {
-          final pos = int.parse(key.split('_').last);
-          _chassisConditions[pos] = value['chassisCondition'] ?? 'good';
-          _virginOrRecaps[pos] = value['virginOrRecap'] ?? 'virgin';
-          _rimTypes[pos] = value['rimType'] ?? 'aluminium';
-
-          String photoKey = '$key Photo';
-
-          // Handle image data
-          if (value['imageUrl'] != null) {
-            _imageUrls[photoKey] = value['imageUrl'];
-          }
-          if (value['imagePath'] != null) {
-            _selectedImages[photoKey] = value['imagePath'];
-          }
-        }
-      });
-    });
   }
 }

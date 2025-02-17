@@ -3,18 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:auto_size_text/auto_size_text.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart'; // Add this import
+import 'package:firebase_auth/firebase_auth.dart'; // Add this import
+import '../models/trailer.dart'; // Add this import
 import '../models/vehicle.dart';
 import '../pages/vehicle_details_page.dart';
 import '../providers/user_provider.dart';
 
 class TruckCard extends StatelessWidget {
-  final Vehicle vehicle;
-
-  /// Callback when the heart (like) button is pressed.
-  final Function(Vehicle) onInterested;
-
-  /// Optional parameter for customizing border color.
+  final dynamic vehicle; // Change to dynamic to accept both Vehicle and Trailer
+  final Function(dynamic) onInterested;
   final Color? borderColor;
 
   const TruckCard({
@@ -24,63 +22,132 @@ class TruckCard extends StatelessWidget {
     this.borderColor,
   });
 
-  /// Builds one of the small spec boxes (e.g., mileage, transmission, config).
-  Widget _buildSpecBox(BuildContext context, String value, double fontSize) {
-    if (value.trim().isEmpty || value.toUpperCase() == 'N/A') {
-      return const SizedBox.shrink();
+  bool get isTrailer =>
+      vehicle is Trailer ||
+      (vehicle is Vehicle && vehicle.vehicleType == 'trailer');
+
+  // Helper methods to get data regardless of model type
+  String get displayMakeModel {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.makeModel ?? 'N/A'
+          : vehicle.trailer?.makeModel ?? 'N/A';
     }
-
-    // Get screen dimensions for dynamic font sizing
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    // Adjust font size based on screen size with a reasonable minimum.
-    final dynamicFontSize = screenWidth < 600
-        ? max(fontSize * 0.9, 12.0)
-        : screenWidth < 1200
-            ? max(fontSize * 0.7, 10.0)
-            : max(fontSize * 0.6, 10.0);
-
-    // Return a Container that wraps the text with padding and decoration.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: AutoSizeText(
-        value.toUpperCase(),
-        style: GoogleFonts.montserrat(
-          fontSize: dynamicFontSize,
-          fontWeight: FontWeight.w500,
-          color: Colors.white,
-        ),
-        maxLines: 1,
-        minFontSize: 10,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-      ),
-    );
+    return vehicle.makeModel ?? 'N/A';
   }
 
-  /// Helper to determine if a single field is considered "filled".
-  bool _isFieldFilled(dynamic value) {
-    if (value == null) return false;
-    if (value is String) {
-      final trimmed = value.trim();
-      return trimmed.isNotEmpty && trimmed.toUpperCase() != 'N/A';
+  String get displayYear {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.year ?? 'N/A'
+          : vehicle.trailer?.year ?? 'N/A';
     }
-    if (value is List) {
-      return value.isNotEmpty;
+    return vehicle.year ?? 'N/A';
+  }
+
+  String get displayMileage {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.mileage ?? 'N/A'
+          : vehicle.trailer?.mileage ?? 'N/A';
     }
+    return vehicle.mileage ?? 'N/A';
+  }
+
+  String get displayConfig {
+    if (isTrailer) {
+      // For trailers, show trailer type instead of config
+      return vehicle is Trailer
+          ? vehicle.trailerType ?? 'N/A'
+          : vehicle.trailer?.trailerType ?? 'N/A';
+    }
+    return vehicle.config ?? 'N/A';
+  }
+
+  String get displayTransmission {
+    if (isTrailer) {
+      // For trailers, show axles instead of transmission
+      final axles = vehicle is Trailer
+          ? vehicle.axles?.toString()
+          : vehicle.trailer?.axles?.toString();
+      return axles != null ? '$axles AXLES' : 'N/A';
+    }
+    return vehicle.transmissionType ?? 'N/A';
+  }
+
+  List<String> get displayBrands {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.brands ?? []
+          : vehicle.trailer?.brands ?? [];
+    }
+    return vehicle.brands ?? [];
+  }
+
+  String? get displayMainImage {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.mainImageUrl
+          : vehicle.trailer?.mainImageUrl;
+    }
+    return vehicle.mainImageUrl;
+  }
+
+  // Modified _calculateFieldsRatio to handle both types
+  (int filled, int total) _calculateFieldsRatio(dynamic vehicle) {
+    if (isTrailer) {
+      return _calculateTrailerFieldsRatio(
+          vehicle is Trailer ? vehicle : vehicle.trailer);
+    }
+    return _calculateTruckFieldsRatio(vehicle);
+  }
+
+  bool _isFieldFilled(dynamic field) {
+    if (field == null) return false;
+    if (field is String) return field.isNotEmpty;
+    if (field is List) return field.isNotEmpty;
+    if (field is Map) return field.isNotEmpty;
     return true;
   }
 
-  /// Calculates how many fields are filled vs total, based on Vehicle fields.
-  (int filled, int total) _calculateFieldsRatio(Vehicle vehicle) {
+  (int filled, int total) _calculateTrailerFieldsRatio(Trailer? trailer) {
+    if (trailer == null) return (0, 1); // Return 0/1 if no trailer data
+
+    final fieldsToCheck = [
+      trailer.makeModel,
+      trailer.year,
+      trailer.trailerType,
+      trailer.axles,
+      trailer.length,
+      trailer.vinNumber,
+      trailer.registrationNumber,
+      trailer.mileage,
+      trailer.engineNumber,
+      trailer.sellingPrice,
+      trailer.warrantyDetails,
+      trailer.referenceNumber,
+      trailer.country,
+      trailer.province,
+      trailer.natisDocumentUrl,
+      trailer.serviceHistoryUrl,
+      trailer.mainImageUrl,
+      trailer.frontImageUrl,
+      trailer.sideImageUrl,
+      trailer.tyresImageUrl,
+      trailer.chassisImageUrl,
+      trailer.deckImageUrl,
+      trailer.makersPlateImageUrl,
+      trailer.additionalImages,
+      trailer.damages,
+      trailer.features,
+      trailer.brands,
+    ];
+
+    final filledFields = fieldsToCheck.where(_isFieldFilled).length;
+    return (filledFields, fieldsToCheck.length);
+  }
+
+  (int filled, int total) _calculateTruckFieldsRatio(Vehicle vehicle) {
     final fieldsToCheck = [
       // Basic Vehicle Details
       vehicle.makeModel,
@@ -127,7 +194,6 @@ class TruckCard extends StatelessWidget {
       vehicle.sideImageUrl,
       vehicle.tyresImageUrl,
       vehicle.chassisImageUrl,
-      vehicle.deckImageUrl,
       vehicle.makersPlateImageUrl,
       vehicle.licenceDiskUrl,
       vehicle.rc1NatisFile,
@@ -200,6 +266,60 @@ class TruckCard extends StatelessWidget {
     return (filledFields, totalFields);
   }
 
+  Future<void> _markAsInterested(BuildContext context, String vehicleId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      try {
+        // Get the user's document reference
+        final userDoc =
+            FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+        // Add or remove the vehicle ID from likedVehicles array
+        if (userProvider.getLikedVehicles.contains(vehicleId)) {
+          await userDoc.update({
+            'likedVehicles': FieldValue.arrayRemove([vehicleId])
+          });
+          userProvider.unlikeVehicle(vehicleId);
+        } else {
+          await userDoc.update({
+            'likedVehicles': FieldValue.arrayUnion([vehicleId])
+          });
+          userProvider.likeVehicle(vehicleId);
+        }
+      } catch (e) {
+        debugPrint('Error updating liked vehicles: $e');
+      }
+    }
+  }
+
+  void _handleInterestedVehicle(BuildContext context) {
+    final vehicleId = vehicle.id;
+    if (vehicleId != null) {
+      _markAsInterested(context, vehicleId);
+    }
+  }
+
+  Widget _buildSpecBox(BuildContext context, String text, double fontSize) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0d1d4a),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: AutoSizeText(
+        text.toUpperCase(),
+        style: GoogleFonts.montserrat(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w500,
+          color: Colors.white,
+        ),
+        maxLines: 1,
+        minFontSize: 8,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Fixed height for the card
@@ -215,10 +335,10 @@ class TruckCard extends StatelessWidget {
 
     // BRAND + MODEL + YEAR text.
     final brandModel = [
-      vehicle.brands.join(" "),
-      vehicle.variant,
+      displayBrands.join(" "),
+      isTrailer ? displayConfig : vehicle.variant,
     ].where((e) => e!.isNotEmpty).join(" ");
-    final year = vehicle.year.toString();
+    final year = displayYear;
 
     // Wrap the entire card in an InkWell so that tapping anywhere (except on interactive widgets)
     // navigates to the vehicle details page.
@@ -290,7 +410,7 @@ class TruckCard extends StatelessWidget {
                             top: Radius.circular(24),
                           ),
                           child: Image.network(
-                            vehicle.mainImageUrl ?? '',
+                            displayMainImage ?? '',
                             width: cardW,
                             height: imageSectionHeight,
                             fit: BoxFit.cover,
@@ -318,7 +438,8 @@ class TruckCard extends StatelessWidget {
                                   color: isLiked ? Colors.red : Colors.white,
                                   size: titleFontSize + 10,
                                 ),
-                                onPressed: () => onInterested(vehicle),
+                                onPressed: () => _handleInterestedVehicle(
+                                    context), // Updated this line
                               );
                             },
                           ),
@@ -365,15 +486,13 @@ class TruckCard extends StatelessWidget {
                             children: [
                               _buildSpecBox(
                                   context,
-                                  '${vehicle.mileage ?? "N/A"} km',
+                                  '${displayMileage ?? "N/A"} km',
                                   specFontSize),
                               SizedBox(width: responsiveSpacing),
-                              _buildSpecBox(
-                                  context,
-                                  vehicle.transmissionType ?? 'N/A',
-                                  specFontSize),
+                              _buildSpecBox(context,
+                                  displayTransmission ?? 'N/A', specFontSize),
                               SizedBox(width: responsiveSpacing),
-                              _buildSpecBox(context, vehicle.config ?? 'N/A',
+                              _buildSpecBox(context, displayConfig ?? 'N/A',
                                   specFontSize),
                             ],
                           ),

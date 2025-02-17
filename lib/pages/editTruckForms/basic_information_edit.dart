@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
+import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
@@ -116,8 +117,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   List<String> _brandOptions = [];
   List<String> _yearOptions = [];
 
-  // The final List for variants is user-entered or from DB.
-  final List<String> _variantOptions = [];
+  // List for variants is user-entered or from DB.
+  List<String> _variantOptions = [];
 
   String? _initialVehicleStatus;
 
@@ -242,21 +243,14 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       final data = json.decode(response);
       setState(() {
         _brandOptions = data[year]?.keys.toList() ?? [];
-        if (widget.vehicle != null && widget.vehicle!.brands.isNotEmpty) {
-          final existingBrand = widget.vehicle!.brands[0];
-          if (!_brandOptions.contains(existingBrand)) {
-            _brandOptions.add(existingBrand);
-            debugPrint('Added existing brand to brand options: $existingBrand');
-          }
-          formData.setBrands([existingBrand]);
-          debugPrint('FormData Brands set to existing brand: $existingBrand');
-        } else {
-          if (formData.brands == null) {
-            formData.setBrands(null);
-          }
+        // Clear values only for a new upload or duplication.
+        if (widget.isNewUpload || widget.isDuplicating) {
+          formData.setBrands(null);
+          formData.setMakeModel(null);
+          formData.setVariant(null);
         }
       });
-      debugPrint('Loaded Brand Options for Year $year: $_brandOptions');
+      debugPrint('Loaded brands for year $year: $_brandOptions');
     } catch (e) {
       debugPrint('Error loading brands for year $year: $e');
     }
@@ -265,30 +259,54 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   Future<void> _loadModelsForBrand(String brand) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
+    if (year == null) return;
+
     try {
       final String response =
           await rootBundle.loadString('lib/assets/updated_truck_data.json');
       final data = json.decode(response);
       setState(() {
-        final List<dynamic>? modelsFromJson = data[year]?[brand];
-        _makeModelOptions = {brand: modelsFromJson?.cast<String>() ?? []};
-        if (widget.vehicle != null) {
-          final existingModel = widget.vehicle!.makeModel;
-          if (!_makeModelOptions[brand]!.contains(existingModel)) {
-            _makeModelOptions[brand]!.add(existingModel);
-            debugPrint('Added existing model to model options: $existingModel');
-          }
-          formData.setMakeModel(existingModel);
-        } else {
-          if (formData.makeModel == null) {
+        if (data[year] != null && data[year][brand] != null) {
+          final models = data[year][brand].keys.toList();
+          _makeModelOptions = {brand: models};
+          // Clear model and variant only for new upload or duplicating.
+          if (widget.isNewUpload || widget.isDuplicating) {
             formData.setMakeModel(null);
+            formData.setVariant(null);
+            _variantController.clear();
           }
         }
       });
-      debugPrint(
-          'Loaded Model Options for Brand $brand: ${_makeModelOptions[brand]}');
+      debugPrint('Loaded models for brand $brand: ${_makeModelOptions[brand]}');
     } catch (e) {
       debugPrint('Error loading models for brand $brand: $e');
+    }
+  }
+
+  Future<void> _loadVariantsForModel(String model) async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final year = formData.year;
+    final brand = formData.brands?.first;
+    if (year == null || brand == null) return;
+
+    try {
+      final String response =
+          await rootBundle.loadString('lib/assets/updated_truck_data.json');
+      final data = json.decode(response);
+      setState(() {
+        if (data[year]?[brand]?[model] != null) {
+          _variantOptions = List<String>.from(data[year][brand][model]);
+          // Clear variant only for new upload or duplicating.
+          if (widget.isNewUpload || widget.isDuplicating) {
+            formData.setVariant(null);
+          }
+        } else {
+          _variantOptions = [];
+        }
+      });
+      debugPrint('Loaded variants for model $model: $_variantOptions');
+    } catch (e) {
+      debugPrint('Error loading variants for model $model: $e');
     }
   }
 
@@ -479,6 +497,47 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     try {
       debugPrint('Starting _populateExistingVehicleData');
+
+      // 1. Prepopulate Year, Brands, Models and Variants
+
+      // Set year and load available brand options.
+      if (widget.vehicle?.year != null) {
+        formData.setYear(widget.vehicle!.year);
+        await _loadBrandsForYear(widget.vehicle!.year);
+        debugPrint('Loaded brands for year: ${widget.vehicle!.year}');
+      }
+
+      // If a brand is saved, set it and load its models.
+      if (widget.vehicle?.brands != null && widget.vehicle!.brands.isNotEmpty) {
+        final brand = widget.vehicle!.brands[0];
+        formData.setBrands([brand]);
+        _brandsController.text = brand;
+        debugPrint('Set brand to: $brand');
+        await _loadModelsForBrand(brand);
+        debugPrint('Loaded models for brand: $brand');
+      }
+
+      // If a model is saved, set it and load available variants.
+      if (widget.vehicle?.makeModel != null &&
+          widget.vehicle!.makeModel.isNotEmpty) {
+        formData.setMakeModel(widget.vehicle!.makeModel);
+        _modelController.text = widget.vehicle!.makeModel;
+        debugPrint('Set model to: ${widget.vehicle!.makeModel}');
+        await _loadVariantsForModel(widget.vehicle!.makeModel);
+        debugPrint('Loaded variants for model: ${widget.vehicle!.makeModel}');
+      }
+
+      // If a variant is saved, set it.
+      if (widget.vehicle?.variant != null &&
+          widget.vehicle!.variant!.isNotEmpty) {
+        formData.setVariant(widget.vehicle!.variant);
+        _variantController.text = widget.vehicle!.variant!;
+        debugPrint('Set variant to: ${widget.vehicle!.variant}');
+      }
+
+      // 2. Prepopulate Image and Document Fields
+
+      // Set main image.
       if (widget.vehicle?.mainImageUrl != null) {
         formData.setMainImageUrl(widget.vehicle!.mainImageUrl);
         debugPrint('Main image URL set: ${widget.vehicle!.mainImageUrl}');
@@ -488,13 +547,14 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         _existingNatisRc1Name = _getFileNameFromUrl(_existingNatisRc1Url);
         debugPrint('NATIS/RC1 file set: $_existingNatisRc1Url');
       });
+
+      // Set vehicle status.
       _initialVehicleStatus = widget.vehicle?.vehicleStatus ?? 'Draft';
       _vehicleStatus = _initialVehicleStatus;
       debugPrint('Initial Vehicle Status: $_initialVehicleStatus');
-      debugPrint(
-          'Variant from vehicle before assignment: ${widget.vehicle?.variant ?? "(null)"}');
-      _modelController.text = widget.vehicle?.makeModel ?? '';
-      _variantController.text = widget.vehicle?.variant ?? '';
+
+      // 3. Prepopulate Basic Text Fields
+
       _vinNumberController.text = widget.vehicle?.vinNumber ?? '';
       _mileageController.text = widget.vehicle?.mileage ?? '';
       _engineNumberController.text = widget.vehicle?.engineNumber ?? '';
@@ -504,22 +564,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           widget.vehicle?.adminData.settlementAmount ?? '';
       _warrantyDetailsController.text = widget.vehicle?.warrantyDetails ?? '';
       _referenceNumberController.text = widget.vehicle?.referenceNumber ?? '';
+
+      // 4. Set Additional Form Data
+
       if (widget.vehicle?.brands != null && widget.vehicle!.brands.isNotEmpty) {
         _brandsController.text = widget.vehicle!.brands[0];
         formData.setBrands(List<String>.from(widget.vehicle!.brands));
       }
       formData.setYear(widget.vehicle?.year);
       formData.setMakeModel(widget.vehicle?.makeModel);
-      debugPrint(
-          'Setting formData variant to: ${widget.vehicle?.variant ?? "(null)"}');
       formData.setVariant(widget.vehicle?.variant);
-      debugPrint('formData.variant is now: ${formData.variant}');
       formData.setVinNumber(widget.vehicle?.vinNumber);
       formData.setConfig(widget.vehicle?.config);
       formData.setMileage(widget.vehicle?.mileage);
-      formData.setApplication(widget.vehicle?.application.isNotEmpty == true
-          ? widget.vehicle?.application[0]
-          : null);
+      formData.setApplication(
+        widget.vehicle?.application.isNotEmpty == true
+            ? widget.vehicle?.application[0]
+            : null,
+      );
       formData.setEngineNumber(widget.vehicle?.engineNumber);
       formData.setRegistrationNumber(widget.vehicle?.registrationNumber);
       formData.setSellingPrice(widget.vehicle?.adminData.settlementAmount);
@@ -529,7 +591,18 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           .setTransmissionType(widget.vehicle?.transmissionType ?? 'automatic');
       formData.setHydraulics(widget.vehicle?.hydraluicType ?? 'no');
       formData.setMaintenance(
-          widget.vehicle?.maintenance.oemInspectionType ?? 'no');
+          widget.vehicle!.maintenance.maintenanceSelection ?? 'no');
+      // --- Add extra debugging for maintenance ---
+      String maintenanceValue =
+          widget.vehicle!.maintenance.maintenanceSelection ?? '';
+      if (maintenanceValue.trim().isEmpty) {
+        maintenanceValue = 'no';
+      }
+      debugPrint('Setting maintenance from vehicle: "$maintenanceValue"');
+      formData.setMaintenance(maintenanceValue);
+      debugPrint(
+          'FormData maintenance after setting: "${formData.maintenance}"');
+// ----------------------------------------------
       formData.setWarranty(widget.vehicle?.warrentyType ?? 'no');
       formData.setWarrantyDetails(widget.vehicle?.warrantyDetails);
       formData
@@ -538,7 +611,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       formData.setCountry(widget.vehicle?.country ?? 'South Africa');
       formData.setMainImageUrl(widget.vehicle?.mainImageUrl);
 
-      // Prepopulate the owner dropdown:
+      // 5. Prepopulate Owner and Sales Rep Dropdowns
+
       String? currentOwnerId;
       final vehMap = widget.vehicle!.toMap();
       if (vehMap.containsKey('assignedTransporterId') &&
@@ -559,12 +633,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           } catch (e) {
             debugPrint('No matching owner found for id $currentOwnerId');
           }
-        } else {
-          debugPrint('Owner users not loaded yet.');
         }
       }
 
-      // Prepopulate the assigned sales rep if available
       String? currentSalesRepId;
       // final vehMap = widget.vehicle!.toMap();
       if (vehMap.containsKey('assignedSalesRepId') &&
@@ -572,8 +643,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         currentSalesRepId = vehMap['assignedSalesRepId'];
         debugPrint(
             'Found assignedSalesRepId in vehicle data: $currentSalesRepId');
-      } else {
-        debugPrint('No assignedSalesRepId found in vehicle data.');
       }
       if (currentSalesRepId != null) {
         _selectedSalesRepId = currentSalesRepId;
@@ -589,18 +658,20 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           } catch (e) {
             debugPrint('No matching sales rep found for id $currentSalesRepId');
           }
-        } else {
-          debugPrint('Sales rep users not loaded yet.');
         }
       }
+
+      // 6. Optionally Reload Brands and Models Based on Current Data
+
       if (formData.year != null) {
-        debugPrint('Loading brands for year: ${formData.year}');
+        debugPrint('Reloading brands for year: ${formData.year}');
         await _loadBrandsForYear(formData.year!);
       }
       if (formData.brands != null && formData.brands!.isNotEmpty) {
-        debugPrint('Loading models for brand: ${formData.brands![0]}');
+        debugPrint('Reloading models for brand: ${formData.brands![0]}');
         await _loadModelsForBrand(formData.brands![0]);
       }
+
       debugPrint('Completed _populateExistingVehicleData');
     } catch (e) {
       debugPrint('Error populating existing vehicle data: $e');
@@ -991,22 +1062,23 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     ),
                   )
                 : null,
-            appBar: kIsWeb
-                ? PreferredSize(
+            appBar: !kIsWeb
+                ? AppBar(
+                    title: const Text('Basic Information'),
+                    backgroundColor: const Color(0xFF0E4CAF),
+                  )
+                : PreferredSize(
                     preferredSize: const Size.fromHeight(70),
                     child: TruckInfoWebNavBar(
                       scaffoldKey: _scaffoldKey,
                       selectedTab: "Basic Information",
-                      vehicleId:
-                          _vehicleId ?? '', // Add this line using _vehicleId
+                      vehicleId: widget.vehicle?.id ?? '',
                       onHomePressed: () =>
                           Navigator.pushNamed(context, '/home'),
                       onBasicInfoPressed: () =>
                           Navigator.pushNamed(context, '/basic_information'),
                       onTruckConditionsPressed: () =>
                           Navigator.pushNamed(context, '/truck_conditions'),
-                      onMaintenanceWarrantyPressed: () =>
-                          Navigator.pushNamed(context, '/maintenance_warranty'),
                       onExternalCabPressed: () =>
                           Navigator.pushNamed(context, '/external_cab'),
                       onInternalCabPressed: () =>
@@ -1017,19 +1089,68 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                           Navigator.pushNamed(context, '/drive_train'),
                       onTyresPressed: () =>
                           Navigator.pushNamed(context, '/tyres'),
+                      onMaintenanceWarrantyPressed: () async {
+                        // Add error handling and proper data passing
+                        try {
+                          if (widget.vehicle?.id != null) {
+                            DocumentSnapshot doc = await FirebaseFirestore
+                                .instance
+                                .collection('vehicles')
+                                .doc(widget.vehicle!.id)
+                                .get();
+
+                            Map<String, dynamic> data =
+                                doc.data() as Map<String, dynamic>;
+                            Map<String, dynamic> maintenanceData =
+                                data['maintenanceData']
+                                        as Map<String, dynamic>? ??
+                                    {};
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MaintenanceEditSection(
+                                  vehicleId: widget.vehicle!.id,
+                                  isUploading: false,
+                                  isEditing: true,
+                                  isFromAdmin: true,
+                                  onMaintenanceFileSelected: (file) {},
+                                  onWarrantyFileSelected: (file) {},
+                                  oemInspectionType:
+                                      maintenanceData['oemInspectionType'] ??
+                                          'yes',
+                                  oemInspectionExplanation:
+                                      maintenanceData['oemReason'] ?? '',
+                                  onProgressUpdate: () {},
+                                  maintenanceSelection:
+                                      maintenanceData['maintenanceSelection'] ??
+                                          'yes',
+                                  warrantySelection:
+                                      maintenanceData['warrantySelection'] ??
+                                          'yes',
+                                  maintenanceDocUrl:
+                                      maintenanceData['maintenanceDocUrl'],
+                                  warrantyDocUrl:
+                                      maintenanceData['warrantyDocUrl'],
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Vehicle ID is not available')),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text('Error loading maintenance data: $e')),
+                          );
+                        }
+                      },
+                      // ... rest of the nav bar callbacks ...
                     ),
-                  )
-                : AppBar(
-                    leading: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_left),
-                      color: Colors.white,
-                      iconSize: 40,
-                    ),
-                    backgroundColor: const Color(0xFF0E4CAF),
-                    elevation: 0.0,
-                    systemOverlayStyle: SystemUiOverlayStyle.light,
-                    centerTitle: true,
                   ),
             body: GradientBackground(
               child: NotificationListener<ScrollNotification>(
@@ -1328,11 +1449,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                       ? formData.brands![0]
                       : null,
                   items: _brandOptions,
-                  onChanged: (value) {
+                  onChanged: (value) async {
                     if (value != null) {
                       debugPrint('Manufacturer selected: $value');
                       formData.setBrands([value]);
-                      _loadModelsForBrand(value);
+                      await _loadModelsForBrand(value);
                       formData.saveFormState();
                     }
                   },
@@ -1350,10 +1471,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                           ? formData.brands![0]
                           : ''] ??
                       [],
-                  onChanged: (value) {
-                    debugPrint('Model selected: $value');
-                    formData.setMakeModel(value);
-                    formData.saveFormState();
+                  onChanged: (value) async {
+                    if (value != null) {
+                      formData.setMakeModel(value);
+                      await _loadVariantsForModel(value);
+                      formData.saveFormState();
+                    }
                   },
                   enabled: !isDealer,
                 ),
@@ -1362,16 +1485,20 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   const Text('Variant',
                       style: TextStyle(fontSize: 16, color: Colors.white)),
                 if (isDealer) const SizedBox(height: 15),
-                CustomTextField(
-                  controller: _variantController,
-                  enabled: !isDealer,
-                  hintText: 'Variant',
-                  inputFormatter: [UpperCaseTextFormatter()],
+                CustomDropdown(
+                  hintText: 'Select Variant',
+                  value: formData.variant,
+                  items: _variantOptions,
                   onChanged: (value) {
                     formData.setVariant(value);
-                    formData.saveFormState();
-                    debugPrint('Variant updated via text field: $value');
                   },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select a variant';
+                    }
+                    return null;
+                  },
+                  enabled: !isDealer,
                 ),
                 const SizedBox(height: 15),
                 if (isDealer)
@@ -1639,24 +1766,32 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     CustomRadioButton(
                       label: 'Yes',
                       value: 'yes',
-                      groupValue: formData.maintenance,
+                      groupValue:
+                          formData.maintenance.toString(), // Convert to string
                       enabled: !isDealer,
                       onChanged: (value) {
-                        debugPrint('Maintenance selected: $value');
+                        debugPrint(
+                            'Maintenance onChanged callback called with value: $value');
                         formData.setMaintenance(value);
                         formData.saveFormState();
+                        debugPrint(
+                            'FormData maintenance after onChanged: ${formData.maintenance}');
                       },
                     ),
                     const SizedBox(width: 15),
                     CustomRadioButton(
                       label: 'No',
                       value: 'no',
-                      groupValue: formData.maintenance,
+                      groupValue:
+                          formData.maintenance.toString(), // Convert to string
                       enabled: !isDealer,
                       onChanged: (value) {
-                        debugPrint('Maintenance selected: $value');
+                        debugPrint(
+                            'Maintenance onChanged callback called with value: $value');
                         formData.setMaintenance(value);
                         formData.saveFormState();
+                        debugPrint(
+                            'FormData maintenance after onChanged: ${formData.maintenance}');
                       },
                     ),
                   ],
@@ -1828,6 +1963,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         // NEW: Save the assigned sales rep ID if it exists.
         if (_selectedSalesRepId != null)
           'assignedSalesRepId': _selectedSalesRepId,
+        'modelDetails': {
+          'year': formData.year,
+          'manufacturer': formData.brands?.first ?? '',
+          'model': formData.makeModel,
+          'variant': formData.variant,
+        },
       };
       debugPrint('Vehicle Data to Save: $vehicleData');
       if (_vehicleId != null && !widget.isDuplicating) {
@@ -1888,8 +2029,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   Widget _buildNextButton() {
     return Center(
       child: CustomButton(
-        text: 'Save',
-        borderColor: AppColors.blue,
+        text: 'Save Changes',
+        borderColor: AppColors.orange,
         onPressed: () async {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);

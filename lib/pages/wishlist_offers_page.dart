@@ -230,9 +230,6 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                                 (vehicleDoc['createdAt'] as Timestamp).toDate(),
                             vehicleAvailableImmediately: 'N/A',
                             availableDate: 'N/A',
-                            trailerType: 'N/A',
-                            axles: 'N/A',
-                            trailerLength: 'N/A',
                             // Provide default or empty instances for required nested fields
                             adminData: AdminData(
                               settlementAmount: '0',
@@ -318,8 +315,6 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                             config: '',
                             country: '',
                             province: '',
-                            length: '',
-                            vinTrailer: '',
                             damagesDescription: '',
                             additionalFeatures: '',
                           ),

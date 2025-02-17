@@ -22,6 +22,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:ctp/models/trailer.dart'; // Add this import
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -61,14 +62,14 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
 
 class EditTrailerUploadScreen extends StatefulWidget {
   final bool isDuplicating;
-  final Vehicle? vehicle;
+  final Trailer? trailer; // Change from Vehicle? to Trailer?
   final bool isNewUpload;
   final bool isAdminUpload;
   final String? transporterId;
 
   const EditTrailerUploadScreen({
     super.key,
-    this.vehicle,
+    this.trailer, // Change from vehicle to trailer
     this.transporterId,
     this.isAdminUpload = false,
     this.isDuplicating = false,
@@ -180,8 +181,8 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         Provider.of<FormDataProvider>(context, listen: false).clearAllData();
       } else {
         // Editing or duplicating
-        if (widget.vehicle != null && !widget.isDuplicating) {
-          _vehicleId = widget.vehicle!.id;
+        if (widget.trailer != null && !widget.isDuplicating) {
+          _vehicleId = widget.trailer!.id;
           await _populateExistingTrailerData();
         } else if (widget.isDuplicating) {
           _vehicleId = null;
@@ -191,26 +192,24 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     });
   }
 
-  /// Load data from Firestore doc (via Vehicle model) into local fields
+  /// Load data from Firestore doc (via Trailer model) into local fields
   Future<void> _populateExistingTrailerData() async {
-    final trailer = widget.vehicle;
+    final trailer = widget.trailer;
     if (trailer == null) return;
 
     // Populate from Firestore => local text controllers
-    _referenceNumberController.text = trailer.referenceNumber ?? '';
-    _yearController.text = trailer.year ?? '';
-    _vinNumberController.text = trailer.vinNumber ?? '';
-    _registrationNumberController.text = trailer.registrationNumber ?? '';
-    _mileageController.text = trailer.mileage ?? '';
-    _engineNumberController.text = trailer.engineNumber ?? '';
-    _trailerTypeController.text = trailer.trailerType ?? '';
-    _axlesController.text = trailer.axles ?? '';
-    _lengthController.text = trailer.length ?? '';
-    _warrantyDetailsController.text = trailer.warrantyDetails ?? '';
-
-    _makeController.text = trailer.makeModel ?? '';
-    // If your doc calls it "sellingPrice" or "expectedSellingPrice":
-    _sellingPriceController.text = trailer.expectedSellingPrice ?? '';
+    _referenceNumberController.text = trailer.referenceNumber;
+    _yearController.text = trailer.year;
+    _vinNumberController.text = trailer.vinNumber;
+    _registrationNumberController.text = trailer.registrationNumber;
+    _mileageController.text = trailer.mileage;
+    _engineNumberController.text = trailer.engineNumber;
+    _trailerTypeController.text = trailer.trailerType;
+    _axlesController.text = trailer.axles;
+    _lengthController.text = trailer.length;
+    _warrantyDetailsController.text = trailer.warrantyDetails;
+    _makeController.text = trailer.makeModel;
+    _sellingPriceController.text = trailer.sellingPrice;
 
     // NATIS doc
     if ((trailer.natisDocumentUrl?.isNotEmpty ?? false)) {
@@ -248,14 +247,14 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     }
 
     // Additional images
-    if (trailer.additionalImages != null &&
-        trailer.additionalImages!.isNotEmpty) {
-      _existingAdditionalImagesUrls = trailer.additionalImages!;
-    }
+    _existingAdditionalImagesUrls = trailer.additionalImages
+        .where((item) => item['imageUrl'] != null)
+        .map((item) => item['imageUrl'] as String)
+        .toList();
 
     // Damages
-    if (trailer.damagesCondition == 'yes' && trailer.damages != null) {
-      _damageList = trailer.damages!
+    if (trailer.damagesCondition == 'yes' && trailer.damages.isNotEmpty) {
+      _damageList = trailer.damages
           .map((d) => {
                 'description': d['description'] ?? '',
                 'imageFile': null,
@@ -268,8 +267,8 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     }
 
     // Features
-    if (trailer.featuresCondition == 'yes' && trailer.features != null) {
-      _featureList = trailer.features!
+    if (trailer.featuresCondition == 'yes' && trailer.features.isNotEmpty) {
+      _featureList = trailer.features
           .map((f) => {
                 'description': f['description'] ?? '',
                 'imageFile': null,
@@ -282,7 +281,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     }
 
     // Vehicle status
-    _vehicleStatus = trailer.vehicleStatus ?? 'Draft';
+    _vehicleStatus = trailer.vehicleStatus;
 
     setState(() {});
   }
@@ -2057,6 +2056,3 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     );
   }
 }
-
-// The rest of your existing code remains unchanged, including other methods and widgets.
-// Make sure to include the new `DocumentPreviewScreen` import at the top of the file.

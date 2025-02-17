@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert'; // For JSON decoding
 import 'dart:typed_data';
+import 'dart:ui_web';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/services.dart'; // For loading assets
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,12 +19,14 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
+import 'dart:html' as html;
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'image_picker_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
+import 'dart:ui' as ui;
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
@@ -165,15 +168,18 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
     if (year == null) return;
+
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
     setState(() {
       if (data[year] != null && data[year][brand] != null) {
-        final models = data[year][brand] as List<dynamic>;
-        _makeModelOptions = {brand: models.cast<String>()};
+        final models = data[year][brand].keys.toList();
+        _makeModelOptions = {brand: models};
         if (!widget.isDuplicating) {
           formData.setMakeModel(null);
+          formData.setVariant(null);
+          _variantController.clear();
         }
       }
     });
@@ -183,12 +189,20 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
     final brand = formData.brands?.first;
+
+    if (year == null || brand == null) return;
+
     final String response =
         await rootBundle.loadString('lib/assets/updated_truck_data.json');
     final data = json.decode(response);
+
     setState(() {
-      _variantOptions = List<String>.from(data[year][brand][model]);
-      formData.setVariant(null);
+      if (data[year]?[brand]?[model] != null) {
+        _variantOptions = List<String>.from(data[year][brand][model]);
+        formData.setVariant(null);
+      } else {
+        _variantOptions = [];
+      }
     });
   }
 
@@ -308,6 +322,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setRequireToSettleType('no');
     formData.setReferenceNumber(null);
     formData.setBrands([]);
+    formData.setVariant(null);
     _clearFormControllers();
     setState(() {
       _natisRc1File = null;
@@ -342,6 +357,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _referenceNumberController.text = formData.referenceNumber ?? '';
     _brandsController.text =
         (formData.brands)?.isNotEmpty == true ? formData.brands!.first : '';
+    _variantController.text = ''; // Change this line to always start empty
     _countryController.text = formData.country ?? 'South Africa';
   }
 
@@ -369,6 +385,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     });
     _brandsController.addListener(() {
       formData.setBrands([_brandsController.text]);
+    });
+    _variantController.addListener(() {
+      formData.setVariant(_variantController.text); // Add this line
     });
   }
 
@@ -399,6 +418,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setWarrantyDetails(widget.vehicle!.warrantyDetails, notify: false);
     formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
     formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
+    formData.setVariant(widget.vehicle!.variant,
+        notify: false); // Add this line
+    _variantController.text = widget.vehicle!.variant ?? ''; // Add this line
     if (widget.isDuplicating) {
       _vehicleId = null;
     } else {
@@ -631,50 +653,34 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               centerTitle: true,
             ),
             body: GradientBackground(
-              child: Center(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: isWebView ? 800 : double.infinity,
-                  ),
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (scrollNotification) {
-                      if (scrollNotification.metrics.axis == Axis.vertical) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          setState(() {
-                            double offset = scrollNotification.metrics.pixels;
-                            if (offset < 0) offset = 0;
-                            if (offset > 150.0) offset = 150.0;
-                            _imageHeight = 300.0 - offset;
-                          });
-                        });
-                      }
-                      return true;
-                    },
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isWebView ? 40.0 : 16.0,
-                          vertical: 8.0,
-                        ),
-                        child: Column(
-                          children: [
-                            // Constrain image section for web
-                            Container(
-                              constraints: BoxConstraints(
-                                maxWidth: isWebView ? 600 : double.infinity,
-                              ),
-                              child: _buildImageSection(),
+              child: SingleChildScrollView(
+                // Moved SingleChildScrollView here
+                controller: _scrollController,
+                child: Center(
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: isWebView ? 800 : double.infinity,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isWebView ? 40.0 : 16.0,
+                        vertical: 8.0,
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            constraints: BoxConstraints(
+                              maxWidth: isWebView ? 600 : double.infinity,
                             ),
-                            // Constrain form section for web
-                            Container(
-                              constraints: BoxConstraints(
-                                maxWidth: isWebView ? 600 : double.infinity,
-                              ),
-                              child: _buildMandatorySection(),
+                            child: _buildImageSection(),
+                          ),
+                          Container(
+                            constraints: BoxConstraints(
+                              maxWidth: isWebView ? 600 : double.infinity,
                             ),
-                          ],
-                        ),
+                            child: _buildMandatorySection(),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1089,16 +1095,25 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                                   : ''] ??
                           [],
                       onChanged: (value) {
-                        formData.setMakeModel(value);
+                        if (value != null) {
+                          formData.setMakeModel(value);
+                          _loadVariantsForModel(value);
+                        }
                       },
                     ),
                     const SizedBox(height: 15),
-                    CustomTextField(
-                      controller: _variantController,
-                      hintText: 'Variant',
-                      inputFormatter: [UpperCaseTextFormatter()],
+                    CustomDropdown(
+                      hintText: 'Select Variant',
+                      value: formData.variant,
+                      items: _variantOptions,
                       onChanged: (value) {
                         formData.setVariant(value);
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a variant';
+                        }
+                        return null;
                       },
                     ),
                     const SizedBox(height: 15),
@@ -1537,6 +1552,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'year': formData.year,
         'makeModel': formData.makeModel,
         'variant': formData.variant,
+        'brands': formData.brands,
+        'modelDetails': {
+          'year': formData.year,
+          'manufacturer': formData.brands?.first ?? '',
+          'model': formData.makeModel,
+          'variant': formData.variant,
+        },
         'vinNumber': formData.vinNumber,
         'config': formData.config,
         'mileage': formData.mileage,
@@ -1553,7 +1575,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'warrantyDetails': formData.warrantyDetails,
         'requireToSettleType': formData.requireToSettleType,
         'referenceNumber': formData.referenceNumber,
-        'brands': formData.brands,
         'mainImageUrl': imageUrl,
         'rc1NatisFile': natisRc1Url,
         'country': formData.country,
@@ -1596,6 +1617,24 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     if (formData.year == null || formData.year!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter the year')),
+      );
+      return false;
+    }
+    if (formData.brands == null || formData.brands!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a manufacturer')),
+      );
+      return false;
+    }
+    if (formData.makeModel == null || formData.makeModel!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a model')),
+      );
+      return false;
+    }
+    if (formData.variant == null || formData.variant!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a variant')),
       );
       return false;
     }
@@ -1651,6 +1690,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _registrationNumberController.clear();
     _referenceNumberController.clear();
     _brandsController.clear();
+    _variantController.clear(); // Add this line
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     formData.setSelectedMainImage(null, null);
     formData.setMainImageUrl(null);
@@ -1664,26 +1704,78 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // Modified image picking method – pass only the image bytes.
   Future<void> _pickImage(ImageSource source) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: source,
-    );
 
-    if (image != null) {
-      final bytes = await image.readAsBytes();
-      final fileName = image.name;
-      _selectedMainImageFileName = image.name;
-      setState(() {
-        _selectedMainImage = bytes;
-      });
-      debugPrint("Picked main image: $_selectedMainImageFileName");
-      formData.setSelectedMainImage(bytes, fileName);
-
-      if (_vehicleId != null) {
-        _uploadAndUpdateMainImage(bytes);
+    if (kIsWeb) {
+      bool cameraAvailable = false;
+      try {
+        cameraAvailable = html.window.navigator.mediaDevices != null;
+      } catch (e) {
+        cameraAvailable = false;
       }
+
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Select Image Source'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (cameraAvailable)
+                  ListTile(
+                    leading: const Icon(Icons.camera_alt),
+                    title: const Text('Take Photo'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _takePhotoFromWeb((file, fileName) {
+                        if (file != null) {
+                          setState(() => _selectedMainImage = file);
+                          _selectedMainImageFileName = fileName;
+                          formData.setSelectedMainImage(file, fileName);
+                          if (_vehicleId != null) {
+                            _uploadAndUpdateMainImage(file);
+                          }
+                        }
+                      });
+                    },
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Choose from Device'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final picker = ImagePicker();
+                    final XFile? image =
+                        await picker.pickImage(source: ImageSource.gallery);
+                    if (image != null) {
+                      final bytes = await image.readAsBytes();
+                      setState(() => _selectedMainImage = bytes);
+                      _selectedMainImageFileName = image.name;
+                      formData.setSelectedMainImage(bytes, image.name);
+                      if (_vehicleId != null) {
+                        _uploadAndUpdateMainImage(bytes);
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      );
     } else {
-      debugPrint("No image selected from source: $source");
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: source);
+
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() => _selectedMainImage = bytes);
+        _selectedMainImageFileName = image.name;
+        formData.setSelectedMainImage(bytes, image.name);
+        if (_vehicleId != null) {
+          _uploadAndUpdateMainImage(bytes);
+        }
+      }
     }
   }
 
@@ -1908,6 +2000,64 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       _existingNatisRc1Name = null;
     });
     debugPrint("NATIS/RC1 document removed");
+  }
+
+  Future<void> _takePhotoFromWeb(
+      void Function(Uint8List?, String) callback) async {
+    try {
+      final mediaStream = await html.window.navigator.mediaDevices!
+          .getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+
+      await videoElement.onLoadedMetadata.first;
+
+      platformViewRegistry.registerViewFactory(
+          'webcamVideo', (int viewId) => videoElement);
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: Container(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(viewType: 'webcamVideo'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final canvas = html.CanvasElement(
+                      width: videoElement.videoWidth,
+                      height: videoElement.videoHeight);
+                  final ctx = canvas.context2D;
+                  ctx.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(imageBytes, 'captured.png');
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      callback(null, '');
+    }
   }
 }
 

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/vehicle.dart';
+import '../models/trailer.dart';
 
 class ListingCard extends StatelessWidget {
-  final Vehicle vehicle;
+  final dynamic vehicle; // Change to dynamic to accept both Vehicle and Trailer
   final VoidCallback onTap;
 
   const ListingCard({
@@ -12,8 +13,8 @@ class ListingCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Widget _buildSpecBox(String value, double fontSize) {
-    if (value.trim().isEmpty || value.toUpperCase() == 'N/A') {
+  Widget _buildSpecBox(String? value, double fontSize) {
+    if (value == null || value.trim().isEmpty || value.toUpperCase() == 'N/A') {
       return const SizedBox.shrink();
     }
     return Container(
@@ -42,12 +43,111 @@ class ListingCard extends StatelessWidget {
     );
   }
 
-  /// Calculates the ratio of filled fields vs total fields
-  (int filled, int total) _calculateFieldsRatio() {
-    // Use the same fields as in TruckCard
+  bool get isTrailer =>
+      vehicle is Trailer ||
+      (vehicle is Vehicle && vehicle.vehicleType.toLowerCase() == 'trailer');
+
+  String get displayMakeModel {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.makeModel ?? 'N/A'
+          : vehicle.trailer?.makeModel ?? 'N/A';
+    }
+    return '${vehicle.brands.join(" ")} ${vehicle.makeModel}'.trim();
+  }
+
+  String get displayYear {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.year ?? 'N/A'
+          : vehicle.trailer?.year ?? 'N/A';
+    }
+    return vehicle.year ?? 'N/A';
+  }
+
+  String get displayMileage {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.mileage ?? 'N/A'
+          : vehicle.trailer?.mileage ?? 'N/A';
+    }
+    return vehicle.mileage ?? 'N/A';
+  }
+
+  String get displayConfig {
+    if (isTrailer) {
+      return vehicle is Trailer
+          ? vehicle.trailerType ?? 'N/A'
+          : vehicle.trailer?.trailerType ?? 'N/A';
+    }
+    return vehicle.config ?? 'N/A';
+  }
+
+  String get displayTransmission {
+    if (isTrailer) {
+      final axles = vehicle is Trailer
+          ? vehicle.axles?.toString()
+          : vehicle.trailer?.axles?.toString();
+      return axles != null ? '$axles AXLES' : 'N/A';
+    }
+    return vehicle.transmissionType ?? 'N/A';
+  }
+
+  bool _isFieldFilled(dynamic field) {
+    if (field == null) return false;
+    if (field is String) return field.isNotEmpty;
+    if (field is List) return field.isNotEmpty;
+    if (field is Map) return field.isNotEmpty;
+    return true;
+  }
+
+  (int filled, int total) _calculateTrailerFieldsRatio(Trailer? trailer) {
+    if (trailer == null) return (0, 1);
+
     final fieldsToCheck = [
+      trailer.makeModel,
+      trailer.year,
+      trailer.trailerType,
+      trailer.axles,
+      trailer.length,
+      trailer.vinNumber,
+      trailer.registrationNumber,
+      trailer.mileage,
+      trailer.engineNumber,
+      trailer.sellingPrice,
+      trailer.warrantyDetails,
+      trailer.referenceNumber,
+      trailer.country,
+      trailer.province,
+      trailer.natisDocumentUrl,
+      trailer.serviceHistoryUrl,
+      trailer.mainImageUrl,
+      trailer.frontImageUrl,
+      trailer.sideImageUrl,
+      trailer.tyresImageUrl,
+      trailer.chassisImageUrl,
+      trailer.deckImageUrl,
+      trailer.makersPlateImageUrl,
+      trailer.additionalImages,
+      trailer.damages,
+      trailer.features,
+      trailer.brands,
+    ];
+
+    final filledFields = fieldsToCheck.where(_isFieldFilled).length;
+    return (filledFields, fieldsToCheck.length);
+  }
+
+  (int filled, int total) _calculateFieldsRatio() {
+    if (isTrailer) {
+      return _calculateTrailerFieldsRatio(
+          vehicle is Trailer ? vehicle : vehicle.trailer);
+    }
+
+    final fieldsToCheck = [
+      // Basic Vehicle Details
       vehicle.makeModel,
-      vehicle.brands.isNotEmpty ? vehicle.brands.join() : null,
+      vehicle.brands,
       vehicle.year,
       vehicle.mileage,
       vehicle.transmissionType,
@@ -57,42 +157,106 @@ class ListingCard extends StatelessWidget {
       vehicle.vinNumber,
       vehicle.warrentyType,
       vehicle.warrantyDetails,
+      vehicle.expectedSellingPrice,
+      vehicle.vehicleType,
+      vehicle.vehicleAvailableImmediately,
+      vehicle.availableDate,
+      vehicle.referenceNumber,
+      vehicle.requireToSettleType,
+      vehicle.country,
+      vehicle.province,
+      vehicle.variant,
+      vehicle.assignedSalesRepId,
+
+      // Descriptions and Features
       vehicle.damageDescription,
+      vehicle.damagesDescription,
       vehicle.hydraluicType,
       vehicle.suspensionType,
-      vehicle.expectedSellingPrice,
+      vehicle.additionalFeatures,
+      vehicle.damagesCondition,
+      vehicle.featuresCondition,
+
+      // Images and Documents
       vehicle.mainImageUrl,
+      vehicle.photos,
+      vehicle.damagePhotos,
+      vehicle.dashboardPhoto,
+      vehicle.mileageImage,
+      vehicle.faultCodesPhoto,
       vehicle.natisDocumentUrl,
       vehicle.serviceHistoryUrl,
       vehicle.frontImageUrl,
       vehicle.sideImageUrl,
       vehicle.tyresImageUrl,
       vehicle.chassisImageUrl,
+      vehicle.makersPlateImageUrl,
       vehicle.licenceDiskUrl,
       vehicle.rc1NatisFile,
-      // Maintenance related fields
+      vehicle.additionalImages,
+
+      // Arrays of Data
+      vehicle.damages,
+      vehicle.features,
+      vehicle.application,
+
+      // Admin Data Fields
+      vehicle.adminData.settlementAmount,
+      vehicle.adminData.natisRc1Url,
+      vehicle.adminData.licenseDiskUrl,
+      vehicle.adminData.settlementLetterUrl,
+
+      // Maintenance Fields
+      vehicle.maintenance.oemInspectionType,
+      vehicle.maintenance.oemReason,
       vehicle.maintenance.maintenanceDocUrl,
       vehicle.maintenance.warrantyDocUrl,
       vehicle.maintenance.maintenanceSelection,
       vehicle.maintenance.warrantySelection,
-      // Admin related fields
-      vehicle.adminData.natisRc1Url,
-      vehicle.adminData.licenseDiskUrl,
-      // Location related
-      vehicle.country,
-      vehicle.province,
-      // Additional fields
-      vehicle.damagesDescription,
-      vehicle.additionalFeatures,
+
+      // Truck Conditions - External Cab
+      vehicle.truckConditions.externalCab.condition,
+      vehicle.truckConditions.externalCab.damagesCondition,
+      vehicle.truckConditions.externalCab.additionalFeaturesCondition,
+      vehicle.truckConditions.externalCab.damages,
+      vehicle.truckConditions.externalCab.additionalFeatures,
+      vehicle.truckConditions.externalCab.images,
+
+      // Truck Conditions - Internal Cab
+      vehicle.truckConditions.internalCab.condition,
+      vehicle.truckConditions.internalCab.damagesCondition,
+      vehicle.truckConditions.internalCab.additionalFeaturesCondition,
+      vehicle.truckConditions.internalCab.faultCodesCondition,
+      vehicle.truckConditions.internalCab.damages,
+      vehicle.truckConditions.internalCab.additionalFeatures,
+      vehicle.truckConditions.internalCab.faultCodes,
+      vehicle.truckConditions.internalCab.viewImages,
+
+      // Truck Conditions - Chassis
+      vehicle.truckConditions.chassis.condition,
+      vehicle.truckConditions.chassis.damagesCondition,
+      vehicle.truckConditions.chassis.additionalFeaturesCondition,
+      vehicle.truckConditions.chassis.damages,
+      vehicle.truckConditions.chassis.additionalFeatures,
+      vehicle.truckConditions.chassis.images,
+
+      // Truck Conditions - Drive Train
+      vehicle.truckConditions.driveTrain.condition,
+      vehicle.truckConditions.driveTrain.oilLeakConditionEngine,
+      vehicle.truckConditions.driveTrain.waterLeakConditionEngine,
+      vehicle.truckConditions.driveTrain.blowbyCondition,
+      vehicle.truckConditions.driveTrain.oilLeakConditionGearbox,
+      vehicle.truckConditions.driveTrain.retarderCondition,
+      vehicle.truckConditions.driveTrain.damages,
+      vehicle.truckConditions.driveTrain.additionalFeatures,
+      vehicle.truckConditions.driveTrain.faultCodes,
+      vehicle.truckConditions.driveTrain.images,
+
+      // Truck Conditions - Tyres
+      vehicle.truckConditions.tyres['tyres']?.positions.isNotEmpty,
     ];
 
-    int filledFields = fieldsToCheck
-        .where((field) =>
-            field != null &&
-            field.toString().isNotEmpty &&
-            field.toString().toUpperCase() != 'N/A')
-        .length;
-
+    final filledFields = fieldsToCheck.where(_isFieldFilled).length;
     return (filledFields, fieldsToCheck.length);
   }
 
@@ -142,9 +306,15 @@ class ListingCard extends StatelessWidget {
                       borderRadius:
                           const BorderRadius.vertical(top: Radius.circular(10)),
                       child: Image(
-                        image: (vehicle.mainImageUrl != null &&
-                                vehicle.mainImageUrl!.isNotEmpty)
-                            ? NetworkImage(vehicle.mainImageUrl!)
+                        image: (vehicle is Trailer
+                                    ? vehicle.mainImageUrl
+                                    : (vehicle.mainImageUrl ??
+                                        vehicle.trailer?.mainImageUrl)) !=
+                                null
+                            ? NetworkImage(vehicle is Trailer
+                                ? vehicle.mainImageUrl!
+                                : (vehicle.mainImageUrl ??
+                                    vehicle.trailer?.mainImageUrl)!)
                             : const AssetImage(
                                     "lib/assets/default_vehicle_image.png")
                                 as ImageProvider,
@@ -168,10 +338,7 @@ class ListingCard extends StatelessWidget {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                vehicle.vehicleType.toLowerCase() == 'trailer'
-                                    ? vehicle.trailerType.toUpperCase()
-                                    : '${vehicle.brands.join(" ")} ${vehicle.makeModel}'
-                                        .toUpperCase(),
+                                displayMakeModel.toUpperCase(),
                                 style: GoogleFonts.montserrat(
                                   fontSize: titleFontSize,
                                   fontWeight: FontWeight.bold,
@@ -185,9 +352,7 @@ class ListingCard extends StatelessWidget {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                vehicle.vehicleType.toLowerCase() == 'trailer'
-                                    ? vehicle.year
-                                    : vehicle.referenceNumber,
+                                displayYear,
                                 style: GoogleFonts.montserrat(
                                   fontSize: subtitleFontSize,
                                   fontWeight: FontWeight.w400,
@@ -204,23 +369,18 @@ class ListingCard extends StatelessWidget {
                           children: [
                             Expanded(
                                 child: _buildSpecBox(
-                                    vehicle.mileage != null
-                                        ? '${vehicle.mileage} km'
+                                    displayMileage != 'N/A'
+                                        ? '$displayMileage km'
                                         : 'N/A',
                                     specFontSize)),
                             SizedBox(width: paddingVal * 0.3),
                             Expanded(
                                 child: _buildSpecBox(
-                                    vehicle.transmissionType ?? 'N/A',
-                                    specFontSize)),
+                                    displayTransmission, specFontSize)),
                             SizedBox(width: paddingVal * 0.3),
                             Expanded(
-                                child: _buildSpecBox(
-                                    vehicle.vehicleType.toLowerCase() ==
-                                            'trailer'
-                                        ? vehicle.trailerType ?? 'N/A'
-                                        : 'N/A',
-                                    specFontSize)),
+                                child:
+                                    _buildSpecBox(displayConfig, specFontSize)),
                           ],
                         ),
                       ],

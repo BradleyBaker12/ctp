@@ -1,3 +1,5 @@
+import 'dart:ui_web';
+
 import 'package:ctp/pages/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -15,23 +17,24 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-
-import '../truckForms/custom_text_field.dart';
-import 'package:ctp/components/custom_radio_button.dart';
-
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/pages/truckForms/custom_dropdown.dart';
+import '../truckForms/custom_text_field.dart';
+import 'package:ctp/components/custom_radio_button.dart';
+
+// Import dart:html for web camera capture.
+import 'dart:html' as html;
+// Import dart:ui for registering web platform views.
+import 'dart:ui' as ui;
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue, TextEditingValue newValue) {
     return TextEditingValue(
       text: newValue.text.toUpperCase(),
       selection: newValue.selection,
@@ -45,18 +48,14 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue, TextEditingValue newValue) {
     if (newValue.text.isEmpty) {
       return newValue;
     }
-
     final String cleanText = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
     if (cleanText.isEmpty) {
       return newValue.copyWith(text: '');
     }
-
     final String formatted = _formatter.format(int.parse(cleanText));
     return TextEditingValue(
       text: formatted,
@@ -103,7 +102,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   final TextEditingController _makeController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
 
-  // Trailer-specific
+  // Trailer-specific Controllers
   final TextEditingController _trailerTypeController = TextEditingController();
   final TextEditingController _axlesController = TextEditingController();
   final TextEditingController _lengthController = TextEditingController();
@@ -126,8 +125,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _makersPlateImage;
 
   // Additional Images (multiple)
-  final List<Map<String, dynamic>> _additionalImagesList =
-      []; // Will store {description: String, image: Uint8List}
+  final List<Map<String, dynamic>> _additionalImagesList = [];
 
   // Damages & Additional Features
   String _damagesCondition = 'no';
@@ -138,7 +136,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   bool _isLoading = false;
   String? _vehicleId;
 
-  // --- Add missing fields for Sales Rep selection ---
+  // Sales Rep field for Admin Upload
   String? _selectedSalesRep;
   String? _existingNatisRc1Url;
   String? _existingNatisRc1Name;
@@ -191,7 +189,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Widget build(BuildContext context) {
     final formData = Provider.of<FormDataProvider>(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final isWebView = screenWidth > 600; // Add this threshold for web view
+    final isWebView = screenWidth > 600;
 
     return WillPopScope(
       onWillPop: () async {
@@ -206,10 +204,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             appBar: AppBar(
               leading: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(
-                    Icons.arrow_left), // Changed to match vehicle upload
+                icon: const Icon(Icons.arrow_left),
                 color: Colors.white,
-                iconSize: 40, // Match vehicle upload size
+                iconSize: 40,
               ),
               backgroundColor: const Color(0xFF0E4CAF),
               elevation: 0.0,
@@ -217,14 +214,13 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               centerTitle: true,
             ),
             body: GradientBackground(
-              child: Center(
-                // Add Center widget
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: isWebView ? 800 : double.infinity,
-                  ),
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: Center(
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: isWebView ? 800 : double.infinity,
+                    ),
                     child: Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: isWebView ? 40.0 : 16.0,
@@ -232,14 +228,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Constrain image section for web
                           Container(
                             constraints: BoxConstraints(
                               maxWidth: isWebView ? 600 : double.infinity,
                             ),
                             child: _buildMainImageSection(formData),
                           ),
-                          // Constrain form section for web
                           Container(
                             constraints: BoxConstraints(
                               maxWidth: isWebView ? 600 : double.infinity,
@@ -260,7 +254,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 color: Colors.black.withOpacity(0.5),
                 child: Center(
                   child: Image.asset(
-                    'lib/assets/Loading_Logo_CTP.gif', // Add loading logo
+                    'lib/assets/Loading_Logo_CTP.gif',
                     width: 100,
                     height: 100,
                   ),
@@ -272,101 +266,155 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     );
   }
 
-  // -----------------------------------------------------------------------------
-  //                     DIALOG HELPER: SHOW SOURCE (Camera vs. Device)
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // New: Take Photo from Web using getUserMedia and a live video preview.
+  // ---------------------------------------------------------------------------
+  Future<void> _takePhotoFromWeb(
+      void Function(Uint8List?, String) callback) async {
+    try {
+      // Request camera access.
+      final mediaStream = await html.window.navigator.mediaDevices!
+          .getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+
+      // Wait until video metadata is loaded.
+      await videoElement.onLoadedMetadata.first;
+
+      // Register the video element for Flutter's HtmlElementView.
+      platformViewRegistry.registerViewFactory(
+          'webcamVideo', (int viewId) => videoElement);
+
+      // Show a dialog with the live video preview.
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: Container(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(viewType: 'webcamVideo'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  // Capture the current frame by drawing the video onto a canvas.
+                  final canvas = html.CanvasElement(
+                      width: videoElement.videoWidth,
+                      height: videoElement.videoHeight);
+                  final ctx = canvas.context2D;
+                  ctx.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  // Stop all tracks.
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(imageBytes, 'captured.png');
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      callback(null, '');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // DIALOG HELPER: SHOW SOURCE (Camera vs. Device)
+  // ---------------------------------------------------------------------------
   void _pickImageOrFile({
     required String title,
     required bool pickImageOnly,
     required void Function(Uint8List?, String fileName) callback,
   }) async {
     if (pickImageOnly) {
-      // For images only, open gallery
-      final XFile? pickedFile =
-          await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        final fileName = pickedFile.name;
-        final bytes = await pickedFile.readAsBytes();
-        callback(bytes, fileName);
+      if (kIsWeb) {
+        // On the web, check for camera support.
+        bool cameraAvailable = false;
+        try {
+          cameraAvailable = html.window.navigator.mediaDevices != null;
+        } catch (e) {
+          cameraAvailable = false;
+        }
+        // Show a dialog with both options.
+        showDialog(
+          context: context,
+          builder: (BuildContext ctx) {
+            return AlertDialog(
+              title: Text(title),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.camera_alt),
+                    title: const Text('Take Photo'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _takePhotoFromWeb(callback);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.folder),
+                    title: const Text('Pick from Device'),
+                    onTap: () async {
+                      Navigator.of(ctx).pop();
+                      final XFile? pickedFile = await ImagePicker()
+                          .pickImage(source: ImageSource.gallery);
+                      if (pickedFile != null) {
+                        final fileName = pickedFile.name;
+                        final bytes = await pickedFile.readAsBytes();
+                        callback(bytes, fileName);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      } else {
+        // For non-web platforms.
+        final XFile? pickedFile =
+            await ImagePicker().pickImage(source: ImageSource.gallery);
+        if (pickedFile != null) {
+          final fileName = pickedFile.name;
+          final bytes = await pickedFile.readAsBytes();
+          callback(bytes, fileName);
+        }
       }
     } else {
-      // For documents
+      // Document uploads via FilePicker.
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
       );
-      if (result != null) {
-        final fileName = result.xFiles.first.name;
-        final bytes = await result.xFiles.first.readAsBytes();
+      if (result != null && result.files.isNotEmpty) {
+        final fileName = result.files.first.name;
+        final bytes = result.files.first.bytes;
         callback(bytes, fileName);
       }
     }
-    // showDialog(
-    //   context: context,
-    //   builder: (BuildContext ctx) {
-    //     return AlertDialog(
-    //       title: Text(title),
-    //       content: Column(
-    //         mainAxisSize: MainAxisSize.min,
-    //         children: [
-    //           // 1) Take Photo
-    //           ListTile(
-    //             leading: const Icon(Icons.camera_alt),
-    //             title: const Text('Take Photo'),
-    //             onTap: () async {
-    //               Navigator.of(context).pop();
-    //               final XFile? pickedFile =
-    //                   await ImagePicker().pickImage(source: ImageSource.camera);
-    //               if (pickedFile != null) {
-    //                 final fileName = pickedFile.name;
-    //                 final bytes = await pickedFile.readAsBytes();
-
-    //                 callback(bytes, fileName);
-    //               }
-    //             },
-    //           ),
-    //           // 2) Pick from Device
-    //           ListTile(
-    //             leading: const Icon(Icons.folder),
-    //             title: const Text('Pick from Device'),
-    //             onTap: () async {
-    //               Navigator.of(context).pop();
-    //               if (pickImageOnly) {
-    //                 // For images only, open gallery
-    //                 final XFile? pickedFile = await ImagePicker()
-    //                     .pickImage(source: ImageSource.gallery);
-    //                 if (pickedFile != null) {
-    //                   final fileName = pickedFile.name;
-    //                   final bytes = await pickedFile.readAsBytes();
-    //                   callback(bytes, fileName);
-    //                 }
-    //               } else {
-    //                 // For documents
-    //                 FilePickerResult? result =
-    //                     await FilePicker.platform.pickFiles(
-    //                   type: FileType.any,
-    //                 );
-    //                 if (result != null) {
-    //                   final fileName = result.xFiles.first.name;
-    //                   final bytes = await result.xFiles.first.readAsBytes();
-    //                   callback(bytes, fileName);
-    //                 }
-    //               }
-    //             },
-    //           ),
-    //         ],
-    //       ),
-    //     );
-    //   },
-    // );
   }
 
-  // -----------------------------------------------------------------------------
-  //                             MAIN IMAGE SECTION
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // MAIN IMAGE SECTION
+  // ---------------------------------------------------------------------------
   Widget _buildMainImageSection(FormDataProvider formData) {
     void onTapMainImage() {
       if (_selectedMainImage != null) {
-        // If there's already an image, let the user change/remove
         showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -381,9 +429,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       title: 'Change Main Image',
                       pickImageOnly: true,
                       callback: (file, fileName) {
-                        if (file != null) {
+                        if (file != null)
                           setState(() => _selectedMainImage = file);
-                        }
                       },
                     );
                   },
@@ -396,10 +443,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       _selectedMainImage = null;
                     });
                   },
-                  child: const Text(
-                    'Remove Image',
-                    style: TextStyle(color: Colors.red),
-                  ),
+                  child: const Text('Remove Image',
+                      style: TextStyle(color: Colors.red)),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -414,9 +459,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           title: 'Select Main Image Source',
           pickImageOnly: true,
           callback: (file, fileName) {
-            if (file != null) {
-              setState(() => _selectedMainImage = file);
-            }
+            if (file != null) setState(() => _selectedMainImage = file);
           },
         );
       }
@@ -454,18 +497,13 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 50.0,
-                          ),
+                          Icon(Icons.camera_alt,
+                              color: Colors.white, size: 50.0),
                           SizedBox(height: 10),
                           Text(
                             'Tap here to upload main image',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
+                            style:
+                                TextStyle(fontSize: 14, color: Colors.white70),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -483,13 +521,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  'Tap to modify image',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
+                child: const Text('Tap to modify image',
+                    style: TextStyle(color: Colors.white, fontSize: 12)),
               ),
             ),
           ],
@@ -505,18 +538,15 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF0E4CAF).withOpacity(0.1),
         borderRadius: BorderRadius.circular(10.0),
-        border: Border.all(
-          color: const Color(0xFF0E4CAF),
-          width: 2.0,
-        ),
+        border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
       ),
       child: child,
     );
   }
 
-  // -----------------------------------------------------------------------------
-  //                              FORM SECTION
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // FORM SECTION
+  // ---------------------------------------------------------------------------
   Widget _buildFormSection(FormDataProvider formData) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isWebView = screenWidth > 600;
@@ -528,10 +558,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           Text(
             'TRAILER FORM'.toUpperCase(),
             style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+                fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
@@ -542,12 +569,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             textAlign: TextAlign.center,
           ),
           Text(
-            'Your trusted partner on the road.', // Add this line to match vehicle upload
+            'Your trusted partner on the road.',
             style: const TextStyle(fontSize: 14, color: Colors.white),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-
           // Reference Number
           CustomTextField(
             controller: _referenceNumberController,
@@ -555,14 +581,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             inputFormatter: [UpperCaseTextFormatter()],
           ),
           const SizedBox(height: 15),
-
           // Make
           CustomTextField(
             controller: _makeController,
             hintText: 'Make',
           ),
           const SizedBox(height: 15),
-
           // Year
           CustomTextField(
             controller: _yearController,
@@ -570,8 +594,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 15),
-
-          // NATIS/RC1
+          // NATIS/RC1 Document
           const Text(
             'NATIS/RC1 DOCUMENTATION',
             style: TextStyle(
@@ -582,7 +605,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           InkWell(
             onTap: () {
               if (_natisRc1File != null) {
-                // If there's already a file, let them change or remove
                 showDialog(
                   context: context,
                   builder: (_) => AlertDialog(
@@ -615,10 +637,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                             _natisRc1File = null;
                           });
                         },
-                        child: const Text(
-                          'Remove File',
-                          style: TextStyle(color: Colors.red),
-                        ),
+                        child: const Text('Remove File',
+                            style: TextStyle(color: Colors.red)),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
@@ -628,7 +648,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   ),
                 );
               } else {
-                // If no file, ask camera or device
                 _pickImageOrFile(
                   title: 'Select NATIS Document Source',
                   pickImageOnly: false,
@@ -648,42 +667,30 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               child: _natisRc1File == null
                   ? const Column(
                       children: [
-                        Icon(
-                          Icons.drive_folder_upload_outlined,
-                          color: Colors.white,
-                          size: 50.0,
-                        ),
+                        Icon(Icons.drive_folder_upload_outlined,
+                            color: Colors.white, size: 50.0),
                         SizedBox(height: 10),
                         Text(
                           'Upload NATIS/RC1',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white70,
-                          ),
+                          style: TextStyle(fontSize: 14, color: Colors.white70),
                           textAlign: TextAlign.center,
                         ),
                       ],
                     )
                   : Column(
                       children: [
-                        const Icon(
-                          Icons.description,
-                          color: Colors.white,
-                          size: 50.0,
-                        ),
+                        const Icon(Icons.description,
+                            color: Colors.white, size: 50.0),
                         const SizedBox(height: 10),
                         Text(
                           _natisRc1FileName!.split('/').last,
                           style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
+                              color: Colors.white70, fontSize: 14),
                         ),
                       ],
                     ),
             ),
           ),
-
           const SizedBox(height: 15),
           CustomTextField(
             controller: _trailerTypeController,
@@ -736,7 +743,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             ],
           ),
           const SizedBox(height: 15),
-
           // SERVICE HISTORY
           const Text(
             'SERVICE HISTORY (IF ANY)',
@@ -780,10 +786,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                             _serviceHistoryFile = null;
                           });
                         },
-                        child: const Text(
-                          'Remove File',
-                          style: TextStyle(color: Colors.red),
-                        ),
+                        child: const Text('Remove File',
+                            style: TextStyle(color: Colors.red)),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
@@ -793,7 +797,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   ),
                 );
               } else {
-                // If no file, ask camera or device
                 _pickImageOrFile(
                   title: 'Select Service History',
                   pickImageOnly: false,
@@ -813,43 +816,31 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               child: _serviceHistoryFile == null
                   ? const Column(
                       children: [
-                        Icon(
-                          Icons.drive_folder_upload_outlined,
-                          color: Colors.white,
-                          size: 50.0,
-                        ),
+                        Icon(Icons.drive_folder_upload_outlined,
+                            color: Colors.white, size: 50.0),
                         SizedBox(height: 10),
                         Text(
                           'Upload Service History',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white70,
-                          ),
+                          style: TextStyle(fontSize: 14, color: Colors.white70),
                           textAlign: TextAlign.center,
                         ),
                       ],
                     )
                   : Column(
                       children: [
-                        const Icon(
-                          Icons.description,
-                          color: Colors.white,
-                          size: 50.0,
-                        ),
+                        const Icon(Icons.description,
+                            color: Colors.white, size: 50.0),
                         const SizedBox(height: 10),
                         Text(
                           _serviceHistoryFileName!.split('/').last,
                           style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
+                              color: Colors.white70, fontSize: 14),
                         ),
                       ],
                     ),
             ),
           ),
           const SizedBox(height: 15),
-
           // IMAGES
           _buildImageSectionWithTitle(
             'Front Trailer Image',
@@ -889,7 +880,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           const SizedBox(height: 15),
           _buildAdditionalImagesSection(),
           const SizedBox(height: 15),
-
           // Damages
           const Text(
             'Are there any damages?',
@@ -935,7 +925,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           ),
           const SizedBox(height: 15),
           if (_damagesCondition == 'yes') _buildDamageSection(),
-
           // Additional Features
           const SizedBox(height: 20),
           const Text(
@@ -981,7 +970,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           const SizedBox(height: 15),
           if (_featuresCondition == 'yes') _buildFeaturesSection(),
           const SizedBox(height: 30),
-
           // Done button
           _buildDoneButton(),
           const SizedBox(height: 30),
@@ -991,13 +979,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   // -----------------------------------------------------------------------------
-  //                             IMAGE SECTIONS
+  // IMAGE SECTIONS
   // -----------------------------------------------------------------------------
   Widget _buildImageSectionWithTitle(
-    String title,
-    Uint8List? image,
-    Function(Uint8List?) onImagePicked,
-  ) {
+      String title, Uint8List? image, Function(Uint8List?) onImagePicked) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1010,7 +995,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         InkWell(
           onTap: () {
             if (image != null) {
-              // Already have an image => ask to change or remove
               showDialog(
                 context: context,
                 builder: (_) => AlertDialog(
@@ -1035,10 +1019,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                         Navigator.pop(context);
                         onImagePicked(null);
                       },
-                      child: const Text(
-                        'Remove Image',
-                        style: TextStyle(color: Colors.red),
-                      ),
+                      child: const Text('Remove Image',
+                          style: TextStyle(color: Colors.red)),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
@@ -1048,7 +1030,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 ),
               );
             } else {
-              // No image => pick new
               _pickImageOrFile(
                 title: title,
                 pickImageOnly: true,
@@ -1063,27 +1044,16 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             child: image != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.memory(
-                      image,
-                      fit: BoxFit.cover,
-                      height: 150,
-                      width: double.infinity,
-                    ),
+                    child: Image.memory(image,
+                        fit: BoxFit.cover, height: 150, width: double.infinity),
                   )
                 : const Column(
                     children: [
-                      Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 50.0,
-                      ),
+                      Icon(Icons.camera_alt, color: Colors.white, size: 50.0),
                       SizedBox(height: 10),
                       Text(
                         'Tap to upload image',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.white70),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1112,15 +1082,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             (item) => _showAdditionalImageSourceDialog(item),
           ),
         const SizedBox(height: 16.0),
-        // Updated Add button to match external cab style
         Center(
           child: GestureDetector(
             onTap: () {
               setState(() {
-                _additionalImagesList.add({
-                  'description': '',
-                  'image': null,
-                });
+                _additionalImagesList.add({'description': '', 'image': null});
               });
             },
             child: const Row(
@@ -1131,10 +1097,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 Text(
                   'Add Additional Item',
                   style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w600,
-                  ),
+                      color: Colors.blue,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -1145,7 +1110,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   // -----------------------------------------------------------------------------
-  //                DAMAGES & FEATURES (Dynamic Lists of Items)
+  // DAMAGES & FEATURES (Dynamic Lists of Items)
   // -----------------------------------------------------------------------------
   Widget _buildDamageSection() {
     return _buildItemSection(
@@ -1185,7 +1150,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         for (int i = 0; i < items.length; i++)
           _buildItemWidget(i, items[i], items, showImageSourceDialog),
         const SizedBox(height: 10),
-        // Updated Add button to match external cab style
         Center(
           child: GestureDetector(
             onTap: onAdd,
@@ -1197,10 +1161,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 Text(
                   'Add Additional Item',
                   style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w600,
-                  ),
+                      color: Colors.blue,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -1211,11 +1174,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   Widget _buildItemWidget(
-    int index,
-    Map<String, dynamic> item,
-    List<Map<String, dynamic>> itemList,
-    void Function(Map<String, dynamic>) showImageSourceDialog,
-  ) {
+      int index,
+      Map<String, dynamic> item,
+      List<Map<String, dynamic>> itemList,
+      void Function(Map<String, dynamic>) showImageSourceDialog) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1236,27 +1198,16 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             child: item['image'] != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.memory(
-                      item['image'],
-                      fit: BoxFit.cover,
-                      height: 150,
-                      width: double.infinity,
-                    ),
+                    child: Image.memory(item['image'],
+                        fit: BoxFit.cover, height: 150, width: double.infinity),
                   )
                 : const Column(
                     children: [
-                      Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 50.0,
-                      ),
+                      Icon(Icons.camera_alt, color: Colors.white, size: 50.0),
                       SizedBox(height: 10),
                       Text(
                         'Tap to upload image',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.white70),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1273,10 +1224,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               });
             },
             icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-            label: const Text(
-              'Remove',
-              style: TextStyle(color: Colors.red),
-            ),
+            label: const Text('Remove', style: TextStyle(color: Colors.red)),
           ),
         ),
         const SizedBox(height: 10),
@@ -1284,10 +1232,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     );
   }
 
-  // For a damage item, we call the same `_showSourceDialog` but always pick images.
   void _showDamageImageSourceDialog(Map<String, dynamic> item) {
     if (item['image'] != null) {
-      // Already has an image => change or remove
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -1318,10 +1264,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   item['image'] = null;
                 });
               },
-              child: const Text(
-                'Remove Image',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Remove Image',
+                  style: TextStyle(color: Colors.red)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1331,7 +1275,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         ),
       );
     } else {
-      // No image => pick new
       _pickImageOrFile(
         title: 'Damage Image',
         pickImageOnly: true,
@@ -1346,7 +1289,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     }
   }
 
-  // For a feature item, similarly use `_showSourceDialog`
   void _showFeatureImageSourceDialog(Map<String, dynamic> item) {
     if (item['image'] != null) {
       showDialog(
@@ -1379,10 +1321,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   item['image'] = null;
                 });
               },
-              child: const Text(
-                'Remove Image',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Remove Image',
+                  style: TextStyle(color: Colors.red)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1438,10 +1378,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   item['image'] = null;
                 });
               },
-              child: const Text(
-                'Remove Image',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Remove Image',
+                  style: TextStyle(color: Colors.red)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1466,7 +1404,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   // -----------------------------------------------------------------------------
-  //                             DONE BUTTON
+  // DONE BUTTON
   // -----------------------------------------------------------------------------
   Widget _buildDoneButton() {
     return Center(
@@ -1479,7 +1417,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   // -----------------------------------------------------------------------------
-  //                     SAVE METHOD (Uploads All Images)
+  // SAVE METHOD (Uploads All Images)
   // -----------------------------------------------------------------------------
   Future<void> _saveDataAndFinish() async {
     if (widget.isAdminUpload &&
@@ -1495,9 +1433,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     try {
       final formData = Provider.of<FormDataProvider>(context, listen: false);
 
-      //======================
-      // 0) COMMIT TEXT FIELDS
-      //======================
+      // Commit text fields.
       formData.setReferenceNumber(_referenceNumberController.text);
       formData.setMake(_makeController.text);
       formData.setYear(_yearController.text);
@@ -1515,94 +1451,69 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         formData.setSelectedMainImage(_selectedMainImage, "MainImage");
       }
 
-      // Validate required fields
+      // Validate required fields.
       if (!_validateRequiredFields(formData)) {
         setState(() => _isLoading = false);
         return;
       }
 
-      //======================
-      // 1) UPLOAD SINGLE IMAGES
-      //======================
-      // main image
+      // Upload single images.
       String? mainImageUrl;
       if (_selectedMainImage != null) {
         mainImageUrl = await _uploadFileToFirebaseStorage(
-          _selectedMainImage!,
-          'vehicle_images',
-        );
+            _selectedMainImage!, 'vehicle_images');
       }
 
-      // NATIS doc
       String? natisUrl;
       if (_natisRc1File != null) {
         natisUrl = await _uploadFileToFirebaseStorage(
-          _natisRc1File!,
-          'vehicle_documents',
-        );
+            _natisRc1File!, 'vehicle_documents');
       }
 
-      // service history
       String? serviceHistoryUrl;
       if (_serviceHistoryFile != null) {
         serviceHistoryUrl = await _uploadFileToFirebaseStorage(
-          _serviceHistoryFile!,
-          'vehicle_documents',
-        );
+            _serviceHistoryFile!, 'vehicle_documents');
       }
 
-      // other single images (front, side, tyres, etc.)
+      // Other single images.
       String? frontImageUrl;
       if (_frontImage != null) {
-        frontImageUrl = await _uploadFileToFirebaseStorage(
-          _frontImage!,
-          'vehicle_images',
-        );
+        frontImageUrl =
+            await _uploadFileToFirebaseStorage(_frontImage!, 'vehicle_images');
       }
 
       String? sideImageUrl;
       if (_sideImage != null) {
-        sideImageUrl = await _uploadFileToFirebaseStorage(
-          _sideImage!,
-          'vehicle_images',
-        );
+        sideImageUrl =
+            await _uploadFileToFirebaseStorage(_sideImage!, 'vehicle_images');
       }
 
       String? tyresImageUrl;
       if (_tyresImage != null) {
-        tyresImageUrl = await _uploadFileToFirebaseStorage(
-          _tyresImage!,
-          'vehicle_images',
-        );
+        tyresImageUrl =
+            await _uploadFileToFirebaseStorage(_tyresImage!, 'vehicle_images');
       }
 
       String? chassisImageUrl;
       if (_chassisImage != null) {
         chassisImageUrl = await _uploadFileToFirebaseStorage(
-          _chassisImage!,
-          'vehicle_images',
-        );
+            _chassisImage!, 'vehicle_images');
       }
 
       String? deckImageUrl;
       if (_deckImage != null) {
-        deckImageUrl = await _uploadFileToFirebaseStorage(
-          _deckImage!,
-          'vehicle_images',
-        );
+        deckImageUrl =
+            await _uploadFileToFirebaseStorage(_deckImage!, 'vehicle_images');
       }
 
       String? makersPlateImageUrl;
       if (_makersPlateImage != null) {
         makersPlateImageUrl = await _uploadFileToFirebaseStorage(
-          _makersPlateImage!,
-          'vehicle_images',
-        );
+            _makersPlateImage!, 'vehicle_images');
       }
 
-      //======================
-      // 2) UPLOAD ADDITIONAL IMAGES
-      //======================
+      // Upload additional images.
       List<Map<String, dynamic>> additionalImagesToSave = [];
       for (Map<String, dynamic> item in _additionalImagesList) {
         String description = item['description'] ?? '';
@@ -1618,9 +1529,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         });
       }
 
-      //======================
-      // 3) UPLOAD DAMAGE IMAGES
-      //======================
+      // Upload damage images.
       List<Map<String, dynamic>> damagesToSave = [];
       for (Map<String, dynamic> dmg in _damageList) {
         String description = dmg['description'] ?? '';
@@ -1635,9 +1544,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         });
       }
 
-      //======================
-      // 4) UPLOAD FEATURE IMAGES
-      //======================
+      // Upload feature images.
       List<Map<String, dynamic>> featuresToSave = [];
       for (Map<String, dynamic> feat in _featureList) {
         String description = feat['description'] ?? '';
@@ -1653,9 +1560,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         });
       }
 
-      //======================
-      // 5) BUILD FIRESTORE DATA
-      //======================
+      // Build Firestore data.
       final trailerData = {
         'makeModel': formData.make,
         'year': formData.year,
@@ -1669,8 +1574,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'length': formData.length,
         'warrantyDetails': formData.warrantyDetails,
         'vehicleType': 'trailer',
-
-        // single images
         'mainImageUrl': mainImageUrl ?? '',
         'natisDocumentUrl': natisUrl ?? '',
         'serviceHistoryUrl': serviceHistoryUrl ?? '',
@@ -1680,10 +1583,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'chassisImageUrl': chassisImageUrl ?? '',
         'deckImageUrl': deckImageUrl ?? '',
         'makersPlateImageUrl': makersPlateImageUrl ?? '',
-
-        // multiple images
         'additionalImages': additionalImagesToSave,
-
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'userId': widget.isAdminUpload
@@ -1694,8 +1594,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'province': formData.province,
         'referenceNumber': formData.referenceNumber,
         'brands': formData.brands,
-
-        // Damages & Features
         'damagesCondition': _damagesCondition,
         'damages': damagesToSave,
         'featuresCondition': _featuresCondition,
@@ -1705,9 +1603,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             : FirebaseAuth.instance.currentUser?.uid,
       };
 
-      //======================
-      // 6) SAVE TO FIRESTORE
-      //======================
+      // Save to Firestore.
       final docRef = FirebaseFirestore.instance.collection('vehicles').doc();
       await docRef.set(trailerData);
 
@@ -1730,7 +1626,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   bool _validateRequiredFields(FormDataProvider formData) {
-    // your existing validations
     if (formData.selectedMainImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a main image')),
@@ -1789,7 +1684,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     return true;
   }
 
-  /// Reusable method to upload a file to Firebase Storage
+  /// Upload a file to Firebase Storage.
   Future<String?> _uploadFileToFirebaseStorage(
       Uint8List file, String folderName) async {
     try {

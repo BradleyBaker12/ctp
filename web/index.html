@@ -22,7 +22,7 @@
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <script>
-      window.flutterWebRenderer = "html";
+      window.flutterWebRenderer = "canvaskit";
       window.addEventListener("load", function () {
         window.Cropper = Cropper;
       });
@@ -62,12 +62,32 @@
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDk_C3AzYJGuZ6S2tvn9IuzI6y8_E3hvL4&libraries=geocoding"
       id="google-maps-script"
     ></script>
+    <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+    <script>
+      window.recaptchaVerifier = null;
+    </script>
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src * self blob: data: gap:; style-src * self 'unsafe-inline' blob: data: gap:; script-src * 'self' 'unsafe-eval' 'unsafe-inline' blob: data: gap:; object-src * 'self' blob: data: gap:; img-src * self 'unsafe-inline' blob: data: gap:; connect-src self * 'unsafe-inline' blob: data: gap:; frame-src * self blob: data: gap:;"
     />
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+    <script>
+      // Replace with your Firebase configuration
+      const firebaseConfig = {
+        // Your web app Firebase configuration
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+    </script>
   </head>
   <body>
+    <script src="main.dart.js" type="application/javascript"></script>
     <script src="flutter_bootstrap.js" async></script>
   </body>
 </html>

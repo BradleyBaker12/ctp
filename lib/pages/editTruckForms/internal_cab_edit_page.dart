@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -85,6 +86,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   final List<ItemData> _faultCodesList = [];
 
   bool _isInitialized = false; // Flag to prevent re-initialization
+  bool _isSaving = false; // Flag to indicate saving state
 
   @override
   void initState() {
@@ -377,6 +379,36 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   });
                 },
                 buildItemSection: _buildFaultCodesSection,
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              CustomButton(
+                text: 'Save Changes',
+                borderColor: Colors.deepOrange,
+                isLoading: _isSaving,
+                onPressed: () async {
+                  setState(() => _isSaving = true);
+                  try {
+                    final data = await getData();
+                    await _firestore
+                        .collection('vehicles')
+                        .doc(widget.vehicleId)
+                        .update({
+                      'truckConditions.internalCab': data,
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Changes saved successfully!')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving changes: $e')),
+                    );
+                  } finally {
+                    setState(() => _isSaving = false);
+                  }
+                },
               ),
             ],
           ),

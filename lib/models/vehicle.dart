@@ -9,6 +9,7 @@ import 'package:ctp/models/tyres.dart';
 import 'admin_data.dart';
 import 'maintenance.dart';
 import 'truck_conditions.dart';
+import 'trailer.dart';
 
 class Vehicle {
   final bool isAccepted;
@@ -43,13 +44,9 @@ class Vehicle {
   final String vehicleStatus;
   final String vehicleAvailableImmediately;
   final String availableDate;
-  final String trailerType;
-  final String axles;
-  final String trailerLength;
+  final Trailer? trailer;
   String? natisRc1Url;
   final String referenceNumber;
-  final String length;
-  final String vinTrailer;
   final String damagesDescription;
   final String additionalFeatures;
   final List<String> brands;
@@ -75,7 +72,6 @@ class Vehicle {
   final String? sideImageUrl;
   final String? tyresImageUrl;
   final String? chassisImageUrl;
-  final String? deckImageUrl;
   final String? makersPlateImageUrl;
   final List<String>? additionalImages;
   final String? damagesCondition;
@@ -117,9 +113,6 @@ class Vehicle {
     required this.vehicleStatus,
     required this.vehicleAvailableImmediately,
     required this.availableDate,
-    required this.trailerType,
-    required this.axles,
-    required this.trailerLength,
     required this.adminData,
     required this.maintenance,
     required this.truckConditions,
@@ -130,10 +123,9 @@ class Vehicle {
     required this.country,
     required this.province,
     this.variant,
-    required this.length,
-    required this.vinTrailer,
     required this.damagesDescription,
     required this.additionalFeatures,
+    this.trailer, // Add this
 
     // NEW FIELDS in constructor (all optional)
     this.natisDocumentUrl,
@@ -142,7 +134,6 @@ class Vehicle {
     this.sideImageUrl,
     this.tyresImageUrl,
     this.chassisImageUrl,
-    this.deckImageUrl,
     this.makersPlateImageUrl,
     this.additionalImages,
     this.damagesCondition,
@@ -218,7 +209,6 @@ class Vehicle {
       acceptedOfferId: data['acceptedOfferId'] ?? '',
       assignedSalesRepId: getString(data['assignedSalesRepId']),
       application: applications,
-      length: getString(data['length']),
       damageDescription: getString(data['damageDescription']),
       damagePhotos: data['damagePhotos'] != null
           ? List<String?>.from(data['damagePhotos'])
@@ -250,9 +240,6 @@ class Vehicle {
       vehicleAvailableImmediately:
           getString(data['vehicleAvailableImmediately']),
       availableDate: getString(data['availableDate']),
-      trailerType: getString(data['trailerType']),
-      axles: getString(data['axles']),
-      trailerLength: getString(data['trailerLength']),
       adminData:
           data['adminData'] != null && data['adminData'] is Map<String, dynamic>
               ? AdminData.fromMap(data['adminData'])
@@ -346,9 +333,12 @@ class Vehicle {
       country: getString(data['country'] ?? ''),
       province: getString(data['province'] ?? ''),
       variant: getString(data['variant'] ?? ''),
-      vinTrailer: getString(data['vinTrailer'] ?? ''),
       damagesDescription: getString(data['damagesDescription'] ?? ''),
       additionalFeatures: getString(data['additionalFeatures'] ?? ''),
+      trailer: data['trailer'] != null
+          ? Trailer.fromFirestore(
+              docId, data['trailer'] as Map<String, dynamic>)
+          : null,
 
       // ------------------------------
       // ADDED NEW FIELDS
@@ -359,7 +349,6 @@ class Vehicle {
       sideImageUrl: getString(data['sideImageUrl']),
       tyresImageUrl: getString(data['tyresImageUrl']),
       chassisImageUrl: getString(data['chassisImageUrl']),
-      deckImageUrl: getString(data['deckImageUrl']),
       makersPlateImageUrl: getString(data['makersPlateImageUrl']),
       additionalImages: parseAdditionalImages(),
       damagesCondition: getString(data['damagesCondition']),
@@ -404,9 +393,6 @@ class Vehicle {
       'vehicleStatus': vehicleStatus,
       'vehicleAvailableImmediately': vehicleAvailableImmediately,
       'availableDate': availableDate,
-      'trailerType': trailerType,
-      'axles': axles,
-      'trailerLength': trailerLength,
       'adminData': adminData.toMap(),
       'maintenance': maintenance.toMap(),
       'truckConditions': truckConditions.toMap(),
@@ -416,9 +402,9 @@ class Vehicle {
       'country': country,
       'variant': variant,
       'assignedSalesRepId': assignedSalesRepId,
-
-      // Existing line not to remove
-      'length': length,
+      'damagesDescription': damagesDescription,
+      'additionalFeatures': additionalFeatures,
+      'trailer': trailer?.toMap(),
 
       // ----------------------------------------------------------------
       // NEW FIELDS appended at the bottom (unchanged existing code above)
@@ -429,7 +415,6 @@ class Vehicle {
       'sideImageUrl': sideImageUrl ?? '',
       'tyresImageUrl': tyresImageUrl ?? '',
       'chassisImageUrl': chassisImageUrl ?? '',
-      'deckImageUrl': deckImageUrl ?? '',
       'makersPlateImageUrl': makersPlateImageUrl ?? '',
       'additionalImages': additionalImages ?? [],
       'damagesCondition': damagesCondition ?? '',
@@ -476,7 +461,6 @@ class Vehicle {
       createdAt: parsedCreatedAt,
       application: applications,
       brands: brands,
-      vinTrailer: data['vinTrailer'] ?? '',
       damagesDescription: data['damagesDescription'] ?? '',
       additionalFeatures: data['additionalFeatures'] ?? '',
       warrantyDetails: data['warrantyDetails'] ?? 'N/A',
@@ -485,7 +469,6 @@ class Vehicle {
           ? List<String?>.from(data['damagePhotos'])
           : [],
       dashboardPhoto: data['dashboardPhoto'] ?? '',
-      length: data['length'] ?? '',
       engineNumber: data['engineNumber'] ?? 'N/A',
       expectedSellingPrice: data['sellingPrice'] ?? 'N/A',
       faultCodesPhoto: data['faultCodesPhoto'] ?? '',
@@ -509,9 +492,6 @@ class Vehicle {
       vehicleStatus: data['vehicleStatus'] ?? 'Live',
       vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
       availableDate: data['availableDate'] ?? '',
-      trailerType: data['trailerType'] ?? '',
-      axles: data['axles'] ?? '',
-      trailerLength: data['trailerLength'] ?? '',
       adminData:
           data['adminData'] != null && data['adminData'] is Map<String, dynamic>
               ? AdminData.fromMap(data['adminData'])
@@ -609,6 +589,10 @@ class Vehicle {
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
       variant: data['variant'] ?? '',
+      trailer: data['trailer'] != null
+          ? Trailer.fromFirestore(
+              doc.id, data['trailer'] as Map<String, dynamic>)
+          : null,
 
       // ------------------------------
       // ADDED NEW FIELDS
@@ -619,7 +603,6 @@ class Vehicle {
       sideImageUrl: data['sideImageUrl'],
       tyresImageUrl: data['tyresImageUrl'],
       chassisImageUrl: data['chassisImageUrl'],
-      deckImageUrl: data['deckImageUrl'],
       makersPlateImageUrl: data['makersPlateImageUrl'],
       additionalImages: data['additionalImages'] != null
           ? List<String>.from(data['additionalImages'])
@@ -642,12 +625,10 @@ class Vehicle {
       acceptedOfferId: data['acceptedOfferId'] ?? '',
       assignedSalesRepId: data['assignedSalesRepId'] ?? '',
       referenceNumber: data['referenceNumber'] ?? '',
-      vinTrailer: data['vinTrailer'] ?? '',
       damagesDescription: data['damagesDescription'] ?? '',
       additionalFeatures: data['additionalFeatures'] ?? '',
       makeModel: data['makeModel'] ?? 'N/A',
       mainImageUrl: data['mainImageUrl'] ?? '',
-      length: data['length'] ?? '',
       application: data['application'] ?? 'N/A',
       damageDescription: data['damageDescription'] ?? '',
       damagePhotos: data['damagePhotos'] != null
@@ -679,9 +660,6 @@ class Vehicle {
       vehicleStatus: data['vehicleStatus'] ?? 'Live',
       vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
       availableDate: data['availableDate'] ?? '',
-      trailerType: data['trailerType'] ?? '',
-      axles: data['axles'] ?? '',
-      trailerLength: data['trailerLength'] ?? '',
       adminData:
           data['adminData'] != null && data['adminData'] is Map<String, dynamic>
               ? AdminData.fromMap(data['adminData'])
@@ -778,6 +756,10 @@ class Vehicle {
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
       variant: data['variant'] ?? '',
+      trailer: data['trailer'] != null
+          ? Trailer.fromFirestore(
+              data['id'], data['trailer'] as Map<String, dynamic>)
+          : null,
 
       // ------------------------------
       // ADDED NEW FIELDS
@@ -788,7 +770,6 @@ class Vehicle {
       sideImageUrl: data['sideImageUrl'],
       tyresImageUrl: data['tyresImageUrl'],
       chassisImageUrl: data['chassisImageUrl'],
-      deckImageUrl: data['deckImageUrl'],
       makersPlateImageUrl: data['makersPlateImageUrl'],
       additionalImages: data['additionalImages'] != null
           ? List<String>.from(data['additionalImages'])

@@ -1,6 +1,7 @@
 // lib/pages/truckForms/drive_train_page.dart
 
 import 'dart:typed_data';
+import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -70,6 +71,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   final Map<String, String> _imageUrls = {};
 
   bool _isInitialized = false; // Flag to prevent re-initialization
+  bool _isSaving = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -326,12 +328,40 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                     .toList(),
               ),
               const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              CustomButton(
+                text: 'Save Changes',
+                borderColor: Colors.deepOrange,
+                isLoading: _isSaving,
+                onPressed: () async {
+                  setState(() => _isSaving = true);
+                  try {
+                    final data = await getData();
+                    await _firestore
+                        .collection('vehicles')
+                        .doc(widget.vehicleId)
+                        .update({
+                      'truckConditions.driveTrain': data,
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Changes saved successfully!')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving changes: $e')),
+                    );
+                  } finally {
+                    setState(() => _isSaving = false);
+                  }
+                },
+              ),
             ],
           ),
         ),
       ),
     );
-
     // If not in tabs page, wrap with GradientBackground
     if (!widget.inTabsPage) {
       content = GradientBackground(child: content);
@@ -661,7 +691,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         );
         serializedImages[entry.key] = {
           'url': imageUrl,
-          'path': entry.value!,
           'isNew': true,
         };
       } else if (_imageUrls[entry.key] != null &&

@@ -159,6 +159,11 @@ class _TruckPageState extends State<TruckPage> {
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
 
+    // Initialize vehicle type filter if provided
+    if (widget.vehicleType != null) {
+      _selectedVehicleType.add(widget.vehicleType!);
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialVehicles();
     });
@@ -377,6 +382,14 @@ class _TruckPageState extends State<TruckPage> {
   // Helper method to apply all selected filters.
   Iterable<Vehicle> _applySelectedFilters(Iterable<Vehicle> vehicles) {
     return vehicles.where((vehicle) {
+      // First apply vehicle type filter if specified in widget
+      if (widget.vehicleType != null &&
+          vehicle.vehicleType.toLowerCase() !=
+              widget.vehicleType!.toLowerCase()) {
+        return false;
+      }
+
+      // Then apply other filters
       if (_selectedYears.isNotEmpty && !_selectedYears.contains('All')) {
         if (!_selectedYears.contains(vehicle.year)) return false;
       }
@@ -418,7 +431,9 @@ class _TruckPageState extends State<TruckPage> {
       if (_selectedConfigs.isNotEmpty && !_selectedConfigs.contains('All')) {
         if (!_selectedConfigs.contains(vehicle.config)) return false;
       }
-      if (_selectedVehicleType.isNotEmpty &&
+      // Only apply selected vehicle type filter if widget.vehicleType is null
+      if (widget.vehicleType == null &&
+          _selectedVehicleType.isNotEmpty &&
           !_selectedVehicleType.contains('All')) {
         if (!_selectedVehicleType.contains(vehicle.vehicleType)) return false;
       }
@@ -885,7 +900,8 @@ class _TruckPageState extends State<TruckPage> {
     );
   }
 
-  void _markAsInterested(Vehicle vehicle) async {
+  // Update the function signature to accept dynamic instead of Vehicle
+  void _markAsInterested(dynamic vehicle) async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       if (userProvider.getLikedVehicles.contains(vehicle.id)) {

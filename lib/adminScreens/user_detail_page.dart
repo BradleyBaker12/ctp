@@ -520,12 +520,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                             value: data['isVerified'] ?? false,
                                             onChanged: (bool newValue) async {
                                               try {
-                                                await Provider.of<UserProvider>(
-                                                        context,
-                                                        listen: false)
-                                                    .updateUserVerificationStatus(
-                                                        widget.userId,
-                                                        newValue);
+                                                // Directly update Firestore
+                                                await FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(widget.userId)
+                                                    .update({
+                                                  'isVerified': newValue,
+                                                });
+
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(
                                                   SnackBar(

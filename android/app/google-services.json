@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:656287296553:android:b819f014d9cb2161408038",
         "android_client_info": {
-          "package_name": "com.example.ctp"
+          "package_name": "com.commericaltradersportal.ctp"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "656287296553-22urmlqas2mee436jvko25v7dp276f0j.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.ctp",
+            "package_name": "com.commericaltradersportal.ctp",
             "certificate_hash": "131cd3f2b8f47ac40e5ad52f30fea8ad2c488e70"
           }
         },
@@ -42,7 +42,7 @@
               "client_id": "656287296553-q5p1nbdhsk6c17jtd9qpubob698qpi35.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.ctp"
+                "bundle_id": "com.commericaltradersportal.ctp"
               }
             }
           ]

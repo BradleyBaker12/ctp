@@ -131,69 +131,82 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
     }
   }
 
-  void _continue() async {
+  Future<void> _continue() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
 
-    final String userId =
-        Provider.of<UserProvider>(context, listen: false).userId!;
-    print('PhoneNumberPage: Current User UID: $userId'); // Debugging
+    try {
+      final String userId =
+          Provider.of<UserProvider>(context, listen: false).userId!;
+      final String phoneNumber = _phoneController.text.replaceAll(' ', '');
 
-    final String phoneNumber = _phoneController.text.replaceAll(' ', '');
-    if (!_validatePhoneNumber(phoneNumber)) {
+      if (!_validatePhoneNumber(phoneNumber)) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      String formattedNumber = phoneNumber;
+      String dialCode = _selectedCountryCode.split(' ').last;
+
+      if (phoneNumber.length == 10 && phoneNumber.startsWith('0')) {
+        formattedNumber = phoneNumber.substring(1);
+      }
+
+      formattedNumber = '$dialCode$formattedNumber';
+      await _savePhoneNumber(userId, formattedNumber);
+
+      await _auth.verifyPhoneNumber(
+        phoneNumber: formattedNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            await _auth.currentUser!.linkWithCredential(credential);
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/firstName');
+            }
+          } catch (e) {
+            setState(() {
+              _errorMessage = "Error during verification: ${e.toString()}";
+              _isLoading = false;
+            });
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage =
+                e.message ?? "Verification failed. Please try again.";
+          });
+        },
+        codeSent: (String verificationId, int? forceResendingToken) {
+          setState(() {
+            _isLoading = false;
+          });
+          if (mounted) {
+            Navigator.pushNamed(context, '/otp', arguments: {
+              'verificationId': verificationId,
+              'phoneNumber': formattedNumber,
+              'userId': userId
+            });
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          setState(() {
+            _isLoading = false;
+          });
+        },
+        timeout: const Duration(seconds: 120),
+      );
+    } catch (e) {
       setState(() {
         _isLoading = false;
+        _errorMessage = "An error occurred. Please try again.";
       });
-      return;
+      print('Error during phone verification: $e');
     }
-
-    String formattedNumber = phoneNumber;
-    String dialCode = _selectedCountryCode.split(' ').last;
-
-    if (phoneNumber.length == 10 && phoneNumber.startsWith('0')) {
-      formattedNumber = phoneNumber.substring(1);
-    }
-
-    formattedNumber = '$dialCode$formattedNumber';
-    await _savePhoneNumber(userId, formattedNumber);
-
-    // Start phone number verification with reCAPTCHA in the background
-    await _auth.verifyPhoneNumber(
-      phoneNumber: formattedNumber,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        await _auth.currentUser!.linkWithCredential(credential);
-        Navigator.pushReplacementNamed(context, '/firstName');
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = "Verification failed. Please try again.";
-        });
-      },
-      codeSent: (String verificationId, int? forceResendingToken) {
-        setState(() {
-          _isLoading = false;
-        });
-        Navigator.pushNamed(context, '/otp', arguments: {
-          'verificationId': verificationId,
-          'phoneNumber': formattedNumber,
-          'userId': userId
-        });
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        setState(() {
-          _isLoading = false;
-        });
-      },
-      timeout: const Duration(seconds: 60),
-      forceResendingToken: null,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-    print('Phone Number: $formattedNumber');
   }
 
   void _skip() {

@@ -556,53 +556,147 @@ class _UsersTabState extends State<UsersTab> {
                             String tradingAs =
                                 userData['tradingAs'] ?? 'No Trading As';
                             var accountStatus = userData['accountStatus'];
+                            var isVerified = userData['isVerified'] ?? false;
                             String status;
-                            if (accountStatus is String) {
-                              status = accountStatus;
-                            } else if (accountStatus is bool) {
-                              status = accountStatus ? 'active' : 'inactive';
+                            Color statusColor;
+                            String statusText;
+
+                            // Determine status color and text
+                            if (accountStatus == 'suspended') {
+                              status = 'suspended';
+                              statusColor = Colors.red;
+                              statusText = 'Suspended';
+                            } else if (!isVerified) {
+                              status = 'pending';
+                              statusColor = Colors.amber;
+                              statusText = 'Pending Verification';
+                            } else if (accountStatus != 'active') {
+                              status = 'inactive';
+                              statusColor = Colors.orange;
+                              statusText = 'Inactive';
                             } else {
                               status = 'active';
+                              statusColor = Colors.transparent;
+                              statusText = '';
                             }
+
                             return Card(
-                              color: Colors.grey[900],
+                              color: status != 'active'
+                                  ? statusColor.withOpacity(0.2)
+                                  : Colors.grey[900],
                               margin: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 5),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.blueAccent,
-                                  child: Text(
-                                    firstName.isNotEmpty
-                                        ? firstName[0].toUpperCase()
-                                        : 'U',
-                                    style: GoogleFonts.montserrat(
-                                        color: Colors.white),
-                                  ),
-                                ),
-                                title: Text(
-                                  '$firstName $lastName',
-                                  style: GoogleFonts.montserrat(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white70),
-                                ),
-                                isThreeLine: false,
-                                trailing: const Icon(Icons.arrow_forward_ios,
-                                    color: Colors.white),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          UserDetailPage(userId: userId),
+                              child: Stack(
+                                children: [
+                                  ListTile(
+                                    leading: Stack(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.blueAccent,
+                                          child: Text(
+                                            firstName.isNotEmpty
+                                                ? firstName[0].toUpperCase()
+                                                : 'U',
+                                            style: GoogleFonts.montserrat(
+                                                color: Colors.white),
+                                          ),
+                                        ),
+                                        if (status != 'active')
+                                          Positioned(
+                                            right: -2,
+                                            top: -2,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(2),
+                                              decoration: BoxDecoration(
+                                                color: statusColor,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: Colors.grey[900]!,
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                status == 'suspended'
+                                                    ? Icons.block
+                                                    : status == 'pending'
+                                                        ? Icons.warning
+                                                        : Icons.warning_amber,
+                                                size: 12,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                  );
-                                },
+                                    title: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '$firstName $lastName',
+                                            style: GoogleFonts.montserrat(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        if (status != 'active')
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: statusColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              statusText,
+                                              style: GoogleFonts.montserrat(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    subtitle: Text(
+                                      '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white70),
+                                    ),
+                                    isThreeLine: false,
+                                    trailing: const Icon(
+                                        Icons.arrow_forward_ios,
+                                        color: Colors.white),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              UserDetailPage(userId: userId),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  if (status != 'active')
+                                    Positioned(
+                                      top: 0,
+                                      bottom: 0,
+                                      left: 0,
+                                      child: Container(
+                                        width: 4,
+                                        decoration: BoxDecoration(
+                                          color: statusColor,
+                                          borderRadius: const BorderRadius.only(
+                                            topLeft: Radius.circular(4),
+                                            bottomLeft: Radius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             );
                           },

@@ -663,7 +663,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           isDuplicating: false,
           isNewUpload: false,
           isAdminUpload: isAdminOrSalesRep,
-          vehicle: widget.vehicle,
+          trailer: widget.vehicle.trailer,
         ),
       );
     } else {
@@ -706,9 +706,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         vehicleStatus: '',
         vehicleAvailableImmediately: 'false',
         availableDate: DateTime.now().toIso8601String(),
-        trailerType: '',
-        axles: '',
-        trailerLength: '',
         warrentyType: '',
         maintenance: Maintenance(
           maintenanceSelection: '',
@@ -719,8 +716,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           warrantyDocUrl: '',
           vehicleId: '',
         ),
-        length: '',
-        vinTrailer: '',
         damagesDescription: '',
         additionalFeatures: '',
 
@@ -1024,7 +1019,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             isDuplicating: false,
             isNewUpload: false,
             isAdminUpload: isAdminOrSalesRep,
-            vehicle: widget.vehicle,
+            trailer: widget.vehicle.trailer,
           ),
         );
         setState(() {});
@@ -1135,10 +1130,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           case 'TRUCK CONDITIONS':
             MyNavigator.push(
               context,
-              TruckConditionsTabsEditPage(
-                initialIndex: 0,
+              ExternalCabEditPage(
                 vehicleId: widget.vehicle.id,
-                referenceNumber: widget.vehicle.referenceNumber,
+                onProgressUpdate: () {
+                  setState(() {
+                    // Refresh the UI after progress is updated
+                    _refreshVehicleData();
+                  });
+                },
               ),
             );
             break;
@@ -1658,7 +1657,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 context,
                 ExternalCabEditPage(
                   vehicleId: widget.vehicle.id,
-                  onProgressUpdate: () {},
+                  onProgressUpdate: () {
+                    setState(() {
+                      // Refresh the UI after progress is updated
+                      _refreshVehicleData();
+                    });
+                  },
                   isEditing: true,
                 ),
               ),
@@ -2829,19 +2833,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   String _calculateBasicInfoProgressString() {
     final basicFields = [
-      widget.vehicle.application,
+      widget.vehicle.mainImageUrl!.isNotEmpty,
+      widget.vehicle.year.toString(),
       widget.vehicle.brands,
-      widget.vehicle.config,
-      widget.vehicle.country,
-      widget.vehicle.hydraluicType,
       widget.vehicle.makeModel,
+      widget.vehicle.variant,
+      widget.vehicle.country,
+      widget.vehicle.mileage,
+      widget.vehicle.config,
+      widget.vehicle.application,
       widget.vehicle.suspensionType,
       widget.vehicle.transmissionType,
-      widget.vehicle.variant,
-      widget.vehicle.mileage,
+      widget.vehicle.hydraluicType,
+      widget.vehicle.warrentyType,
       widget.vehicle.maintenance,
       widget.vehicle.requireToSettleType,
-      widget.vehicle.year.toString(),
     ];
     int total = basicFields.length;
     int completed = basicFields

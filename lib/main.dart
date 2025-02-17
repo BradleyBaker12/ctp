@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:ctp/firebase_options.dart';
 import 'package:ctp/pages/accepted_offers.dart';
 import 'package:ctp/pages/add_profile_photo.dart';
@@ -5,10 +7,12 @@ import 'package:ctp/pages/add_profile_photo_admin_page.dart';
 import 'package:ctp/pages/add_profile_photo_transporter.dart';
 import 'package:ctp/pages/admin_home_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
+import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/internal_cab_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/tyres_edit_page.dart';
 import 'package:ctp/pages/error_page.dart';
 import 'package:ctp/pages/first_name_page.dart';
@@ -44,7 +48,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
@@ -56,18 +60,27 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  if (!kIsWeb && Platform.isAndroid) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } else {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  // Only set up messaging and crashlytics for mobile platforms
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+  }
 
   // Setup auth token refresh
   final authService = AuthService();
   await authService.setupTokenRefresh();
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  if (!kIsWeb) {
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
-  }
   setPathUrlStrategy();
   runApp(
     MultiProvider(
@@ -136,9 +149,26 @@ class MyApp extends StatelessWidget {
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
         '/in-progress': (context) => const AcceptedOffersPage(),
         '/transporterList': (context) => const VehiclesListPage(),
-        '/wishist': (context) => const WishlistPage(),
+        '/wishlist': (context) => const WishlistPage(),
         '/error': (context) => ErrorPage(), // Create a basic error page
         '/waitingApproval': (context) => AccountStatusPage(), // Create a b
+        '/basic_information': (context) => BasicInformationEdit(), // Create a b
+        '/maintenance_warranty': (context) {
+          final vehicleId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return MaintenanceEditSection(
+            vehicleId: vehicleId,
+            isUploading: false,
+            onMaintenanceFileSelected: (file) {},
+            onWarrantyFileSelected: (file) {},
+            oemInspectionType: '',
+            oemInspectionExplanation: '',
+            onProgressUpdate: () {},
+            maintenanceSelection: '',
+            warrantySelection: '',
+            isFromAdmin: false,
+          );
+        },
         '/external_cab': (context) {
           final vehicleId =
               ModalRoute.of(context)!.settings.arguments as String;
