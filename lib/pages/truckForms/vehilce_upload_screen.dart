@@ -312,7 +312,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setEngineNumber(null);
     formData.setRegistrationNumber(null);
     formData.setSellingPrice(null);
-    formData.setVehicleType(null);
+    // formData.setVehicleType(null);
     formData.setSuspension(null);
     formData.setTransmissionType(null);
     formData.setHydraulics('no');
@@ -338,7 +338,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   void _initializeDefaultValues(FormDataProvider formData) {
-    formData.setVehicleType('truck');
+    // formData.setVehicleType('truck');
     formData.setSuspension('spring');
     formData.setTransmissionType('automatic');
     formData.setHydraulics('no');
@@ -396,7 +396,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _existingNatisRc1Url = widget.vehicle!.rc1NatisFile;
     _existingNatisRc1Name = _getFileNameFromUrl(_existingNatisRc1Url);
     formData.setNatisRc1Url(widget.vehicle!.rc1NatisFile, notify: false);
-    formData.setVehicleType(widget.vehicle!.vehicleType, notify: false);
+    // formData.setVehicleType(widget.vehicle!.vehicleType, notify: false);
     formData.setYear(widget.vehicle!.year, notify: false);
     formData.setMakeModel(widget.vehicle!.makeModel, notify: false);
     formData.setVinNumber(widget.vehicle!.vinNumber, notify: false);
@@ -924,40 +924,40 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     );
   }
 
-  Widget _buildVehicleTypeRadios(FormDataProvider formData) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Vehicle Type',
-          style: TextStyle(fontSize: 14, color: Colors.white),
-        ),
-        const SizedBox(height: 15),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CustomRadioButton(
-              label: 'Truck',
-              value: 'truck',
-              groupValue: formData.vehicleType,
-              onChanged: (value) {
-                formData.setVehicleType(value);
-              },
-            ),
-            const SizedBox(width: 15),
-            CustomRadioButton(
-              label: 'Trailer',
-              value: 'trailer',
-              groupValue: formData.vehicleType,
-              onChanged: (value) {
-                formData.setVehicleType(value);
-              },
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // Widget _buildVehicleTypeRadios(FormDataProvider formData) {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       const Text(
+  //         'Vehicle Type',
+  //         style: TextStyle(fontSize: 14, color: Colors.white),
+  //       ),
+  //       const SizedBox(height: 15),
+  //       Row(
+  //         mainAxisAlignment: MainAxisAlignment.center,
+  //         children: [
+  //           CustomRadioButton(
+  //             label: 'Truck',
+  //             value: 'truck',
+  //             groupValue: formData.vehicleType,
+  //             onChanged: (value) {
+  //               formData.setVehicleType(value);
+  //             },
+  //           ),
+  //           const SizedBox(width: 15),
+  //           CustomRadioButton(
+  //             label: 'Trailer',
+  //             value: 'trailer',
+  //             groupValue: formData.vehicleType,
+  //             onChanged: (value) {
+  //               formData.setVehicleType(value);
+  //             },
+  //           ),
+  //         ],
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildMandatorySection() {
     final formData = Provider.of<FormDataProvider>(context);
@@ -1054,7 +1054,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             alignment: WrapAlignment.center,
             children: [
               // Vehicle Type Radios
-              _buildVehicleTypeRadios(formData),
+              // _buildVehicleTypeRadios(formData),
               // Form fields
               Form(
                 key: _formKeys[0],
@@ -1644,8 +1644,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   Widget _buildNextButton() {
     return Center(
       child: CustomButton(
-        text: 'Next',
-        borderColor: AppColors.blue,
+        text: 'Continue',
+        borderColor: AppColors.orange,
         onPressed: () async {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);
@@ -1829,7 +1829,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           formData.setEngineNumber(data['engineNumber']);
           formData.setRegistrationNumber(data['registrationNumber']);
           formData.setSellingPrice(data['sellingPrice']);
-          formData.setVehicleType(data['vehicleType'] ?? 'truck');
+          // formData.setVehicleType(data['vehicleType'] ?? 'truck');
           formData.setSuspension(data['suspensionType'] ?? 'spring');
           formData.setTransmissionType(data['transmissionType'] ?? 'automatic');
           formData.setHydraulics(data['hydraulics'] ?? 'yes');

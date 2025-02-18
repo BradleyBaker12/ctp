@@ -12,7 +12,7 @@ import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:ctp/providers/form_data_provider.dart';
-import 'package:ctp/providers/user_provider.dart'; // <--- for user role
+import 'package:ctp/providers/user_provider.dart'; // for user role
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -22,15 +22,14 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:ctp/utils/navigation.dart';
-import 'package:ctp/models/trailer.dart'; // Add this import
+import 'package:ctp/models/trailer.dart'; // Updated trailer model
+import 'package:ctp/providers/trailer_provider.dart';
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue, TextEditingValue newValue) {
     return TextEditingValue(
       text: newValue.text.toUpperCase(),
       selection: newValue.selection,
@@ -44,9 +43,7 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue, TextEditingValue newValue) {
     // Only keep digits
     final cleanText = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
     if (cleanText.isEmpty) {
@@ -99,8 +96,17 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _makeController = TextEditingController();
 
-  // Trailer-specific
-  final TextEditingController _trailerTypeController = TextEditingController();
+  // --- Trailer type & dynamic extra fields ---
+  // Instead of a text field for trailer type, we now use a dropdown.
+  String? _selectedTrailerType;
+  final TextEditingController _superlinkFieldController =
+      TextEditingController();
+  final TextEditingController _triAxleFieldController = TextEditingController();
+  final TextEditingController _doubleAxleFieldController =
+      TextEditingController();
+  final TextEditingController _otherTrailerFieldController =
+      TextEditingController();
+
   final TextEditingController _axlesController = TextEditingController();
   final TextEditingController _lengthController = TextEditingController();
 
@@ -204,7 +210,9 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     _registrationNumberController.text = trailer.registrationNumber;
     _mileageController.text = trailer.mileage;
     _engineNumberController.text = trailer.engineNumber;
-    _trailerTypeController.text = trailer.trailerType;
+    // For trailer type, assign the dropdown value.
+    _selectedTrailerType = trailer.trailerType;
+    // Optionally load extra info if your Trailer model supports it.
     _axlesController.text = trailer.axles;
     _lengthController.text = trailer.length;
     _warrantyDetailsController.text = trailer.warrantyDetails;
@@ -287,6 +295,27 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   }
 
   @override
+  void dispose() {
+    _sellingPriceController.dispose();
+    _vinNumberController.dispose();
+    _mileageController.dispose();
+    _engineNumberController.dispose();
+    _warrantyDetailsController.dispose();
+    _registrationNumberController.dispose();
+    _referenceNumberController.dispose();
+    _yearController.dispose();
+    _makeController.dispose();
+    _axlesController.dispose();
+    _lengthController.dispose();
+    _superlinkFieldController.dispose();
+    _triAxleFieldController.dispose();
+    _doubleAxleFieldController.dispose();
+    _otherTrailerFieldController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
@@ -342,10 +371,9 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   // MAIN IMAGE
   // -----------------------------------------------------------------------------
   Widget _buildMainImageSection() {
-    // If dealer => can only view/expand
+    // If dealer, only allow preview.
     void onTapMainImage() {
       if (_isDealer) {
-        // Just show a large preview
         _showImagePreview(
           file: _selectedMainImage,
           url: _existingMainImageUrl,
@@ -354,7 +382,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         return;
       }
 
-      // Admin/Transporter => can edit
       if (_selectedMainImage != null ||
           (_existingMainImageUrl != null &&
               _existingMainImageUrl!.isNotEmpty)) {
@@ -403,7 +430,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
               borderRadius: BorderRadius.circular(10.0),
               child: imageWidget,
             ),
-            if (!_isDealer) // only show "Tap to modify" for Admin/Transporter
+            if (!_isDealer)
               Positioned(
                 bottom: 8,
                 right: 8,
@@ -537,7 +564,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
 
           // Vehicle Status
           if (!_isDealer) ...[
-            // Only show vehicle status dropdown if not dealer
             CustomDropdown(
               hintText: 'Vehicle Status',
               value: _vehicleStatus,
@@ -557,18 +583,17 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             const SizedBox(height: 15),
           ],
 
+          // Make
           if (_isDealer)
             const Text(
               'Make',
               style: TextStyle(fontSize: 16, color: Colors.white),
               textAlign: TextAlign.start,
             ),
-
-          // Make
           CustomTextField(
             controller: _makeController,
             hintText: 'Make',
-            enabled: !_isDealer, // read-only if dealer
+            enabled: !_isDealer,
           ),
           const SizedBox(height: 15),
 
@@ -582,13 +607,13 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             ),
           if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
+          // Year
           if (_isDealer)
             const Text(
               'Year',
               style: TextStyle(fontSize: 16, color: Colors.white),
               textAlign: TextAlign.start,
             ),
-          // Year
           CustomTextField(
             controller: _yearController,
             hintText: 'Year',
@@ -611,27 +636,74 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           if (_isAdmin || _isTransporter) _buildNatisDocSection(),
           if (_isAdmin || _isTransporter) const SizedBox(height: 15),
 
-          if (_isDealer)
-            const Text(
-              'Trailer Type',
-              style: TextStyle(fontSize: 16, color: Colors.white),
-              textAlign: TextAlign.start,
+          // --- Trailer Type & Extra Fields ---
+          if (!_isDealer) ...[
+            CustomDropdown(
+              hintText: 'Select Trailer Type',
+              value: _selectedTrailerType,
+              items: const ['Superlink', 'Tri-Axle', 'Double Axle', 'Other'],
+              onChanged: (value) {
+                setState(() {
+                  _selectedTrailerType = value;
+                });
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select a trailer type';
+                }
+                return null;
+              },
             ),
-          // Trailer Type
-          CustomTextField(
-            controller: _trailerTypeController,
-            hintText: 'Trailer Type',
-            enabled: !_isDealer,
-          ),
-          const SizedBox(height: 15),
+            const SizedBox(height: 15),
+            if (_selectedTrailerType == 'Superlink') ...[
+              CustomTextField(
+                controller: _superlinkFieldController,
+                hintText: 'Enter Superlink Specific Info',
+                enabled: true,
+              ),
+              const SizedBox(height: 15),
+            ] else if (_selectedTrailerType == 'Tri-Axle') ...[
+              CustomTextField(
+                controller: _triAxleFieldController,
+                hintText: 'Enter Tri-Axle Specific Info',
+                enabled: true,
+              ),
+              const SizedBox(height: 15),
+            ] else if (_selectedTrailerType == 'Double Axle') ...[
+              CustomTextField(
+                controller: _doubleAxleFieldController,
+                hintText: 'Enter Double Axle Specific Info',
+                enabled: true,
+              ),
+              const SizedBox(height: 15),
+            ] else if (_selectedTrailerType == 'Other') ...[
+              CustomTextField(
+                controller: _otherTrailerFieldController,
+                hintText: 'Enter Additional Trailer Info',
+                enabled: true,
+              ),
+              const SizedBox(height: 15),
+            ],
+          ] else ...[
+            // Read-only for dealers
+            Row(
+              children: [
+                const Text('Trailer Type: ',
+                    style: TextStyle(fontSize: 16, color: Colors.white)),
+                Text(_selectedTrailerType ?? '',
+                    style: const TextStyle(fontSize: 16, color: Colors.white)),
+              ],
+            ),
+            const SizedBox(height: 15),
+          ],
 
+          // Axles
           if (_isDealer)
             const Text(
-              'Number of Axels',
+              'Number of Axles',
               style: TextStyle(fontSize: 16, color: Colors.white),
               textAlign: TextAlign.start,
             ),
-          // Axles
           CustomTextField(
             controller: _axlesController,
             hintText: 'Number of Axles',
@@ -640,13 +712,13 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           ),
           const SizedBox(height: 15),
 
+          // Length
           if (_isDealer)
             const Text(
               'Length (m)',
               style: TextStyle(fontSize: 16, color: Colors.white),
               textAlign: TextAlign.start,
             ),
-          // Length
           CustomTextField(
             controller: _lengthController,
             hintText: 'Length (m)',
@@ -815,7 +887,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           ),
           const SizedBox(height: 10),
           if (!_isDealer) ...[
-            // Only show radio if not dealer
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -856,7 +927,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             ),
             const SizedBox(height: 15),
           ] else ...[
-            // Dealer => read-only text
             Text(
               'Damages: ${_damagesCondition == 'yes' ? 'Yes' : 'No'}',
               style: const TextStyle(color: Colors.white),
@@ -923,7 +993,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           if (_featuresCondition == 'yes') _buildFeaturesSection(),
 
           const SizedBox(height: 30),
-          if (!_isDealer) _buildDoneButton(), // only show button if not dealer
+          if (!_isDealer) _buildDoneButton(),
           const SizedBox(height: 30),
         ],
       ),
@@ -934,7 +1004,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   // NATIS doc display
   // -----------------------------------------------------------------------------
   Widget _buildNatisDocSection() {
-    // If dealer => they can only view
     void onTap() {
       if (_isDealer) {
         _showDocumentPreview(
@@ -944,7 +1013,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         );
         return;
       }
-      // Admin/Transporter => normal logic
       _handleNatisTap();
     }
 
@@ -1011,7 +1079,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                // View the document
                 _showDocumentPreview(
                   file: _natisDocumentFile,
                   url: _existingNatisDocumentUrl,
@@ -1073,7 +1140,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   // SERVICE HISTORY
   // -----------------------------------------------------------------------------
   Widget _buildServiceHistorySection() {
-    // If dealer => can only view
     void onTap() {
       if (_isDealer) {
         _showDocumentPreview(
@@ -1083,7 +1149,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         );
         return;
       }
-      // Admin/Transporter => normal logic
       _handleServiceHistoryTap();
     }
 
@@ -1145,7 +1210,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                // View the document
                 _showDocumentPreview(
                   file: _serviceHistoryFile,
                   url: _existingServiceHistoryUrl,
@@ -1212,7 +1276,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     String? existingUrl,
     ValueChanged<File?> onFilePicked,
   ) {
-    // If dealer => tapping the image only shows a preview
     void onTap() {
       if (_isDealer) {
         _showImagePreview(
@@ -1222,8 +1285,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         );
         return;
       }
-
-      // if Transporter/Admin => can replace/remove
       if (localFile != null || (existingUrl?.isNotEmpty ?? false)) {
         showDialog(
           context: context,
@@ -1262,7 +1323,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           ),
         );
       } else {
-        // pick new
         _showSourceDialog(
           title: label,
           pickImageOnly: true,
@@ -1331,7 +1391,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
   // ADDITIONAL IMAGES
   // -----------------------------------------------------------------------------
   Widget _buildAdditionalImagesSection() {
-    // If dealer => can't add or remove
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1345,14 +1404,12 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
           spacing: 10,
           runSpacing: 10,
           children: [
-            // existing additional images
             for (int i = 0; i < _existingAdditionalImagesUrls.length; i++)
               Stack(
                 children: [
                   InkWell(
                     onTap: () {
                       if (_isDealer) {
-                        // Show large preview
                         _showImagePreview(
                           file: null,
                           url: _existingAdditionalImagesUrls[i],
@@ -1372,7 +1429,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
                       ),
                     ),
                   ),
-                  if (!_isDealer) // remove button only if not dealer
+                  if (!_isDealer)
                     Positioned(
                       right: 0,
                       top: 0,
@@ -1390,7 +1447,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
                     ),
                 ],
               ),
-            // local new images
             for (int i = 0; i < _localAdditionalImages.length; i++)
               Stack(
                 children: [
@@ -1432,9 +1488,7 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
                     )
                 ],
               ),
-
             if (!_isDealer)
-              // add image button for admin/transporter
               GestureDetector(
                 onTap: () {
                   _showSourceDialog(
@@ -1515,7 +1569,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     final File? imageFile = item['imageFile'] as File?;
     final String? existingUrl = item['existingImageUrl'] as String?;
 
-    // If dealer => tapping only shows preview, can't remove
     void onTapImage() {
       if (_isDealer) {
         _showImagePreview(
@@ -1525,7 +1578,6 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         );
         return;
       }
-      // normal logic
       showSourceDialogForItem(item);
     }
 
@@ -1738,163 +1790,123 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
         return;
       }
 
-      // 1) Main image
-      String? finalMainImageUrl = _existingMainImageUrl;
-      if (_selectedMainImage != null) {
-        finalMainImageUrl =
-            await _uploadFile(_selectedMainImage!, 'vehicle_images');
-      }
+      // Upload files and get URLs
+      final uploadResults = await Future.wait([
+        if (_selectedMainImage != null)
+          _uploadFile(_selectedMainImage!, 'vehicle_images'),
+        if (_natisDocumentFile != null)
+          _uploadFile(_natisDocumentFile!, 'vehicle_documents'),
+        if (_serviceHistoryFile != null)
+          _uploadFile(_serviceHistoryFile!, 'vehicle_documents'),
+        if (_frontImage != null) _uploadFile(_frontImage!, 'vehicle_images'),
+        if (_sideImage != null) _uploadFile(_sideImage!, 'vehicle_images'),
+        if (_tyresImage != null) _uploadFile(_tyresImage!, 'vehicle_images'),
+        if (_chassisImage != null)
+          _uploadFile(_chassisImage!, 'vehicle_images'),
+        if (_deckImage != null) _uploadFile(_deckImage!, 'vehicle_images'),
+        if (_makersPlateImage != null)
+          _uploadFile(_makersPlateImage!, 'vehicle_images'),
+      ]);
 
-      // 2) NATIS doc
-      String? finalNatisUrl = _existingNatisDocumentUrl;
-      if (_natisDocumentFile != null) {
-        finalNatisUrl =
-            await _uploadFile(_natisDocumentFile!, 'vehicle_documents');
+      // Process additional images
+      List<Map<String, dynamic>> additionalImages = [];
+      for (String url in _existingAdditionalImagesUrls) {
+        additionalImages.add({'imageUrl': url});
       }
-
-      // 3) Service History
-      String? finalServiceUrl = _existingServiceHistoryUrl;
-      if (_serviceHistoryFile != null) {
-        finalServiceUrl =
-            await _uploadFile(_serviceHistoryFile!, 'vehicle_documents');
-      }
-
-      // 4) Single images
-      String? finalFrontImageUrl = _existingFrontImageUrl;
-      if (_frontImage != null) {
-        finalFrontImageUrl = await _uploadFile(_frontImage!, 'vehicle_images');
-      }
-
-      String? finalSideImageUrl = _existingSideImageUrl;
-      if (_sideImage != null) {
-        finalSideImageUrl = await _uploadFile(_sideImage!, 'vehicle_images');
-      }
-
-      String? finalTyresImageUrl = _existingTyresImageUrl;
-      if (_tyresImage != null) {
-        finalTyresImageUrl = await _uploadFile(_tyresImage!, 'vehicle_images');
-      }
-
-      String? finalChassisImageUrl = _existingChassisImageUrl;
-      if (_chassisImage != null) {
-        finalChassisImageUrl =
-            await _uploadFile(_chassisImage!, 'vehicle_images');
-      }
-
-      String? finalDeckImageUrl = _existingDeckImageUrl;
-      if (_deckImage != null) {
-        finalDeckImageUrl = await _uploadFile(_deckImage!, 'vehicle_images');
-      }
-
-      String? finalMakersPlateImageUrl = _existingMakersPlateImageUrl;
-      if (_makersPlateImage != null) {
-        finalMakersPlateImageUrl =
-            await _uploadFile(_makersPlateImage!, 'vehicle_images');
-      }
-
-      // 5) Additional images
-      List<String> finalAdditionalImages =
-          List.from(_existingAdditionalImagesUrls);
       for (File localImg in _localAdditionalImages) {
         final url = await _uploadFile(localImg, 'vehicle_images');
         if (url != null) {
-          finalAdditionalImages.add(url);
+          additionalImages.add({'imageUrl': url});
         }
       }
 
-      // 6) Damages
+      // Process damages
       List<Map<String, dynamic>> finalDamages = [];
-      for (var d in _damageList) {
-        String desc = d['description'] ?? '';
-        File? imageFile = d['imageFile'];
-        String? existingUrl = d['existingImageUrl'];
-        String? finalUrl = existingUrl;
-        if (imageFile != null) {
-          finalUrl = await _uploadFile(imageFile, 'damage_images');
+      for (var damage in _damageList) {
+        String? imageUrl = damage['existingImageUrl'];
+        if (damage['imageFile'] != null) {
+          imageUrl =
+              await _uploadFile(damage['imageFile'] as File, 'damage_images');
         }
-        finalDamages.add({
-          'description': desc,
-          'imageUrl': finalUrl ?? '',
-        });
+        if (damage['description']?.isNotEmpty ?? false) {
+          finalDamages.add({
+            'description': damage['description'],
+            'imageUrl': imageUrl ?? '',
+          });
+        }
       }
 
-      // 7) Features
+      // Process features
       List<Map<String, dynamic>> finalFeatures = [];
-      for (var f in _featureList) {
-        String desc = f['description'] ?? '';
-        File? imageFile = f['imageFile'];
-        String? existingUrl = f['existingImageUrl'];
-        String? finalUrl = existingUrl;
-        if (imageFile != null) {
-          finalUrl = await _uploadFile(imageFile, 'feature_images');
+      for (var feature in _featureList) {
+        String? imageUrl = feature['existingImageUrl'];
+        if (feature['imageFile'] != null) {
+          imageUrl =
+              await _uploadFile(feature['imageFile'] as File, 'feature_images');
         }
-        finalFeatures.add({
-          'description': desc,
-          'imageUrl': finalUrl ?? '',
-        });
+        if (feature['description']?.isNotEmpty ?? false) {
+          finalFeatures.add({
+            'description': feature['description'],
+            'imageUrl': imageUrl ?? '',
+          });
+        }
       }
 
-      // 8) Build doc data for Firestore
-      final docData = {
-        'referenceNumber': _referenceNumberController.text.trim(),
-        'year': _yearController.text.trim(),
-        'vinNumber': _vinNumberController.text.trim(),
-        'registrationNumber': _registrationNumberController.text.trim(),
-        'mileage': _mileageController.text.trim(),
-        'engineNumber': _engineNumberController.text.trim(),
-        'sellingPrice': _sellingPriceController.text.trim(),
-        'makeModel': _makeController.text.trim(),
-        'trailerType': _trailerTypeController.text.trim(),
-        'axles': _axlesController.text.trim(),
-        'length': _lengthController.text.trim(),
-        'warrantyDetails': _warrantyDetailsController.text.trim(),
-        'vehicleType': 'trailer',
+      // Create trailer object.
+      // Note: trailerExtraInfo is a new field; ensure your Trailer model supports it.
+      final trailer = Trailer(
+        id: _vehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        makeModel: _makeController.text,
+        year: _yearController.text,
+        trailerType: _selectedTrailerType ?? '',
+        axles: _axlesController.text,
+        length: _lengthController.text,
+        vinNumber: _vinNumberController.text,
+        registrationNumber: _registrationNumberController.text,
+        mileage: _mileageController.text,
+        engineNumber: _engineNumberController.text,
+        sellingPrice: _sellingPriceController.text,
+        warrantyDetails: _warrantyDetailsController.text,
+        referenceNumber: _referenceNumberController.text,
+        country: '', // Add these fields if needed
+        province: '', // Add these fields if needed
+        vehicleStatus: _vehicleStatus,
+        userId: widget.isAdminUpload
+            ? widget.transporterId!
+            : FirebaseAuth.instance.currentUser?.uid ?? '',
+        natisDocumentUrl: _existingNatisDocumentUrl,
+        serviceHistoryUrl: _existingServiceHistoryUrl,
+        mainImageUrl: _existingMainImageUrl,
+        frontImageUrl: _existingFrontImageUrl,
+        sideImageUrl: _existingSideImageUrl,
+        tyresImageUrl: _existingTyresImageUrl,
+        chassisImageUrl: _existingChassisImageUrl,
+        deckImageUrl: _existingDeckImageUrl,
+        makersPlateImageUrl: _existingMakersPlateImageUrl,
+        additionalImages: additionalImages,
+        damagesCondition: _damagesCondition,
+        damages: finalDamages,
+        featuresCondition: _featuresCondition,
+        features: finalFeatures,
+        createdAt: widget.trailer?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
+        // trailerExtraInfo: _selectedTrailerType == 'Superlink'
+        //     ? _superlinkFieldController.text
+        //     : _selectedTrailerType == 'Tri-Axle'
+        //         ? _triAxleFieldController.text
+        //         : _selectedTrailerType == 'Double Axle'
+        //             ? _doubleAxleFieldController.text
+        //             : _selectedTrailerType == 'Other'
+        //                 ? _otherTrailerFieldController.text
+        //                 : '',
+      );
 
-        // NATIS & Service
-        'natisDocumentUrl': finalNatisUrl ?? '',
-        'serviceHistoryUrl': finalServiceUrl ?? '',
-
-        // main image
-        'mainImageUrl': finalMainImageUrl ?? '',
-
-        // single images
-        'frontImageUrl': finalFrontImageUrl ?? '',
-        'sideImageUrl': finalSideImageUrl ?? '',
-        'tyresImageUrl': finalTyresImageUrl ?? '',
-        'chassisImageUrl': finalChassisImageUrl ?? '',
-        'deckImageUrl': finalDeckImageUrl ?? '',
-        'makersPlateImageUrl': finalMakersPlateImageUrl ?? '',
-
-        // additional
-        'additionalImages': finalAdditionalImages,
-
-        // damages/features
-        'damagesCondition': _damagesCondition,
-        'damages': finalDamages,
-        'featuresCondition': _featuresCondition,
-        'features': finalFeatures,
-
-        'vehicleStatus': _vehicleStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      // If new => create doc
+      final trailerProvider =
+          Provider.of<TrailerProvider>(context, listen: false);
       if (_vehicleId == null) {
-        final docRef =
-            await FirebaseFirestore.instance.collection('vehicles').add({
-          ...docData,
-          'createdAt': FieldValue.serverTimestamp(),
-          'userId': widget.isAdminUpload
-              ? widget.transporterId
-              : FirebaseAuth.instance.currentUser?.uid,
-        });
-        _vehicleId = docRef.id;
+        await trailerProvider.addTrailer(trailer);
       } else {
-        // Update existing
-        await FirebaseFirestore.instance
-            .collection('vehicles')
-            .doc(_vehicleId)
-            .update(docData);
+        await trailerProvider.updateTrailer(trailer);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1937,9 +1949,38 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
       );
       return false;
     }
-    if (_trailerTypeController.text.isEmpty) {
+    if (_selectedTrailerType == null || _selectedTrailerType!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the trailer type')),
+        const SnackBar(content: Text('Please select a trailer type')),
+      );
+      return false;
+    }
+    // Validate extra info based on trailer type.
+    if (_selectedTrailerType == 'Superlink' &&
+        _superlinkFieldController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter Superlink specific info')),
+      );
+      return false;
+    }
+    if (_selectedTrailerType == 'Tri-Axle' &&
+        _triAxleFieldController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter Tri-Axle specific info')),
+      );
+      return false;
+    }
+    if (_selectedTrailerType == 'Double Axle' &&
+        _doubleAxleFieldController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter Double Axle specific info')),
+      );
+      return false;
+    }
+    if (_selectedTrailerType == 'Other' &&
+        _otherTrailerFieldController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter additional trailer info')),
       );
       return false;
     }
@@ -2018,14 +2059,12 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
               onTap: () async {
                 Navigator.pop(context);
                 if (pickImageOnly) {
-                  // images only
                   final pickedFile = await ImagePicker()
                       .pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     callback(File(pickedFile.path));
                   }
                 } else {
-                  // any file
                   final result = await FilePicker.platform.pickFiles(
                     type: FileType.any,
                   );

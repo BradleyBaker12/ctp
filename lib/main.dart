@@ -41,6 +41,7 @@ import 'package:ctp/pages/wish_list_page.dart';
 import 'package:ctp/providers/complaints_provider.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/trailer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/truck_conditions_provider.dart';
@@ -85,6 +86,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => TrailerProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProxyProvider<UserProvider, VehicleProvider>(
           create: (_) => VehicleProvider(),

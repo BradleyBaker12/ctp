@@ -11,6 +11,8 @@ import 'package:ctp/pages/truckForms/truck_condition_section.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/pages/home_page.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // Add this import
+import 'package:ctp/components/truck_info_web_nav.dart'; // Add this import
 
 class MaintenanceWarrantyScreen extends StatefulWidget {
   final String vehicleId;
@@ -77,6 +79,9 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
   late MaintenanceSection _maintenanceSection;
   late AdminSection _adminSection;
   late TruckConditionSection _truckConditionSection;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+      GlobalKey<ScaffoldState>(); // Add this
 
   @override
   void initState() {
@@ -575,6 +580,10 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     bool isTruckConditionTab =
         _tabTitles[_selectedTabIndex] == 'TRUCK CONDITION';
 
+    final isWeb = kIsWeb;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final useWebLayout = isWeb && screenWidth > 600;
+
     // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () {
@@ -590,71 +599,127 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
         return Stack(
           children: [
             Scaffold(
+              key: _scaffoldKey,
               body: GradientBackground(
                 child: Column(
                   children: [
-                    // Custom AppBar
-                    Container(
-                      color: AppColors.blue,
-                      padding: EdgeInsets.only(
-                        top: MediaQuery.of(context).padding.top,
-                        left: 10,
-                        right: 10,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                    if (useWebLayout)
+                      // Web navigation bar
+                      TruckInfoWebNavBar(
+                        onHomePressed: () => Navigator.pop(context),
+                        onBasicInfoPressed: () =>
+                            Navigator.pushReplacementNamed(
+                          context,
+                          '/basic_information',
+                          arguments: widget.vehicleId,
+                        ),
+                        onTruckConditionsPressed: () =>
+                            Navigator.pushReplacementNamed(
+                          context,
+                          '/external_cab',
+                          arguments: widget.vehicleId,
+                        ),
+                        onMaintenanceWarrantyPressed: () {},
+                        scaffoldKey: _scaffoldKey,
+                        onExternalCabPressed: () =>
+                            Navigator.pushReplacementNamed(
+                          context,
+                          '/external_cab',
+                          arguments: widget.vehicleId,
+                        ),
+                        onInternalCabPressed: () =>
+                            Navigator.pushReplacementNamed(
+                          context,
+                          '/internal_cab',
+                          arguments: widget.vehicleId,
+                        ),
+                        onChassisPressed: () => Navigator.pushReplacementNamed(
+                          context,
+                          '/chassis',
+                          arguments: widget.vehicleId,
+                        ),
+                        onDriveTrainPressed: () =>
+                            Navigator.pushReplacementNamed(
+                          context,
+                          '/drive_train',
+                          arguments: widget.vehicleId,
+                        ),
+                        onTyresPressed: () => Navigator.pushReplacementNamed(
+                          context,
+                          '/tyres',
+                          arguments: widget.vehicleId,
+                        ),
+                        vehicleId: widget.vehicleId,
+                        selectedTab: 'Maintenance and Warranty',
+                      )
+                    else
+                      Column(
                         children: [
-                          Text(
-                            "Ref#: ${widget.vehicleRef}",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Text(
-                              "Make/Model: ${widget.makeModel}",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
+                          // Original header
                           Container(
-                            width: 50,
-                            height: 50,
-                            margin: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              image: DecorationImage(
-                                image: NetworkImage(widget.mainImageUrl),
-                                fit: BoxFit.cover,
-                                onError: (error, stackTrace) {
-                                  print('Error loading image: $error');
-                                },
-                              ),
+                            color: AppColors.blue,
+                            padding: EdgeInsets.only(
+                              top: MediaQuery.of(context).padding.top,
+                              left: 10,
+                              right: 10,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                  "Ref#: ${widget.vehicleRef}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: Text(
+                                    "Make/Model: ${widget.makeModel}",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  margin: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    image: DecorationImage(
+                                      image: NetworkImage(widget.mainImageUrl),
+                                      fit: BoxFit.cover,
+                                      onError: (error, stackTrace) {
+                                        print('Error loading image: $error');
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 16),
+
+                          // Only show tab buttons in mobile layout
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 10.0),
+                            child: Row(
+                              children:
+                                  List.generate(_tabTitles.length, (index) {
+                                return _buildCustomTabButton(
+                                    _tabTitles[index], index);
+                              }),
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-
-                    // Modified tab buttons section
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 10.0),
-                      child: Row(
-                        children: List.generate(_tabTitles.length, (index) {
-                          return _buildCustomTabButton(
-                              _tabTitles[index], index);
-                        }),
-                      ),
-                    ),
 
                     // Rest of the existing content
                     Expanded(
@@ -670,7 +735,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                           horizontal: 16.0, vertical: 10.0),
                       child: Row(
                         children: [
-                          if (!isTruckConditionTab) ...[
+                          if (!useWebLayout && !isTruckConditionTab) ...[
                             Expanded(
                               child: CustomButton(
                                 text: 'Continue',
@@ -678,7 +743,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                                     _selectedTabIndex < _tabContents.length - 1
                                         ? _onContinuePressed
                                         : null,
-                                borderColor: AppColors.blue,
+                                borderColor: AppColors.orange,
                               ),
                             ),
                             const SizedBox(width: 16.0),
@@ -687,7 +752,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                             child: CustomButton(
                               text: 'Done',
                               onPressed: _onDonePressed,
-                              borderColor: AppColors.green,
+                              borderColor: AppColors.blue,
                             ),
                           ),
                         ],

@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/models/trailer_types/superlink.dart';
+import 'package:ctp/models/trailer_types/tri_axle.dart';
 
 class Trailer {
   final String id;
@@ -22,32 +24,35 @@ class Trailer {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  // URLs for documents
+  // Documents
   final String? natisDocumentUrl;
   final String? serviceHistoryUrl;
 
-  // URLs for images
+  // Main Image
   final String? mainImageUrl;
+
+  // Add these image URL fields
   final String? frontImageUrl;
   final String? sideImageUrl;
   final String? tyresImageUrl;
   final String? chassisImageUrl;
   final String? deckImageUrl;
   final String? makersPlateImageUrl;
-
-  // Lists for additional data
   final List<Map<String, dynamic>> additionalImages;
-  final String damagesCondition;
-  final List<Map<String, dynamic>> damages;
-  final String featuresCondition;
-  final List<Map<String, dynamic>> features;
-  final List<String> brands;
 
-  final String vehicleType;
+  // Type-specific data
+  final SuperlinkTrailer? superlinkData;
+  final TriAxleTrailer? triAxleData;
+
+  // Additional Features and Damages
+  final List<Map<String, dynamic>> damages;
+  final String damagesCondition;
+  final List<Map<String, dynamic>> features;
+  final String featuresCondition;
+  final List<String> brands;
 
   Trailer({
     required this.id,
-    this.vehicleType = 'trailer', // Always "trailer" for this class
     required this.makeModel,
     required this.year,
     required this.trailerType,
@@ -77,17 +82,29 @@ class Trailer {
     this.deckImageUrl,
     this.makersPlateImageUrl,
     this.additionalImages = const [],
-    this.damagesCondition = 'no',
+    this.superlinkData,
+    this.triAxleData,
     this.damages = const [],
-    this.featuresCondition = 'no',
+    this.damagesCondition = 'no',
     this.features = const [],
+    this.featuresCondition = 'no',
     this.brands = const [],
   });
 
   factory Trailer.fromFirestore(String docId, Map<String, dynamic> data) {
+    // Parse type-specific data based on trailer type
+    final typeSpecificData = data['trailerExtraInfo'] as Map<String, dynamic>?;
+    SuperlinkTrailer? superlinkData;
+    TriAxleTrailer? triAxleData;
+
+    if (data['trailerType'] == 'Superlink' && typeSpecificData != null) {
+      superlinkData = SuperlinkTrailer.fromJson(typeSpecificData);
+    } else if (data['trailerType'] == 'Tri-Axle' && typeSpecificData != null) {
+      triAxleData = TriAxleTrailer.fromJson(typeSpecificData);
+    }
+
     return Trailer(
       id: docId,
-      vehicleType: data['vehicleType'] ?? 'trailer',
       makeModel: data['makeModel'] ?? '',
       year: data['year'] ?? '',
       trailerType: data['trailerType'] ?? '',
@@ -118,17 +135,21 @@ class Trailer {
       makersPlateImageUrl: data['makersPlateImageUrl'],
       additionalImages:
           List<Map<String, dynamic>>.from(data['additionalImages'] ?? []),
-      damagesCondition: data['damagesCondition'] ?? 'no',
+      superlinkData: superlinkData,
+      triAxleData: triAxleData,
       damages: List<Map<String, dynamic>>.from(data['damages'] ?? []),
-      featuresCondition: data['featuresCondition'] ?? 'no',
+      damagesCondition: data['damagesCondition'] ?? 'no',
       features: List<Map<String, dynamic>>.from(data['features'] ?? []),
+      featuresCondition: data['featuresCondition'] ?? 'no',
       brands: List<String>.from(data['brands'] ?? []),
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'vehicleType': vehicleType,
+  // Rename toJson to toMap for compatibility
+  Map<String, dynamic> toMap() => toJson();
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {
       'makeModel': makeModel,
       'year': year,
       'trailerType': trailerType,
@@ -158,11 +179,20 @@ class Trailer {
       'deckImageUrl': deckImageUrl,
       'makersPlateImageUrl': makersPlateImageUrl,
       'additionalImages': additionalImages,
-      'damagesCondition': damagesCondition,
       'damages': damages,
-      'featuresCondition': featuresCondition,
+      'damagesCondition': damagesCondition,
       'features': features,
+      'featuresCondition': featuresCondition,
       'brands': brands,
     };
+
+    // Add type-specific data
+    if (trailerType == 'Superlink' && superlinkData != null) {
+      data['trailerExtraInfo'] = superlinkData!.toJson();
+    } else if (trailerType == 'Tri-Axle' && triAxleData != null) {
+      data['trailerExtraInfo'] = triAxleData!.toJson();
+    }
+
+    return data;
   }
 }

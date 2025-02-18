@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ctp/components/truck_info_web_nav.dart';
 import 'external_cab_page.dart';
 import 'internal_cab_page.dart';
 import 'drive_train_page.dart';
@@ -387,6 +389,10 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
   // Modified build method to include a save button
   @override
   Widget build(BuildContext context) {
+    final isWeb = kIsWeb;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final useWebLayout = isWeb && screenWidth > 600;
+
     return WillPopScope(
       onWillPop: () async {
         if (!_isNavigatingHome && _modifiedSections.values.contains(true)) {
@@ -421,64 +427,85 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
           child: SafeArea(
             child: Column(
               children: [
-                // Header with vehicle info
-                Container(
-                  color: AppColors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                if (useWebLayout)
+                  // Web navigation bar
+                  TruckInfoWebNavBar(
+                    onHomePressed: () => Navigator.pop(context),
+                    onBasicInfoPressed: () {},
+                    onTruckConditionsPressed: () {},
+                    onMaintenanceWarrantyPressed: () {},
+                    scaffoldKey: GlobalKey<ScaffoldState>(),
+                    onExternalCabPressed: () => _handleTabChange(0),
+                    onInternalCabPressed: () => _handleTabChange(1),
+                    onChassisPressed: () => _handleTabChange(3),
+                    onDriveTrainPressed: () => _handleTabChange(2),
+                    onTyresPressed: () => _handleTabChange(4),
+                    vehicleId: widget.vehicleId,
+                    selectedTab: _getCurrentTabName(),
+                  )
+                else
+                  Column(
                     children: [
-                      Text(
-                        "Ref#: $_vehicleRef",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        "Make/Model: $_makeModel",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      if (widget.mainImageUrl != null)
-                        Container(
-                          width: 50,
-                          height: 50,
-                          margin: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            image: DecorationImage(
-                              image: NetworkImage(widget.mainImageUrl!),
-                              fit: BoxFit.cover,
+                      // Original header with vehicle info
+                      Container(
+                        color: AppColors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              "Ref#: $_vehicleRef",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 16),
+                            Text(
+                              "Make/Model: $_makeModel",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            if (widget.mainImageUrl != null)
+                              Container(
+                                width: 50,
+                                height: 50,
+                                margin: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  image: DecorationImage(
+                                    image: NetworkImage(widget.mainImageUrl!),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 16),
+                          ],
                         ),
-                      const SizedBox(width: 16),
+                      ),
+                      // Original tab buttons
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 10.0),
+                        child: Row(
+                          children: [
+                            _buildCustomTabButton('BACK', -1,
+                                isBackButton: true),
+                            _buildCustomTabButton('External Cab', 0),
+                            _buildCustomTabButton('Internal Cab', 1),
+                            _buildCustomTabButton('Drive Train', 2),
+                            _buildCustomTabButton('Chassis', 3),
+                            _buildCustomTabButton('Tyres', 4),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ),
 
-                // Tab buttons
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  child: Row(
-                    children: [
-                      _buildCustomTabButton('BACK', -1, isBackButton: true),
-                      _buildCustomTabButton('External Cab', 0),
-                      _buildCustomTabButton('Internal Cab', 1),
-                      _buildCustomTabButton('Drive Train', 2),
-                      _buildCustomTabButton('Chassis', 3),
-                      _buildCustomTabButton('Tyres', 4),
-                    ],
-                  ),
-                ),
-
-                // Content area with constrained width
+                // Rest of the content remains the same
                 Expanded(
                   child: Center(
                     child: LayoutBuilder(
@@ -541,7 +568,7 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
                                         text: 'Continue',
                                         onPressed:
                                             _isSaving ? null : _handleContinue,
-                                        borderColor: AppColors.blue,
+                                        borderColor: AppColors.orange,
                                       ),
                                     ),
                                   if (_selectedTabIndex < 4)
@@ -550,7 +577,7 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
                                     child: CustomButton(
                                       text: 'Done',
                                       onPressed: _isSaving ? null : _handleDone,
-                                      borderColor: AppColors.green,
+                                      borderColor: AppColors.blue,
                                     ),
                                   ),
                                 ],
@@ -723,6 +750,24 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
         return 4; // Adjust as necessary for other configurations
       default:
         return 4; // Default value if no valid config is selected
+    }
+  }
+
+  // Add helper method to get current tab name
+  String _getCurrentTabName() {
+    switch (_selectedTabIndex) {
+      case 0:
+        return 'External Cab';
+      case 1:
+        return 'Internal Cab';
+      case 2:
+        return 'Drive Train';
+      case 3:
+        return 'Chassis';
+      case 4:
+        return 'Tyres';
+      default:
+        return '';
     }
   }
 }
