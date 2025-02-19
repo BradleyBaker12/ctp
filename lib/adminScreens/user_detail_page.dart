@@ -68,6 +68,16 @@ class _UserDetailPageState extends State<UserDetailPage> {
     'inactive',
   ];
 
+  // Add loading state variables
+  Map<String, bool> _isUploading = {
+    'bankConfirmationUrl': false,
+    'proxyUrl': false,
+    'brncUrl': false,
+    'cipcCertificateUrl': false,
+    'profileImage': false,
+    'taxCertificateUrl': false,
+  };
+
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -161,8 +171,15 @@ class _UserDetailPageState extends State<UserDetailPage> {
           'registrationNumber': _registrationNumberController.text,
           'userRole': _userRole,
           'vatNumber': _vatNumberController.text,
-          'assignedSalesRep': _selectedSalesRep,
         };
+
+        // Only include assignedSalesRep if user is a dealer or transporter
+        if (_userRole == 'dealer' || _userRole == 'transporter') {
+          updateData['assignedSalesRep'] = _selectedSalesRep;
+        } else {
+          // Remove assignedSalesRep field for admin and sales rep roles
+          updateData['assignedSalesRep'] = null;
+        }
 
         if (profileImageUrl != null) {
           updateData['profileImageUrl'] = profileImageUrl;
@@ -201,8 +218,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
   }
 
   /// Helper method to upload a document file.
-  Future<String> _uploadDocument(Uint8List file, String fieldName) async {
-    String extension = fieldName.split('.').last;
+  Future<String> _uploadDocument(
+      Uint8List file, String fieldName, String originalFileName) async {
+    String extension = originalFileName.split('.').last.toLowerCase();
     String fileName =
         'documents/${widget.userId}_${fieldName}_${DateTime.now().millisecondsSinceEpoch}.$extension';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
@@ -234,30 +252,39 @@ class _UserDetailPageState extends State<UserDetailPage> {
           'xlsx'
         ],
       );
-      if (result != null) {
-        final bytes = result.files.first.bytes;
-        final fileName = result.files.first.name;
-        String docUrl = await _uploadDocument(bytes!, fieldName);
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .update({fieldName: docUrl});
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$fieldName updated successfully.',
-                style: GoogleFonts.montserrat()),
-          ),
-        );
-      }
       if (result != null) {
+        setState(() {
+          _isUploading[fieldName] = true;
+        });
+
         final bytes = result.files.first.bytes;
         final fileName = result.files.first.name;
-        String docUrl = await _uploadDocument(bytes!, fieldName);
+        String docUrl = await _uploadDocument(
+            bytes!, fieldName, fileName); // Pass original filename
+
+        // Create document metadata
+        Map<String, dynamic> documentData = {
+          '${fieldName}': docUrl,
+          '${fieldName}Meta': {
+            'fileName': fileName,
+            'uploadDate': FieldValue.serverTimestamp(),
+            'uploadedBy':
+                Provider.of<UserProvider>(context, listen: false).userId,
+            'fileType': fileName.split('.').last.toLowerCase(),
+          }
+        };
+
+        // Update Firestore with both URL and metadata
         await FirebaseFirestore.instance
             .collection('users')
             .doc(widget.userId)
-            .update({fieldName: docUrl});
+            .update(documentData);
+
+        // Force rebuild of the widget
+        setState(() {
+          _isUploading[fieldName] = false;
+        });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -267,6 +294,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
         );
       }
     } catch (e) {
+      setState(() {
+        _isUploading[fieldName] = false;
+      });
       print('Error uploading document: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -278,12 +308,11 @@ class _UserDetailPageState extends State<UserDetailPage> {
     }
   }
 
-  /// Helper method to fetch Sales Representatives from Firestore.
+  /// Helper method to fetch Sales Representatives and Admins from Firestore.
   Future<QuerySnapshot> _fetchSalesReps() {
     return FirebaseFirestore.instance
         .collection('users')
-        .where('userRole', isEqualTo: 'sales representative')
-        .get();
+        .where('userRole', whereIn: ['sales representative', 'admin']).get();
   }
 
   @override
@@ -667,7 +696,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                   if (!snapshot.hasData ||
                                       snapshot.data!.docs.isEmpty) {
                                     return Text(
-                                      'No sales representatives found.',
+                                      'No representatives or admins found.',
                                       style: GoogleFonts.montserrat(
                                           color: Colors.white),
                                     );
@@ -681,6 +710,12 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                     if (repData['lastName'] != null) {
                                       repName += ' ${repData['lastName']}';
                                     }
+                                    // Add role indicator in brackets
+                                    String role = repData['userRole'] == 'admin'
+                                        ? 'Admin'
+                                        : 'Sales Rep';
+                                    repName += ' ($role)';
+
                                     return DropdownMenuItem<String>(
                                       value: doc.id,
                                       child: Text(repName,
@@ -698,14 +733,13 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                                   item.value ==
                                                   _selectedSalesRep)
                                           ? _selectedSalesRep
-                                          : salesRepItems.isNotEmpty
-                                              ? salesRepItems.first.value
-                                              : null,
+                                          : null,
                                       dropdownColor: Colors.grey[800],
                                       style: GoogleFonts.montserrat(
                                           color: Colors.white),
                                       decoration: InputDecoration(
-                                        labelText: 'Assign Sales Rep',
+                                        labelText:
+                                            'Assign Representative/Admin',
                                         labelStyle: GoogleFonts.montserrat(
                                             color: Colors.white),
                                         filled: true,
@@ -724,7 +758,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                         if ((_userRole == 'transporter' ||
                                                 _userRole == 'dealer') &&
                                             (value == null || value.isEmpty)) {
-                                          return 'Please select a sales representative';
+                                          return 'Please select a representative or admin';
                                         }
                                         return null;
                                       },
@@ -760,6 +794,10 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                     'CIPC Certificate',
                                     data['cipcCertificateUrl'],
                                     'cipcCertificateUrl'),
+                                _buildDocumentTile(
+                                    'Tax Certificate',
+                                    data['taxCertificateUrl'],
+                                    'taxCertificateUrl'),
                               ],
                             ),
                             CustomButton(
@@ -820,7 +858,16 @@ class _UserDetailPageState extends State<UserDetailPage> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (url != null && url.isNotEmpty)
+            if (_isUploading[fieldName] == true)
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                  strokeWidth: 2,
+                ),
+              )
+            else if (url != null && url.isNotEmpty)
               IconButton(
                 icon: Icon(Icons.visibility, color: Colors.blue),
                 onPressed: () => _viewDocument(url, documentName),
@@ -828,7 +875,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
             else
               Text('Not uploaded',
                   style: GoogleFonts.montserrat(color: Colors.redAccent)),
-            if (isAdmin)
+            if (isAdmin && !_isUploading[fieldName]!)
               IconButton(
                 icon: Icon(Icons.upload_file, color: Colors.white),
                 onPressed: () => _pickAndUploadDocument(fieldName),

@@ -46,7 +46,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.commericaltradersportal.ctp"
+    namespace = "com.ctpapp.ctp"
     compileSdkVersion 35
     ndkVersion = "27.0.12077973"
 
@@ -60,7 +60,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.commericaltradersportal.ctp"
+        applicationId "com.ctpapp.ctp"
         minSdkVersion 23
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()

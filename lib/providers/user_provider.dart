@@ -23,6 +23,9 @@ class UserProvider extends ChangeNotifier {
   // Add verification field
   bool _isVerified = false;
 
+  // Add this line with the other field declarations
+  String? _taxCertificateUrl;
+
   // Add getter
   bool get isVerified => _isVerified;
 
@@ -344,6 +347,7 @@ class UserProvider extends ChangeNotifier {
           }
 
           _isVerified = data['isVerified'] ?? false;
+          _taxCertificateUrl = data['taxCertificateUrl'];
 
           _isLoading = false;
           await checkForNotifications();
@@ -487,6 +491,7 @@ class UserProvider extends ChangeNotifier {
     _proxyUrl = null;
     _createdAt = null;
     _adminApproval = null;
+    _taxCertificateUrl = null;
     _isLoading = false;
     notifyListeners();
   }
@@ -963,6 +968,9 @@ class UserProvider extends ChangeNotifier {
   int getUserCount() {
     return _dealers.length;
   }
+
+  // Add getter
+  String? get getTaxCertificateUrl => _taxCertificateUrl;
 }
 
 class Dealer {

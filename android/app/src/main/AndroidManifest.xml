@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.commericaltradersportal.ctp">
+    package="com.ctpapp.ctp">
 
     <!-- Camera permission for taking photos -->
     <uses-permission android:name="android.permission.CAMERA"/>

@@ -73,6 +73,9 @@ class _DealerRegPageState extends State<DealerRegPage> {
   String? _cipcCertificateFileName;
   String? _proxyFileName;
   String? _brncFileName;
+  String? _taxCertificateFile;
+  Uint8List? _taxCertificateByte;
+  String? _taxCertificateFileName;
 
   @override
   void initState() {
@@ -124,6 +127,9 @@ class _DealerRegPageState extends State<DealerRegPage> {
           } else if (fieldName == 'brnc') {
             _brncByte = bytes;
             _brncFileName = result.files.single.name;
+          } else if (fieldName == 'taxCertificate') {
+            _taxCertificateByte = bytes;
+            _taxCertificateFileName = result.files.single.name;
           }
         });
       }
@@ -174,7 +180,9 @@ class _DealerRegPageState extends State<DealerRegPage> {
                     ? _proxyByte
                     : documentType == 'brnc'
                         ? _brncByte
-                        : null;
+                        : documentType == 'taxCertificate'
+                            ? _taxCertificateByte
+                            : null;
 
         if (bytes == null) return null;
 
@@ -191,7 +199,9 @@ class _DealerRegPageState extends State<DealerRegPage> {
                     ? _proxyFile
                     : documentType == 'brnc'
                         ? _brncFile
-                        : null;
+                        : documentType == 'taxCertificate'
+                            ? _taxCertificateFile
+                            : null;
 
         if (filePath == null) return null;
 
@@ -237,7 +247,8 @@ class _DealerRegPageState extends State<DealerRegPage> {
         'bankConfirmation': _bankConfirmationByte ?? _bankConfirmationFile,
         'cipcCertificate': _cipcCertificateByte ?? _cipcCertificateFile,
         'proxy': _proxyByte ?? _proxyFile,
-        'brnc': _brncByte ?? _brncFile
+        'brnc': _brncByte ?? _brncFile,
+        'taxCertificate': _taxCertificateByte ?? _taxCertificateFile
       };
 
       // Add document URLs to dealer data
@@ -475,6 +486,15 @@ class _DealerRegPageState extends State<DealerRegPage> {
                                 ),
                                 const SizedBox(height: 5),
                                 _buildUploadButton('brnc', _brncFile),
+                                const SizedBox(height: 15),
+                                Text(
+                                  'Tax Certificate *',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                ),
+                                const SizedBox(height: 5),
+                                _buildUploadButton(
+                                    'taxCertificate', _taxCertificateFile),
                                 const SizedBox(height: 30),
                                 Center(
                                   child: CustomButton(
@@ -625,20 +645,28 @@ class _DealerRegPageState extends State<DealerRegPage> {
     bool isOptional = false,
     var orange = const Color(0xFFFF4E00),
     String? Function(String?)? validator,
-    List<TextInputFormatter>?
-        inputFormatters, // Add this parameter for custom input formatters
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       focusNode: focusNode,
       cursorColor: orange,
+      // Add these properties to better handle text input
+      textInputAction: TextInputAction.next,
+      textCapitalization: TextCapitalization.words,
+      // Ensure spaces are preserved
+      keyboardType: TextInputType.text,
       decoration: InputDecoration(
         errorMaxLines: 3,
         hintText: hintText,
-        hintStyle: GoogleFonts.montserrat(color: Colors.white70),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        hintStyle: GoogleFonts.montserrat(
+          color: Colors.white70,
+          fontSize: 14,
+        ),
         filled: true,
-        fillColor:
-            Colors.grey.withOpacity(0.2), // Set the background to a grey color
+        fillColor: Colors.grey.withOpacity(0.2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(4.0),
           borderSide:
@@ -653,8 +681,19 @@ class _DealerRegPageState extends State<DealerRegPage> {
           borderRadius: BorderRadius.circular(10.0),
           borderSide: const BorderSide(color: Color(0xFFFF4E00), width: 2),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
+        ),
       ),
-      style: GoogleFonts.montserrat(color: Colors.white),
+      style: GoogleFonts.montserrat(
+        color: Colors.white,
+        fontSize: 14,
+      ),
       validator: (value) {
         if (validator != null) {
           final validationError = validator(value);
@@ -663,13 +702,17 @@ class _DealerRegPageState extends State<DealerRegPage> {
             return validationError;
           }
         }
-        if (!isOptional && (value == null || value.isEmpty)) {
+        if (!isOptional && (value == null || value.trim().isEmpty)) {
           _scrollToFocusNode(focusNode);
           return 'Please enter $hintText';
         }
         return null;
       },
-      inputFormatters: inputFormatters, // Apply input formatters
+      inputFormatters: inputFormatters ??
+          [
+            // Allow spaces but trim multiple spaces to single
+            FilteringTextInputFormatter.deny(RegExp(r'\s\s+')),
+          ],
     );
   }
 
@@ -694,6 +737,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
       case 'brnc':
         displayFileName = _brncFileName;
         fileBytes = _brncByte;
+        break;
+      case 'taxCertificate':
+        displayFileName = _taxCertificateFileName;
+        fileBytes = _taxCertificateByte;
         break;
     }
 
@@ -772,6 +819,10 @@ class _DealerRegPageState extends State<DealerRegPage> {
                     case 'brnc':
                       _brncFileName = null;
                       _brncByte = null;
+                      break;
+                    case 'taxCertificate':
+                      _taxCertificateFileName = null;
+                      _taxCertificateByte = null;
                       break;
                   }
                 });

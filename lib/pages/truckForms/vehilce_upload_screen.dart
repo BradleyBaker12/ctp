@@ -1,5 +1,5 @@
 import 'dart:convert'; // For JSON decoding
-import 'dart:ui_web';
+import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/services.dart'; // For loading assets
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,6 +19,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
 import 'dart:io' as io;
 import 'dart:html' as html;
+import 'dart:ui_web';
 
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
@@ -731,15 +732,16 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (kIsWeb ? html.window.navigator.mediaDevices != null : true)
-                  ListTile(
-                    leading: const Icon(Icons.camera_alt),
-                    title: const Text('Take Photo'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.camera);
-                    },
-                  ),
+                // Comment out web camera check
+                /* if (kIsWeb ? html.window.navigator.mediaDevices != null : true) */
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Take Photo'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.photo_library),
                   title: const Text('Choose from Gallery'),
@@ -1715,7 +1717,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       if (kIsWeb) {
         bool cameraAvailable = false;
         try {
-          cameraAvailable = html.window.navigator.mediaDevices != null;
+          // cameraAvailable = html.window.navigator.mediaDevices != null;
         } catch (e) {
           cameraAvailable = false;
         }
@@ -2016,52 +2018,63 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         (int viewId) => videoElement,
       );
 
-      // Rest of the web camera implementation...
-      // ...existing code...
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: isWebPlatform
+                  ? HtmlElementView(viewType: 'webcamVideo')
+                  : const Center(child: Text('Camera not available')),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(imageBytes, 'captured.png');
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
     } catch (e) {
       debugPrint('Error in web photo capture: $e');
       callback(null, '');
     }
   }
-}
 
-// UpperCaseTextFormatter remains the same
-class UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    return TextEditingValue(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
-    );
-  }
-}
+  bool get isWebPlatform => kIsWeb;
 
-class ThousandsSeparatorInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    if (newValue.text.isEmpty) {
-      return newValue;
+  dynamic getWebWindow() {
+    if (isWebPlatform) {
+      try {
+        return html.window;
+      } catch (e) {
+        return null;
+      }
     }
-    final String cleanText = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-    final String formatted = NumberFormat('####').format(int.parse(cleanText));
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
+    return null;
   }
-}
-
-bool get isWebPlatform => kIsWeb;
-
-dynamic getWebWindow() {
-  if (isWebPlatform) {
-    try {
-      return html.window;
-    } catch (e) {
-      return null;
-    }
-  }
-  return null;
 }

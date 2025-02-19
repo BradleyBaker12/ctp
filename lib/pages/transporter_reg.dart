@@ -74,6 +74,9 @@ class _TransporterRegistrationPageState
   String? _bankConfirmationFileName;
   String? _proxyFileName;
   String? _brncFileName;
+  String? _taxCertificateFile;
+  Uint8List? _taxCertificateByte;
+  String? _taxCertificateFileName;
 
   @override
   void initState() {
@@ -118,6 +121,9 @@ class _TransporterRegistrationPageState
           } else if (fieldName == 'brnc') {
             _brncByte = bytes;
             _brncFileName = result.files.single.name;
+          } else if (fieldName == 'taxCertificate') {
+            _taxCertificateByte = bytes;
+            _taxCertificateFileName = result.files.single.name;
           }
         });
       }
@@ -205,8 +211,8 @@ class _TransporterRegistrationPageState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Registration completed successfully!')),
       );
-      Navigator.pushReplacementNamed(
-          context, '/waitingApproval'); // Navigate to the first truck upload form page
+      Navigator.pushReplacementNamed(context,
+          '/waitingApproval'); // Navigate to the first truck upload form page
     } catch (e) {
       print("Error submitting form: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -424,7 +430,16 @@ class _TransporterRegistrationPageState
                                 ),
                                 const SizedBox(height: 5),
                                 _buildUploadButton('brnc', _brncFile),
-                                const SizedBox(height: 30),
+                                const SizedBox(height: 15),
+                                Text(
+                                  'Tax Certificate *',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                ),
+                                const SizedBox(height: 5),
+                                _buildUploadButton(
+                                    'taxCertificate', _taxCertificateFile),
+                                const SizedBox(height: 15),
                                 Center(
                                   child: CustomButton(
                                     text:
@@ -639,6 +654,10 @@ class _TransporterRegistrationPageState
         displayFileName = _brncFileName;
         fileBytes = _brncByte;
         break;
+      case 'taxCertificate':
+        displayFileName = _taxCertificateFileName;
+        fileBytes = _taxCertificateByte;
+        break;
     }
 
     return Stack(
@@ -711,6 +730,10 @@ class _TransporterRegistrationPageState
                     case 'brnc':
                       _brncFileName = null;
                       _brncByte = null;
+                      break;
+                    case 'taxCertificate':
+                      _taxCertificateFileName = null;
+                      _taxCertificateByte = null;
                       break;
                   }
                 });
