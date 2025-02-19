@@ -205,107 +205,96 @@ class _SignInPageState extends State<SignInPage> {
     var orange = const Color(0xFFFF4E00);
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Gradient background should be the first widget in the Stack
           GradientBackground(
             child: Container(),
           ),
           Scaffold(
             appBar: const BlurryAppBar(),
-            backgroundColor: Colors.transparent, // Make scaffold transparent
-            body: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Container(
-                      width: screenSize.width,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenSize.width * 0.05,
-                        vertical: screenSize.height * 0.02,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            children: [
-                              SizedBox(height: screenSize.height * 0.05),
-                              Text(
-                                'WELCOME BACK TO',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: screenSize.height * 0.03,
-                                  fontWeight: FontWeight.w900,
-                                  color: orange,
-                                ),
-                              ),
-                              SizedBox(height: screenSize.height * 0.08),
-                              Image.asset(
-                                'lib/assets/CTPLogo.png',
-                                height: screenSize.height * 0.15,
-                              ),
-                              SizedBox(height: screenSize.height * 0.08),
-                              Text(
-                                'SIGN IN',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(height: screenSize.height * 0.08),
-                              CustomTextField(
-                                hintText: 'EMAIL',
-                                controller: _emailController,
-                              ),
-                              SizedBox(height: screenSize.height * 0.02),
-                              CustomTextField(
-                                hintText: 'PASSWORD',
-                                obscureText: !_passwordVisible,
-                                controller: _passwordController,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _passwordVisible
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _passwordVisible = !_passwordVisible;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: screenSize.height * 0.03),
-                          TextButton(
-                            onPressed: _resetPassword,
-                            child: Text(
-                              'Forgot Password?',
-                              style: GoogleFonts.montserrat(
-                                color: Colors.white,
-                                fontSize: screenSize.height * 0.016,
-                                fontWeight: FontWeight.w500,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.03),
-                          CustomButton(
-                            text: 'SIGN IN',
-                            borderColor: const Color(0xFF2F7FFF),
-                            onPressed: _signIn,
-                          ),
-                          SizedBox(height: screenSize.height * 0.02),
-                        ],
+            backgroundColor: Colors.transparent,
+            body: SingleChildScrollView(
+              child: Container(
+                width: screenSize.width,
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenSize.width * 0.05,
+                  vertical: screenSize.height * 0.02,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(height: screenSize.height * 0.05),
+                    Text(
+                      'WELCOME BACK TO',
+                      style: GoogleFonts.montserrat(
+                        fontSize: screenSize.height * 0.03,
+                        fontWeight: FontWeight.w900,
+                        color: orange,
                       ),
                     ),
-                  ),
+                    SizedBox(height: screenSize.height * 0.08),
+                    Image.asset(
+                      'lib/assets/CTPLogo.png',
+                      height: screenSize.height * 0.15,
+                    ),
+                    SizedBox(height: screenSize.height * 0.08),
+                    Text(
+                      'SIGN IN',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: screenSize.height * 0.08),
+                    CustomTextField(
+                      hintText: 'EMAIL',
+                      controller: _emailController,
+                    ),
+                    SizedBox(height: screenSize.height * 0.02),
+                    CustomTextField(
+                      hintText: 'PASSWORD',
+                      obscureText: !_passwordVisible,
+                      controller: _passwordController,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _passwordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _passwordVisible = !_passwordVisible;
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(height: screenSize.height * 0.03),
+                    TextButton(
+                      onPressed: _resetPassword,
+                      child: Text(
+                        'Forgot Password?',
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white,
+                          fontSize: screenSize.height * 0.016,
+                          fontWeight: FontWeight.w500,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: screenSize.height * 0.03),
+                    CustomButton(
+                      text: 'SIGN IN',
+                      borderColor: const Color(0xFF2F7FFF),
+                      onPressed: _signIn,
+                    ),
+                    SizedBox(height: screenSize.height * 0.02),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           if (_isLoading)

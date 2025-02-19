@@ -17,7 +17,6 @@ import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/internal_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
-import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/tyres_edit_page.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
@@ -30,10 +29,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
-import 'package:ctp/components/web_footer.dart'; // Add this import
-import 'dart:developer';
-import 'package:ctp/pages/setup_collection.dart';
-import 'package:ctp/pages/setup_inspection.dart';
+// Add this import
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
@@ -102,7 +98,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   bool _isTruckConditionsExpanded = false;
 
   // Add these new fields
-  Map<String, double> _sectionProgress = {
+  final Map<String, double> _sectionProgress = {
     'basic': 0,
     'maintenance': 0,
     'external': 0,
@@ -1056,20 +1052,20 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final isLargeScreen = size.width > 600;
     final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
     final containerPadding = isLargeScreen ? 37.31 : 20.0;
-    final borderSideWidth = 0.93;
-    final borderRadius = 20.0;
-    final borderColor = const Color(0xFF2F7FFF);
+    const borderSideWidth = 0.93;
+    const borderRadius = 20.0;
+    const borderColor = Color(0xFF2F7FFF);
     final titleBoxHeight = isLargeScreen ? 76.48 : 45.0;
     final titleBoxPadding = isLargeScreen
         ? const EdgeInsets.symmetric(horizontal: 48.50, vertical: 18.65)
         : const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0);
-    final titleBoxRadius = 6.0;
+    const titleBoxRadius = 6.0;
     final titleFontSize = isLargeScreen ? 20.0 : 16.0;
     final titleLetterSpace = isLargeScreen ? 1.87 : 1.0;
     final progressFontSize = isLargeScreen ? 14.00 : 12.0;
     final progressLetterSp = isLargeScreen ? 2.24 : 1.0;
     final gapHeight = isLargeScreen ? 20.98 : 20.0;
-    final progressBarHeight = 5.0;
+    const progressBarHeight = 5.0;
     final progressSpacing = isLargeScreen ? 0.0 : 20.0;
 
     final displayProgress =
@@ -1247,7 +1243,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // === COLUMN for TRANSPORTER
   Widget _buildTransporterActionButtonsColumn() {
     const Color orangeColor = Color(0xFFFF4E00);
-    final String? vehicleStatus = vehicle.vehicleStatus.toLowerCase();
+    final String vehicleStatus = vehicle.vehicleStatus.toLowerCase();
     bool isPending = (vehicleStatus == 'pending');
     bool isDraft = (vehicleStatus == 'draft');
     bool isLive = (vehicleStatus == 'live');
@@ -1349,7 +1345,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // If live => push to draft
   // If draft => no extra button
   Widget _buildAdminActionButtonsColumn() {
-    final String? vehicleStatus = vehicle.vehicleStatus.toLowerCase();
+    final String vehicleStatus = vehicle.vehicleStatus.toLowerCase();
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isAdmin = (userProvider.getUserRole == 'admin');
 
@@ -1516,20 +1512,20 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     // Adjusted styling variables to prevent overflow
     final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
     final containerPadding = isLargeScreen ? 37.31 : 16.0;
-    final borderSideWidth = 0.93;
-    final borderRadius = 20.0;
-    final borderColor = const Color(0xFF2F7FFF);
+    const borderSideWidth = 0.93;
+    const borderRadius = 20.0;
+    const borderColor = Color(0xFF2F7FFF);
     final titleBoxHeight = isLargeScreen ? 76.48 : 45.0;
     final titleBoxPadding = isLargeScreen
         ? const EdgeInsets.symmetric(horizontal: 48.50, vertical: 18.65)
         : const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0);
-    final titleBoxRadius = 6.0;
+    const titleBoxRadius = 6.0;
     final titleFontSize = isLargeScreen ? 20.0 : 14.0;
     final titleLetterSpace = isLargeScreen ? 1.87 : 0.5;
     final progressFontSize = isLargeScreen ? 22.38 : 12.0;
     final progressLetterSp = isLargeScreen ? 2.24 : 0.5;
     final gapHeight = isLargeScreen ? 27.98 : 16.0;
-    final progressBarHeight = 5.0;
+    const progressBarHeight = 5.0;
     final progressSpacing = isLargeScreen ? 26.11 : 12.0;
 
     // The top-level "truck conditions" bar - you might decide how it's computed.
@@ -1899,7 +1895,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                     ),
                   ),
                   SizedBox(width: progressSpacing),
-                  Container(
+                  SizedBox(
                     width: 60, // Fixed width for progress text
                     child: Text(
                       progressString,
@@ -2748,7 +2744,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                     crossAxisAlignment:
                                                         CrossAxisAlignment
                                                             .start,
-                                                    children: [
+                                                    children: const [
                                                       // ... existing offer section code ...
                                                     ],
                                                   ),
@@ -3002,7 +2998,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     ];
     int total = fields.length;
     int completed = fields
-        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .where((field) => field.toString().trim().isNotEmpty)
         .length;
 
     return "$completed/$total";
@@ -3018,7 +3014,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     ];
     int total = fields.length;
     int completed = fields
-        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .where((field) => field.toString().trim().isNotEmpty)
         .length;
 
     return total == 0 ? 0 : (completed / total);
@@ -3036,7 +3032,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     ];
     int total = fields.length;
     int completed = fields
-        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .where((field) => field.toString().trim().isNotEmpty)
         .length;
 
     return "$completed/$total";
@@ -3051,7 +3047,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     ];
     int total = fields.length;
     int completed = fields
-        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .where((field) => field.toString().trim().isNotEmpty)
         .length;
 
     return total == 0 ? 0 : (completed / total);
@@ -3102,7 +3098,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     ];
     int total = fields.length;
     int completed = fields
-        .where((field) => field != null && field.toString().trim().isNotEmpty)
+        .where((field) => field.toString().trim().isNotEmpty)
         .length;
 
     return total == 0 ? 0 : (completed / total);
@@ -3133,7 +3129,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
       int filledPositions = 0;
       positions.forEach((key, value) {
-        if (value != null) filledPositions++;
+        filledPositions++;
         debugPrint("Position $key: ${value != null}");
       });
 
@@ -3192,22 +3188,22 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     int total = 3; // NATIS/RC1, License Disk, and Settlement if required
 
     // Check NATIS/RC1
-    if (widget.vehicle.adminData.natisRc1Url?.isNotEmpty ?? false) {
+    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) {
       completed++;
     }
 
     // Check License Disk
-    if (widget.vehicle.adminData.licenseDiskUrl?.isNotEmpty ?? false) {
+    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
       completed++;
     }
 
     // Check Settlement Letter if required
     if (widget.vehicle.requireToSettleType == 'yes') {
       total++; // Add settlement amount to total
-      if (widget.vehicle.adminData.settlementLetterUrl?.isNotEmpty ?? false) {
+      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
         completed++;
       }
-      if (widget.vehicle.adminData.settlementAmount?.isNotEmpty ?? false) {
+      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
         completed++;
       }
     }
@@ -3219,16 +3215,17 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     int completed = 0;
     int total = 3;
 
-    if (widget.vehicle.adminData.natisRc1Url?.isNotEmpty ?? false) completed++;
-    if (widget.vehicle.adminData.licenseDiskUrl?.isNotEmpty ?? false)
+    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) completed++;
+    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
       completed++;
+    }
 
     if (widget.vehicle.requireToSettleType == 'yes') {
       total++;
-      if (widget.vehicle.adminData.settlementLetterUrl?.isNotEmpty ?? false) {
+      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
         completed++;
       }
-      if (widget.vehicle.adminData.settlementAmount?.isNotEmpty ?? false) {
+      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
         completed++;
       }
     }

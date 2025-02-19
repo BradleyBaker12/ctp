@@ -1,6 +1,7 @@
 // lib/adminScreens/user_tabs.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -40,29 +41,39 @@ class _UsersTabState extends State<UsersTab> {
   bool _isSecondaryAuthReady = false;
 
   // Sorting variables
-  String _sortField = 'firstName'; // Default sort field
-  bool _sortAscending = true; // Default sort direction
+  String _sortField = 'createdAt'; // Default sort field
+  bool _sortAscending = false; // Changed default to false (descending)
 
   // Filter-related variables
   final List<String> _selectedFilters = [];
+  // Update the filter options with groups
   final List<String> _filterOptions = [
     'All Users',
+    'User Roles', // Header
     'Dealers',
     'Transporters',
     'Admin',
+    'Sales Representatives',
+    'Account Status', // Header
     'Active Users',
     'Pending Users',
     'Suspended Users',
-    'Has Company Name',
-    'Has Trading As',
+    'Verification Status', // Header
+    'Verified Users',
+    'Pending Verification',
   ];
 
   // Add a flag to track initial loading
   bool _isInitialLoading = true;
 
+  // Add new state variable for filter loading
+  bool _isFilterLoading = false;
+
   @override
   void initState() {
     super.initState();
+    _sortField = 'createdAt'; // Set default sort to creation date
+    _sortAscending = false; // Set default to descending (newest first)
     _initializeSecondaryApp();
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
@@ -134,18 +145,11 @@ class _UsersTabState extends State<UsersTab> {
       if (_selectedFilters.contains('Active Users') && status == 'active') {
         matchesFilter = true;
       }
-      if (_selectedFilters.contains('Pending Users') && status == 'pending') {
+      if (_selectedFilters.contains('Pending Users') && status == 'inactive') {
         matchesFilter = true;
       }
       if (_selectedFilters.contains('Suspended Users') &&
           status == 'suspended') {
-        matchesFilter = true;
-      }
-      if (_selectedFilters.contains('Has Company Name') &&
-          companyName.isNotEmpty) {
-        matchesFilter = true;
-      }
-      if (_selectedFilters.contains('Has Trading As') && tradingAs.isNotEmpty) {
         matchesFilter = true;
       }
       return matchesSearchText && matchesFilter;
@@ -156,67 +160,68 @@ class _UsersTabState extends State<UsersTab> {
     // Return true if no filters and no search
     if (_selectedFilters.isEmpty && _searchQuery.isEmpty) return true;
 
-    // Check search query
-    if (_searchQuery.isNotEmpty) {
-      String firstName = (userData['firstName'] ?? '').toLowerCase();
-      String lastName = (userData['lastName'] ?? '').toLowerCase();
-      String email = (userData['email'] ?? '').toLowerCase();
-      String role = (userData['userRole'] ?? '').toLowerCase();
-      String status = (userData['accountStatus'] ?? '').toLowerCase();
-      String companyName = (userData['companyName'] ?? '').toLowerCase();
-      String tradingAs = (userData['tradingAs'] ?? '').toLowerCase();
-
-      bool matchesSearch = firstName.contains(_searchQuery.toLowerCase()) ||
-          lastName.contains(_searchQuery.toLowerCase()) ||
-          email.contains(_searchQuery.toLowerCase()) ||
-          role.contains(_searchQuery.toLowerCase()) ||
-          status.contains(_searchQuery.toLowerCase()) ||
-          companyName.contains(_searchQuery.toLowerCase()) ||
-          tradingAs.contains(_searchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-    }
-
-    // Check filters
-    if (_selectedFilters.isEmpty || _selectedFilters.contains('All Users')) {
-      return true;
-    }
-
+    // Convert role and status to lowercase for comparison
     String role = (userData['userRole'] ?? '').toLowerCase();
     String status = (userData['accountStatus'] ?? '').toLowerCase();
-    String companyName = (userData['companyName'] ?? '').toLowerCase();
-    String tradingAs = (userData['tradingAs'] ?? '').toLowerCase();
+    bool isVerified = userData['isVerified'] ?? false;
 
-    for (String filter in _selectedFilters) {
-      switch (filter.toLowerCase()) {
-        case 'dealers':
-          if (role == 'dealer') return true;
-          break;
-        case 'transporters':
-          if (role == 'transporter') return true;
-          break;
-        case 'admin':
-          if (role == 'admin') return true;
-          break;
-        case 'active users':
-          if (status == 'active') return true;
-          break;
-        case 'pending users':
-          if (status == 'pending') return true;
-          break;
-        case 'suspended users':
-          if (status == 'suspended') return true;
-          break;
-        case 'has company name':
-          if (companyName.isNotEmpty) return true;
-          break;
-        case 'has trading as':
-          if (tradingAs.isNotEmpty) return true;
-          break;
+    // Check filters (excluding headers)
+    if (!(_selectedFilters.isEmpty || _selectedFilters.contains('All Users'))) {
+      bool hasMatch = false;
+      for (String filter in _selectedFilters) {
+        // Skip headers
+        if (filter == 'User Roles' ||
+            filter == 'Account Status' ||
+            filter == 'Verification Status') continue;
+
+        switch (filter) {
+          case 'Dealers':
+            if (role == 'dealer') hasMatch = true;
+            break;
+          case 'Transporters':
+            if (role == 'transporter') hasMatch = true;
+            break;
+          case 'Admin':
+            if (role == 'admin') hasMatch = true;
+            break;
+          case 'Sales Representatives':
+            if (role == 'sales representative') hasMatch = true;
+            break;
+          case 'Active Users':
+            if (status == 'active') hasMatch = true;
+            break;
+          case 'Pending Users':
+            if (status == 'pending') hasMatch = true;
+            break;
+          case 'Suspended Users':
+            if (status == 'suspended' || status == 'inactive') hasMatch = true;
+            break;
+          case 'Verified Users':
+            if (isVerified) hasMatch = true;
+            break;
+          case 'Pending Verification':
+            if (!isVerified) hasMatch = true;
+            break;
+        }
+      }
+      if (!hasMatch) return false;
+    }
+
+    // Check search query if present
+    if (_searchQuery.isNotEmpty) {
+      String searchText = _searchQuery.toLowerCase();
+      if (!((userData['firstName'] ?? '').toLowerCase().contains(searchText) ||
+          (userData['lastName'] ?? '').toLowerCase().contains(searchText) ||
+          (userData['email'] ?? '').toLowerCase().contains(searchText) ||
+          role.contains(searchText) ||
+          status.contains(searchText) ||
+          (userData['companyName'] ?? '').toLowerCase().contains(searchText) ||
+          (userData['tradingAs'] ?? '').toLowerCase().contains(searchText))) {
+        return false;
       }
     }
 
-    return false;
+    return true;
   }
 
   Future<void> _fetchUsers() async {
@@ -224,43 +229,46 @@ class _UsersTabState extends State<UsersTab> {
 
     setState(() {
       _isLoading = true;
+      _isFilterLoading = true; // Set filter loading state
     });
 
     try {
-      // Get current user details from provider
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final String currentUserRole = userProvider.getUserRole;
-      final bool isAdmin = currentUserRole == 'admin';
-      final String? currentUserId = userProvider.userId;
+      Query query = usersCollection;
 
-      // Start building the query
-      Query query =
-          usersCollection.orderBy(_sortField, descending: !_sortAscending);
-
-      // Apply role filters if any are selected
-      if (_selectedFilters.isNotEmpty &&
-          !_selectedFilters.contains('All Users')) {
-        if (_selectedFilters.contains('Dealers')) {
-          query = query.where('userRole', isEqualTo: 'dealer');
-        } else if (_selectedFilters.contains('Transporters')) {
-          query = query.where('userRole', isEqualTo: 'transporter');
-        } else if (_selectedFilters.contains('Admin')) {
-          query = query.where('userRole', isEqualTo: 'admin');
-        }
-
-        // Apply status filters
-        if (_selectedFilters.contains('Active Users')) {
-          query = query.where('accountStatus', isEqualTo: 'active');
-        } else if (_selectedFilters.contains('Pending Users')) {
-          query = query.where('accountStatus', isEqualTo: 'pending');
-        } else if (_selectedFilters.contains('Suspended Users')) {
-          query = query.where('accountStatus', isEqualTo: 'suspended');
-        }
+      // Apply filters for user roles
+      if (_selectedFilters.contains('Dealers')) {
+        query = query.where('userRole', isEqualTo: 'dealer');
+      } else if (_selectedFilters.contains('Transporters')) {
+        query = query.where('userRole', isEqualTo: 'transporter');
+      } else if (_selectedFilters.contains('Admin')) {
+        query = query.where('userRole', isEqualTo: 'admin');
+      } else if (_selectedFilters.contains('Sales Representatives')) {
+        query = query.where('userRole', isEqualTo: 'sales representative');
       }
 
-      // Apply sales rep filter for non-admin users
-      if (!isAdmin) {
-        query = query.where('assignedSalesRep', isEqualTo: currentUserId);
+      // Apply filters for account status
+      if (_selectedFilters.contains('Active Users')) {
+        query = query.where('accountStatus', isEqualTo: 'active');
+      } else if (_selectedFilters.contains('Pending Users')) {
+        query = query.where('accountStatus', isEqualTo: 'pending');
+      } else if (_selectedFilters.contains('Suspended Users')) {
+        query = query.where('accountStatus', isEqualTo: 'suspended');
+      }
+
+      // Apply verification filters
+      if (_selectedFilters.contains('Verified Users')) {
+        query = query.where('isVerified', isEqualTo: true);
+      } else if (_selectedFilters.contains('Pending Verification')) {
+        query = query.where('isVerified', isEqualTo: false);
+      }
+
+      // Apply sorting
+      if (_sortField == 'createdAt') {
+        query = query.orderBy('createdAt', descending: !_sortAscending);
+      } else {
+        query = query
+            .orderBy(_sortField, descending: !_sortAscending)
+            .orderBy('createdAt', descending: true);
       }
 
       // Apply pagination
@@ -269,21 +277,23 @@ class _UsersTabState extends State<UsersTab> {
         query = query.startAfterDocument(_lastDocument!);
       }
 
-      // Execute the query
       QuerySnapshot querySnapshot = await query.get();
+      List<DocumentSnapshot> docs = querySnapshot.docs;
 
-      if (querySnapshot.docs.isNotEmpty) {
+      if (docs.isNotEmpty) {
         setState(() {
-          _lastDocument = querySnapshot.docs.last;
-          _users.addAll(querySnapshot.docs);
-          _hasMore = querySnapshot.docs.length >= _limit;
+          _lastDocument = docs.last;
+          _users.addAll(docs);
+          _hasMore = docs.length >= _limit;
           _isLoading = false;
+          _isFilterLoading = false; // Reset filter loading state
           _isInitialLoading = false;
         });
       } else {
         setState(() {
           _hasMore = false;
           _isLoading = false;
+          _isFilterLoading = false; // Reset filter loading state
           _isInitialLoading = false;
         });
       }
@@ -291,6 +301,7 @@ class _UsersTabState extends State<UsersTab> {
       print('Error fetching users: $e');
       setState(() {
         _isLoading = false;
+        _isFilterLoading = false; // Reset filter loading state
         _isInitialLoading = false;
       });
     }
@@ -314,6 +325,24 @@ class _UsersTabState extends State<UsersTab> {
       position: position,
       color: Colors.grey[900],
       items: [
+        PopupMenuItem(
+          value: 'createdAt',
+          child: Row(
+            children: [
+              const Icon(Icons.access_time, color: Color(0xFFFF4E00)),
+              const SizedBox(width: 8),
+              Text(
+                  'Creation Date', // Changed from 'Latest First' to be more neutral
+                  style: GoogleFonts.montserrat(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'divider',
+          enabled: false,
+          child: Divider(color: Colors.white30),
+        ),
         PopupMenuItem(
           value: 'firstName',
           child:
@@ -356,78 +385,6 @@ class _UsersTabState extends State<UsersTab> {
         });
       }
     });
-  }
-
-  /// Filter dialog.
-  Future<void> _showFilterDialog() async {
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: Text('Filter Users',
-              style: GoogleFonts.montserrat(color: Colors.white)),
-          content: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setDialogState) {
-              return SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: _filterOptions.map((filter) {
-                    return CheckboxListTile(
-                      title: Text(filter,
-                          style: GoogleFonts.montserrat(color: Colors.white)),
-                      value: _selectedFilters.contains(filter),
-                      checkColor: Colors.black,
-                      activeColor: const Color(0xFFFF4E00),
-                      onChanged: (bool? value) {
-                        setDialogState(() {
-                          if (value == true) {
-                            _selectedFilters.add(filter);
-                          } else {
-                            _selectedFilters.remove(filter);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              child: Text('Clear All',
-                  style: GoogleFonts.montserrat(color: Colors.white70)),
-              onPressed: () {
-                setState(() {
-                  _selectedFilters.clear();
-                  _users.clear();
-                  _lastDocument = null;
-                  _hasMore = true;
-                });
-                Navigator.pop(context);
-                _fetchUsers();
-              },
-            ),
-            TextButton(
-              child: Text('Apply',
-                  style:
-                      GoogleFonts.montserrat(color: const Color(0xFFFF4E00))),
-              onPressed: () {
-                setState(() {
-                  _users.clear();
-                  _lastDocument = null;
-                  _hasMore = true;
-                  _isInitialLoading = true; // Reset loading state
-                });
-                Navigator.pop(context);
-                _fetchUsers(); // Fetch users with new filters
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -511,7 +468,142 @@ class _UsersTabState extends State<UsersTab> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.filter_list, color: Colors.white),
-                    onPressed: _showFilterDialog,
+                    onPressed: () async {
+                      await showDialog(
+                        context: context,
+                        builder: (context) {
+                          return StatefulBuilder(
+                            builder: (context, setStateDialog) {
+                              return AlertDialog(
+                                backgroundColor: Colors.grey[900],
+                                title: Text('Filter Users',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold)),
+                                content: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: _filterOptions.map((filter) {
+                                      bool isHeader = filter == 'User Roles' ||
+                                          filter == 'Account Status' ||
+                                          filter == 'Verification Status';
+
+                                      if (isHeader) {
+                                        return Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                              16, 16, 16, 8),
+                                          child: Text(
+                                            filter,
+                                            style: GoogleFonts.montserrat(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      return Container(
+                                        margin: const EdgeInsets.symmetric(
+                                            vertical: 4.0),
+                                        child: Material(
+                                          color:
+                                              _selectedFilters.contains(filter)
+                                                  ? const Color(0xFFFF4E00)
+                                                  : Colors.grey[800],
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: InkWell(
+                                            onTap: () {
+                                              setStateDialog(() {
+                                                if (filter == 'All Users') {
+                                                  _selectedFilters.clear();
+                                                  if (!_selectedFilters
+                                                      .contains(filter)) {
+                                                    _selectedFilters
+                                                        .add(filter);
+                                                  }
+                                                } else {
+                                                  if (_selectedFilters
+                                                      .contains('All Users')) {
+                                                    _selectedFilters.clear();
+                                                  }
+                                                  if (_selectedFilters
+                                                      .contains(filter)) {
+                                                    _selectedFilters
+                                                        .remove(filter);
+                                                  } else {
+                                                    _selectedFilters
+                                                        .add(filter);
+                                                  }
+                                                }
+                                              });
+                                            },
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              child: Text(
+                                                filter,
+                                                style: GoogleFonts.montserrat(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: _selectedFilters
+                                                          .contains(filter)
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    child: Text('Clear',
+                                        style: GoogleFonts.montserrat(
+                                            color: Colors.white70)),
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedFilters.clear();
+                                        _users.clear();
+                                        _lastDocument = null;
+                                        _hasMore = true;
+                                      });
+                                      Navigator.pop(context);
+                                      _fetchUsers();
+                                    },
+                                  ),
+                                  TextButton(
+                                    child: Text('Apply',
+                                        style: GoogleFonts.montserrat(
+                                            color: const Color(0xFFFF4E00))),
+                                    onPressed: () {
+                                      setState(() {
+                                        _users.clear();
+                                        _lastDocument = null;
+                                        _hasMore = true;
+                                        _isFilterLoading =
+                                            true; // Set loading state
+                                      });
+                                      Navigator.pop(context);
+                                      _fetchUsers();
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
                     tooltip: 'Filter Users',
                   ),
                 ],
@@ -519,8 +611,11 @@ class _UsersTabState extends State<UsersTab> {
             ),
             // Users List.
             Expanded(
-              child: _isInitialLoading
-                  ? const Center(child: CircularProgressIndicator())
+              child: _isInitialLoading || _isFilterLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                      color: AppColors.orange,
+                    ))
                   : filteredUsers.isEmpty
                       ? Center(
                           child: Text(

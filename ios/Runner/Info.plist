@@ -60,13 +60,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera for uploading profile photos.</string>
+	<string>Camera access is required only for profile picture updates to help other users identify you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show the map.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need access to the microphone to record your video</string>
+	<string>Location access is needed only while using the map feature to show nearby services. We don't track your location in the background.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need access to your photo library for uploading profile photos.</string>
+	<string>Photo library access is required only for selecting profile pictures and to upload truck image. We don't access or store other photos.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
@@ -80,8 +78,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

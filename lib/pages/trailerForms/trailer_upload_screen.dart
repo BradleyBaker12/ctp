@@ -1,10 +1,8 @@
 import 'dart:ui_web';
-
 import 'package:ctp/pages/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -17,18 +15,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import '../truckForms/custom_text_field.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-
-// Import dart:html for web camera capture.
+// Import dart:html for web camera capture (only on web).
 import 'dart:html' as html;
-// Import dart:ui for registering web platform views.
-import 'dart:ui' as ui;
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -178,7 +171,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
 
   // For loading JSON data
   List<String> _yearOptions = [];
-  List<String> _brandOptions = [];
+  final List<String> _brandOptions = [];
   List<String> _countryOptions = [];
   List<String> _provinceOptions = [];
 
@@ -259,6 +252,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         child: Stack(
           children: [
             Scaffold(
+              resizeToAvoidBottomInset: true, // Add this line
               backgroundColor: Colors.transparent, // Make scaffold transparent
               appBar: AppBar(
                 leading: IconButton(
@@ -272,33 +266,38 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 systemOverlayStyle: SystemUiOverlayStyle.light,
                 centerTitle: true,
               ),
-              body: SingleChildScrollView(
-                controller: _scrollController,
-                child: Center(
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxWidth: isWebView ? 800 : double.infinity,
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isWebView ? 40.0 : 16.0,
-                        vertical: 8.0,
+              body: SafeArea(
+                // Add SafeArea
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag, // Add this line
+                  child: Center(
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxWidth: isWebView ? 800 : double.infinity,
                       ),
-                      child: Column(
-                        children: [
-                          Container(
-                            constraints: BoxConstraints(
-                              maxWidth: isWebView ? 600 : double.infinity,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isWebView ? 40.0 : 16.0,
+                          vertical: 8.0,
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              constraints: BoxConstraints(
+                                maxWidth: isWebView ? 600 : double.infinity,
+                              ),
+                              child: _buildMainImageSection(formData),
                             ),
-                            child: _buildMainImageSection(formData),
-                          ),
-                          Container(
-                            constraints: BoxConstraints(
-                              maxWidth: isWebView ? 600 : double.infinity,
+                            Container(
+                              constraints: BoxConstraints(
+                                maxWidth: isWebView ? 600 : double.infinity,
+                              ),
+                              child: _buildFormSection(formData),
                             ),
-                            child: _buildFormSection(formData),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -329,9 +328,20 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   // ---------------------------------------------------------------------------
   Future<void> _takePhotoFromWeb(
       void Function(Uint8List?, String) callback) async {
+    if (!kIsWeb) {
+      callback(null, '');
+      return;
+    }
+
     try {
-      final mediaStream = await html.window.navigator.mediaDevices!
-          .getUserMedia({'video': true});
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) {
+        callback(null, '');
+        return;
+      }
+
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+
       final videoElement = html.VideoElement()
         ..autoplay = true
         ..srcObject = mediaStream;
@@ -339,7 +349,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       await videoElement.onLoadedMetadata.first;
 
       platformViewRegistry.registerViewFactory(
-          'webcamVideo', (int viewId) => videoElement);
+        'webcamVideo',
+        (int viewId) => videoElement,
+      );
 
       await showDialog(
         context: context,
@@ -347,19 +359,21 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         builder: (BuildContext dialogContext) {
           return AlertDialog(
             title: const Text('Take Photo'),
-            content: Container(
+            content: SizedBox(
               width: 300,
               height: 300,
-              child: HtmlElementView(viewType: 'webcamVideo'),
+              child: isWebPlatform
+                  ? HtmlElementView(viewType: 'webcamVideo')
+                  : const Center(child: Text('Camera not available')),
             ),
             actions: [
               TextButton(
                 onPressed: () {
                   final canvas = html.CanvasElement(
-                      width: videoElement.videoWidth,
-                      height: videoElement.videoHeight);
-                  final ctx = canvas.context2D;
-                  ctx.drawImage(videoElement, 0, 0);
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
                   final dataUrl = canvas.toDataUrl('image/png');
                   final base64Str = dataUrl.split(',').last;
                   final imageBytes = base64.decode(base64Str);
@@ -381,6 +395,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         },
       );
     } catch (e) {
+      debugPrint('Error in web photo capture: $e');
       callback(null, '');
     }
   }
@@ -394,56 +409,65 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     required void Function(Uint8List?, String fileName) callback,
   }) async {
     if (pickImageOnly) {
-      if (kIsWeb) {
-        bool cameraAvailable = false;
-        try {
-          cameraAvailable = html.window.navigator.mediaDevices != null;
-        } catch (e) {
-          cameraAvailable = false;
+      try {
+        if (kIsWeb) {
+          bool cameraAvailable = false;
+          try {
+            cameraAvailable = html.window.navigator.mediaDevices != null;
+          } catch (e) {
+            cameraAvailable = false;
+          }
+
+          showDialog(
+            context: context,
+            builder: (BuildContext ctx) {
+              return AlertDialog(
+                title: Text(title),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (cameraAvailable)
+                      ListTile(
+                        leading: const Icon(Icons.camera_alt),
+                        title: const Text('Take Photo'),
+                        onTap: () async {
+                          Navigator.of(ctx).pop();
+                          await _takePhotoFromWeb(callback);
+                        },
+                      ),
+                    ListTile(
+                      leading: const Icon(Icons.folder),
+                      title: const Text('Pick from Device'),
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        final XFile? pickedFile = await ImagePicker()
+                            .pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          final fileName = pickedFile.name;
+                          final bytes = await pickedFile.readAsBytes();
+                          callback(bytes, fileName);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        } else {
+          final XFile? pickedFile =
+              await ImagePicker().pickImage(source: ImageSource.gallery);
+          if (pickedFile != null) {
+            final fileName = pickedFile.name;
+            final bytes = await pickedFile.readAsBytes();
+            callback(bytes, fileName);
+          }
         }
-        showDialog(
-          context: context,
-          builder: (BuildContext ctx) {
-            return AlertDialog(
-              title: Text(title),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.camera_alt),
-                    title: const Text('Take Photo'),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      _takePhotoFromWeb(callback);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.folder),
-                    title: const Text('Pick from Device'),
-                    onTap: () async {
-                      Navigator.of(ctx).pop();
-                      final XFile? pickedFile = await ImagePicker()
-                          .pickImage(source: ImageSource.gallery);
-                      if (pickedFile != null) {
-                        final fileName = pickedFile.name;
-                        final bytes = await pickedFile.readAsBytes();
-                        callback(bytes, fileName);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
+      } catch (e) {
+        debugPrint('Error picking image: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
         );
-      } else {
-        final XFile? pickedFile =
-            await ImagePicker().pickImage(source: ImageSource.gallery);
-        if (pickedFile != null) {
-          final fileName = pickedFile.name;
-          final bytes = await pickedFile.readAsBytes();
-          callback(bytes, fileName);
-        }
       }
     } else {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -477,8 +501,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       title: 'Change Main Image',
                       pickImageOnly: true,
                       callback: (file, fileName) {
-                        if (file != null)
+                        if (file != null) {
                           setState(() => _selectedMainImage = file);
+                        }
                       },
                     );
                   },
@@ -487,9 +512,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    setState(() {
-                      _selectedMainImage = null;
-                    });
+                    setState(() => _selectedMainImage = null);
                   },
                   child: const Text('Remove Image',
                       style: TextStyle(color: Colors.red)),
@@ -504,10 +527,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         );
       } else {
         _pickImageOrFile(
-          title: 'Select Main Image Source',
+          title: 'Select Main Image',
           pickImageOnly: true,
           callback: (file, fileName) {
-            if (file != null) setState(() => _selectedMainImage = file);
+            if (file != null) {
+              setState(() => _selectedMainImage = file);
+            }
           },
         );
       }
@@ -649,7 +674,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   ),
                   const SizedBox(height: 15),
                   Text(
-                    '${_selectedTrailerType} Form Coming Soon',
+                    '$_selectedTrailerType Form Coming Soon',
                     style: const TextStyle(
                       fontSize: 20,
                       color: Colors.white,
@@ -2152,7 +2177,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     _vinNumberController.clear();
     _mileageController.clear();
     _engineNumberController.clear();
-    _warrantyDetailsController.clear();
     _registrationNumberController.clear();
     _referenceNumberController.clear();
     _makeController.clear();
@@ -2246,5 +2270,19 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       debugPrint('Error extracting filename from URL: $e');
       return null;
     }
+  }
+
+  // Add these helper methods at class level
+  bool get isWebPlatform => kIsWeb;
+
+  dynamic getWebWindow() {
+    if (isWebPlatform) {
+      try {
+        return html.window;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 }

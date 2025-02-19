@@ -682,36 +682,47 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
 
     Map<String, dynamic> serializedImages = {};
+
+    // Validate and sanitize images data
     for (var entry in _selectedImages.entries) {
+      String? imageUrl;
+
       if (entry.value != null) {
-        // We have a local file to upload
-        String imageUrl = await _uploadImageToFirebase(
+        // Upload new image
+        imageUrl = await _uploadImageToFirebase(
           entry.value!,
           entry.key.replaceAll(' ', '_').toLowerCase(),
         );
-        serializedImages[entry.key] = {
-          'url': imageUrl,
-          'isNew': true,
-        };
       } else if (_imageUrls[entry.key] != null &&
           _imageUrls[entry.key]!.isNotEmpty) {
-        // We have an existing URL
+        // Use existing URL
+        imageUrl = _imageUrls[entry.key];
+      }
+
+      if (imageUrl != null && imageUrl.isNotEmpty) {
         serializedImages[entry.key] = {
-          'url': _imageUrls[entry.key],
-          'isNew': false,
+          'url': imageUrl,
+          'isNew': entry.value != null, // true if it's a new upload
         };
       }
     }
 
-    return {
+    // Create a sanitized data map
+    Map<String, dynamic> data = {
       'condition': _selectedCondition,
       'engineOilLeak': _oilLeakConditionEngine,
       'engineWaterLeak': _waterLeakConditionEngine,
       'blowbyCondition': _blowbyCondition,
       'gearboxOilLeak': _oilLeakConditionGearbox,
       'retarderCondition': _retarderCondition,
-      'images': serializedImages,
     };
+
+    // Only add images if there are any
+    if (serializedImages.isNotEmpty) {
+      data['images'] = serializedImages;
+    }
+
+    return data;
   }
 
   Future<String> _uploadImageToFirebase(

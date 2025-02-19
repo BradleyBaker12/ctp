@@ -580,7 +580,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     bool isTruckConditionTab =
         _tabTitles[_selectedTabIndex] == 'TRUCK CONDITION';
 
-    final isWeb = kIsWeb;
+    const isWeb = kIsWeb;
     final screenWidth = MediaQuery.of(context).size.width;
     final useWebLayout = isWeb && screenWidth > 600;
 

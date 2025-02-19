@@ -2,7 +2,6 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
-import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
 import 'package:flutter/material.dart';

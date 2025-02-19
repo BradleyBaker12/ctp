@@ -1,6 +1,5 @@
 // lib/pages/truckForms/external_cab_page.dart
 
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';

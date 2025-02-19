@@ -60,6 +60,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
   // Flag to check if controllers are initialized.
   bool _isControllersInitialized = false;
 
+  // Define valid account status options
+  final List<String> _accountStatusOptions = [
+    'active',
+    'suspended',
+    'deactivated',
+    'inactive',
+  ];
+
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -355,27 +363,24 @@ class _UserDetailPageState extends State<UserDetailPage> {
                   data['registrationNumber'] ?? '';
               _vatNumberController.text = data['vatNumber'] ?? '';
 
-              // Initialize account status.
-              var accountStatusField = data['accountStatus'];
-              if (accountStatusField is String) {
-                _accountStatus = accountStatusField;
-              } else if (accountStatusField is bool) {
-                _accountStatus = accountStatusField ? 'active' : 'inactive';
+              // Initialize account status with proper validation
+              String? storedStatus = data['accountStatus']?.toString();
+              _accountStatus = _accountStatusOptions.contains(storedStatus)
+                  ? storedStatus!
+                  : _accountStatusOptions.first;
+
+              // Initialize user role with proper null check and validation
+              String? storedRole = data['userRole']?.toString();
+              if (storedRole != null &&
+                  ['transporter', 'dealer', 'admin', 'sales representative']
+                      .contains(storedRole)) {
+                _userRole = storedRole;
               } else {
-                _accountStatus = 'active';
+                _userRole = 'dealer'; // Default value if invalid or null
               }
 
-              // Initialize user role.
-              if (data['userRole'] != null &&
-                  ['transporter', 'dealer', 'admin']
-                      .contains(data['userRole'])) {
-                _userRole = data['userRole'];
-              } else {
-                _userRole = 'dealer';
-              }
-
-              // Initialize assigned Sales Representative if set.
-              _selectedSalesRep = data['assignedSalesRep'];
+              // Initialize assigned Sales Representative with null check
+              _selectedSalesRep = data['assignedSalesRep']?.toString();
 
               _isControllersInitialized = true;
             }
@@ -470,7 +475,10 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                       ),
                                       SizedBox(height: 5),
                                       DropdownButtonFormField<String>(
-                                        value: _accountStatus,
+                                        value: _accountStatusOptions
+                                                .contains(_accountStatus)
+                                            ? _accountStatus
+                                            : _accountStatusOptions.first,
                                         dropdownColor: Colors.grey[800],
                                         style: GoogleFonts.montserrat(
                                             color: Colors.white),
@@ -478,12 +486,8 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                           filled: true,
                                           fillColor: Colors.grey[800],
                                         ),
-                                        items: <String>[
-                                          'active',
-                                          'suspended',
-                                          'deactivated',
-                                          'inactive'
-                                        ].map((String value) {
+                                        items: _accountStatusOptions
+                                            .map((String value) {
                                           return DropdownMenuItem<String>(
                                             value: value,
                                             child: Text(
@@ -494,9 +498,11 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                           );
                                         }).toList(),
                                         onChanged: (newValue) {
-                                          setState(() {
-                                            _accountStatus = newValue!;
-                                          });
+                                          if (newValue != null) {
+                                            setState(() {
+                                              _accountStatus = newValue;
+                                            });
+                                          }
                                         },
                                       ),
                                       SizedBox(height: 15),
@@ -600,12 +606,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 'Country', _countryController, false),
                             _buildEditableField('Registration Number',
                                 _registrationNumberController, false),
-                            // User Role Dropdown.
+                            // User Role Dropdown with null safety
                             Padding(
                               padding:
                                   const EdgeInsets.symmetric(vertical: 10.0),
                               child: DropdownButtonFormField<String>(
-                                value: _userRole,
+                                value: roleOptions.contains(_userRole)
+                                    ? _userRole
+                                    : roleOptions.first,
                                 dropdownColor: Colors.grey[800],
                                 style:
                                     GoogleFonts.montserrat(color: Colors.white),
@@ -628,16 +636,16 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                   );
                                 }).toList(),
                                 onChanged: (newValue) {
-                                  setState(() {
-                                    _userRole = newValue!;
-                                    // For admins: if the role is changed to something other than transporter or dealer,
-                                    // reset the sales rep assignment.
-                                    if (isAdmin &&
-                                        !(_userRole == 'transporter' ||
-                                            _userRole == 'dealer')) {
-                                      _selectedSalesRep = null;
-                                    }
-                                  });
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _userRole = newValue;
+                                      if (isAdmin &&
+                                          !['transporter', 'dealer']
+                                              .contains(_userRole)) {
+                                        _selectedSalesRep = null;
+                                      }
+                                    });
+                                  }
                                 },
                               ),
                             ),
@@ -685,7 +693,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 10.0),
                                     child: DropdownButtonFormField<String>(
-                                      value: _selectedSalesRep,
+                                      value: _selectedSalesRep != null &&
+                                              salesRepItems.any((item) =>
+                                                  item.value ==
+                                                  _selectedSalesRep)
+                                          ? _selectedSalesRep
+                                          : salesRepItems.isNotEmpty
+                                              ? salesRepItems.first.value
+                                              : null,
                                       dropdownColor: Colors.grey[800],
                                       style: GoogleFonts.montserrat(
                                           color: Colors.white),
@@ -699,12 +714,16 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                       ),
                                       items: salesRepItems,
                                       onChanged: (newValue) {
-                                        setState(() {
-                                          _selectedSalesRep = newValue;
-                                        });
+                                        if (newValue != null) {
+                                          setState(() {
+                                            _selectedSalesRep = newValue;
+                                          });
+                                        }
                                       },
                                       validator: (value) {
-                                        if (value == null || value.isEmpty) {
+                                        if ((_userRole == 'transporter' ||
+                                                _userRole == 'dealer') &&
+                                            (value == null || value.isEmpty)) {
                                           return 'Please select a sales representative';
                                         }
                                         return null;

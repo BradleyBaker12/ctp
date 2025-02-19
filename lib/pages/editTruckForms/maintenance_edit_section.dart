@@ -512,10 +512,11 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                   Navigator.pop(context);
                   if (file == null) {
                     await _viewPdf(url, title);
-                  } else if (file != null) {
+                  } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Please upload first")));
+                      SnackBar(content: Text("Please upload first")));
                   }
+                
                 },
               ),
               if (canEdit) // Only show Change option if not dealer

@@ -10,7 +10,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:ctp/services/geocoding_service.dart';

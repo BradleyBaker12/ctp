@@ -83,14 +83,12 @@ class ExternalCab {
   Map<String, dynamic> _imagesToMap() {
     Map<String, dynamic> result = {};
     images.forEach((key, value) {
-      if (value != null) {
-        result[key] = {
-          'isNew': value.isNew,
-          'path': value.path,
-          'url': value.imageUrl,
-        };
-      }
-    });
+      result[key] = {
+        'isNew': value.isNew,
+        'path': value.path,
+        'url': value.imageUrl,
+      };
+        });
     return result;
   }
 

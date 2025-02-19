@@ -103,12 +103,39 @@ class _SignUpPageState extends State<SignUpPage> {
       if (user != null) {
         print("DEBUG: User created with ID: ${user.uid}");
 
-        await _firestore.collection('users').doc(user.uid).set({
+        // Create initial user data with all fields
+        Map<String, dynamic> userData = {
           'email': user.email,
           'createdAt': FieldValue.serverTimestamp(),
           'userRole': 'pending',
-          'accountStatus': 'pending'
-        });
+          'accountStatus': 'pending',
+          'isVerified': false,
+
+          // Initialize all additional fields as null/empty
+          'preferredBrands': [],
+          'profileImageUrl': null,
+          'companyName': null,
+          'tradingName': null,
+          'registrationNumber': null,
+          'vatNumber': null,
+          'addressLine1': null,
+          'addressLine2': null,
+          'city': null,
+          'state': null,
+          'postalCode': null,
+          'firstName': null,
+          'middleName': null,
+          'lastName': null,
+          'phoneNumber': null,
+          'agreedToHouseRules': false,
+          'bankConfirmationUrl': null,
+          'brncUrl': null,
+          'cipcCertificateUrl': null,
+          'proxyUrl': null,
+          'adminApproval': false,
+        };
+
+        await _firestore.collection('users').doc(user.uid).set(userData);
         print("DEBUG: Firestore document created");
 
         final userProvider = Provider.of<UserProvider>(context, listen: false);

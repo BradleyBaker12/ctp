@@ -389,7 +389,7 @@ class _TruckConditionsTabsPageState extends State<TruckConditionsTabsPage> {
   // Modified build method to include a save button
   @override
   Widget build(BuildContext context) {
-    final isWeb = kIsWeb;
+    const isWeb = kIsWeb;
     final screenWidth = MediaQuery.of(context).size.width;
     final useWebLayout = isWeb && screenWidth > 600;
 

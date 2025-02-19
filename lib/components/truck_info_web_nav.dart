@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 
@@ -18,7 +17,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
   final String vehicleId; // Changed from String? to String
 
   const TruckInfoWebNavBar({
-    Key? key,
+    super.key,
     required this.onHomePressed,
     required this.onBasicInfoPressed,
     required this.onTruckConditionsPressed,
@@ -31,10 +30,30 @@ class TruckInfoWebNavBar extends StatelessWidget {
     required this.onTyresPressed,
     required this.vehicleId, // Made required
     this.selectedTab = "Home",
-  }) : super(key: key);
+  });
 
   bool _isCompactNavigation(BuildContext context) {
-    return MediaQuery.of(context).size.width <= 1100;
+    // Base width needed for logo, profile, and spacing
+    const baseWidth = 300.0;
+
+    // Width per navigation item (includes padding and text)
+    const itemWidth = 180.0;
+
+    // Calculate total width needed based on which navigation items are shown
+    double requiredWidth = baseWidth;
+
+    if (["External Cab", "Internal Cab", "Chassis", "Drive Train", "Tyres"]
+        .contains(selectedTab)) {
+      // Add width for 5 truck condition items plus Home
+      requiredWidth += itemWidth * 6; // 5 conditions + Home
+    } else {
+      // Add width for 3 main nav items plus Home
+      requiredWidth +=
+          itemWidth * 4; // Basic Info, Truck Conditions, Maintenance + Home
+    }
+
+    // Return true if screen width is less than required width
+    return MediaQuery.of(context).size.width <= requiredWidth;
   }
 
   @override
@@ -72,13 +91,26 @@ class TruckInfoWebNavBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Hamburger menu for compact mode
-            if (isCompact)
-              IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-                onPressed: () => _showNavigationDrawer(context),
-                tooltip: 'Open menu',
-              ),
+            // Left section with hamburger menu and back button (only in compact mode)
+            Row(
+              children: [
+                if (isCompact) ...[
+                  // Use spread operator to include both buttons in compact mode
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+                    onPressed: () => _showNavigationDrawer(context),
+                    tooltip: 'Open menu',
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back,
+                        color: Colors.white, size: 24),
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Go back',
+                  ),
+                ],
+              ],
+            ),
 
             // Logo section
             Expanded(
@@ -229,6 +261,15 @@ class TruckInfoWebNavBar extends StatelessWidget {
   }
 
   void _showNavigationDrawer(BuildContext context) {
+    // Check if we're on a truck condition page
+    final bool isOnTruckConditionPage = [
+      "External Cab",
+      "Internal Cab",
+      "Chassis",
+      "Drive Train",
+      "Tyres"
+    ].contains(selectedTab);
+
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -306,13 +347,40 @@ class TruckInfoWebNavBar extends StatelessWidget {
                           onHomePressed();
                         },
                       ),
-                      // Add more navigation items
-                      _buildDrawerItem(
-                          context, "Basic Information", onBasicInfoPressed),
-                      _buildDrawerItem(context, "Truck Conditions",
-                          onTruckConditionsPressed),
-                      _buildDrawerItem(context, "Maintenance and Warranty",
-                          onMaintenanceWarrantyPressed),
+                      if (isOnTruckConditionPage) ...[
+                        // Show truck condition navigation items
+                        _buildDrawerItem(context, "External Cab", () {
+                          Navigator.pushReplacementNamed(
+                              context, '/external_cab',
+                              arguments: vehicleId);
+                        }),
+                        _buildDrawerItem(context, "Internal Cab", () {
+                          Navigator.pushReplacementNamed(
+                              context, '/internal_cab',
+                              arguments: vehicleId);
+                        }),
+                        _buildDrawerItem(context, "Chassis", () {
+                          Navigator.pushReplacementNamed(context, '/chassis',
+                              arguments: vehicleId);
+                        }),
+                        _buildDrawerItem(context, "Drive Train", () {
+                          Navigator.pushReplacementNamed(
+                              context, '/drive_train',
+                              arguments: vehicleId);
+                        }),
+                        _buildDrawerItem(context, "Tyres", () {
+                          Navigator.pushReplacementNamed(context, '/tyres',
+                              arguments: vehicleId);
+                        }),
+                      ] else ...[
+                        // Show main navigation items
+                        _buildDrawerItem(
+                            context, "Basic Information", onBasicInfoPressed),
+                        _buildDrawerItem(context, "Truck Conditions",
+                            onTruckConditionsPressed),
+                        _buildDrawerItem(context, "Maintenance and Warranty",
+                            onMaintenanceWarrantyPressed),
+                      ],
                     ],
                   ),
                 ),

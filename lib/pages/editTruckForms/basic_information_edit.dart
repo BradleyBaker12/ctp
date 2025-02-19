@@ -151,7 +151,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // ------------------------------------------------------------------
 
   // Add new properties for web navigation
-  bool _isDrawerOpen = false;
+  final bool _isDrawerOpen = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override

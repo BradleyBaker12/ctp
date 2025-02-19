@@ -1,12 +1,10 @@
 // lib/screens/edit_trailer_upload_screen.dart
 
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/document_preview_screen.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/truckForms/custom_dropdown.dart';

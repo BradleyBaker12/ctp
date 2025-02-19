@@ -2,14 +2,11 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
-import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/pages/vehicles_list.dart';
-import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -29,7 +26,7 @@ class EditFormNavigation extends StatefulWidget {
 class _EditFormNavigationState extends State<EditFormNavigation> {
   Vehicle? vehicle;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _isDrawerOpen = false;
+  final bool _isDrawerOpen = false;
 
   @override
   void initState() {

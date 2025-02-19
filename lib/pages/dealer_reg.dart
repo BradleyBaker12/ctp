@@ -328,7 +328,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
                           SizedBox(height: screenSize.height * 0.02),
                           Center(
                             child: Text(
-                              'CTP Offers a way for you to sell your vehicle to multiple dealers in SA.\n\nCTP\'s fees are R 12 500 flat fee.',
+                              'CTP Offers a way for you to buy vehicles from multiple transporters in SA.\n\nCTP\'s fees are R 12 500 flat fee.',
                               style: GoogleFonts.montserrat(
                                 fontSize: screenSize.height * 0.015,
                                 color: Colors.white,

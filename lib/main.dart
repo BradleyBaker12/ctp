@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:ctp/firebase_options.dart';
 import 'package:ctp/pages/accepted_offers.dart';
 import 'package:ctp/pages/add_profile_photo.dart';
@@ -54,6 +53,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
+import 'package:flutter/services.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
@@ -61,6 +61,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Ensure assets are loaded
+  await Future.wait([
+    rootBundle.load('AssetManifest.bin'),
+    rootBundle.load('AssetManifest.bin.json'),
+  ]).catchError((error) {
+    print('Error loading assets: $error');
+  });
 
   if (!kIsWeb && Platform.isAndroid) {
     await Firebase.initializeApp(
