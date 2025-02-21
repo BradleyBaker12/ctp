@@ -12,7 +12,7 @@ class TrailerProvider extends ChangeNotifier {
   Future<void> fetchTrailers() async {
     try {
       final QuerySnapshot snapshot =
-          await _firestore.collection('trailers').get();
+          await _firestore.collection('vehicles').get();
       _trailers = snapshot.docs
           .map((doc) =>
               Trailer.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))

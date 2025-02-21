@@ -64,8 +64,8 @@ void main() async {
 
   // Ensure assets are loaded
   await Future.wait([
-    rootBundle.load('AssetManifest.bin'),
-    rootBundle.load('AssetManifest.bin.json'),
+    // rootBundle.load('AssetManifest.bin'),
+    // rootBundle.load('AssetManifest.bin.json'),
   ]).catchError((error) {
     print('Error loading assets: $error');
   });

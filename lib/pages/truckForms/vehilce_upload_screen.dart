@@ -21,8 +21,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
 import 'dart:io' as io;
-import 'dart:html' as html;
-import 'dart:ui_web';
+// import 'dart:html' as html;
+// import 'dart:ui_web';
 
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
@@ -1703,16 +1703,17 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         }
 
         if (source == ImageSource.camera && cameraAvailable) {
-          await _takePhotoFromWeb((file, fileName) {
-            if (file != null) {
-              setState(() => _selectedMainImage = file);
-              _selectedMainImageFileName = fileName;
-              formData.setSelectedMainImage(file, fileName);
-              if (_vehicleId != null) {
-                _uploadAndUpdateMainImage(file);
-              }
-            }
-          });
+          // await _takePhotoFromWeb((file, fileName) {
+          //   if (file != null) {
+          //     setState(() => _selectedMainImage = file);
+          //     _selectedMainImageFileName = fileName;
+          //     formData.setSelectedMainImage(file, fileName);
+          //     if (_vehicleId != null) {
+          //       _uploadAndUpdateMainImage(file);
+          //     }
+          //   }
+          // }
+          // );
         } else {
           final picker = ImagePicker();
           final XFile? image =
@@ -1987,7 +1988,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 onTap: () {
                   debugPrint("Remove Document option selected");
                   Navigator.pop(context);
-                  _removeDocument();
+                  // _removeDocument();
                 },
               ),
             ],
@@ -2016,96 +2017,96 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
-  void _removeDocument() {
-    debugPrint("Removing NATIS/RC1 document");
-    setState(() {
-      _natisRc1File = null;
-      _existingNatisRc1Url = null;
-      _existingNatisRc1Name = null;
-    });
-    debugPrint("NATIS/RC1 document removed");
-  }
+  // void _removeDocument() {
+  //   debugPrint("Removing NATIS/RC1 document");
+  //   setState(() {
+  //     _natisRc1File = null;
+  //     _existingNatisRc1Url = null;
+  //     _existingNatisRc1Name = null;
+  //   });
+  //   debugPrint("NATIS/RC1 document removed");
+  // }
 
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
+  // Future<void> _takePhotoFromWeb(
+  //     void Function(Uint8List?, String) callback) async {
+  //   if (!kIsWeb) {
+  //     callback(null, '');
+  //     return;
+  //   }
 
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
+  //   try {
+  //     // final mediaDevices = html.window.navigator.mediaDevices;
+  //     // if (mediaDevices == null) {
+  //     //   callback(null, '');
+  //     //   return;
+  //     // }
 
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+  //     // final mediaStream = await mediaDevices.getUserMedia({'video': true});
 
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
+  //     // final videoElement = html.VideoElement()
+  //     //   ..autoplay = true
+  //     //   ..srcObject = mediaStream;
 
-      await videoElement.onLoadedMetadata.first;
+  //     // await videoElement.onLoadedMetadata.first;
 
-      platformViewRegistry.registerViewFactory(
-        'webcamVideo',
-        (int viewId) => videoElement,
-      );
+  //     // platformViewRegistry.registerViewFactory(
+  //     //   'webcamVideo',
+  //     //   (int viewId) => videoElement,
+  //     // );
 
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: isWebPlatform
-                  ? HtmlElementView(viewType: 'webcamVideo')
-                  : const Center(child: Text('Camera not available')),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      debugPrint('Error in web photo capture: $e');
-      callback(null, '');
-    }
-  }
+  //     await showDialog(
+  //       context: context,
+  //       barrierDismissible: false,
+  //       builder: (BuildContext dialogContext) {
+  //         return AlertDialog(
+  //           title: const Text('Take Photo'),
+  //           content: SizedBox(
+  //             width: 300,
+  //             height: 300,
+  //             child: isWebPlatform
+  //                 ? HtmlElementView(viewType: 'webcamVideo')
+  //                 : const Center(child: Text('Camera not available')),
+  //           ),
+  //           actions: [
+  //             TextButton(
+  //               onPressed: () {
+  //                 final canvas = html.CanvasElement(
+  //                   width: videoElement.videoWidth,
+  //                   height: videoElement.videoHeight,
+  //                 );
+  //                 canvas.context2D.drawImage(videoElement, 0, 0);
+  //                 final dataUrl = canvas.toDataUrl('image/png');
+  //                 final base64Str = dataUrl.split(',').last;
+  //                 final imageBytes = base64.decode(base64Str);
+  //                 mediaStream.getTracks().forEach((track) => track.stop());
+  //                 Navigator.of(dialogContext).pop();
+  //                 callback(imageBytes, 'captured.png');
+  //               },
+  //               child: const Text('Capture'),
+  //             ),
+  //             TextButton(
+  //               onPressed: () {
+  //                 mediaStream.getTracks().forEach((track) => track.stop());
+  //                 Navigator.of(dialogContext).pop();
+  //               },
+  //               child: const Text('Cancel'),
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     );
+  //   } catch (e) {
+  //     debugPrint('Error in web photo capture: $e');
+  //     callback(null, '');
+  //   }
+  // }
 
   bool get isWebPlatform => kIsWeb;
 
   dynamic getWebWindow() {
     if (isWebPlatform) {
       try {
-        return html.window;
+        // return html.window;
       } catch (e) {
         return null;
       }

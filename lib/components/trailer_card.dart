@@ -31,26 +31,24 @@ class TrailerCard extends StatelessWidget {
   });
 
   // Helper method to get trailer type-specific details
-  // String getTrailerDetails() {
-  //   switch (trailer.trailerType) {
-  //     case 'Superlink':
-  //       final info = trailer.superLinkInfo;
-  //       if (info != null) {
-  //         final trailerA = info['trailerA'] as Map<String, dynamic>?;
-  //         final trailerB = info['trailerB'] as Map<String, dynamic>?;
-  //         return 'A: ${trailerA?['length'] ?? 'N/A'} + B: ${trailerB?['length'] ?? 'N/A'}';
-  //       }
-  //       return 'Superlink';
-  //     case 'Tri-Axle':
-  //       final info = trailer.triAxleInfo;
-  //       if (info != null) {
-  //         return '${info['lengthTrailer'] ?? 'N/A'} Length';
-  //       }
-  //       return 'Tri-Axle';
-  //     default:
-  //       return trailer.trailerType;
-  //   }
-  // }
+  String getTrailerDetails() {
+    switch (trailer.trailerType) {
+      case 'Superlink':
+        final data = trailer.superlinkData;
+        if (data != null) {
+          return 'A: ${data.lengthA} | B: ${data.lengthB}';
+        }
+        return 'Superlink';
+      case 'Tri-Axle':
+        final data = trailer.triAxleData;
+        if (data != null) {
+          return 'Length: ${data.length}';
+        }
+        return 'Tri-Axle';
+      default:
+        return trailer.trailerType;
+    }
+  }
 
   // Calculate completeness ratio for the progress bar
   (int filled, int total) _calculateFieldsRatio() {
@@ -226,7 +224,9 @@ class TrailerCard extends StatelessWidget {
                 damages: [],
                 additionalFeatures: [],
                 faultCodes: []),
-            tyres: {'current': Tyres(positions: {}, lastUpdated: DateTime.now())}),
+            tyres: {
+              'current': Tyres(positions: {}, lastUpdated: DateTime.now())
+            }),
         country: '',
         province: '',
         damagesDescription: '',
@@ -359,8 +359,8 @@ class TrailerCard extends StatelessWidget {
                               _buildSpecBox(context, '${trailer.axles} AXLES',
                                   specFontSize),
                               SizedBox(width: responsiveSpacing),
-                              // _buildSpecBox(
-                              //     context, getTrailerDetails(), specFontSize),
+                              _buildSpecBox(
+                                  context, getTrailerDetails(), specFontSize),
                             ],
                           ),
                           const SizedBox(height: 18),

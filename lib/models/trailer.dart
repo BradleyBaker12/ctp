@@ -101,7 +101,8 @@ class Trailer {
       superlinkData = SuperlinkTrailer.fromJson(typeSpecificData);
     } else if (data['trailerType'] == 'Tri-Axle' && typeSpecificData != null) {
       triAxleData = TriAxleTrailer.fromJson(typeSpecificData);
-    }
+    } else if (data['trailerType'] == 'Double Axle' &&
+        typeSpecificData != null) {}
 
     return Trailer(
       id: docId,
