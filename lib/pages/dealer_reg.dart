@@ -14,7 +14,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:flutter/services.dart'; // Import the services package for input formatters
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart'; // Import the services package for input formatters
 
 class DealerRegPage extends StatefulWidget {
   const DealerRegPage({super.key});
@@ -216,7 +217,21 @@ class _DealerRegPageState extends State<DealerRegPage> {
   }
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Show T&C dialog before proceeding
+    final termsAccepted = await _showTermsAndConditionsDialog();
+    if (!termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must accept the Terms & Conditions to register'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -283,6 +298,74 @@ class _DealerRegPageState extends State<DealerRegPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<bool> _showTermsAndConditionsDialog() async {
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: Text(
+            'Terms and Conditions',
+            style: GoogleFonts.montserrat(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please review and accept our Terms and Conditions before proceeding.',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse(
+                    'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48')),
+                child: Text(
+                  'View Terms and Conditions',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    color: const Color(0xFF2F7FFD),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Decline',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  color: const Color(0xFFFF4E00),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                'Accept',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  color: const Color(0xFF2F7FFD),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
   }
 
   @override

@@ -47,7 +47,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   String _oilLeakConditionGearbox = 'no';
   String _retarderCondition = 'no';
 
-  // Map to store selected images for different sections
+  // Map to store selected images for different sections (local file bytes)
   final Map<String, Uint8List?> _selectedImages = {
     'Down': null,
     'Left': null,
@@ -193,21 +193,31 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16.0),
-              // Grid of Photos
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                children: _selectedImages.keys
-                    .where((key) =>
-                        key.contains('Left') ||
-                        key.contains('Right') ||
-                        key.contains('Down') ||
-                        key.contains('Up'))
-                    .map((key) => _buildPhotoBlock(key))
-                    .toList(),
+              // Responsive Grid for Photos (Down, Left, Up, Right)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
+                  final keys = _selectedImages.keys
+                      .where((key) =>
+                          key.contains('Left') ||
+                          key.contains('Right') ||
+                          key.contains('Down') ||
+                          key.contains('Up'))
+                      .toList();
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: keys.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 16.0,
+                      mainAxisSpacing: 16.0,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _buildPhotoBlock(keys[index]);
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 16.0),
               const Divider(thickness: 1.0),
@@ -223,18 +233,28 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16.0),
-              // Engine Photos
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                children: _selectedImages.keys
-                    .where((key) =>
-                        key.contains('Engine') && !key.contains('Leak'))
-                    .map((key) => _buildPhotoBlock(key))
-                    .toList(),
+              // Responsive Grid for Engine Photos (keys containing 'Engine' but not 'Leak')
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
+                  final keys = _selectedImages.keys
+                      .where((key) =>
+                          key.contains('Engine') && !key.contains('Leak'))
+                      .toList();
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: keys.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 16.0,
+                      mainAxisSpacing: 16.0,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _buildPhotoBlock(keys[index]);
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 16.0),
               // Engine Oil Leak Section
@@ -273,18 +293,28 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16.0),
-              // Gearbox Photos
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                children: _selectedImages.keys
-                    .where((key) =>
-                        key.contains('Gearbox') && !key.contains('Leak'))
-                    .map((key) => _buildPhotoBlock(key))
-                    .toList(),
+              // Responsive Grid for Gearbox Photos (keys containing 'Gearbox' but not 'Leak')
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
+                  final keys = _selectedImages.keys
+                      .where((key) =>
+                          key.contains('Gearbox') && !key.contains('Leak'))
+                      .toList();
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: keys.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 16.0,
+                      mainAxisSpacing: 16.0,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _buildPhotoBlock(keys[index]);
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 16.0),
               // Gearbox Oil Leak Section
@@ -315,17 +345,27 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16.0),
-              // Diffs Photos
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                children: _selectedImages.keys
-                    .where((key) => key.contains('Diffs'))
-                    .map((key) => _buildPhotoBlock(key))
-                    .toList(),
+              // Responsive Grid for Diffs Photos (keys containing 'Diffs')
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
+                  final keys = _selectedImages.keys
+                      .where((key) => key.contains('Diffs'))
+                      .toList();
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: keys.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 16.0,
+                      mainAxisSpacing: 16.0,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _buildPhotoBlock(keys[index]);
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 16.0),
               const Divider(thickness: 1.0),
@@ -400,7 +440,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   }
 
   // ===========================================================================
-  // 1) MAIN PHOTO BLOCK WITH X BUTTON
+  // 1) MAIN PHOTO BLOCK WITH X BUTTON (Modified to be square)
   // ===========================================================================
   Widget _buildPhotoBlock(String title) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -433,37 +473,36 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           _showImageSourceDialog(title);
         }
       },
-      child: Container(
-        width: double.infinity,
-        height: 130,
-        decoration: BoxDecoration(
-          color: AppColors.blue.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: AppColors.blue, width: 2.0),
-        ),
-        child: Stack(
-          children: [
-            // Existing image or placeholder
-            _getImageWidget(title, isDealer),
-
-            // The "X" button (only if not a dealer AND an image is present)
-            if (!isDealer && (hasLocalFile || hasUrl))
-              Positioned(
-                top: 0,
-                right: 0,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () {
-                    setState(() {
-                      // Reset the image/file and URL
-                      _selectedImages[title] = null;
-                      _imageUrls[title] = '';
-                    });
-                    widget.onProgressUpdate();
-                  },
+      child: AspectRatio(
+        aspectRatio: 1.0, // Enforce a square block
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.blue.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8.0),
+            border: Border.all(color: AppColors.blue, width: 2.0),
+          ),
+          child: Stack(
+            children: [
+              // Existing image or placeholder
+              _getImageWidget(title, isDealer),
+              // The "X" button (only if not a dealer AND an image is present)
+              if (!isDealer && (hasLocalFile || hasUrl))
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        _selectedImages[title] = null;
+                        _imageUrls[title] = '';
+                      });
+                      widget.onProgressUpdate();
+                    },
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -475,7 +514,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     final url = _imageUrls[title];
 
     if (file != null) {
-      // Local file image
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Image.memory(
@@ -486,7 +524,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         ),
       );
     } else if (url != null && url.isNotEmpty) {
-      // Network image
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Image.network(
@@ -500,7 +537,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         ),
       );
     } else {
-      // Placeholder with centered content
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -619,13 +655,13 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           ],
         ),
         const SizedBox(height: 16.0),
-        // If the user selects "Yes", allow uploading/viewing the "Leak" photo
+        // If the user selects "Yes", allow uploading/viewing the leak photo
         if (groupValue == 'yes') _buildPhotoBlock(imageKey),
       ],
     );
   }
 
-  // Same yes/no, but no images
+  // Same yes/no but without image upload (radio buttons only)
   Widget _buildYesNoRadioOnlySection({
     required String title,
     required String groupValue,
@@ -717,7 +753,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       'retarderCondition': _retarderCondition,
     };
 
-    // Only add images if there are any
     if (serializedImages.isNotEmpty) {
       data['images'] = serializedImages;
     }
@@ -728,11 +763,10 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
     try {
-      String fileName =
+      final fileName =
           'drive_train/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putData(imageFile);
-      TaskSnapshot snapshot = await uploadTask;
+      final storageRef = _storage.ref().child(fileName);
+      final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -776,7 +810,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       }
     });
 
-    // Print final state of images
     _imageUrls.forEach((key, value) {
       print('DriveTrain: Final URL for $key: $value');
     });
@@ -792,12 +825,10 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       _oilLeakConditionGearbox = 'no';
       _retarderCondition = 'no';
 
-      // Clear selected images
       _selectedImages.forEach((key, _) {
         _selectedImages[key] = null;
       });
 
-      // Clear image URLs
       _imageUrls.clear();
 
       _isInitialized = false; // Allow re-initialization if needed
@@ -813,26 +844,26 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
 
     // 2) Images (16 total possible)
     _selectedImages.forEach((key, value) {
-      // Count only if required or generally if there's an image
-      // For "Leak" images, only count if the condition is "yes"
-      if (key == 'Engine Oil Leak' && _oilLeakConditionEngine == 'yes') {
-        if (value != null ||
-            (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
+      if (key.contains('Leak')) {
+        // For "Leak" images, only count if the condition is "yes"
+        if ((key == 'Engine Oil Leak' &&
+                _oilLeakConditionEngine == 'yes' &&
+                (value != null ||
+                    (_imageUrls[key] != null &&
+                        _imageUrls[key]!.isNotEmpty))) ||
+            (key == 'Engine Water Leak' &&
+                _waterLeakConditionEngine == 'yes' &&
+                (value != null ||
+                    (_imageUrls[key] != null &&
+                        _imageUrls[key]!.isNotEmpty))) ||
+            (key == 'Gearbox Oil Leak' &&
+                _oilLeakConditionGearbox == 'yes' &&
+                (value != null ||
+                    (_imageUrls[key] != null &&
+                        _imageUrls[key]!.isNotEmpty)))) {
           filledFields++;
         }
-      } else if (key == 'Engine Water Leak' &&
-          _waterLeakConditionEngine == 'yes') {
-        if (value != null ||
-            (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
-          filledFields++;
-        }
-      } else if (key == 'Gearbox Oil Leak' &&
-          _oilLeakConditionGearbox == 'yes') {
-        if (value != null ||
-            (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
-          filledFields++;
-        }
-      } else if (!key.contains('Leak')) {
+      } else {
         // Non-leak images always count if present
         if (value != null ||
             (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
@@ -841,9 +872,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       }
     });
 
-    // 3) Conditions for leak/no-leak, retarder, blowby
-    //    (4 fields: engine oil leak, engine water leak, gearbox oil leak, retarder, plus blowby = 5)
-    // a) Engine oil
+    // 3) Conditions for leaks, blowby, retarder (5 fields)
     if (_oilLeakConditionEngine == 'no' ||
         (_oilLeakConditionEngine == 'yes' &&
             (_selectedImages['Engine Oil Leak'] != null ||
@@ -852,7 +881,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       filledFields++;
     }
 
-    // b) Engine water
     if (_waterLeakConditionEngine == 'no' ||
         (_waterLeakConditionEngine == 'yes' &&
             (_selectedImages['Engine Water Leak'] != null ||
@@ -861,10 +889,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       filledFields++;
     }
 
-    // c) Blowby
     if (_blowbyCondition.isNotEmpty) filledFields++;
 
-    // d) Gearbox oil
     if (_oilLeakConditionGearbox == 'no' ||
         (_oilLeakConditionGearbox == 'yes' &&
             (_selectedImages['Gearbox Oil Leak'] != null ||
@@ -873,10 +899,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       filledFields++;
     }
 
-    // e) Retarder
     if (_retarderCondition.isNotEmpty) filledFields++;
 
-    // Return final ratio
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 

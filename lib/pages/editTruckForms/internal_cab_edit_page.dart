@@ -222,7 +222,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16.0),
-              // Grid of Images
+              // Grid of Images (for keys containing Dash, Mileage, Visors, Console)
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -428,7 +428,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
               child: TruckInfoWebNavBar(
                 scaffoldKey: _scaffoldKey,
                 selectedTab: "Internal Cab",
-                vehicleId: widget.vehicleId, // Add this line
+                vehicleId: widget.vehicleId,
                 onHomePressed: () => Navigator.pushNamed(context, '/home'),
                 onBasicInfoPressed: () =>
                     Navigator.pushNamed(context, '/basic_information'),
@@ -448,12 +448,12 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
               ),
             )
           : null,
-      body: content, // your existing content
+      body: content,
     );
   }
 
   // =============================================================================
-  // 1. MAIN PHOTO BLOCKS WITH X BUTTON
+  // MAIN PHOTO BLOCKS
   // =============================================================================
   Widget _buildPhotoBlock(String title) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -465,7 +465,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
     return GestureDetector(
       onTap: () {
-        // If there's an image, view in fullscreen
         if (hasFile || hasUrl) {
           Navigator.push(
             context,
@@ -497,7 +496,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
             ),
           );
         } else if (!isDealer) {
-          // For transporters
           _showImageSourceDialog(title);
         }
       },
@@ -509,7 +507,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
         ),
         child: Stack(
           children: [
-            // Existing image logic:
             if (hasFile)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
@@ -558,8 +555,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   ],
                 ),
               ),
-
-            // The "X" button (only if user is a transporter and there's an image)
             if (!isDealer && (hasFile || hasUrl))
               Positioned(
                 top: 0,
@@ -568,7 +563,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   icon: const Icon(Icons.close, color: Colors.red),
                   onPressed: () {
                     setState(() {
-                      _selectedImages[title] = ImageData(); // Clear the image
+                      _selectedImages[title] = ImageData();
                     });
                     widget.onProgressUpdate();
                   },
@@ -581,7 +576,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   }
 
   // =============================================================================
-  // 2. ITEM IMAGES (DAMAGES, FEATURES, FAULT CODES) WITH X BUTTON
+  // ITEM WIDGETS (Damages, Features, Fault Codes)
   // =============================================================================
   Widget _buildItemWidget(
     int index,
@@ -606,7 +601,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   });
                 },
                 readOnly: isDealer,
-                // Add these properties to fix text direction
                 textDirection: TextDirection.ltr,
                 textAlign: TextAlign.left,
                 decoration: InputDecoration(
@@ -617,12 +611,11 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
-                  // Force LTR for hint text
                   hintTextDirection: TextDirection.ltr,
                 ),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontFamily: 'Roboto', // Add a specific font family
+                  fontFamily: 'Roboto',
                 ),
               ),
             ),
@@ -638,12 +631,10 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
           ],
         ),
         const SizedBox(height: 16.0),
-        // Image container with stack
         GestureDetector(
           onTap: () {
             if (isDealer &&
                 (item.imageData.file != null || item.imageData.url != null)) {
-              // Dealer can only view in fullscreen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -659,14 +650,12 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                                   return const Icon(Icons.error_outline,
                                       color: Colors.red);
                                 },
-                                loadingBuilder: (context, url, _) => Container(
-                                  color: Colors.white,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                },
                               ),
                       ),
                     ),
@@ -674,79 +663,72 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                 ),
               );
             } else if (!isDealer) {
-              // Transporter - show image source (camera/gallery)
               showImageSourceDialog(item);
             }
           },
-          child: Container(
-            height: 150.0,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.blue.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: AppColors.blue, width: 2.0),
-            ),
-            child: Stack(
-              children: [
-                // Existing image or placeholder
-                if (item.imageData.file == null &&
-                    (item.imageData.url == null ||
-                        !item.imageData.url!.startsWith('http')))
-                  _buildImagePlaceholder()
-                else
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: item.imageData.file != null
-                        ? Image.memory(
-                            item.imageData.file!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          )
-                        : Image.network(
-                            item.imageData.url!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildImagePlaceholder();
-                            },
-                          ),
-                  ),
-
-                // The "X" button (only if not dealer and there's an image)
-                if (!isDealer &&
-                    (item.imageData.file != null || item.imageData.url != null))
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
-                          // Clear the image
-                          item.imageData = ImageData();
-                        });
-                      },
+          child: AspectRatio(
+            aspectRatio: 1.0, // Enforce a square block
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.blue.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: AppColors.blue, width: 2.0),
+              ),
+              child: Stack(
+                children: [
+                  if (item.imageData.file == null &&
+                      (item.imageData.url == null ||
+                          !item.imageData.url!.startsWith('http')))
+                    _buildImagePlaceholder()
+                  else
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: item.imageData.file != null
+                          ? Image.memory(
+                              item.imageData.file!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            )
+                          : Image.network(
+                              item.imageData.url!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildImagePlaceholder();
+                              },
+                            ),
                     ),
-                  ),
-              ],
+                  if (!isDealer &&
+                      (item.imageData.file != null ||
+                          item.imageData.url != null))
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            item.imageData = ImageData();
+                          });
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
       ],
     );
   }
-
-  // =============================================================================
-  // Other Methods/Widgets (unchanged except for X-button additions)
-  // =============================================================================
 
   // Placeholder widget for item images
   Widget _buildImagePlaceholder() {
@@ -806,7 +788,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     var file = await pickedFile.readAsBytes();
-
                     _selectedImages[title] = ImageData(file: file);
                     setState(() {});
                   }
@@ -944,7 +925,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
-  // Build the list sections
+  // Build the damages section using a grid view
   Widget _buildDamageSection() {
     return _buildItemSection(
       items: _damageList,
@@ -957,6 +938,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
+  // Build the additional features section using a grid view
   Widget _buildAdditionalFeaturesSection() {
     return _buildItemSection(
       items: _additionalFeaturesList,
@@ -970,6 +952,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
+  // Build the fault codes section using a grid view
   Widget _buildFaultCodesSection() {
     return _buildItemSection(
       items: _faultCodesList,
@@ -983,7 +966,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     );
   }
 
-  // Generic method to build Damages, Additional Features, or Fault Codes sections
+  // Generic method to build the item section (for damages, features, fault codes)
+  // Displays items in a grid view with 2 columns on larger screens and 1 column on smaller screens.
   Widget _buildItemSection({
     required List<ItemData> items,
     required VoidCallback addItem,
@@ -994,13 +978,26 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
     return Column(
       children: [
-        ...items.asMap().entries.map(
-              (entry) => _buildItemWidget(
-                entry.key,
-                entry.value,
-                showImageSourceDialog,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                childAspectRatio: 0.8,
               ),
-            ),
+              itemBuilder: (context, index) {
+                return _buildItemWidget(
+                    index, items[index], showImageSourceDialog);
+              },
+            );
+          },
+        ),
         const SizedBox(height: 16.0),
         if (!isDealer)
           GestureDetector(
@@ -1026,19 +1023,22 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   }
 
   // =============================================================================
-  // Firebase Methods / Data Methods
+  // Firebase & Data Methods
   // =============================================================================
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
-    String fileName =
-        'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putData(imageFile);
-    TaskSnapshot snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    try {
+      final fileName =
+          'internal_cab/vehicleId_placeholder_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final storageRef = _storage.ref().child(fileName);
+      final snapshot = await storageRef.putData(imageFile);
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      // Handle error accordingly
+    }
+    return '';
   }
 
-  // Method to get data for saving
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isTransporter = userProvider.getUserRole == 'transporter';
@@ -1048,7 +1048,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       return {};
     }
 
-    // Serialize images
+    // Serialize main images
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
       if (entry.value.file != null) {
@@ -1116,9 +1116,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     for (var faultCode in _faultCodesList) {
       if (faultCode.imageData.file != null) {
         String imageUrl = await _uploadImageToFirebase(
-          faultCode.imageData.file!,
-          'fault_code',
-        );
+            faultCode.imageData.file!, 'fault_code');
         serializedFaultCodes.add({
           'description': faultCode.description,
           'imageUrl': imageUrl,
@@ -1145,7 +1143,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     };
   }
 
-  // Method to initialize data
   void initializeWithData(Map<String, dynamic> data) {
     print('InternalCab: Starting initialization with data: $data');
     if (data.isEmpty) return;
@@ -1157,7 +1154,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
           data['additionalFeaturesCondition'] ?? 'no';
       _faultCodesCondition = data['faultCodesCondition'] ?? 'no';
 
-      // Initialize images - check both 'images' and 'viewImages' fields
+      // Initialize images – check both 'images' and 'viewImages'
       Map<String, dynamic>? images = data['images'] as Map<String, dynamic>? ??
           data['viewImages'] as Map<String, dynamic>?;
 
@@ -1187,10 +1184,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       _initializeList('faultCodes', data['faultCodes'], _faultCodesList);
     });
 
-    // Print final state of images
     _selectedImages.forEach((key, value) {
       print(
-          'InternalCab: Final image state for $key: ${value.url != null ? 'Has URL' : 'No URL'}');
+          'InternalCab: Final image state for $key: ${value.url != null ? "Has URL" : "No URL"}');
     });
     print('InternalCab: Initialization complete');
   }
@@ -1210,7 +1206,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     }
   }
 
-  // Method to reset the form
   void reset() {
     setState(() {
       _selectedCondition = 'good';
@@ -1226,26 +1221,22 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       _additionalFeaturesList.clear();
       _faultCodesList.clear();
 
-      _isInitialized = false; // Allow re-initialization if needed
+      _isInitialized = false;
     });
   }
 
-  // Method to calculate completion percentage
   double getCompletionPercentage() {
     int totalFields = 18; // Total number of fields to fill
     int filledFields = 0;
 
-    // Check condition selection (1 field)
     if (_selectedCondition.isNotEmpty) filledFields++;
 
-    // Check all images (14 fields)
     _selectedImages.forEach((key, value) {
       if (value.file != null || (value.url != null && value.url!.isNotEmpty)) {
         filledFields++;
       }
     });
 
-    // Check damages section (1 field)
     if (_damagesCondition == 'no') {
       filledFields++;
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
@@ -1257,7 +1248,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       if (isDamagesComplete) filledFields++;
     }
 
-    // Check additional features section (1 field)
     if (_additionalFeaturesCondition == 'no') {
       filledFields++;
     } else if (_additionalFeaturesCondition == 'yes' &&
@@ -1270,7 +1260,6 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       if (isFeaturesComplete) filledFields++;
     }
 
-    // Check fault codes section (1 field)
     if (_faultCodesCondition == 'no') {
       filledFields++;
     } else if (_faultCodesCondition == 'yes' && _faultCodesList.isNotEmpty) {
@@ -1282,11 +1271,9 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
       if (isFaultCodesComplete) filledFields++;
     }
 
-    // Ensure we don't exceed 1.0 and handle potential division errors
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
-  // Helper method to update state and notify progress
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(() {
       updateFunction();

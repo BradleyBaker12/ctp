@@ -1,4 +1,4 @@
-// lib/pages/truckForms/tyres_edit_page.dart
+// lib/pages/editTruckForms/tyres_edit_page.dart
 
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -45,7 +45,7 @@ class TyresEditPageState extends State<TyresEditPage>
   final Map<int, String> _virginOrRecaps = {};
   final Map<int, String> _rimTypes = {};
 
-  // For storing image data in memory (when user picks an image)
+  // For storing image data (when user picks an image)
   final Map<String, Uint8List?> _selectedImages = {};
   // For storing network image URLs from Firestore/Firebase Storage
   final Map<String, String> _imageUrls = {};
@@ -56,13 +56,12 @@ class TyresEditPageState extends State<TyresEditPage>
   @override
   void initState() {
     super.initState();
-    // Initialize maps for tyre positions 1 to 6.
+    // Initialize tyre position maps for positions 1 to 6.
     for (int i = 1; i <= 6; i++) {
       _chassisConditions[i] = '';
       _virginOrRecaps[i] = '';
       _rimTypes[i] = '';
     }
-    // Unlike before, always load existing data (if any) so the saved image shows.
     if (!_isInitialized) {
       _fetchExistingData();
     }
@@ -94,7 +93,6 @@ class TyresEditPageState extends State<TyresEditPage>
       }
 
       print('DEBUG: Found tyres data: $tyresData');
-      // For each tyre position (1 to 6) load the saved data.
       for (int pos = 1; pos <= 6; pos++) {
         String posKey = 'Tyre_Pos_$pos';
         if (tyresData[posKey] != null) {
@@ -120,6 +118,29 @@ class TyresEditPageState extends State<TyresEditPage>
         SnackBar(content: Text('Error loading tyre data: $e')),
       );
     }
+  }
+
+  /// A helper method that builds a row with responsive spacing.
+  Widget _buildResponsiveRow(List<Widget> children) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // If width is greater than 600, use a fixed spacing of 20 pixels;
+        // otherwise, use 5% of the available width.
+        double spacing =
+            constraints.maxWidth > 600 ? 20.0 : constraints.maxWidth * 0.05;
+        List<Widget> spacedChildren = [];
+        for (int i = 0; i < children.length; i++) {
+          spacedChildren.add(children[i]);
+          if (i < children.length - 1) {
+            spacedChildren.add(SizedBox(width: spacing));
+          }
+        }
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: spacedChildren,
+        );
+      },
+    );
   }
 
   @override
@@ -148,7 +169,6 @@ class TyresEditPageState extends State<TyresEditPage>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16.0),
-              // Generate sections for tyre positions 1 through 6.
               ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
               const SizedBox(height: 16.0),
               const Divider(thickness: 1.0),
@@ -189,7 +209,6 @@ class TyresEditPageState extends State<TyresEditPage>
       ),
     );
 
-    // Wrap with GradientBackground if not in tabs mode.
     if (!widget.inTabsPage) {
       content = GradientBackground(child: content);
     }
@@ -260,51 +279,48 @@ class TyresEditPageState extends State<TyresEditPage>
           ),
         ),
         const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            CustomRadioButton(
-              label: 'Poor',
-              value: 'poor',
-              groupValue: _chassisConditions[pos] ?? '',
-              onChanged: (String? value) {
-                if (value != null) {
-                  _updateAndNotify(() {
-                    _chassisConditions[pos] = value;
-                    print("DEBUG: Tyre $pos chassis condition set to $value");
-                  });
-                }
-              },
-              enabled: !isDealer,
-            ),
-            CustomRadioButton(
-              label: 'Good',
-              value: 'good',
-              groupValue: _chassisConditions[pos] ?? '',
-              onChanged: (String? value) {
-                if (value != null) {
+        _buildResponsiveRow([
+          CustomRadioButton(
+            label: 'Poor',
+            value: 'poor',
+            groupValue: _chassisConditions[pos] ?? '',
+            onChanged: (String? value) {
+              if (value != null) {
+                _updateAndNotify(() {
                   _chassisConditions[pos] = value;
                   print("DEBUG: Tyre $pos chassis condition set to $value");
-                }
-                _updateAndNotify(() {});
-              },
-              enabled: !isDealer,
-            ),
-            CustomRadioButton(
-              label: 'Excellent',
-              value: 'excellent',
-              groupValue: _chassisConditions[pos] ?? '',
-              onChanged: (String? value) {
-                if (value != null) {
-                  _chassisConditions[pos] = value;
-                  print("DEBUG: Tyre $pos chassis condition set to $value");
-                }
-                _updateAndNotify(() {});
-              },
-              enabled: !isDealer,
-            ),
-          ],
-        ),
+                });
+              }
+            },
+            enabled: !isDealer,
+          ),
+          CustomRadioButton(
+            label: 'Good',
+            value: 'good',
+            groupValue: _chassisConditions[pos] ?? '',
+            onChanged: (String? value) {
+              if (value != null) {
+                _chassisConditions[pos] = value;
+                print("DEBUG: Tyre $pos chassis condition set to $value");
+              }
+              _updateAndNotify(() {});
+            },
+            enabled: !isDealer,
+          ),
+          CustomRadioButton(
+            label: 'Excellent',
+            value: 'excellent',
+            groupValue: _chassisConditions[pos] ?? '',
+            onChanged: (String? value) {
+              if (value != null) {
+                _chassisConditions[pos] = value;
+                print("DEBUG: Tyre $pos chassis condition set to $value");
+              }
+              _updateAndNotify(() {});
+            },
+            enabled: !isDealer,
+          ),
+        ]),
         const SizedBox(height: 16.0),
         Center(
           child: const Text(
@@ -317,37 +333,34 @@ class TyresEditPageState extends State<TyresEditPage>
           ),
         ),
         const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            CustomRadioButton(
-              label: 'Virgin',
-              value: 'virgin',
-              groupValue: _virginOrRecaps[pos] ?? '',
-              onChanged: (String? value) {
-                if (value != null) {
-                  _virginOrRecaps[pos] = value;
-                  print("DEBUG: Tyre $pos virgin/recap set to $value");
-                }
-                _updateAndNotify(() {});
-              },
-              enabled: !isDealer,
-            ),
-            CustomRadioButton(
-              label: 'Recap',
-              value: 'recap',
-              groupValue: _virginOrRecaps[pos] ?? '',
-              onChanged: (String? value) {
-                if (value != null) {
-                  _virginOrRecaps[pos] = value;
-                  print("DEBUG: Tyre $pos virgin/recap set to $value");
-                }
-                _updateAndNotify(() {});
-              },
-              enabled: !isDealer,
-            ),
-          ],
-        ),
+        _buildResponsiveRow([
+          CustomRadioButton(
+            label: 'Virgin',
+            value: 'virgin',
+            groupValue: _virginOrRecaps[pos] ?? '',
+            onChanged: (String? value) {
+              if (value != null) {
+                _virginOrRecaps[pos] = value;
+                print("DEBUG: Tyre $pos virgin/recap set to $value");
+              }
+              _updateAndNotify(() {});
+            },
+            enabled: !isDealer,
+          ),
+          CustomRadioButton(
+            label: 'Recap',
+            value: 'recap',
+            groupValue: _virginOrRecaps[pos] ?? '',
+            onChanged: (String? value) {
+              if (value != null) {
+                _virginOrRecaps[pos] = value;
+                print("DEBUG: Tyre $pos virgin/recap set to $value");
+              }
+              _updateAndNotify(() {});
+            },
+            enabled: !isDealer,
+          ),
+        ]),
         const SizedBox(height: 16.0),
         Center(
           child: const Text(
@@ -360,50 +373,50 @@ class TyresEditPageState extends State<TyresEditPage>
           ),
         ),
         const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            CustomRadioButton(
-              label: 'Aluminium',
-              value: 'aluminium',
-              groupValue: _rimTypes[pos] ?? '',
-              onChanged: (String? value) {
-                if (value != null) {
-                  _rimTypes[pos] = value;
-                  print("DEBUG: Tyre $pos rim type set to $value");
-                }
-                _updateAndNotify(() {});
-              },
-              enabled: !isDealer,
-            ),
-            CustomRadioButton(
-              label: 'Steel',
-              value: 'steel',
-              groupValue: _rimTypes[pos] ?? '',
-              onChanged: (String? value) {
-                if (value != null) {
-                  _rimTypes[pos] = value;
-                  print("DEBUG: Tyre $pos rim type set to $value");
-                }
-                _updateAndNotify(() {});
-              },
-              enabled: !isDealer,
-            ),
-          ],
-        ),
+        _buildResponsiveRow([
+          CustomRadioButton(
+            label: 'Aluminium',
+            value: 'aluminium',
+            groupValue: _rimTypes[pos] ?? '',
+            onChanged: (String? value) {
+              if (value != null) {
+                _rimTypes[pos] = value;
+                print("DEBUG: Tyre $pos rim type set to $value");
+              }
+              _updateAndNotify(() {});
+            },
+            enabled: !isDealer,
+          ),
+          CustomRadioButton(
+            label: 'Steel',
+            value: 'steel',
+            groupValue: _rimTypes[pos] ?? '',
+            onChanged: (String? value) {
+              if (value != null) {
+                _rimTypes[pos] = value;
+                print("DEBUG: Tyre $pos rim type set to $value");
+              }
+              _updateAndNotify(() {});
+            },
+            enabled: !isDealer,
+          ),
+        ]),
         const Divider(thickness: 1.0),
       ],
     );
   }
 
+  // =======================
+  // IMAGE UPLOAD BLOCK (Square with Responsive Sizing, Fixed at Large Screen)
+  // =======================
   Widget _buildImageUploadBlock(String key) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
     String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
+
     return GestureDetector(
       onTap: () async {
         print("DEBUG: Image upload block tapped for key: $key");
-        // If an image exists, allow viewing it.
         if ((_selectedImages[key] != null ||
             (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty))) {
           print("DEBUG: Viewing image for key: $key");
@@ -445,101 +458,66 @@ class TyresEditPageState extends State<TyresEditPage>
               ),
             ),
           );
-        }
-        // Otherwise, if not a dealer, allow picking a new image.
-        else if (!isDealer) {
+        } else if (!isDealer) {
           _showImageSourceDialog(key);
         }
       },
-      child: Stack(
-        children: [
-          Container(
-            height: 150.0,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.blue.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: AppColors.blue, width: 2.0),
-            ),
-            child: Stack(
-              children: [
-                if (_selectedImages[key] != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.memory(
-                      _selectedImages[key]!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                  )
-                else if (_imageUrls[key] != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: (_imageUrls[key] == null || _imageUrls[key] == "")
-                        ? const Center(child: Text("Invalid Image"))
-                        : Image.network(
-                            _imageUrls[key]!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          double blockSize;
+          // When available width exceeds 600, fix the size at 200 pixels;
+          // otherwise, use 80% of available width.
+          if (constraints.maxWidth > 600) {
+            blockSize = 500;
+          } else {
+            blockSize = constraints.maxWidth * 0.8;
+          }
+          return Center(
+            child: Container(
+              width: blockSize,
+              height: blockSize,
+              decoration: BoxDecoration(
+                color: AppColors.blue.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: AppColors.blue, width: 2.0),
+              ),
+              child: Stack(
+                children: [
+                  _getImageWidget(key, isDealer),
+                  if (!isDealer &&
+                      (_selectedImages[key] != null ||
+                          (_imageUrls[key] != null &&
+                              _imageUrls[key]!.isNotEmpty)))
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () {
+                          print("DEBUG: Removing image for key: $key");
+                          setState(() {
+                            _selectedImages.remove(key);
+                            _imageUrls.remove(key);
+                          });
+                          widget.onProgressUpdate();
+                        },
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
                           ),
-                  )
-                else
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (!isDealer)
-                          const Icon(Icons.add_circle_outline,
-                              color: Colors.white, size: 40.0),
-                        const SizedBox(height: 8.0),
-                        Text(
-                          title,
-                          style: const TextStyle(
+                          child: const Icon(
+                            Icons.close,
                             color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            size: 20,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                // If not a dealer and an image exists, show a modify (X) button.
-                if (!isDealer &&
-                    (_selectedImages[key] != null ||
-                        (_imageUrls[key] != null &&
-                            _imageUrls[key]!.isNotEmpty)))
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () {
-                        print("DEBUG: Removing image for key: $key");
-                        setState(() {
-                          _selectedImages.remove(key);
-                          _imageUrls.remove(key);
-                        });
-                        widget.onProgressUpdate();
-                      },
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 20,
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -603,7 +581,59 @@ class TyresEditPageState extends State<TyresEditPage>
     );
   }
 
-  /// Uploads images (if any) and returns the full tyre data map.
+  /// A helper method to return either a local image, a network image, or a placeholder.
+  Widget _getImageWidget(String title, bool isDealer) {
+    final file = _selectedImages[title];
+    final url = _imageUrls[title];
+
+    if (file != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.memory(
+          file,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      );
+    } else if (url != null && url.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.error_outline, color: Colors.red);
+          },
+        ),
+      );
+    } else {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (!isDealer)
+              const Icon(Icons.add_circle_outline,
+                  color: Colors.white, size: 40.0),
+            const SizedBox(height: 8.0),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// Collects all data (for tyre positions) and uploads new images if necessary.
   Future<Map<String, dynamic>> getData() async {
     Map<String, dynamic> allTyresData = {};
 
@@ -619,7 +649,6 @@ class TyresEditPageState extends State<TyresEditPage>
         'rimType': _rimTypes[pos] ?? '',
       };
 
-      // If a new image was selected, upload it.
       if (_selectedImages[photoKey] != null) {
         print("DEBUG: Uploading image for $photoKey");
         String imageUrl = await _uploadImageToFirebase(
@@ -651,16 +680,16 @@ class TyresEditPageState extends State<TyresEditPage>
   /// Uploads an image file to Firebase Storage and returns its download URL.
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
-    String fileName =
-        'tyres/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    print("DEBUG: Preparing to upload image with fileName: $fileName");
-    Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putData(imageFile);
-
-    TaskSnapshot snapshot = await uploadTask;
-    String downloadURL = await snapshot.ref.getDownloadURL();
-    print("DEBUG: Image uploaded. Download URL: $downloadURL");
-    return downloadURL;
+    try {
+      final fileName =
+          'tyres/vehicleId_placeholder_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final storageRef = _storage.ref().child(fileName);
+      final snapshot = await storageRef.putData(imageFile);
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print("DEBUG: Error uploading image: $e");
+      return '';
+    }
   }
 
   /// Resets all fields and clears image data.

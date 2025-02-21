@@ -1,36 +1,38 @@
 // lib/pages/truckForms/chassis_page.dart
 
-import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:typed_data';
+import 'dart:io';
 
+/// Holds the image data in a cross-platform manner.
+/// - [file] for in-memory bytes (works on web & mobile)
+/// - [url] for any previously uploaded image
+/// - [fileName] if you want to track the original name
 class ImageData {
-  File? file;
-  Uint8List? webImage;
-  String? url;
+  final Uint8List? file;
+  final String? url;
+  final String? fileName;
 
-  ImageData({this.file, this.webImage, this.url});
+  const ImageData({this.file, this.url, this.fileName});
 
-  bool get hasImage =>
-      file != null || webImage != null || (url != null && url!.isNotEmpty);
+  bool get hasImage => (file != null) || (url != null && url!.isNotEmpty);
 }
 
+/// Represents a "damage" or "additional feature" item with description + image.
 class ItemData {
   String description;
   ImageData imageData;
-  String key;
 
   ItemData({
-    this.description = '',
-    ImageData? imageData,
-    String? key,
-  })  : imageData = imageData ?? ImageData(),
-        key = key ?? UniqueKey().toString();
+    required this.description,
+    required this.imageData,
+  });
 }
 
 class ChassisPage extends StatefulWidget {
@@ -55,40 +57,43 @@ class ChassisPageState extends State<ChassisPage>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  // Overall condition radio buttons
   String _selectedCondition = 'good';
-  String _additionalFeaturesCondition = 'no';
-  String _damagesCondition = 'no';
 
-  // Maps to store selected images and their URLs
+  // Additional sections: "damages" and "additional features"
+  String _damagesCondition = 'no';
+  String _additionalFeaturesCondition = 'no';
+
+  // Map to store images for each labeled section
   final Map<String, ImageData> _selectedImages = {
-    'Right Brake': ImageData(),
-    'Left Brake': ImageData(),
-    'Front Axel': ImageData(),
-    'Suspension': ImageData(),
-    'Fuel Tank': ImageData(),
-    'Battery': ImageData(),
-    'Cat Walk': ImageData(),
-    'Electrical Cable Black': ImageData(),
-    'Air Cable Yellow': ImageData(),
-    'Air Cable Red': ImageData(),
-    'Tail Board': ImageData(),
-    '5th Wheel': ImageData(),
-    'Left Brake Rear Axel': ImageData(),
-    'Right Brake Rear Axel': ImageData(),
+    'Right Brake': const ImageData(),
+    'Left Brake': const ImageData(),
+    'Front Axel': const ImageData(),
+    'Suspension': const ImageData(),
+    'Fuel Tank': const ImageData(),
+    'Battery': const ImageData(),
+    'Cat Walk': const ImageData(),
+    'Electrical Cable Black': const ImageData(),
+    'Air Cable Yellow': const ImageData(),
+    'Air Cable Red': const ImageData(),
+    'Tail Board': const ImageData(),
+    '5th Wheel': const ImageData(),
+    'Left Brake Rear Axel': const ImageData(),
+    'Right Brake Rear Axel': const ImageData(),
   };
 
-  // Lists to store damages and additional features
+  // Lists to store "damages" and "additional features"
   List<ItemData> _damageList = [];
   List<ItemData> _additionalFeaturesList = [];
 
-  bool _isInitialized = false; // Flag to prevent re-initialization
+  bool _isInitialized = false; // For one-time initialization, if needed
 
   @override
-  bool get wantKeepAlive => true; // Properly implementing the getter
+  bool get wantKeepAlive => true; // For AutomaticKeepAliveClientMixin
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context); // Must call for AutomaticKeepAliveClientMixin
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -115,7 +120,8 @@ class ChassisPageState extends State<ChassisPage>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
-            // Condition Radio Buttons
+
+            // Condition radio buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -123,45 +129,34 @@ class ChassisPageState extends State<ChassisPage>
                   label: 'Poor',
                   value: 'poor',
                   groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
+                  onChanged: (val) => _updateAndNotify(() {
+                    _selectedCondition = val!;
+                  }),
                 ),
                 CustomRadioButton(
                   label: 'Good',
                   value: 'good',
                   groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
+                  onChanged: (val) => _updateAndNotify(() {
+                    _selectedCondition = val!;
+                  }),
                 ),
                 CustomRadioButton(
                   label: 'Excellent',
                   value: 'excellent',
                   groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
+                  onChanged: (val) => _updateAndNotify(() {
+                    _selectedCondition = val!;
+                  }),
                 ),
               ],
             ),
+
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
 
-            // Front Axel Section
+            // Front Axel
             Text(
               'Front Axel'.toUpperCase(),
               style: const TextStyle(
@@ -178,7 +173,7 @@ class ChassisPageState extends State<ChassisPage>
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
 
-            // Center of Chassis Section
+            // Center of Chassis
             Text(
               'Center of Chassis'.toUpperCase(),
               style: const TextStyle(
@@ -201,7 +196,7 @@ class ChassisPageState extends State<ChassisPage>
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
 
-            // Rear Axel Section
+            // Rear Axel
             Text(
               'Rear Axel'.toUpperCase(),
               style: const TextStyle(
@@ -226,16 +221,17 @@ class ChassisPageState extends State<ChassisPage>
             _buildAdditionalSection(
               title: 'Are there any damages?',
               anyItemsType: _damagesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _damagesCondition = value!;
-                  if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                    _damageList.add(ItemData());
-                  } else if (_damagesCondition == 'no') {
-                    _damageList.clear();
-                  }
-                });
-              },
+              onChange: (val) => _updateAndNotify(() {
+                _damagesCondition = val!;
+                if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                  _damageList.add(ItemData(
+                    description: '',
+                    imageData: const ImageData(),
+                  ));
+                } else if (_damagesCondition == 'no') {
+                  _damageList.clear();
+                }
+              }),
               buildItemSection: _buildDamageSection,
             ),
             const SizedBox(height: 16.0),
@@ -246,17 +242,18 @@ class ChassisPageState extends State<ChassisPage>
             _buildAdditionalSection(
               title: 'Are there any additional features?',
               anyItemsType: _additionalFeaturesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _additionalFeaturesCondition = value!;
-                  if (_additionalFeaturesCondition == 'yes' &&
-                      _additionalFeaturesList.isEmpty) {
-                    _additionalFeaturesList.add(ItemData());
-                  } else if (_additionalFeaturesCondition == 'no') {
-                    _additionalFeaturesList.clear();
-                  }
-                });
-              },
+              onChange: (val) => _updateAndNotify(() {
+                _additionalFeaturesCondition = val!;
+                if (_additionalFeaturesCondition == 'yes' &&
+                    _additionalFeaturesList.isEmpty) {
+                  _additionalFeaturesList.add(ItemData(
+                    description: '',
+                    imageData: const ImageData(),
+                  ));
+                } else if (_additionalFeaturesCondition == 'no') {
+                  _additionalFeaturesList.clear();
+                }
+              }),
               buildItemSection: _buildAdditionalFeaturesSection,
             ),
             const SizedBox(height: 16.0),
@@ -266,7 +263,9 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  // Helper method to create an image grid
+  // ------------------------------
+  // IMAGE GRID FOR MAIN SECTIONS
+  // ------------------------------
   Widget _buildImageGrid(List<String> titles) {
     return GridView.count(
       shrinkWrap: true,
@@ -278,19 +277,28 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  /// Adds an 'X' overlay button to remove the image if present
+  /// Builds a single "photo block" with an add icon or the image + X button.
   Widget _buildPhotoBlock(String title) {
+    final imageData = _selectedImages[title];
+    final hasFile = (imageData?.file != null);
+    final hasUrl = (imageData?.url != null && imageData!.url!.isNotEmpty);
+
     return GestureDetector(
-      onTap: () => _showImageSourceDialog(title),
+      onTap: () {
+        // If there's already an image, show full-screen preview; else pick new
+        if (hasFile || hasUrl) {
+          _showFullScreenImage(imageData!);
+        } else {
+          _showImageSourceDialog(title);
+        }
+      },
       child: Container(
-        width: double.infinity,
-        height: 130,
         decoration: BoxDecoration(
           color: AppColors.blue.withOpacity(0.3),
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: AppColors.blue, width: 2.0),
         ),
-        child: !_selectedImages[title]!.hasImage
+        child: (!hasFile && !hasUrl)
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -310,17 +318,32 @@ class ChassisPageState extends State<ChassisPage>
               )
             : Stack(
                 children: [
+                  // Show the image
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: _getImageWidget(_selectedImages[title]!),
+                    child: hasFile
+                        ? Image.memory(
+                            imageData!.file!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          )
+                        : Image.network(
+                            imageData!.url!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
                   ),
+                  // "X" button to remove
                   Positioned(
                     top: 0,
                     right: 0,
                     child: GestureDetector(
                       onTap: () {
+                        // Clear the image
                         setState(() {
-                          _selectedImages[title] = ImageData();
+                          _selectedImages[title] = const ImageData();
                         });
                         widget.onProgressUpdate();
                       },
@@ -344,33 +367,26 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  Widget _getImageWidget(ImageData imageData) {
-    if (imageData.webImage != null) {
-      return Image.memory(
-        imageData.webImage!,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-      );
-    } else if (imageData.file != null) {
-      return Image.file(
-        imageData.file!,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-      );
-    } else if (imageData.url != null && imageData.url!.isNotEmpty) {
-      return Image.network(
-        imageData.url!,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-      );
-    }
-    return Container();
+  /// Full-screen preview when tapping an existing image
+  void _showFullScreenImage(ImageData imageData) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          body: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Center(
+              child: (imageData.file != null)
+                  ? Image.memory(imageData.file!)
+                  : Image.network(imageData.url!),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  // Method to show the dialog for selecting image source (Camera or Gallery)
+  /// Dialog to pick an image from camera or gallery
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
@@ -385,14 +401,14 @@ class ChassisPageState extends State<ChassisPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final XFile? pickedFile =
+                  final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
+                    final bytes = await File(pickedFile.path).readAsBytes();
                     setState(() {
                       _selectedImages[title] = ImageData(
-                        file: File(pickedFile.path),
-                        webImage: bytes,
+                        file: bytes,
+                        fileName: pickedFile.name,
                       );
                     });
                     widget.onProgressUpdate();
@@ -404,14 +420,14 @@ class ChassisPageState extends State<ChassisPage>
                 title: const Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final XFile? pickedFile =
+                  final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
+                    final bytes = await File(pickedFile.path).readAsBytes();
                     setState(() {
                       _selectedImages[title] = ImageData(
-                        file: File(pickedFile.path),
-                        webImage: bytes,
+                        file: bytes,
+                        fileName: pickedFile.name,
                       );
                     });
                     widget.onProgressUpdate();
@@ -425,7 +441,9 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  // Helper method to build additional sections (Damages, Additional Features)
+  // ------------------------------
+  // DAMAGES & ADDITIONAL FEATURES
+  // ------------------------------
   Widget _buildAdditionalSection({
     required String title,
     required String anyItemsType,
@@ -468,33 +486,37 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  // Helper method to build the damage section
+  // Build the damage section
   Widget _buildDamageSection() {
     return _buildItemSection(
       items: _damageList,
       addItem: () {
-        _updateAndNotify(() {
-          _damageList.add(ItemData());
+        setState(() {
+          _damageList.add(
+            ItemData(description: '', imageData: const ImageData()),
+          );
         });
       },
       showImageSourceDialog: _showDamageImageSourceDialog,
     );
   }
 
-  // Helper method to build the additional features section
+  // Build the additional features section
   Widget _buildAdditionalFeaturesSection() {
     return _buildItemSection(
       items: _additionalFeaturesList,
       addItem: () {
-        _updateAndNotify(() {
-          _additionalFeaturesList.add(ItemData());
+        setState(() {
+          _additionalFeaturesList.add(
+            ItemData(description: '', imageData: const ImageData()),
+          );
         });
       },
       showImageSourceDialog: _showAdditionalFeatureImageSourceDialog,
     );
   }
 
-  // Helper method to build the item section (Damages, Additional Features)
+  /// Generic builder for "damages" or "additional features" list
   Widget _buildItemSection({
     required List<ItemData> items,
     required VoidCallback addItem,
@@ -503,12 +525,9 @@ class ChassisPageState extends State<ChassisPage>
     return Column(
       children: [
         ...items.asMap().entries.map((entry) {
-          return _buildItemWidget(
-            entry.key,
-            entry.value,
-            showImageSourceDialog,
-            items,
-          );
+          final index = entry.key;
+          final item = entry.value;
+          return _buildItemWidget(index, item, showImageSourceDialog, items);
         }),
         const SizedBox(height: 16.0),
         GestureDetector(
@@ -533,16 +552,21 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  /// Wraps the image in a Stack with an "X" button if present
+  /// Builds each item (damage or additional feature) with text + image
   Widget _buildItemWidget(
     int index,
     ItemData item,
     void Function(ItemData) showImageSourceDialog,
     List<ItemData> list,
   ) {
+    final hasFile = (item.imageData.file != null);
+    final hasUrl =
+        (item.imageData.url != null && item.imageData.url!.isNotEmpty);
+
     return Column(
       children: [
         const SizedBox(height: 16.0),
+        // Row with TextField + Delete button
         Row(
           children: [
             Expanded(
@@ -552,9 +576,10 @@ class ChassisPageState extends State<ChassisPage>
                     TextPosition(offset: item.description.length),
                   ),
                 onChanged: (value) {
-                  _updateAndNotify(() {
+                  setState(() {
                     item.description = value;
                   });
+                  widget.onProgressUpdate();
                 },
                 decoration: InputDecoration(
                   labelText: 'Describe Item',
@@ -571,14 +596,17 @@ class ChassisPageState extends State<ChassisPage>
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () {
-                _updateAndNotify(() {
+                setState(() {
                   list.removeAt(index);
                 });
+                widget.onProgressUpdate();
               },
             ),
           ],
         ),
         const SizedBox(height: 16.0),
+
+        // Image container
         GestureDetector(
           onTap: () => showImageSourceDialog(item),
           child: Container(
@@ -589,141 +617,82 @@ class ChassisPageState extends State<ChassisPage>
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: AppColors.blue, width: 2.0),
             ),
-            child: () {
-              // If local file is present, show in a Stack
-              if (item.imageData.file != null) {
-                return Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.file(
-                        item.imageData.file!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                    ),
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            item.imageData.file = null;
-                            // Optionally clear URL too:
-                            // item['imageUrl'] = null;
-                          });
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          padding: const EdgeInsets.all(4.0),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 18,
-                          ),
+            child: (!hasFile && !hasUrl)
+                ? const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_circle_outline,
+                          color: Colors.white, size: 40.0),
+                      SizedBox(height: 8.0),
+                      Text(
+                        'Add Image',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                  ],
-                );
-              }
-              // Else if there's an existing URL and we're editing
-              else if (item.imageData.url != null && widget.isEditing) {
-                return Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.network(
-                        item.imageData.url!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
+                    ],
+                  )
+                : Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: hasFile
+                            ? Image.memory(
+                                item.imageData.file!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                            : Image.network(
+                                item.imageData.url!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              item.imageData = const ImageData();
+                            });
+                            widget.onProgressUpdate();
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            item.imageData.url = null;
-                            // Keep item['image'] = null
-                            // so user can re-upload if they want
-                          });
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          padding: const EdgeInsets.all(4.0),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 18,
+                            padding: const EdgeInsets.all(4.0),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              }
-              // Otherwise show placeholder
-              else {
-                return _buildImagePlaceholder();
-              }
-            }(),
+                    ],
+                  ),
           ),
         ),
       ],
     );
   }
 
-  // Placeholder widget for images
-  Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-        SizedBox(height: 8.0),
-        Text(
-          'Add Image',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Method to show dialog for selecting image source for damages
+  /// Show a camera/gallery dialog for a single damage/feature item
   void _showDamageImageSourceDialog(ItemData damage) {
     _showImageSourceDialogForItem(damage);
   }
 
-  // Method to show dialog for selecting image source for additional features
   void _showAdditionalFeatureImageSourceDialog(ItemData feature) {
     _showImageSourceDialogForItem(feature);
   }
 
-  // Generic method to show dialog for selecting image source for a given item
   void _showImageSourceDialogForItem(ItemData item) {
     showDialog(
       context: context,
@@ -741,10 +710,11 @@ class ChassisPageState extends State<ChassisPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
-                    _updateAndNotify(() {
-                      item.imageData.file = File(pickedFile.path);
-                      // Optionally set item['imageUrl'] = null
+                    final bytes = await File(pickedFile.path).readAsBytes();
+                    setState(() {
+                      item.imageData = ImageData(file: bytes);
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -756,10 +726,11 @@ class ChassisPageState extends State<ChassisPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    _updateAndNotify(() {
-                      item.imageData.file = File(pickedFile.path);
-                      // Optionally set item['imageUrl'] = null
+                    final bytes = await File(pickedFile.path).readAsBytes();
+                    setState(() {
+                      item.imageData = ImageData(file: bytes);
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -770,170 +741,159 @@ class ChassisPageState extends State<ChassisPage>
     );
   }
 
-  // Method to upload images (if required)
-  Future<bool> saveData() async {
-    // You can implement save logic here if needed
-    return true;
-  }
+  // ------------------------------
+  // SAVE & INITIALIZATION LOGIC
+  // ------------------------------
 
+  /// If you have existing data from Firestore or elsewhere, you can load it here
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
 
     setState(() {
-      // Initialize basic fields
       _selectedCondition = data['condition'] ?? 'good';
       _damagesCondition = data['damagesCondition'] ?? 'no';
       _additionalFeaturesCondition =
           data['additionalFeaturesCondition'] ?? 'no';
 
-      // Initialize images
+      // Main images
       if (data['images'] != null) {
         final images = Map<String, dynamic>.from(data['images']);
         images.forEach((key, value) {
-          if (value is Map) {
-            if (value['path'] != null) {
-              _selectedImages[key]?.file = File(value['path']);
-            } else if (value['url'] != null) {
-              _selectedImages[key]?.url = value['url'];
-            }
+          if (!_selectedImages.containsKey(key)) return;
+          if (value is Map && value['url'] != null) {
+            _selectedImages[key] = ImageData(
+              file: null, // not storing local file bytes
+              url: value['url'],
+            );
           }
         });
       }
 
-      // Initialize damage list
+      // Damages
       if (data['damages'] != null) {
         _damageList = (data['damages'] as List).map((damage) {
           return ItemData(
             description: damage['description'] ?? '',
             imageData: ImageData(
-              file: damage['imagePath'] != null
-                  ? File(damage['imagePath'])
-                  : null,
+              file: null,
               url: damage['imageUrl'],
             ),
-            key: damage['key'] ??
-                DateTime.now().millisecondsSinceEpoch.toString(),
           );
         }).toList();
+
+        if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+          _damageList
+              .add(ItemData(description: '', imageData: const ImageData()));
+        }
       }
 
-      // Initialize additional features list
+      // Additional features
       if (data['additionalFeatures'] != null) {
         _additionalFeaturesList =
             (data['additionalFeatures'] as List).map((feature) {
           return ItemData(
             description: feature['description'] ?? '',
             imageData: ImageData(
-              file: feature['imagePath'] != null
-                  ? File(feature['imagePath'])
-                  : null,
+              file: null,
               url: feature['imageUrl'],
             ),
-            key: feature['key'] ??
-                DateTime.now().millisecondsSinceEpoch.toString(),
           );
         }).toList();
+
+        if (_additionalFeaturesCondition == 'yes' &&
+            _additionalFeaturesList.isEmpty) {
+          _additionalFeaturesList
+              .add(ItemData(description: '', imageData: const ImageData()));
+        }
       }
     });
   }
 
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
-    final fileName =
-        'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final storageRef = FirebaseStorage.instance.ref().child(fileName);
-    final uploadTask = storageRef.putFile(imageFile);
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+  /// Example method to "save" data. You can implement logic if needed.
+  Future<bool> saveData() async {
+    // Save logic, if any, goes here
+    return true;
   }
 
-  Future<String> _uploadWebImageToFirebase(
+  /// Upload bytes to Firebase Storage, returning the download URL
+  Future<String> _uploadImageToFirebase(
       Uint8List imageData, String section) async {
     try {
-      String fileName =
+      final fileName =
           'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putData(imageData);
-      TaskSnapshot snapshot = await uploadTask;
+      final storageRef = FirebaseStorage.instance.ref().child(fileName);
+      final uploadTask = storageRef.putData(imageData);
+      final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      print('Error uploading web image: $e');
+      debugPrint('Error uploading image: $e');
       return '';
     }
   }
 
+  /// Collect the user-entered data, optionally uploading new images.
   Future<Map<String, dynamic>> getData() async {
-    Map<String, dynamic> serializedImages = {};
+    // 1) Main images
+    final Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
-      if (entry.value.hasImage) {
-        String? imageUrl;
-        if (entry.value.webImage != null) {
-          imageUrl = await _uploadWebImageToFirebase(
-            entry.value.webImage!,
-            entry.key.replaceAll(' ', '_').toLowerCase(),
-          );
-        } else if (entry.value.file != null) {
-          imageUrl = await _uploadImageToFirebase(
-            entry.value.file!,
-            entry.key.replaceAll(' ', '_').toLowerCase(),
-          );
-        }
-
-        if (imageUrl != null && imageUrl.isNotEmpty) {
-          serializedImages[entry.key] = {
-            'url': imageUrl,
-            'path': entry.value.file?.path,
-            'isNew': true,
-          };
-        }
-      } else if (entry.value.url != null && entry.value.url!.isNotEmpty) {
-        serializedImages[entry.key] = {
-          'url': entry.value.url,
+      final title = entry.key;
+      final data = entry.value;
+      if (data.file != null) {
+        // We have bytes, upload them
+        final url = await _uploadImageToFirebase(
+          data.file!,
+          title.replaceAll(' ', '_').toLowerCase(),
+        );
+        serializedImages[title] = {
+          'url': url,
+          'isNew': true,
+        };
+      } else if (data.url != null && data.url!.isNotEmpty) {
+        // Already had a URL
+        serializedImages[title] = {
+          'url': data.url,
           'isNew': false,
         };
       }
     }
 
-    // Upload damages
+    // 2) Damages
     final List<Map<String, dynamic>> serializedDamages = [];
     for (final damage in _damageList) {
       if (damage.imageData.file != null) {
-        final imageUrl =
+        final url =
             await _uploadImageToFirebase(damage.imageData.file!, 'damage');
         serializedDamages.add({
           'description': damage.description,
-          'imageUrl': imageUrl,
-          'path': damage.imageData.file!.path,
-          'key': damage.key,
+          'imageUrl': url,
           'isNew': true,
         });
-      } else if (damage.imageData.url != null) {
+      } else if (damage.imageData.url != null &&
+          damage.imageData.url!.isNotEmpty) {
         serializedDamages.add({
           'description': damage.description,
           'imageUrl': damage.imageData.url,
-          'key': damage.key,
           'isNew': false,
         });
       }
     }
 
-    // Upload additional features
+    // 3) Additional features
     final List<Map<String, dynamic>> serializedFeatures = [];
     for (final feature in _additionalFeaturesList) {
       if (feature.imageData.file != null) {
-        final imageUrl =
+        final url =
             await _uploadImageToFirebase(feature.imageData.file!, 'feature');
         serializedFeatures.add({
           'description': feature.description,
-          'imageUrl': imageUrl,
-          'path': feature.imageData.file!.path,
-          'key': feature.key,
+          'imageUrl': url,
           'isNew': true,
         });
-      } else if (feature.imageData.url != null) {
+      } else if (feature.imageData.url != null &&
+          feature.imageData.url!.isNotEmpty) {
         serializedFeatures.add({
           'description': feature.description,
           'imageUrl': feature.imageData.url,
-          'key': feature.key,
           'isNew': false,
         });
       }
@@ -949,61 +909,71 @@ class ChassisPageState extends State<ChassisPage>
     };
   }
 
+  /// Reset all fields
   void reset() {
     setState(() {
       _selectedCondition = 'good';
       _damagesCondition = 'no';
       _additionalFeaturesCondition = 'no';
 
-      // Clear selected images
+      // Clear images
       _selectedImages.forEach((key, value) {
-        value.file = null;
-        value.url = null;
+        _selectedImages[key] = const ImageData();
       });
 
       // Clear lists
       _damageList.clear();
       _additionalFeaturesList.clear();
 
-      _isInitialized = false; // Allow re-initialization if needed
+      _isInitialized = false;
     });
   }
 
+  /// Example logic for a "completion percentage"
   double getCompletionPercentage() {
     int totalFields =
         17; // 1 condition + 14 images + 2 sections (damages & additional features)
     int filledFields = 0;
 
-    // Check condition selection (1 field)
+    // Condition
     if (_selectedCondition.isNotEmpty) filledFields++;
 
-    // Check all images (14 fields)
-    _selectedImages.forEach((key, value) {
-      if (value.file != null) filledFields++;
+    // 14 images
+    _selectedImages.forEach((_, data) {
+      if (data.file != null || (data.url != null && data.url!.isNotEmpty)) {
+        filledFields++;
+      }
     });
 
-    // Check damages section (1 field)
+    // Damages
     if (_damagesCondition == 'no') {
       filledFields++;
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
       final isDamagesComplete = _damageList.every((damage) =>
-          damage.description.isNotEmpty && damage.imageData.file != null);
+          damage.description.isNotEmpty &&
+          (damage.imageData.file != null ||
+              (damage.imageData.url != null &&
+                  damage.imageData.url!.isNotEmpty)));
       if (isDamagesComplete) filledFields++;
     }
 
-    // Check additional features section (1 field)
+    // Additional features
     if (_additionalFeaturesCondition == 'no') {
       filledFields++;
     } else if (_additionalFeaturesCondition == 'yes' &&
         _additionalFeaturesList.isNotEmpty) {
       final isFeaturesComplete = _additionalFeaturesList.every((feature) =>
-          feature.description.isNotEmpty && feature.imageData.file != null);
+          feature.description.isNotEmpty &&
+          (feature.imageData.file != null ||
+              (feature.imageData.url != null &&
+                  feature.imageData.url!.isNotEmpty)));
       if (isFeaturesComplete) filledFields++;
     }
 
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
+  /// Helper to update and notify parent
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(() {
       updateFunction();

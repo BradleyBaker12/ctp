@@ -157,73 +157,21 @@ class _UsersTabState extends State<UsersTab> {
   }
 
   bool _matchesFiltersAndSearch(Map<String, dynamic> userData) {
-    // Return true if no filters and no search
-    if (_selectedFilters.isEmpty && _searchQuery.isEmpty) return true;
-
-    // Convert role and status to lowercase for comparison
-    String role = (userData['userRole'] ?? '').toLowerCase();
-    String status = (userData['accountStatus'] ?? '').toLowerCase();
-    bool isVerified = userData['isVerified'] ?? false;
-
-    // Check filters (excluding headers)
-    if (!(_selectedFilters.isEmpty || _selectedFilters.contains('All Users'))) {
-      bool hasMatch = false;
-      for (String filter in _selectedFilters) {
-        // Skip headers
-        if (filter == 'User Roles' ||
-            filter == 'Account Status' ||
-            filter == 'Verification Status') continue;
-
-        switch (filter) {
-          case 'Dealers':
-            if (role == 'dealer') hasMatch = true;
-            break;
-          case 'Transporters':
-            if (role == 'transporter') hasMatch = true;
-            break;
-          case 'Admin':
-            if (role == 'admin') hasMatch = true;
-            break;
-          case 'Sales Representatives':
-            if (role == 'sales representative') hasMatch = true;
-            break;
-          case 'Active Users':
-            if (status == 'active') hasMatch = true;
-            break;
-          case 'Pending Users':
-            if (status == 'pending') hasMatch = true;
-            break;
-          case 'Suspended Users':
-            if (status == 'suspended' || status == 'inactive') hasMatch = true;
-            break;
-          case 'Verified Users':
-            if (isVerified) hasMatch = true;
-            break;
-          case 'Pending Verification':
-            if (!isVerified) hasMatch = true;
-            break;
-        }
-      }
-      if (!hasMatch) return false;
-    }
-
-    // Check search query if present
-    if (_searchQuery.isNotEmpty) {
-      String searchText = _searchQuery.toLowerCase();
-      if (!((userData['firstName'] ?? '').toLowerCase().contains(searchText) ||
-          (userData['lastName'] ?? '').toLowerCase().contains(searchText) ||
-          (userData['email'] ?? '').toLowerCase().contains(searchText) ||
-          role.contains(searchText) ||
-          status.contains(searchText) ||
-          (userData['companyName'] ?? '').toLowerCase().contains(searchText) ||
-          (userData['tradingAs'] ?? '').toLowerCase().contains(searchText))) {
-        return false;
-      }
-    }
-
-    return true;
+    // Only do text-based matching here.
+    if (_searchQuery.isEmpty) return true;
+    String searchText = _searchQuery.toLowerCase();
+    return (userData['firstName'] ?? '').toLowerCase().contains(searchText) ||
+        (userData['lastName'] ?? '').toLowerCase().contains(searchText) ||
+        (userData['email'] ?? '').toLowerCase().contains(searchText) ||
+        (userData['userRole'] ?? '').toLowerCase().contains(searchText) ||
+        (userData['accountStatus'] ?? '').toLowerCase().contains(searchText) ||
+        (userData['companyName'] ?? '').toLowerCase().contains(searchText) ||
+        (userData['tradingAs'] ?? '').toLowerCase().contains(searchText);
   }
 
+  /// Fixed _fetchUsers method:
+  /// - Builds filtering conditions using arrays and whereIn clauses so that
+  ///   sorting is always applied regardless of filters.
   Future<void> _fetchUsers() async {
     if (_isLoading || !_hasMore) return;
 
@@ -235,31 +183,59 @@ class _UsersTabState extends State<UsersTab> {
     try {
       Query query = usersCollection;
 
-      // Apply filters for user roles
-      if (_selectedFilters.contains('Dealers')) {
-        query = query.where('userRole', isEqualTo: 'dealer');
-      } else if (_selectedFilters.contains('Transporters')) {
-        query = query.where('userRole', isEqualTo: 'transporter');
-      } else if (_selectedFilters.contains('Admin')) {
-        query = query.where('userRole', isEqualTo: 'admin');
-      } else if (_selectedFilters.contains('Sales Representatives')) {
-        query = query.where('userRole', isEqualTo: 'sales representative');
-      }
+      // Only apply filters if "All Users" is NOT selected.
+      if (!(_selectedFilters.isEmpty ||
+          _selectedFilters.contains('All Users'))) {
+        // Build user role filters
+        List<String> roleFilters = [];
+        if (_selectedFilters.contains('Dealers')) {
+          roleFilters.add('dealer');
+        }
+        if (_selectedFilters.contains('Transporters')) {
+          roleFilters.add('transporter');
+        }
+        if (_selectedFilters.contains('Admin')) {
+          roleFilters.add('admin');
+        }
+        if (_selectedFilters.contains('Sales Representatives')) {
+          roleFilters.add('sales representative');
+        }
+        if (roleFilters.isNotEmpty) {
+          if (roleFilters.length == 1) {
+            query = query.where('userRole', isEqualTo: roleFilters.first);
+          } else {
+            query = query.where('userRole', whereIn: roleFilters);
+          }
+        }
 
-      // Apply filters for account status
-      if (_selectedFilters.contains('Active Users')) {
-        query = query.where('accountStatus', isEqualTo: 'active');
-      } else if (_selectedFilters.contains('Pending Users')) {
-        query = query.where('accountStatus', isEqualTo: 'pending');
-      } else if (_selectedFilters.contains('Suspended Users')) {
-        query = query.where('accountStatus', isEqualTo: 'suspended');
-      }
+        // Build account status filters
+        List<String> statusFilters = [];
+        if (_selectedFilters.contains('Active Users')) {
+          statusFilters.add('active');
+        }
+        if (_selectedFilters.contains('Pending Users')) {
+          statusFilters.add('pending');
+        }
+        if (_selectedFilters.contains('Suspended Users')) {
+          statusFilters.add('suspended');
+        }
+        if (statusFilters.isNotEmpty) {
+          if (statusFilters.length == 1) {
+            query =
+                query.where('accountStatus', isEqualTo: statusFilters.first);
+          } else {
+            query = query.where('accountStatus', whereIn: statusFilters);
+          }
+        }
 
-      // Apply verification filters
-      if (_selectedFilters.contains('Verified Users')) {
-        query = query.where('isVerified', isEqualTo: true);
-      } else if (_selectedFilters.contains('Pending Verification')) {
-        query = query.where('isVerified', isEqualTo: false);
+        // Apply verification filters
+        if (_selectedFilters.contains('Verified Users') &&
+            !_selectedFilters.contains('Pending Verification')) {
+          query = query.where('isVerified', isEqualTo: true);
+        } else if (_selectedFilters.contains('Pending Verification') &&
+            !_selectedFilters.contains('Verified Users')) {
+          query = query.where('isVerified', isEqualTo: false);
+        }
       }
 
       // Apply sorting
@@ -286,14 +262,14 @@ class _UsersTabState extends State<UsersTab> {
           _users.addAll(docs);
           _hasMore = docs.length >= _limit;
           _isLoading = false;
-          _isFilterLoading = false; // Reset filter loading state
+          _isFilterLoading = false;
           _isInitialLoading = false;
         });
       } else {
         setState(() {
           _hasMore = false;
           _isLoading = false;
-          _isFilterLoading = false; // Reset filter loading state
+          _isFilterLoading = false;
           _isInitialLoading = false;
         });
       }
@@ -301,7 +277,7 @@ class _UsersTabState extends State<UsersTab> {
       print('Error fetching users: $e');
       setState(() {
         _isLoading = false;
-        _isFilterLoading = false; // Reset filter loading state
+        _isFilterLoading = false;
         _isInitialLoading = false;
       });
     }
@@ -332,9 +308,10 @@ class _UsersTabState extends State<UsersTab> {
               const Icon(Icons.access_time, color: Color(0xFFFF4E00)),
               const SizedBox(width: 8),
               Text(
-                  'Creation Date', // Changed from 'Latest First' to be more neutral
-                  style: GoogleFonts.montserrat(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
+                'Creation Date',
+                style: GoogleFonts.montserrat(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+              ),
             ],
           ),
         ),
@@ -590,8 +567,7 @@ class _UsersTabState extends State<UsersTab> {
                                         _users.clear();
                                         _lastDocument = null;
                                         _hasMore = true;
-                                        _isFilterLoading =
-                                            true; // Set loading state
+                                        _isFilterLoading = true;
                                       });
                                       Navigator.pop(context);
                                       _fetchUsers();

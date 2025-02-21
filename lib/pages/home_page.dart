@@ -67,7 +67,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late PageController _pageController;
   int _currentPageIndex = 0;
 
-  /// Track if we’ve shown the Terms & Conditions dialog
+  // Add back the T&C dialog property
   bool _termsDialogShown = false;
 
   @override
@@ -609,88 +609,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  /// Show Terms and Conditions dialog if user hasn’t accepted them yet
-  Future<void> _showTermsAndConditionsDialog() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.black,
-          title: Text(
-            'Terms and Conditions',
-            style: _getTextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Please review and accept our Terms and Conditions before proceeding.',
-                style: _getTextStyle(
-                  fontSize: 16,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () => _launchURL(
-                  'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
-                ),
-                child: Text(
-                  'View Terms and Conditions',
-                  style: _getTextStyle(
-                    fontSize: 16,
-                    color: const Color(0xFF2F7FFD),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                // If user declines, sign out
-                await userProvider.signOut();
-                if (mounted) {
-                  Navigator.pushReplacementNamed(context, '/login');
-                }
-              },
-              child: Text(
-                'Decline',
-                style: _getTextStyle(
-                  fontSize: 16,
-                  color: const Color(0xFFFF4E00),
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                // Accept T&C in Firestore
-                await userProvider.setTermsAcceptance(true);
-                if (mounted) {
-                  Navigator.of(context).pop();
-                }
-              },
-              child: Text(
-                'Accept',
-                style: _getTextStyle(
-                  fontSize: 16,
-                  color: const Color(0xFF2F7FFD),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -831,16 +749,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         );
                       } else {
-                        // Show T&C if not accepted
+                        // Only show T&C dialog if never accepted
                         WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final userProvider =
+                              Provider.of<UserProvider>(context, listen: false);
                           if (!_termsDialogShown &&
-                              !userProvider.hasAcceptedTerms) {
+                              !userProvider.hasAcceptedTerms &&
+                              userProvider.hasCompletedRegistration) {
                             _termsDialogShown = true;
                             _showTermsAndConditionsDialog();
                           }
                         });
 
-                        // Main content
                         return SingleChildScrollView(
                           child: _buildHomePageContent(
                               context, constraints, isTablet),
@@ -1709,6 +1629,88 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  // Add back the T&C dialog method
+  Future<void> _showTermsAndConditionsDialog() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: Text(
+            'Terms and Conditions',
+            style: _getTextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please review and accept our Terms and Conditions before proceeding.',
+                style: _getTextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => _launchURL(
+                  'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
+                ),
+                child: Text(
+                  'View Terms and Conditions',
+                  style: _getTextStyle(
+                    fontSize: 16,
+                    color: const Color(0xFF2F7FFD),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                // If user declines, sign out
+                await userProvider.signOut();
+                if (mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
+              },
+              child: Text(
+                'Decline',
+                style: _getTextStyle(
+                  fontSize: 16,
+                  color: const Color(0xFFFF4E00),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Accept T&C in Firestore
+                await userProvider.setTermsAcceptance(true);
+                if (mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text(
+                'Accept',
+                style: _getTextStyle(
+                  fontSize: 16,
+                  color: const Color(0xFF2F7FFD),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

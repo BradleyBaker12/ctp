@@ -825,6 +825,13 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   _selectedTrailerType != 'Other') ...[
                 if (_selectedTrailerType == 'Superlink') ...[
                   const SizedBox(height: 15),
+                  // Add axles field here
+                  CustomTextField(
+                    controller: _axlesController,
+                    hintText: 'Number of Axles',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 15),
                   const Text("Trailer A Details",
                       style: TextStyle(
                           fontSize: 16,
@@ -2286,8 +2293,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   void _clearAllData(FormDataProvider formData) {
+    // Clear form data provider
     formData.clearAllData();
-    // Clear main form data
     formData.setSelectedMainImage(null, null);
     formData.setMainImageUrl(null);
     formData.setNatisRc1Url(null);
@@ -2302,59 +2309,14 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     formData.setWarrantyDetails(null);
     formData.setReferenceNumber(null);
     formData.setBrands([]);
+    formData.setTrailerType(null);
+    formData.setAxles(null);
+    formData.setLength(null);
 
-    // Clear all controllers
+    // Clear all common controllers
     _clearFormControllers();
 
-    // Clear all image data
-    setState(() {
-      _natisRc1File = null;
-      _existingNatisRc1Url = null;
-      _existingNatisRc1Name = null;
-      _selectedMainImage = null;
-      _selectedMainImageFileName = null;
-
-      // Clear Superlink specific data
-      _frontImageA = null;
-      _sideImageA = null;
-      _tyresImageA = null;
-      _chassisImageA = null;
-      _deckImageA = null;
-      _makersPlateImageA = null;
-      _additionalImagesListTrailerA.clear();
-
-      _frontImageB = null;
-      _sideImageB = null;
-      _tyresImageB = null;
-      _chassisImageB = null;
-      _deckImageB = null;
-      _makersPlateImageB = null;
-      _additionalImagesListTrailerB.clear();
-
-      // Clear Tri-Axle specific data
-      _frontImage = null;
-      _sideImage = null;
-      _tyresImage = null;
-      _chassisImage = null;
-      _deckImage = null;
-      _makersPlateImage = null;
-      _additionalImagesList.clear();
-
-      // Clear documents
-      _serviceHistoryFile = null;
-      _serviceHistoryFileName = null;
-
-      // Clear damages and features
-      _damagesCondition = 'no';
-      _featuresCondition = 'no';
-      _damageList.clear();
-      _featureList.clear();
-
-      // Clear trailer type
-      _selectedTrailerType = null;
-    });
-
-    // Clear extra controllers
+    // Clear type specific controllers
     _lengthTrailerAController.clear();
     _vinAController.clear();
     _registrationAController.clear();
@@ -2367,8 +2329,63 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     _axlesController.clear();
     _lengthController.clear();
 
-    _vehicleId = null;
-    _isLoading = false;
+    // Clear all image data and documents
+    setState(() {
+      // Clear main images
+      _selectedMainImage = null;
+      _selectedMainImageFileName = null;
+
+      // Clear documents
+      _natisRc1File = null;
+      _natisRc1FileName = null;
+      _existingNatisRc1Url = null;
+      _existingNatisRc1Name = null;
+      _serviceHistoryFile = null;
+      _serviceHistoryFileName = null;
+
+      // Clear Superlink images - Trailer A
+      _frontImageA = null;
+      _sideImageA = null;
+      _tyresImageA = null;
+      _chassisImageA = null;
+      _deckImageA = null;
+      _makersPlateImageA = null;
+      _additionalImagesListTrailerA.clear();
+
+      // Clear Superlink images - Trailer B
+      _frontImageB = null;
+      _sideImageB = null;
+      _tyresImageB = null;
+      _chassisImageB = null;
+      _deckImageB = null;
+      _makersPlateImageB = null;
+      _additionalImagesListTrailerB.clear();
+
+      // Clear Tri-Axle images
+      _frontImage = null;
+      _sideImage = null;
+      _tyresImage = null;
+      _chassisImage = null;
+      _deckImage = null;
+      _makersPlateImage = null;
+      _additionalImagesList.clear();
+
+      // Clear damages and features
+      _damagesCondition = 'no';
+      _featuresCondition = 'no';
+      _damageList.clear();
+      _featureList.clear();
+
+      // Clear trailer type selection
+      _selectedTrailerType = null;
+
+      // Clear admin fields
+      _selectedSalesRep = null;
+
+      // Clear system fields
+      _vehicleId = null;
+      _isLoading = false;
+    });
   }
 
   void _clearFormControllers() {

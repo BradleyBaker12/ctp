@@ -59,6 +59,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   String _anyAdditionalFeaturesType =
       'no'; // Default selected value for additional features
   final ImagePicker _picker = ImagePicker(); // Image picker instance
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Scroll controller for managing automatic scrolling
   final ScrollController _scrollController = ScrollController();
@@ -215,13 +216,13 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               crossAxisCount: 2,
               crossAxisSpacing: 16.0,
               mainAxisSpacing: 16.0,
-              childAspectRatio: 1.5, // Controls the aspect ratio of the blocks
+              childAspectRatio: 1.5, // This grid remains rectangular if desired
               children: _selectedImages.keys
                   .map((title) => _buildPhotoBlock(title))
                   .toList(),
             ),
             const SizedBox(height: 70.0),
-            // Damage Section
+            // Damage Section (using grid view)
             _buildAdditionalSection(
               title: 'Are there any damages on the cab',
               anyItemsType: _anyDamagesType,
@@ -231,7 +232,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
-            // Additional Features Section
+            // Additional Features Section (using grid view)
             _buildAdditionalSection(
               title: 'Are there any additional features on the cab',
               anyItemsType: _anyAdditionalFeaturesType,
@@ -518,11 +519,10 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
     try {
-      String fileName =
-          'external_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putData(imageFile);
-      TaskSnapshot snapshot = await uploadTask;
+      final fileName =
+          'external_cab/vehicleId_placeholder_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final storageRef = _storage.ref().child(fileName);
+      final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -685,7 +685,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     );
   }
 
-  // Helper method to build the additional section (Damages or Additional Features)
+  // Helper method to build the additional section (Damages, Additional Features, etc.)
   Widget _buildAdditionalSection({
     required String title,
     required String anyItemsType,
@@ -732,7 +732,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     );
   }
 
-  // Helper method to build the damage section
+  // Helper method to build the damage section using a grid view
   Widget _buildDamageSection() {
     return _buildItemSection(
       items: _damageList,
@@ -745,7 +745,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     );
   }
 
-  // Helper method to build the additional features section
+  // Helper method to build the additional features section using a grid view
   Widget _buildAdditionalFeaturesSection() {
     return _buildItemSection(
       items: _additionalFeaturesList,
@@ -759,7 +759,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     );
   }
 
-  // Helper method to build the item section (Damage or Additional Features)
+  // Generic helper method to build the item section (used for damages, additional features, fault code, etc.)
+  // Items are displayed in a grid view with 2 columns on larger screens and 1 column on smaller screens.
   Widget _buildItemSection({
     required List<ItemData> items,
     required VoidCallback addItem,
@@ -770,11 +771,28 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
     return Column(
       children: [
-        ...items.asMap().entries.map((entry) {
-          int index = entry.key;
-          ItemData item = entry.value;
-          return _buildItemWidget(index, item, showImageSourceDialog);
-        }),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Use one column for narrow screens and two columns for wider layouts.
+            int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                // Adjust childAspectRatio as needed based on your design.
+                childAspectRatio: 0.8,
+              ),
+              itemBuilder: (context, index) {
+                return _buildItemWidget(
+                    index, items[index], showImageSourceDialog);
+              },
+            );
+          },
+        ),
         const SizedBox(height: 16.0),
         if (!isDealer)
           GestureDetector(
@@ -798,7 +816,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     );
   }
 
-  // Helper method to create an item widget (Damage or Additional Features)
+  // Helper method to create an item widget (Damage, Additional Features, etc.)
+  // Each widget includes a text field and a square image upload block.
   Widget _buildItemWidget(
       int index, ItemData item, void Function(ItemData) showImageSourceDialog) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -815,7 +834,6 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
           children: [
             Expanded(
               child: TextFormField(
-                // Changed to TextFormField
                 enabled: !isDealer,
                 initialValue: item.description,
                 onChanged: (value) => _updateDamageDescription(index, value),
@@ -830,12 +848,11 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
-                  // Force LTR for hint text
                   hintTextDirection: TextDirection.ltr,
                 ),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontFamily: 'Roboto', // Add a specific font family
+                  fontFamily: 'Roboto',
                 ),
               ),
             ),
@@ -861,7 +878,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
             if ((item.imageData.file != null) ||
                 (item.imageData.url != null &&
                     item.imageData.url!.isNotEmpty)) {
-              // View image
+              // View image in full screen.
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -884,42 +901,40 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                 ),
               );
             } else if (!isDealer) {
-              // For transporters - show image source dialog
+              // For transporters – show image source dialog.
               showImageSourceDialog(item);
             }
           },
-          child: Container(
-            height: 150.0,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.blue.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: AppColors.blue, width: 2.0),
-            ),
-            child: Stack(
-              children: [
-                // The existing image or placeholder
-                _getItemImageWidget(item.imageData, isDealer),
-
-                // Show "X" button only if NOT a dealer and there's an image
-                if (!isDealer &&
-                    (item.imageData.file != null ||
-                        (item.imageData.url != null &&
-                            item.imageData.url!.isNotEmpty)))
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
-                          // Remove the image by resetting it
-                          item.imageData = ImageData();
-                        });
-                      },
+          // Square image block achieved by wrapping the container in an AspectRatio widget.
+          child: AspectRatio(
+            aspectRatio: 1.0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.blue.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: AppColors.blue, width: 2.0),
+              ),
+              child: Stack(
+                children: [
+                  _getItemImageWidget(item.imageData, isDealer),
+                  if (!isDealer &&
+                      (item.imageData.file != null ||
+                          (item.imageData.url != null &&
+                              item.imageData.url!.isNotEmpty)))
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            item.imageData = ImageData();
+                          });
+                        },
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -942,7 +957,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Image.network(
-          imageData.url!, // Uses the url field to load the image
+          imageData.url!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -985,7 +1000,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     _showImageSourceDialogForItem(feature);
   }
 
-  // Generic method to show dialog for selecting image source for a given item
+  // Generic method to show dialog for selecting image source for a given item.
   void _showImageSourceDialogForItem(ItemData item) {
     showDialog(
       context: context,

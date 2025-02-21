@@ -1,5 +1,8 @@
 import 'dart:convert'; // For JSON decoding
+import 'package:ctp/pages/report_issue.dart';
+import 'package:ctp/pages/report_vehicle_issue.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
+import 'package:ctp/services/vin_service.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/services.dart'; // For loading assets
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -111,7 +114,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   final Map<String, List<String>> _modelVariants = {};
 
   // Variable to hold selected RC1/NATIS file
-  // --- FIX APPLIED: Store file bytes and file name separately
   Uint8List? _natisRc1File;
   String? _natisRc1FileName;
 
@@ -133,101 +135,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   List<String> _yearOptions = [];
 
   // --- New: Variables for Admin Sales Rep selection ---
-  // Instead of a dummy list, we'll fetch from UserProvider's dealers.
   String? _selectedSalesRep;
 
   Uint8List? _selectedMainImage;
   String? _selectedMainImageFileName;
-
-  Future<void> _loadYearOptions() async {
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-    setState(() {
-      _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
-    });
-  }
-
-  Future<void> _loadBrandsForYear(String year) async {
-    final formData = Provider.of<FormDataProvider>(context, listen: false);
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-    setState(() {
-      _brandOptions = data[year]?.keys.toList() ?? [];
-      if (!widget.isDuplicating) {
-        formData.setBrands(null);
-        formData.setMakeModel(null);
-        formData.setVariant(null);
-      }
-    });
-  }
-
-  Future<void> _loadModelsForBrand(String brand) async {
-    final formData = Provider.of<FormDataProvider>(context, listen: false);
-    final year = formData.year;
-    if (year == null) return;
-
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-    setState(() {
-      if (data[year] != null && data[year][brand] != null) {
-        final models = data[year][brand].keys.toList();
-        _makeModelOptions = {brand: models};
-        if (!widget.isDuplicating) {
-          formData.setMakeModel(null);
-          formData.setVariant(null);
-          _variantController.clear();
-        }
-      }
-    });
-  }
-
-  Future<void> _loadVariantsForModel(String model) async {
-    final formData = Provider.of<FormDataProvider>(context, listen: false);
-    final year = formData.year;
-    final brand = formData.brands?.first;
-
-    if (year == null || brand == null) return;
-
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-
-    setState(() {
-      if (data[year]?[brand]?[model] != null) {
-        _variantOptions = List<String>.from(data[year][brand][model]);
-        formData.setVariant(null);
-      } else {
-        _variantOptions = [];
-      }
-    });
-  }
-
-  void _updateProvinceOptions(String selectedCountry) async {
-    final String response =
-        await rootBundle.loadString('lib/assets/countries.json');
-    final List<dynamic> data = json.decode(response);
-    setState(() {
-      final country = data.firstWhere(
-        (country) => country['name'] == selectedCountry,
-        orElse: () => {'states': []},
-      );
-      _provinceOptions = (country['states'] as List<dynamic>)
-          .map((state) => state['name'] as String)
-          .toList();
-      debugPrint("Provinces loaded: $_provinceOptions");
-    });
-  }
-
-  Future<bool> _isVinNumberUnique(String vinNumber) async {
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('vehicles')
-        .where('vinNumber', isEqualTo: vinNumber)
-        .get();
-    return querySnapshot.docs.isEmpty;
-  }
 
   @override
   void initState() {
@@ -297,6 +208,31 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
+  Future<void> _loadYearOptions() async {
+    final String response =
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
+    final data = json.decode(response);
+    setState(() {
+      _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
+    });
+  }
+
+  void _updateProvinceOptions(String selectedCountry) async {
+    final String response =
+        await rootBundle.loadString('lib/assets/countries.json');
+    final List<dynamic> data = json.decode(response);
+    setState(() {
+      final country = data.firstWhere(
+        (country) => country['name'] == selectedCountry,
+        orElse: () => {'states': []},
+      );
+      _provinceOptions = (country['states'] as List<dynamic>)
+          .map((state) => state['name'] as String)
+          .toList();
+      debugPrint("Provinces loaded: $_provinceOptions");
+    });
+  }
+
   void _clearAllData(FormDataProvider formData) {
     formData.clearAllData();
     formData.setSelectedMainImage(null, null);
@@ -336,16 +272,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _currentStep = 0;
   }
 
-  void _initializeDefaultValues(FormDataProvider formData) {
-    // formData.setVehicleType('truck');
-    formData.setSuspension('spring');
-    formData.setTransmissionType('automatic');
-    formData.setHydraulics('no');
-    formData.setMaintenance('no');
-    formData.setWarranty('no');
-    formData.setRequireToSettleType('no');
-  }
-
   void _initializeTextControllers(FormDataProvider formData) {
     _vinNumberController.text = formData.vinNumber ?? '';
     _mileageController.text = formData.mileage ?? '';
@@ -356,7 +282,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _referenceNumberController.text = formData.referenceNumber ?? '';
     _brandsController.text =
         (formData.brands)?.isNotEmpty == true ? formData.brands!.first : '';
-    _variantController.text = ''; // Change this line to always start empty
+    _variantController.text = '';
     _countryController.text = formData.country ?? 'South Africa';
   }
 
@@ -386,7 +312,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       formData.setBrands([_brandsController.text]);
     });
     _variantController.addListener(() {
-      formData.setVariant(_variantController.text); // Add this line
+      formData.setVariant(_variantController.text);
     });
   }
 
@@ -417,9 +343,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setWarrantyDetails(widget.vehicle!.warrantyDetails, notify: false);
     formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
     formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
-    formData.setVariant(widget.vehicle!.variant,
-        notify: false); // Add this line
-    _variantController.text = widget.vehicle!.variant ?? ''; // Add this line
+    formData.setVariant(widget.vehicle!.variant, notify: false);
+    _variantController.text = widget.vehicle!.variant ?? '';
     if (widget.isDuplicating) {
       _vehicleId = null;
     } else {
@@ -452,7 +377,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         formData
             .setApplication(appList.isNotEmpty ? appList.first.toString() : '');
       }
-
       _updateProvinceOptions(widget.vehicle!.country);
       debugPrint('=== Duplication Data Population Complete ===');
     }
@@ -535,7 +459,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     return imageExtensions.contains(extension);
   }
 
-  // Build the uploaded file widget for NATIS/RC1 preview.
   Widget _buildUploadedFile(
       Uint8List? file, String fileName, bool isUploading) {
     if (file == null) {
@@ -643,12 +566,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       child: Stack(
         children: [
           Scaffold(
-            resizeToAvoidBottomInset: true, // Add this line
+            resizeToAvoidBottomInset: true,
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               leading: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_left),
+                icon: const Icon(Icons.arrow_left),
                 color: Colors.white,
                 iconSize: 40,
               ),
@@ -658,12 +581,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               centerTitle: true,
             ),
             body: SafeArea(
-              // Add SafeArea
               child: GradientBackground(
                 child: SingleChildScrollView(
                   controller: _scrollController,
                   keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag, // Add this line
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Center(
                     child: Container(
                       constraints: BoxConstraints(
@@ -732,8 +654,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Comment out web camera check
-                /* if (kIsWeb ? html.window.navigator.mediaDevices != null : true) */
                 ListTile(
                   leading: const Icon(Icons.camera_alt),
                   title: const Text('Take Photo'),
@@ -811,7 +731,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
     debugPrint("Building image section");
     return GestureDetector(
-      behavior: HitTestBehavior.opaque, // Entire container is clickable
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         debugPrint("GestureDetector onTap triggered");
         handleImageTap();
@@ -916,7 +836,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     );
   }
 
-  // "Old style" container for image preview and placeholders.
   Widget _buildStyledContainer({required Widget child}) {
     return Container(
       width: double.infinity,
@@ -932,41 +851,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       child: child,
     );
   }
-
-  // Widget _buildVehicleTypeRadios(FormDataProvider formData) {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       const Text(
-  //         'Vehicle Type',
-  //         style: TextStyle(fontSize: 14, color: Colors.white),
-  //       ),
-  //       const SizedBox(height: 15),
-  //       Row(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           CustomRadioButton(
-  //             label: 'Truck',
-  //             value: 'truck',
-  //             groupValue: formData.vehicleType,
-  //             onChanged: (value) {
-  //               formData.setVehicleType(value);
-  //             },
-  //           ),
-  //           const SizedBox(width: 15),
-  //           CustomRadioButton(
-  //             label: 'Trailer',
-  //             value: 'trailer',
-  //             groupValue: formData.vehicleType,
-  //             onChanged: (value) {
-  //               formData.setVehicleType(value);
-  //             },
-  //           ),
-  //         ],
-  //       ),
-  //     ],
-  //   );
-  // }
 
   Widget _buildMandatorySection() {
     final formData = Provider.of<FormDataProvider>(context);
@@ -1008,7 +892,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Reference Number Field using old style (CustomTextField)
+          // Reference Number Field
           CustomTextField(
             controller: _referenceNumberController,
             hintText: 'Reference Number',
@@ -1021,7 +905,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             },
           ),
           const SizedBox(height: 15),
-          // For Admins: Sales Rep Dropdown using old style CustomDropdown
+          // For Admins: Sales Rep Dropdown
           if (widget.isAdminUpload) ...[
             FutureBuilder<List<Map<String, String>>>(
               future: _getSalesReps(),
@@ -1035,7 +919,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                   value: _selectedSalesRep,
                   items: salesReps.map((rep) => rep['display']!).toList(),
                   onChanged: (value) {
-                    // Find the matching rep id from the display value.
                     final match = salesReps.firstWhere(
                         (rep) => rep['display'] == value,
                         orElse: () => {});
@@ -1062,8 +945,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
             runSpacing: 15.0,
             alignment: WrapAlignment.center,
             children: [
-              // Vehicle Type Radios
-              // _buildVehicleTypeRadios(formData),
               // Form fields
               Form(
                 key: _formKeys[0],
@@ -1215,20 +1096,55 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       inputFormatter: [UpperCaseTextFormatter()],
                       onChanged: (value) async {
                         if (value.length >= 17) {
-                          bool isUnique = await _isVinNumberUnique(value);
+                          bool isUnique =
+                              await VinService.isVinNumberUnique(value);
                           if (!isUnique) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    'Warning: This VIN number is already registered in the system'),
-                                backgroundColor: Colors.orange,
-                                duration: Duration(seconds: 5),
-                                action: SnackBarAction(
-                                  label: 'Dismiss',
-                                  textColor: Colors.white,
-                                  onPressed: () {},
-                                ),
-                              ),
+                            // Show a popup dialog instead of navigating immediately.
+                            final existingVehicleId =
+                                await _findVehicleIdByVin(value);
+                            await showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text("Duplicate VIN"),
+                                  content: const Text(
+                                      "The VIN Number is already in use. Would you like to report this issue?"),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: const Text("Cancel"),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                        if (existingVehicleId != null) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ReportVehicleIssuePage(
+                                                      vehicleId:
+                                                          existingVehicleId),
+                                            ),
+                                          );
+                                        } else {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ReportVehicleIssuePage(
+                                                      vehicleId: 'unknown'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: const Text("Report this issue"),
+                                    ),
+                                  ],
+                                );
+                              },
                             );
                           }
                         }
@@ -1302,7 +1218,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       ],
                     ),
                     const SizedBox(height: 15),
-                    Divider(),
+                    const Divider(),
                     const SizedBox(height: 15),
                     Center(
                       child: Text(
@@ -1336,7 +1252,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       ],
                     ),
                     const SizedBox(height: 15),
-                    Divider(),
+                    const Divider(),
                     const SizedBox(height: 15),
                     Center(
                       child: Text(
@@ -1370,7 +1286,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       ],
                     ),
                     const SizedBox(height: 15),
-                    Divider(),
+                    const Divider(),
                     const SizedBox(height: 15),
                     Center(
                       child: Text(
@@ -1404,7 +1320,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       ],
                     ),
                     const SizedBox(height: 15),
-                    Divider(),
+                    const Divider(),
                     const SizedBox(height: 15),
                     Center(
                       child: Text(
@@ -1451,13 +1367,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       ),
                     ],
                     const SizedBox(height: 15),
-                    Divider(),
+                    const Divider(),
                     const SizedBox(height: 15),
                     Center(
                       child: Text(
                         'DO YOU REQUIRE THE TRUCK TO BE SETTLED BEFORE SELLING',
-                        style:
-                            const TextStyle(fontSize: 14, color: Colors.white),
+                        style: TextStyle(fontSize: 14, color: Colors.white),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -1495,6 +1410,21 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         ],
       ),
     );
+  }
+
+  /// HELPER: Finds existing vehicle's ID by VIN
+  Future<String?> _findVehicleIdByVin(String vin) async {
+    final query = await FirebaseFirestore.instance
+        .collection('vehicles')
+        .where('vinNumber', isEqualTo: vin)
+        .limit(1)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      return query
+          .docs.first.id; // Return the document ID of the existing vehicle
+    }
+    return null; // No matching vehicle found
   }
 
   /// Save Section 1 Data with Sales Rep Assignment Logic and Debugging
@@ -1557,6 +1487,55 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       }
       debugPrint("Assigned Sales Rep ID to be saved: $assignedSalesRepId");
 
+      // Validate uniqueness of the VIN here
+      if (!await VinService.isVinNumberUnique(formData.vinNumber!)) {
+        // Show popup dialog informing the user the VIN is already in use.
+        final existingVehicleId =
+            await _findVehicleIdByVin(formData.vinNumber!);
+        await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Duplicate VIN"),
+              content: const Text(
+                  "The VIN Number is already in use. Would you like to report this issue?"),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    if (existingVehicleId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReportVehicleIssuePage(
+                              vehicleId: existingVehicleId),
+                        ),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ReportVehicleIssuePage(
+                              vehicleId: 'unknown'),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text("Report this issue"),
+                ),
+              ],
+            );
+          },
+        );
+        return null;
+      }
+
       final vehicleData = {
         'year': formData.year,
         'makeModel': formData.makeModel,
@@ -1606,6 +1585,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         const SnackBar(content: Text('Vehicle created successfully')),
       );
       debugPrint("=== _saveSection1Data END ===");
+      await VinService.storeVinNumber(formData.vinNumber!);
       return _vehicleId;
     } catch (e) {
       debugPrint("Error in _saveSection1Data: $e");
@@ -1699,7 +1679,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _registrationNumberController.clear();
     _referenceNumberController.clear();
     _brandsController.clear();
-    _variantController.clear(); // Add this line
+    _variantController.clear();
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     formData.setSelectedMainImage(null, null);
     formData.setMainImageUrl(null);
@@ -1791,6 +1771,63 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
+  Future<void> _loadBrandsForYear(String year) async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final String response =
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
+    final data = json.decode(response);
+    setState(() {
+      _brandOptions = data[year]?.keys.toList() ?? [];
+      if (!widget.isDuplicating) {
+        formData.setBrands(null);
+        formData.setMakeModel(null);
+        formData.setVariant(null);
+      }
+    });
+  }
+
+  Future<void> _loadModelsForBrand(String brand) async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final year = formData.year;
+    if (year == null) return;
+
+    final String response =
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
+    final data = json.decode(response);
+    setState(() {
+      if (data[year] != null && data[year][brand] != null) {
+        final models = data[year][brand].keys.toList();
+        _makeModelOptions = {brand: models};
+        if (!widget.isDuplicating) {
+          formData.setMakeModel(null);
+          formData.setVariant(null);
+          _variantController.clear();
+        }
+      }
+    });
+  }
+
+  Future<void> _loadVariantsForModel(String model) async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final year = formData.year;
+    final brand = formData.brands?.first;
+
+    if (year == null || brand == null) return;
+
+    final String response =
+        await rootBundle.loadString('lib/assets/updated_truck_data.json');
+    final data = json.decode(response);
+
+    setState(() {
+      if (data[year]?[brand]?[model] != null) {
+        _variantOptions = List<String>.from(data[year][brand][model]);
+        formData.setVariant(null);
+      } else {
+        _variantOptions = [];
+      }
+    });
+  }
+
   Future<void> _loadSavedFormData(FormDataProvider formData) async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -1818,7 +1855,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           formData.setEngineNumber(data['engineNumber']);
           formData.setRegistrationNumber(data['registrationNumber']);
           formData.setSellingPrice(data['sellingPrice']);
-          // formData.setVehicleType(data['vehicleType'] ?? 'truck');
           formData.setSuspension(data['suspensionType'] ?? 'spring');
           formData.setTransmissionType(data['transmissionType'] ?? 'automatic');
           formData.setHydraulics(data['hydraulics'] ?? 'yes');
@@ -1977,7 +2013,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       Navigator.push(
           context, MaterialPageRoute(builder: (_) => ViewerPage(url: url)));
       return;
-      // Implement document viewing logic here (e.g., using url_launcher)
     }
   }
 

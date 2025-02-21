@@ -971,6 +971,15 @@ class UserProvider extends ChangeNotifier {
 
   // Add getter
   String? get getTaxCertificateUrl => _taxCertificateUrl;
+
+  bool get hasCompletedRegistration {
+    // Check if user has completed registration forms
+    // by verifying required fields are present
+    return _vatNumber != null &&
+        !_vatNumber!.isEmpty &&
+        _registrationNumber != null &&
+        !_registrationNumber!.isEmpty;
+  }
 }
 
 class Dealer {

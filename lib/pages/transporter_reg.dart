@@ -15,6 +15,7 @@ import 'package:path/path.dart' as path;
 import 'package:dropdown_search/dropdown_search.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TransporterRegistrationPage extends StatefulWidget {
   const TransporterRegistrationPage({super.key});
@@ -140,17 +141,13 @@ class _TransporterRegistrationPageState
       return;
     }
 
-    // Check if all required files are uploaded
-    if ((!kIsWeb &&
-            (_bankConfirmationFile == null ||
-                _proxyFile == null ||
-                _brncFile == null)) ||
-        (kIsWeb &&
-            (_bankConfirmationByte == null ||
-                _proxyByte == null ||
-                _brncByte == null))) {
+    // Show T&C dialog before proceeding
+    final termsAccepted = await _showTermsAndConditionsDialog();
+    if (!termsAccepted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload all required documents.')),
+        const SnackBar(
+          content: Text('You must accept the Terms & Conditions to register'),
+        ),
       );
       return;
     }
@@ -223,6 +220,74 @@ class _TransporterRegistrationPageState
         _isLoading = false;
       });
     }
+  }
+
+  Future<bool> _showTermsAndConditionsDialog() async {
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: Text(
+            'Terms and Conditions',
+            style: GoogleFonts.montserrat(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please review and accept our Terms and Conditions before proceeding.',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse(
+                    'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48')),
+                child: Text(
+                  'View Terms and Conditions',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    color: const Color(0xFF2F7FFD),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Decline',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  color: const Color(0xFFFF4E00),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                'Accept',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  color: const Color(0xFF2F7FFD),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
   }
 
   @override
