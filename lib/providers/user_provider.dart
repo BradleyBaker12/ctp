@@ -976,9 +976,9 @@ class UserProvider extends ChangeNotifier {
     // Check if user has completed registration forms
     // by verifying required fields are present
     return _vatNumber != null &&
-        !_vatNumber!.isEmpty &&
+        _vatNumber!.isNotEmpty &&
         _registrationNumber != null &&
-        !_registrationNumber!.isEmpty;
+        _registrationNumber!.isNotEmpty;
   }
 }
 

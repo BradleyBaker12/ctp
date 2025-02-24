@@ -1,6 +1,9 @@
-// admin_section.dart
-
 import 'dart:typed_data';
+import 'dart:convert';
+import 'dart:html' as html;
+import 'dart:ui' as ui;
+import 'dart:ui_web';
+import 'package:flutter/foundation.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -78,7 +81,7 @@ class AdminSectionState extends State<AdminSection>
     super.dispose();
   }
 
-  // Helper function to pick files
+  // Helper function to pick files using file picker
   Future<void> _pickFile(int docNumber) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -173,7 +176,7 @@ class AdminSectionState extends State<AdminSection>
   }
 
   // Updated helper method to display uploaded files with a DELETE ("X") button
- Widget _buildUploadedFile(Uint8List? file, String? fileUrl, bool isUploading,
+  Widget _buildUploadedFile(Uint8List? file, String? fileUrl, bool isUploading,
       int docNumber, String? filesName) {
     // If no file or URL, show placeholder text
     if (file == null && fileUrl == null) {
@@ -182,20 +185,6 @@ class AdminSectionState extends State<AdminSection>
         style: TextStyle(color: Colors.white70),
       );
     } else {
-      // String fileName;
-      // String extension;
-      // if (file != null) {
-      //   fileName = file.path.split('/').last;
-      //   extension = fileName.split('.').last;
-      // } else if (fileUrl != null) {
-      //   fileName = getFileNameFromUrl(fileUrl);
-      //   extension = fileName.split('.').last;
-      // } else {
-      //   fileName = 'Unknown';
-      //   extension = '';
-      // }
-
-      // Wrap the file preview in a Stack to overlay the "X" button
       return Stack(
         alignment: Alignment.center,
         children: [
@@ -291,8 +280,7 @@ class AdminSectionState extends State<AdminSection>
                 ),
             ],
           ),
-
-          // ADDED: The DELETE (X) button
+          // The DELETE (X) button
           Positioned(
             top: 0,
             right: 0,
@@ -497,7 +485,7 @@ class AdminSectionState extends State<AdminSection>
 
   void updateAdminDoc1(Uint8List? file) {
     setState(() {
-      _natisRc1File = (file);
+      _natisRc1File = file;
     });
   }
 
@@ -535,6 +523,125 @@ class AdminSectionState extends State<AdminSection>
     }
 
     return totalFields == 0 ? 1.0 : filledFields / totalFields;
+  }
+
+  // NEW: Function to capture a photo from the web camera for admin uploads
+  Future<void> _takePhotoFromWebForAdmin(int docNumber) async {
+    if (!kIsWeb) return;
+
+    try {
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) return;
+
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+
+      await videoElement.onLoadedMetadata.first;
+
+      platformViewRegistry.registerViewFactory(
+        'adminWebcamVideo_$docNumber',
+        (int viewId) => videoElement,
+      );
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(viewType: 'adminWebcamVideo_$docNumber'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+
+                  setState(() {
+                    switch (docNumber) {
+                      case 1:
+                        _natisRc1File = imageBytes;
+                        _natisRc1FileName = "captured.png";
+                        _natisRc1Url = null;
+                        widget.onAdminDoc1Selected(imageBytes);
+                        break;
+                      case 2:
+                        _licenseDiskFile = imageBytes;
+                        _licenseDiskFileName = "captured.png";
+                        _licenseDiskUrl = null;
+                        widget.onAdminDoc2Selected(imageBytes);
+                        break;
+                      case 3:
+                        _settlementLetterFile = imageBytes;
+                        _settlementLetterFileName = "captured.png";
+                        _settlementLetterUrl = null;
+                        widget.onAdminDoc3Selected(imageBytes);
+                        break;
+                    }
+                  });
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Error capturing photo: $e');
+    }
+  }
+
+  // NEW: Function to show a dialog letting the user choose between taking a photo or picking a file
+  void _showAdminFilePickerOptions(int docNumber) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhotoFromWebForAdmin(docNumber);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder),
+                title: const Text('Choose from Files'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickFile(docNumber);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -580,7 +687,7 @@ class AdminSectionState extends State<AdminSection>
                   const SizedBox(height: 15),
                   InkWell(
                     onTap: () {
-                      _pickFile(1);
+                      _showAdminFilePickerOptions(1);
                     },
                     borderRadius: BorderRadius.circular(10.0),
                     child: Container(
@@ -621,7 +728,6 @@ class AdminSectionState extends State<AdminSection>
                     ),
                   ),
                   const SizedBox(height: 15),
-
                   // Upload License Disk
                   Center(
                     child: Text(
@@ -636,7 +742,7 @@ class AdminSectionState extends State<AdminSection>
                   const SizedBox(height: 15),
                   InkWell(
                     onTap: () {
-                      _pickFile(2);
+                      _showAdminFilePickerOptions(2);
                     },
                     borderRadius: BorderRadius.circular(10.0),
                     child: Container(
@@ -683,7 +789,6 @@ class AdminSectionState extends State<AdminSection>
                     ),
                   ),
                   const SizedBox(height: 15),
-
                   // Conditionally display Settlement Letter upload and Settlement Amount field
                   if (widget.requireToSettleType == 'yes') ...[
                     // Upload Settlement Letter
@@ -700,7 +805,7 @@ class AdminSectionState extends State<AdminSection>
                     const SizedBox(height: 15),
                     InkWell(
                       onTap: () {
-                        _pickFile(3);
+                        _showAdminFilePickerOptions(3);
                       },
                       borderRadius: BorderRadius.circular(10.0),
                       child: Container(
@@ -761,7 +866,7 @@ class AdminSectionState extends State<AdminSection>
                     const SizedBox(height: 15),
                     CustomTextField(
                       controller: _settlementAmountController,
-                      hintText: 'Amount'.toUpperCase(),
+                      hintText: 'AMOUNT',
                       isCurrency: true,
                       keyboardType: TextInputType.number,
                     ),

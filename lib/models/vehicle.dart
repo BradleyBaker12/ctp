@@ -148,13 +148,13 @@ class Vehicle {
   // the new fields with getString(...) / condition checks below.
   // ---------------------------------------------------------------------------
   factory Vehicle.fromFirestore(String docId, Map<String, dynamic> data) {
-    print('''
-  === VEHICLE DEBUG ===
-  DocID: $docId
-  Brand: ${data['brands']}
-  MakeModel: ${data['makeModel']}
-  MainImage: ${data['mainImageUrl']}
-    ''');
+    //   print('''
+    // === VEHICLE DEBUG ===
+    // DocID: $docId
+    // Brand: ${data['brands']}
+    // MakeModel: ${data['makeModel']}
+    // MainImage: ${data['mainImageUrl']}
+    //   ''');
 
     // Handle timestamp
     DateTime parsedCreatedAt = data['createdAt'] is Timestamp
@@ -335,9 +335,8 @@ class Vehicle {
       variant: getString(data['variant'] ?? ''),
       damagesDescription: getString(data['damagesDescription'] ?? ''),
       additionalFeatures: getString(data['additionalFeatures'] ?? ''),
-      trailer: data['trailer'] != null
-          ? Trailer.fromFirestore(
-              docId, data['trailer'] as Map<String, dynamic>)
+      trailer: (data['vehicleType']?.toLowerCase() == 'trailer')
+          ? Trailer.fromFirestore(docId, data)
           : null,
 
       // ------------------------------
@@ -589,9 +588,8 @@ class Vehicle {
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
       variant: data['variant'] ?? '',
-      trailer: data['trailer'] != null
-          ? Trailer.fromFirestore(
-              doc.id, data['trailer'] as Map<String, dynamic>)
+      trailer: (data['vehicleType']?.toLowerCase() == 'trailer')
+          ? Trailer.fromFirestore(doc.id, data)
           : null,
 
       // ------------------------------
@@ -756,9 +754,8 @@ class Vehicle {
       country: data['country'] ?? 'N/A',
       province: data['province'] ?? 'N/A',
       variant: data['variant'] ?? '',
-      trailer: data['trailer'] != null
-          ? Trailer.fromFirestore(
-              data['id'], data['trailer'] as Map<String, dynamic>)
+      trailer: (data['vehicleType']?.toLowerCase() == 'trailer')
+          ? Trailer.fromFirestore(data['id'], data)
           : null,
 
       // ------------------------------

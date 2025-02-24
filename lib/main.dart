@@ -44,6 +44,7 @@ import 'package:ctp/providers/trailer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/truck_conditions_provider.dart';
+import 'package:ctp/providers/trailer_form_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -53,7 +54,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
-import 'package:flutter/services.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
@@ -61,14 +61,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Ensure assets are loaded
-  await Future.wait([
-    // rootBundle.load('AssetManifest.bin'),
-    // rootBundle.load('AssetManifest.bin.json'),
-  ]).catchError((error) {
-    print('Error loading assets: $error');
-  });
 
   if (!kIsWeb && Platform.isAndroid) {
     await Firebase.initializeApp(
@@ -111,6 +103,7 @@ void main() async {
           update: (_, formData, __) =>
               TruckConditionsProvider(formData.vehicleId ?? ''),
         ),
+        ChangeNotifierProvider(create: (_) => TrailerFormProvider()),
       ],
       child: const MyApp(),
     ),

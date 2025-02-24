@@ -16,9 +16,9 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 
 /// Simple debug helper: prints with a 'DEBUG:' prefix.
-void debugText(String message) {
-  debugPrint('DEBUG: $message');
-}
+// void debugText(String message) {
+//   debugPrint('DEBUG: $message');
+// }
 
 class OfferDetailPage extends StatefulWidget {
   final Offer offer;
@@ -40,7 +40,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   @override
   void initState() {
     super.initState();
-    debugText('initState: OfferDetailPage initialized');
+    // debugText('initState: OfferDetailPage initialized');
 
     _offerAmountController =
         TextEditingController(text: widget.offer.offerAmount?.toString() ?? '');
@@ -62,11 +62,11 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     }
 
     try {
-      debugText('Fetching vehicle details...');
+      // debugText('Fetching vehicle details...');
       await widget.offer.fetchVehicleDetails();
-      debugText('Vehicle details fetched successfully.');
+      // debugText('Vehicle details fetched successfully.');
     } catch (e) {
-      debugText('ERROR: Failed to fetch vehicle details: $e');
+      // debugText('ERROR: Failed to fetch vehicle details: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingVehicleDetails = false);
@@ -76,7 +76,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   @override
   void dispose() {
-    debugText('dispose: Cleaning up controllers');
+    // debugText('dispose: Cleaning up controllers');
     _offerAmountController.dispose();
     _vehicleMakeModelController.dispose();
     _vehicleYearController.dispose();
@@ -171,7 +171,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   /// Refresh offer details from Firestore
   Future<void> _refreshOfferDetails() async {
     try {
-      debugText('Refreshing offer details from Firestore...');
+      // debugText('Refreshing offer details from Firestore...');
       DocumentSnapshot offerSnapshot = await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId)
@@ -191,7 +191,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           widget.offer.needsInvoice = updatedOffer.needsInvoice;
           widget.offer.proofOfPaymentUrl = updatedOffer.proofOfPaymentUrl;
         });
-        debugText('Offer details refreshed successfully!');
+        // debugText('Offer details refreshed successfully!');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Offer details refreshed successfully'),
@@ -199,7 +199,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           ),
         );
       } else {
-        debugText('Offer not found in Firestore.');
+        // debugText('Offer not found in Firestore.');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Offer not found'),
@@ -208,7 +208,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         );
       }
     } catch (e) {
-      debugText('Failed to refresh offer: $e');
+      // debugText('Failed to refresh offer: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to refresh offer: $e'),
@@ -222,7 +222,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   void _saveChanges(OfferProvider offerProvider) {
     final parsedAmount = double.tryParse(_offerAmountController.text) ?? 0.0;
     if (parsedAmount <= 0.0) {
-      debugText('Invalid offer amount entered. Skipping.');
+      // debugText('Invalid offer amount entered. Skipping.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a valid offer amount.'),
@@ -231,7 +231,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
       );
       return;
     }
-    debugText('Saving changes: new offer amount = $parsedAmount');
+    // debugText('Saving changes: new offer amount = $parsedAmount');
     offerProvider.updateOfferAmount(widget.offer.offerId, parsedAmount);
     Navigator.pop(context);
   }
@@ -239,7 +239,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   /// Conditional widgets based on offer status
   Widget _buildConditionalWidgets(OfferProvider offerProvider) {
     final status = widget.offer.offerStatus.toLowerCase();
-    debugText('_buildConditionalWidgets: current status -> $status');
+    // debugText('_buildConditionalWidgets: current status -> $status');
 
     switch (status) {
       case 'pending':
@@ -284,7 +284,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// APPROVE/REJECT BUTTONS
   Widget _buildApproveRejectRow(OfferProvider offerProvider) {
-    debugText('_buildApproveRejectRow: building Approve/Reject buttons');
+    // debugText('_buildApproveRejectRow: building Approve/Reject buttons');
     return SizedBox(
       width: double.infinity,
       child: Column(
@@ -294,7 +294,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             text: 'Approve',
             borderColor: Colors.blue,
             onPressed: () async {
-              debugText('Approve button tapped.');
+              // debugText('Approve button tapped.');
               await _updateOfferStatus(offerProvider, 'accepted', 'approve');
             },
           ),
@@ -303,7 +303,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             text: 'Reject',
             borderColor: const Color(0xFFFF4E00),
             onPressed: () async {
-              debugText('Reject button tapped.');
+              // debugText('Reject button tapped.');
               await _updateOfferStatus(offerProvider, 'rejected', 'reject');
             },
           ),
@@ -314,9 +314,9 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// PAYMENT PENDING SECTION (with debug logging)
   Widget _buildPaymentPendingSection(OfferProvider offerProvider) {
-    debugText('Entered _buildPaymentPendingSection.');
+    // debugText('Entered _buildPaymentPendingSection.');
     final popUrl = widget.offer.proofOfPaymentUrl;
-    debugText('Current proofOfPaymentUrl URL -> $popUrl');
+    // debugText('Current proofOfPaymentUrl URL -> $popUrl');
 
     return Column(
       children: [
@@ -341,7 +341,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           onPressed: (popUrl == null || popUrl.isEmpty)
               ? null // Disable button when there's no URL
               : () {
-                  debugText('"View Proof" button tapped!');
+                  // debugText('"View Proof" button tapped!');
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -363,7 +363,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                 text: 'Verify Payment',
                 borderColor: Colors.green,
                 onPressed: () async {
-                  debugText('"Verify Payment" button tapped!');
+                  // debugText('"Verify Payment" button tapped!');
                   await offerProvider.updateOfferStatus(
                     widget.offer.offerId,
                     'paid',
@@ -385,7 +385,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                 text: 'Reject Payment',
                 borderColor: Colors.red,
                 onPressed: () async {
-                  debugText('"Reject Payment" button tapped!');
+                  // debugText('"Reject Payment" button tapped!');
                   await offerProvider.updateOfferStatus(
                     widget.offer.offerId,
                     'payment_rejected',
@@ -465,7 +465,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// SECTION WHEN PAYMENT IS MARKED "PAID"
   Widget _buildPaidSection(OfferProvider offerProvider) {
-    debugText('_buildPaidSection: showing "Paid" status');
+    // debugText('_buildPaidSection: showing "Paid" status');
     return Column(
       children: [
         Center(
@@ -483,7 +483,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           text: 'Change Payment Status',
           borderColor: Colors.orange,
           onPressed: () async {
-            debugText('Reverting "paid" status back to "payment pending"');
+            // debugText('Reverting "paid" status back to "payment pending"');
             await offerProvider.updateOfferStatus(
               widget.offer.offerId,
               'payment pending',
@@ -506,8 +506,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// SECTION WHEN PAYMENT IS "REJECTED"
   Widget _buildPaymentRejectedSection(OfferProvider offerProvider) {
-    debugText(
-        '_buildPaymentRejectedSection: showing "Payment Rejected" status');
+    // debugText(
+        // '_buildPaymentRejectedSection: showing "Payment Rejected" status');
     return Column(
       children: [
         Center(
@@ -525,8 +525,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           text: 'Change Payment Status',
           borderColor: Colors.orange,
           onPressed: () async {
-            debugText(
-                'Reverting "payment_rejected" status back to "payment pending"');
+            // debugText(
+                // 'Reverting "payment_rejected" status back to "payment pending"');
             await offerProvider.updateOfferStatus(
               widget.offer.offerId,
               'payment pending',
@@ -549,7 +549,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// ACCEPTED SECTION: Setup Inspection/Collection
   Widget _buildAcceptedSection() {
-    debugText('_buildAcceptedSection: streaming offer data...');
+    // debugText('_buildAcceptedSection: streaming offer data...');
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('offers')
@@ -636,7 +636,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           .where((e) => e.isNotEmpty)
           .toList();
     } catch (e) {
-      debugText('Error parsing locations: $e');
+      // debugText('Error parsing locations: $e');
       return [];
     }
   }
@@ -648,15 +648,15 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     String action,
   ) async {
     try {
-      debugText(
-          '_updateOfferStatus: setting status = $status, action = $action');
+      // debugText(
+          // '_updateOfferStatus: setting status = $status, action = $action');
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId)
           .update({'offerStatus': status});
 
       if (status.toLowerCase() == 'accepted') {
-        debugText('Setting needsInvoice to false since offer is accepted');
+        // debugText('Setting needsInvoice to false since offer is accepted');
         await FirebaseFirestore.instance
             .collection('offers')
             .doc(widget.offer.offerId)
@@ -681,8 +681,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         ),
       );
     } catch (e, stackTrace) {
-      debugText('Exception in $action: $e');
-      debugText('Stack trace: $stackTrace');
+      // debugText('Exception in $action: $e');
+      // debugText('Stack trace: $stackTrace');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -766,8 +766,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// Displays the dealer's email
   Widget _buildDealerEmailRow(UserProvider userProvider, String dealerId) {
-    debugText(
-        '_buildDealerEmailRow: fetching user email for dealerId=$dealerId');
+    // debugText(
+        // '_buildDealerEmailRow: fetching user email for dealerId=$dealerId');
     return FutureBuilder<String?>(
       future: userProvider.getUserEmailById(dealerId),
       builder: (context, snapshot) {
@@ -784,11 +784,11 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// Invoice section (external invoice)
   Widget _buildInvoiceSection() {
-    debugText('_buildInvoiceSection: checking if externalInvoice is set.');
+    // debugText('_buildInvoiceSection: checking if externalInvoice is set.');
     if (widget.offer.externalInvoice != null &&
         widget.offer.externalInvoice!.isNotEmpty) {
-      debugText(
-          'Invoice found. Showing the invoice preview and Replace button.');
+      // debugText(
+          // 'Invoice found. Showing the invoice preview and Replace button.');
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -811,7 +811,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         ],
       );
     } else if (widget.offer.needsInvoice ?? false) {
-      debugText('Offer needsInvoice = true. Prompting to upload invoice.');
+      // debugText('Offer needsInvoice = true. Prompting to upload invoice.');
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -833,15 +833,15 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         ],
       );
     } else {
-      debugText(
-          'No externalInvoice set and not needing invoice. Returning empty.');
+      // debugText(
+      //     'No externalInvoice set and not needing invoice. Returning empty.');
       return Container();
     }
   }
 
   /// Displays the uploaded invoice
   Widget _buildUploadedInvoice(String url) {
-    debugText('_buildUploadedInvoice: $url');
+    // debugText('_buildUploadedInvoice: $url');
     final lowerUrl = url.toLowerCase();
     final isImage = lowerUrl.endsWith('.png') ||
         lowerUrl.endsWith('.jpg') ||
@@ -911,7 +911,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             text: 'View Invoice',
             borderColor: Colors.blueAccent,
             onPressed: () {
-              debugText('View Invoice button tapped!');
+              // debugText('View Invoice button tapped!');
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -927,7 +927,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// Upload/replace the external invoice
   Future<void> _uploadExternalInvoice() async {
-    debugText('_uploadExternalInvoice: invoked');
+    // debugText('_uploadExternalInvoice: invoked');
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -956,7 +956,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final storagePath =
             'invoices/${widget.offer.offerId}/${timestamp}_$fileName';
-        debugText('Uploading invoice to path: $storagePath');
+        // debugText('Uploading invoice to path: $storagePath');
 
         final storageRef = FirebaseStorage.instance.ref(storagePath);
         final metadata = SettableMetadata(
@@ -969,7 +969,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         final snapshot = await uploadTask;
         final downloadUrl = await snapshot.ref.getDownloadURL();
 
-        debugText('Invoice uploaded successfully. Download URL: $downloadUrl');
+        // debugText('Invoice uploaded successfully. Download URL: $downloadUrl');
 
         // Update Firestore
         await FirebaseFirestore.instance
@@ -1002,7 +1002,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         }
       }
     } catch (e) {
-      debugText('ERROR: Failed to upload invoice: $e');
+      // debugText('ERROR: Failed to upload invoice: $e');
       if (context.mounted) {
         Navigator.pop(context); // Dismiss loading dialog if showing
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1017,9 +1017,9 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// Vehicle image at top
   Widget _buildVehicleImage() {
-    debugText(
-      'Building vehicle image, URL: ${widget.offer.vehicleMainImage}',
-    );
+    // debugText(
+    //   'Building vehicle image, URL: ${widget.offer.vehicleMainImage}',
+    // );
 
     if (_isLoadingVehicleDetails) {
       return const Center(
@@ -1046,7 +1046,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
       width: double.infinity,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
-        debugText('ERROR loading image: $error');
+        // debugText('ERROR loading image: $error');
         return Container(
           height: 200,
           color: Colors.grey[800],

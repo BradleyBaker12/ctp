@@ -174,253 +174,284 @@ class ProfilePage extends StatelessWidget {
           children: [
             SingleChildScrollView(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(height: screenSize.height * 0.1),
-                  Image.asset(
-                    'lib/assets/CTPLogo.png',
-                    height: screenSize.height * 0.1,
-                    width: screenSize.height * 0.1,
-                    fit: BoxFit.cover,
-                  ),
-                  SizedBox(height: screenSize.height * 0.03),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundImage: kIsWeb
-                              ? (userProvider.getProfileImageUrl.isNotEmpty
-                                  ? NetworkImage(
-                                      userProvider.getProfileImageUrl)
-                                  : const AssetImage(
-                                          'lib/assets/default-profile-photo.jpg')
-                                      as ImageProvider)
-                              : (userProvider.getProfileImageUrl.isNotEmpty
-                                  ? NetworkImage(
-                                      userProvider.getProfileImageUrl)
-                                  : const AssetImage(
-                                          'lib/assets/default-profile-photo.jpg')
-                                      as ImageProvider),
-                          onBackgroundImageError: (exception, stackTrace) {
-                            const AssetImage(
-                                'lib/assets/default-profile-photo.jpg');
-                          },
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      userProvider.getUserName.toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                  Center(
+                    child: Container(
+                      width: 600, // Profile content container
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Adjusted SizedBox to reduce top space on web
+                          SizedBox(
+                              height: kIsWeb ? 20 : screenSize.height * 0.1),
+                          if (!kIsWeb)
+                            Image.asset(
+                              'lib/assets/CTPLogo.png',
+                              height: screenSize.height * 0.1,
+                              width: screenSize.height * 0.1,
+                              fit: BoxFit.cover,
+                            )
+                          else
+                            SizedBox(height: screenSize.height * 0.1),
+                          SizedBox(height: screenSize.height * 0.03),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20.0),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 50,
+                                  backgroundImage: kIsWeb
+                                      ? (userProvider
+                                              .getProfileImageUrl.isNotEmpty
+                                          ? NetworkImage(
+                                              userProvider.getProfileImageUrl)
+                                          : const AssetImage(
+                                                  'lib/assets/default-profile-photo.jpg')
+                                              as ImageProvider)
+                                      : (userProvider
+                                              .getProfileImageUrl.isNotEmpty
+                                          ? NetworkImage(
+                                              userProvider.getProfileImageUrl)
+                                          : const AssetImage(
+                                                  'lib/assets/default-profile-photo.jpg')
+                                              as ImageProvider),
+                                  onBackgroundImageError:
+                                      (exception, stackTrace) {
+                                    const AssetImage(
+                                        'lib/assets/default-profile-photo.jpg');
+                                  },
+                                ),
+                                const SizedBox(width: 20),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              userProvider.getUserName
+                                                  .toUpperCase(),
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () async {
+                                              await MyNavigator.push(
+                                                  context, EditProfilePage());
+                                              print("Back from page");
+                                            },
+                                            child: Text(
+                                              'Edit Profile'.toUpperCase(),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.white,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                                decorationColor: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    ],
                                   ),
-                                  GestureDetector(
-                                    onTap: () async {
-                                      await MyNavigator.push(
-                                          context, EditProfilePage());
-                                      print("Back from page");
-                                    },
-                                    child: Text(
-                                      'Edit Profile'.toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: Colors.white,
-                                      ),
-                                    ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildProfileDetail(
+                            'FULL NAME',
+                            '${userProvider.getFirstName ?? ''} ${userProvider.getMiddleName ?? ''} ${userProvider.getLastName ?? ''}',
+                          ),
+                          _buildProfileDetail(
+                              'EMAIL', userProvider.getUserEmail),
+                          _buildProfileDetail('PHONE NUMBER',
+                              userProvider.getPhoneNumber ?? ''),
+                          _buildProfileDetail('ROLE',
+                              capitalizeFirstLetter(userProvider.getUserRole)),
+                          _buildProfileDetail('COMPANY NAME',
+                              userProvider.getCompanyName ?? ''),
+                          _buildProfileDetail('TRADING NAME',
+                              userProvider.getTradingName ?? ''),
+                          _buildProfileDetail('REG NO.',
+                              userProvider.getRegistrationNumber ?? ''),
+                          _buildProfileDetail(
+                              'VAT NO.', userProvider.getVatNumber ?? ''),
+                          _buildProfileDetail(
+                            'ADDRESS',
+                            '${userProvider.getAddressLine1 ?? ''}\n'
+                                '${userProvider.getAddressLine2 ?? ''}\n'
+                                '${userProvider.getCity ?? ''}\n'
+                                '${userProvider.getState ?? ''}\n'
+                                '${userProvider.getPostalCode ?? ''}',
+                          ),
+                          const SizedBox(height: 20),
+                          if (isTransporter) ...[
+                            const Padding(
+                              padding: EdgeInsets.only(left: 16.0),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'VEHICLE HISTORY',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
-                                ],
+                                ),
                               ),
-                            ],
+                            ),
+                            const Divider(color: Colors.white),
+                            _buildProfileAction(
+                              'VIEW SOLD VEHICLES',
+                              Icons.history,
+                              () async {
+                                await MyNavigator.push(
+                                    context, const SoldVehiclesListPage());
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          // Add the new section for dealers
+                          if (isDealer) ...[
+                            const Padding(
+                              padding: EdgeInsets.only(left: 16.0),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'VEHICLE HISTORY',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Divider(color: Colors.white),
+                            _buildProfileAction(
+                              'VIEW BOUGHT VEHICLES',
+                              Icons.history,
+                              () async {
+                                await MyNavigator.push(
+                                    context, const BoughtVehiclesListPage());
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          // Only show the Documents section if the user is neither an admin nor a sales rep.
+                          if (!isAdmin && !isSalesRep) ...[
+                            const Padding(
+                              padding: EdgeInsets.only(left: 16.0),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'DOCUMENTS',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Divider(color: Colors.white),
+                            const SizedBox(height: 10),
+                            _buildDocumentItem(
+                              'BANK CONFIRMATION',
+                              userProvider.getBankConfirmationUrl,
+                              Icons.visibility,
+                              context,
+                            ),
+                            if (isDealer)
+                              _buildDocumentItem(
+                                'CIPC CERTIFICATE',
+                                userProvider.getCipcCertificateUrl,
+                                Icons.visibility,
+                                context,
+                              ),
+                            _buildDocumentItem(
+                              'PROXY',
+                              userProvider.getProxyUrl,
+                              Icons.visibility,
+                              context,
+                            ),
+                            _buildDocumentItem(
+                              'BRNC',
+                              userProvider.getBrncUrl,
+                              Icons.visibility,
+                              context,
+                            ),
+                            _buildDocumentItem(
+                              'TERMS AND CONDITIONS',
+                              'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
+                              Icons.visibility,
+                              context,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          ElevatedButton(
+                            onPressed: () async {
+                              await userProvider.signOut();
+                              Navigator.of(context)
+                                  .pushReplacementNamed('/login');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              side: const BorderSide(
+                                  color: borderColor, width: 2),
+                              backgroundColor: backgroundColor,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 30, vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              'Sign Out',
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.white),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildProfileDetail(
-                    'FULL NAME',
-                    '${userProvider.getFirstName ?? ''} ${userProvider.getMiddleName ?? ''} ${userProvider.getLastName ?? ''}',
-                  ),
-                  _buildProfileDetail('EMAIL', userProvider.getUserEmail),
-                  _buildProfileDetail(
-                      'PHONE NUMBER', userProvider.getPhoneNumber ?? ''),
-                  _buildProfileDetail(
-                      'ROLE', capitalizeFirstLetter(userProvider.getUserRole)),
-                  _buildProfileDetail(
-                      'COMPANY NAME', userProvider.getCompanyName ?? ''),
-                  _buildProfileDetail(
-                      'TRADING NAME', userProvider.getTradingName ?? ''),
-                  _buildProfileDetail(
-                      'REG NO.', userProvider.getRegistrationNumber ?? ''),
-                  _buildProfileDetail(
-                      'VAT NO.', userProvider.getVatNumber ?? ''),
-                  _buildProfileDetail(
-                    'ADDRESS',
-                    '${userProvider.getAddressLine1 ?? ''}\n'
-                        '${userProvider.getAddressLine2 ?? ''}\n'
-                        '${userProvider.getCity ?? ''}\n'
-                        '${userProvider.getState ?? ''}\n'
-                        '${userProvider.getPostalCode ?? ''}',
-                  ),
-                  const SizedBox(height: 20),
-                  if (isTransporter) ...[
-                    const Padding(
-                      padding: EdgeInsets.only(left: 16.0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'VEHICLE HISTORY',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                          const SizedBox(height: 20),
+                          FutureBuilder<String>(
+                            future: DefaultAssetBundle.of(context)
+                                .loadString('lib/assets/version.json')
+                                .then((jsonStr) {
+                              final Map<String, dynamic> versionData =
+                                  json.decode(jsonStr);
+                              return "${versionData['type']} Version ${versionData['version']}";
+                            }),
+                            builder: (context, snapshot) {
+                              return Text(
+                                snapshot.data ?? 'Loading...',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                              );
+                            },
                           ),
-                        ),
+                          const SizedBox(height: 20),
+                          // Removed WebFooter from here
+                        ],
                       ),
-                    ),
-                    const Divider(color: Colors.white),
-                    _buildProfileAction(
-                      'VIEW SOLD VEHICLES',
-                      Icons.history,
-                      () async {
-                        await MyNavigator.push(
-                            context, const SoldVehiclesListPage());
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  // Add the new section for dealers
-                  if (isDealer) ...[
-                    const Padding(
-                      padding: EdgeInsets.only(left: 16.0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'VEHICLE HISTORY',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Divider(color: Colors.white),
-                    _buildProfileAction(
-                      'VIEW BOUGHT VEHICLES',
-                      Icons.history,
-                      () async {
-                        await MyNavigator.push(
-                            context, const BoughtVehiclesListPage());
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  // Only show the Documents section if the user is neither an admin nor a sales rep.
-                  if (!isAdmin && !isSalesRep) ...[
-                    const Padding(
-                      padding: EdgeInsets.only(left: 16.0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'DOCUMENTS',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Divider(color: Colors.white),
-                    const SizedBox(height: 10),
-                    _buildDocumentItem(
-                      'BANK CONFIRMATION',
-                      userProvider.getBankConfirmationUrl,
-                      Icons.visibility,
-                      context,
-                    ),
-                    if (isDealer)
-                      _buildDocumentItem(
-                        'CIPC CERTIFICATE',
-                        userProvider.getCipcCertificateUrl,
-                        Icons.visibility,
-                        context,
-                      ),
-                    _buildDocumentItem(
-                      'PROXY',
-                      userProvider.getProxyUrl,
-                      Icons.visibility,
-                      context,
-                    ),
-                    _buildDocumentItem(
-                      'BRNC',
-                      userProvider.getBrncUrl,
-                      Icons.visibility,
-                      context,
-                    ),
-                    _buildDocumentItem(
-                      'TERMS AND CONDITIONS',
-                      'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
-                      Icons.visibility,
-                      context,
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  ElevatedButton(
-                    onPressed: () async {
-                      await userProvider.signOut();
-                      Navigator.of(context).pushReplacementNamed('/login');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      side: const BorderSide(color: borderColor, width: 2),
-                      backgroundColor: backgroundColor,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 30, vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'Sign Out',
-                      style: TextStyle(fontSize: 18, color: Colors.white),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  FutureBuilder<String>(
-                    future: DefaultAssetBundle.of(context)
-                        .loadString('lib/assets/version.json')
-                        .then((jsonStr) {
-                      final Map<String, dynamic> versionData =
-                          json.decode(jsonStr);
-                      return "${versionData['type']} Version ${versionData['version']}";
-                    }),
-                    builder: (context, snapshot) {
-                      return Text(
-                        snapshot.data ?? 'Loading...',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  if (kIsWeb) const WebFooter(), // Add web footer for web only
+                  // Add WebFooter full-width on web
+                  if (kIsWeb)
+                    Container(
+                      width: MediaQuery.of(context).size.width,
+                      child: const WebFooter(),
+                    )
                 ],
               ),
             ),

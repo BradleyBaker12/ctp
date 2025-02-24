@@ -1,6 +1,8 @@
 // lib/pages/truckForms/external_cab_page.dart
 
+import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -13,6 +15,9 @@ import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart'; // Ensure this import path is correct
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:ui' as ui;
+import 'package:universal_html/html.dart'
+    as html; // Added for platformViewRegistry
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
@@ -242,33 +247,34 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
             const SizedBox(height: 16.0),
             const Divider(thickness: 1.0),
             const SizedBox(height: 16.0),
-            CustomButton(
-              text: 'Save Changes',
-              borderColor: Colors.deepOrange,
-              isLoading: _isSaving,
-              onPressed: () async {
-                setState(() => _isSaving = true);
-                try {
-                  final data = await getData();
-                  await FirebaseFirestore.instance
-                      .collection('vehicles')
-                      .doc(widget.vehicleId)
-                      .update({
-                    'truckConditions.externalCab': data,
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Changes saved successfully!')),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error saving changes: $e')),
-                  );
-                } finally {
-                  setState(() => _isSaving = false);
-                }
-              },
-            ),
+            if (!isDealer)
+              CustomButton(
+                text: 'Save Changes',
+                borderColor: Colors.deepOrange,
+                isLoading: _isSaving,
+                onPressed: () async {
+                  setState(() => _isSaving = true);
+                  try {
+                    final data = await getData();
+                    await FirebaseFirestore.instance
+                        .collection('vehicles')
+                        .doc(widget.vehicleId)
+                        .update({
+                      'truckConditions.externalCab': data,
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Changes saved successfully!')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving changes: $e')),
+                    );
+                  } finally {
+                    setState(() => _isSaving = false);
+                  }
+                },
+              ),
           ],
         ),
       ),
@@ -551,8 +557,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     final imageData = _selectedImages[title];
 
     // Debugging statements
-    print(
-        'In _buildPhotoBlock for $title, hasFile: ${imageData?.file != null}, hasUrl: ${imageData?.url != null && imageData!.url!.isNotEmpty}, URL: ${imageData?.url}');
+    // print(
+    //     'In _buildPhotoBlock for $title, hasFile: ${imageData?.file != null}, hasUrl: ${imageData?.url != null && imageData!.url!.isNotEmpty}, URL: ${imageData?.url}');
 
     return GestureDetector(
       onTap: () {
@@ -645,15 +651,46 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
-                    setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: bytes, url: null, fileName: fileName);
-                    });
+                  if (kIsWeb) {
+                    bool cameraAvailable = false;
+                    try {
+                      cameraAvailable =
+                          html.window.navigator.mediaDevices != null;
+                    } catch (e) {
+                      cameraAvailable = false;
+                    }
+                    if (cameraAvailable) {
+                      await _takePhotoFromWeb((file, fileName) {
+                        if (file != null) {
+                          setState(() {
+                            _selectedImages[title] =
+                                ImageData(file: file, fileName: fileName);
+                          });
+                        }
+                      });
+                    } else {
+                      final pickedFile =
+                          await _picker.pickImage(source: ImageSource.camera);
+                      if (pickedFile != null) {
+                        final bytes = await pickedFile.readAsBytes();
+                        final fileName = pickedFile.name;
+                        setState(() {
+                          _selectedImages[title] =
+                              ImageData(file: bytes, fileName: fileName);
+                        });
+                      }
+                    }
+                  } else {
+                    final pickedFile =
+                        await _picker.pickImage(source: ImageSource.camera);
+                    if (pickedFile != null) {
+                      final bytes = await pickedFile.readAsBytes();
+                      final fileName = pickedFile.name;
+                      setState(() {
+                        _selectedImages[title] =
+                            ImageData(file: bytes, fileName: fileName);
+                      });
+                    }
                   }
                   widget.onProgressUpdate();
                   setState(() {});
@@ -1015,16 +1052,46 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
-
-                    setState(() {
-                      item.imageData =
-                          ImageData(file: bytes, url: null, fileName: fileName);
-                    });
+                  if (kIsWeb) {
+                    bool cameraAvailable = false;
+                    try {
+                      cameraAvailable =
+                          html.window.navigator.mediaDevices != null;
+                    } catch (e) {
+                      cameraAvailable = false;
+                    }
+                    if (cameraAvailable) {
+                      await _takePhotoFromWeb((file, fileName) {
+                        if (file != null) {
+                          setState(() {
+                            item.imageData =
+                                ImageData(file: file, fileName: fileName);
+                          });
+                        }
+                      });
+                    } else {
+                      final pickedFile =
+                          await _picker.pickImage(source: ImageSource.camera);
+                      if (pickedFile != null) {
+                        final bytes = await pickedFile.readAsBytes();
+                        final fileName = pickedFile.name;
+                        setState(() {
+                          item.imageData =
+                              ImageData(file: bytes, fileName: fileName);
+                        });
+                      }
+                    }
+                  } else {
+                    final pickedFile =
+                        await _picker.pickImage(source: ImageSource.camera);
+                    if (pickedFile != null) {
+                      final bytes = await pickedFile.readAsBytes();
+                      final fileName = pickedFile.name;
+                      setState(() {
+                        item.imageData =
+                            ImageData(file: bytes, fileName: fileName);
+                      });
+                    }
                   }
                 },
               ),
@@ -1038,10 +1105,9 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
                     final fileName = pickedFile.name;
-
                     setState(() {
                       item.imageData =
-                          ImageData(file: bytes, url: null, fileName: fileName);
+                          ImageData(file: bytes, fileName: fileName);
                     });
                   }
                 },
@@ -1167,5 +1233,69 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         _additionalFeaturesList[index].description = value;
       }
     });
+  }
+
+  // Add this helper method before any existing methods:
+  Future<void> _takePhotoFromWeb(
+      void Function(Uint8List?, String) callback) async {
+    if (!kIsWeb) {
+      callback(null, '');
+      return;
+    }
+    try {
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) {
+        callback(null, '');
+        return;
+      }
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+      await videoElement.onLoadedMetadata.first;
+      String viewID = 'webcamEdit_${DateTime.now().millisecondsSinceEpoch}';
+      platformViewRegistry
+          .registerViewFactory(viewID, (int viewId) => videoElement);
+      await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+                title: const Text('Take Photo'),
+                content: SizedBox(
+                  width: 300,
+                  height: 300,
+                  child: HtmlElementView(viewType: viewID),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      final canvas = html.CanvasElement(
+                        width: videoElement.videoWidth,
+                        height: videoElement.videoHeight,
+                      );
+                      canvas.context2D.drawImage(videoElement, 0, 0);
+                      final dataUrl = canvas.toDataUrl('image/png');
+                      final base64Str = dataUrl.split(',').last;
+                      final imageBytes = base64.decode(base64Str);
+                      mediaStream.getTracks().forEach((track) => track.stop());
+                      Navigator.of(dialogContext).pop();
+                      callback(imageBytes, 'captured.png');
+                    },
+                    child: const Text('Capture'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      mediaStream.getTracks().forEach((track) => track.stop());
+                      Navigator.of(dialogContext).pop();
+                      callback(null, '');
+                    },
+                    child: const Text('Cancel'),
+                  )
+                ]);
+          });
+    } catch (e) {
+      callback(null, '');
+    }
   }
 }

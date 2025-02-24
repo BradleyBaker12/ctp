@@ -83,7 +83,7 @@ class _OffersTabState extends State<OffersTab> {
     _debounce = Timer(const Duration(milliseconds: 500), () {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
-        print('DEBUG: _searchQuery set to => $_searchQuery');
+        // print('DEBUG: _searchQuery set to => $_searchQuery');
       });
     });
   }
@@ -134,7 +134,7 @@ class _OffersTabState extends State<OffersTab> {
       if (value != null) {
         setState(() {
           _sortField = value;
-          print('DEBUG: _sortField changed to => $_sortField');
+          // print('DEBUG: _sortField changed to => $_sortField');
         });
       }
     });
@@ -166,7 +166,7 @@ class _OffersTabState extends State<OffersTab> {
                           } else {
                             _selectedFilters.remove(filter);
                           }
-                          print('DEBUG: _selectedFilters => $_selectedFilters');
+                          // print('DEBUG: _selectedFilters => $_selectedFilters');
                         });
                       },
                       checkColor: Colors.black,
@@ -182,7 +182,7 @@ class _OffersTabState extends State<OffersTab> {
                       _selectedFilters.clear();
                       _filterStatus = 'All';
                     });
-                    print('DEBUG: Filters cleared. _filterStatus = All');
+                    // print('DEBUG: Filters cleared. _filterStatus = All');
                     Navigator.pop(context);
                   },
                   child: Text('Clear All',
@@ -195,7 +195,7 @@ class _OffersTabState extends State<OffersTab> {
                           ? 'All'
                           : _selectedFilters.first;
                     });
-                    print('DEBUG: _filterStatus set to => $_filterStatus');
+                    // print('DEBUG: _filterStatus set to => $_filterStatus');
                     Navigator.pop(context);
                   },
                   child: Text('Apply',
@@ -339,7 +339,7 @@ class _OffersTabState extends State<OffersTab> {
   /// Filter offers for Sales Representative asynchronously.
   Future<List<Offer>> getFilteredOffersForSalesRep(
       List<Offer> allOffers, String salesRepId) async {
-    print('DEBUG: Filtering offers for sales rep: $salesRepId');
+    // print('DEBUG: Filtering offers for sales rep: $salesRepId');
 
     try {
       // Get all users (dealers/transporters) managed by this sales rep
@@ -352,7 +352,7 @@ class _OffersTabState extends State<OffersTab> {
       List<String> managedAccountIds =
           managedAccounts.docs.map((doc) => doc.id).toList();
 
-      print('DEBUG: Found ${managedAccountIds.length} managed accounts');
+      // print('DEBUG: Found ${managedAccountIds.length} managed accounts');
 
       // Filter offers to only include those where either dealerId or transporterId
       // belongs to accounts managed by the sales rep
@@ -360,14 +360,14 @@ class _OffersTabState extends State<OffersTab> {
         bool isManaged = managedAccountIds.contains(offer.dealerId) ||
             managedAccountIds.contains(offer.transporterId);
 
-        print('DEBUG: Offer ${offer.offerId} - Dealer: ${offer.dealerId}, '
-            'Transporter: ${offer.transporterId}, Is Managed: $isManaged');
+        // print('DEBUG: Offer ${offer.offerId} - Dealer: ${offer.dealerId}, '
+            // 'Transporter: ${offer.transporterId}, Is Managed: $isManaged');
 
         return isManaged;
       }).toList();
 
-      print(
-          'DEBUG: Filtered ${allOffers.length} offers down to ${filteredOffers.length}');
+      // print(
+      //     'DEBUG: Filtered ${allOffers.length} offers down to ${filteredOffers.length}');
       return filteredOffers;
     } catch (e) {
       print('ERROR: Failed to filter offers for sales rep: $e');
@@ -422,7 +422,7 @@ class _OffersTabState extends State<OffersTab> {
                 onPressed: () {
                   setState(() {
                     _sortAscending = !_sortAscending;
-                    print('DEBUG: _sortAscending => $_sortAscending');
+                    // print('DEBUG: _sortAscending => $_sortAscending');
                   });
                 },
                 tooltip: _sortAscending ? 'Sort Ascending' : 'Sort Descending',

@@ -24,8 +24,8 @@ class Maintenance {
   });
 
   factory Maintenance.fromMap(Map<String, dynamic> data) {
-    print('=== MAINTENANCE MODEL DEBUG ===');
-    print('Raw maintenance data received: $data');
+    // print('=== MAINTENANCE MODEL DEBUG ===');
+    // print('Raw maintenance data received: $data');
 
     // Ensure string conversion for potentially non-string values
     String ensureString(dynamic value) {

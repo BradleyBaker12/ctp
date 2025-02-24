@@ -215,14 +215,14 @@ class _VehiclesTabState extends State<VehiclesTab>
       _lastDocument = null;
       _hasMore = true;
     });
-    debugPrint('--- DEBUG: Selected Tab: $_currentTabStatus ---');
+    // debugPrint('--- DEBUG: Selected Tab: $_currentTabStatus ---');
     _fetchVehicles();
   }
 
   /// Loads distinct brand names from updated_truck_data.json.
   Future<void> _loadBrandsFromJson() async {
     try {
-      debugPrint('--- DEBUG: Loading brands from JSON ---');
+      // debugPrint('--- DEBUG: Loading brands from JSON ---');
       final String response =
           await rootBundle.loadString('lib/assets/updated_truck_data.json');
       final Map<String, dynamic> jsonData = json.decode(response);
@@ -258,7 +258,7 @@ class _VehiclesTabState extends State<VehiclesTab>
   /// Loads countries.json to populate _countryOptions.
   Future<void> _loadCountriesFromJson() async {
     try {
-      debugPrint('--- DEBUG: Loading countries from JSON ---');
+      // debugPrint('--- DEBUG: Loading countries from JSON ---');
       final String response =
           await rootBundle.loadString('lib/assets/countries.json');
       final data = json.decode(response);
@@ -278,16 +278,16 @@ class _VehiclesTabState extends State<VehiclesTab>
           }
         });
       }
-      debugPrint('--- DEBUG: Finished loading countries => $_countryOptions');
+      // debugPrint('--- DEBUG: Finished loading countries => $_countryOptions');
     } catch (e, stackTrace) {
-      debugPrint('Error loading countries from JSON: $e');
+      // debugPrint('Error loading countries from JSON: $e');
       debugPrint(stackTrace.toString());
     }
   }
 
   /// Updates the list of provinces based on a selected country.
   void _updateProvincesForCountry(String countryName) {
-    debugPrint('--- DEBUG: Updating provinces for country: $countryName ---');
+    // debugPrint('--- DEBUG: Updating provinces for country: $countryName ---');
     if (countryName == 'All') {
       setState(() {
         _provinceOptions = ['All'];
@@ -320,14 +320,14 @@ class _VehiclesTabState extends State<VehiclesTab>
       setState(() {
         _provinceOptions = ['All', ...provinceNames];
       });
-      debugPrint('--- DEBUG: Updated provinceOptions => $_provinceOptions');
+      // debugPrint('--- DEBUG: Updated provinceOptions => $_provinceOptions');
     }
   }
 
   /// Updates the model list based on the selected brand.
   void _updateModelsForBrand(String brand) async {
     try {
-      debugPrint('--- DEBUG: Updating models for brand: $brand ---');
+      // debugPrint('--- DEBUG: Updating models for brand: $brand ---');
 
       if (brand == 'All') {
         setState(() {

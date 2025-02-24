@@ -657,9 +657,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         context,
         EditTrailerUploadScreen(
           isDuplicating: false,
-          isNewUpload: false,
           isAdminUpload: isAdminOrSalesRep,
-          trailer: widget.vehicle.trailer,
         ),
       );
     } else {
@@ -1013,9 +1011,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           context,
           EditTrailerUploadScreen(
             isDuplicating: false,
-            isNewUpload: false,
             isAdminUpload: isAdminOrSalesRep,
-            trailer: widget.vehicle.trailer,
           ),
         );
         setState(() {});
@@ -2997,9 +2993,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       intern.faultCodesCondition,
     ];
     int total = fields.length;
-    int completed = fields
-        .where((field) => field.toString().trim().isNotEmpty)
-        .length;
+    int completed =
+        fields.where((field) => field.toString().trim().isNotEmpty).length;
 
     return "$completed/$total";
   }
@@ -3013,9 +3008,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       intern.faultCodesCondition,
     ];
     int total = fields.length;
-    int completed = fields
-        .where((field) => field.toString().trim().isNotEmpty)
-        .length;
+    int completed =
+        fields.where((field) => field.toString().trim().isNotEmpty).length;
 
     return total == 0 ? 0 : (completed / total);
   }
@@ -3031,9 +3025,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       chass.additionalFeaturesCondition,
     ];
     int total = fields.length;
-    int completed = fields
-        .where((field) => field.toString().trim().isNotEmpty)
-        .length;
+    int completed =
+        fields.where((field) => field.toString().trim().isNotEmpty).length;
 
     return "$completed/$total";
   }
@@ -3046,9 +3039,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       chass.additionalFeaturesCondition,
     ];
     int total = fields.length;
-    int completed = fields
-        .where((field) => field.toString().trim().isNotEmpty)
-        .length;
+    int completed =
+        fields.where((field) => field.toString().trim().isNotEmpty).length;
 
     return total == 0 ? 0 : (completed / total);
   }
@@ -3097,9 +3089,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       // Possibly also faultCodes if you want
     ];
     int total = fields.length;
-    int completed = fields
-        .where((field) => field.toString().trim().isNotEmpty)
-        .length;
+    int completed =
+        fields.where((field) => field.toString().trim().isNotEmpty).length;
 
     return total == 0 ? 0 : (completed / total);
   }

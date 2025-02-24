@@ -30,19 +30,25 @@ class TrailerCard extends StatelessWidget {
     this.borderColor,
   });
 
-  // Helper method to get trailer type-specific details
+  // Modified: get detailed trailer info based on type with debugging.
   String getTrailerDetails() {
+    debugPrint('Trailer type: ${trailer.trailerType}');
     switch (trailer.trailerType) {
       case 'Superlink':
         final data = trailer.superlinkData;
+        debugPrint('Superlink data: $data');
         if (data != null) {
-          return 'A: ${data.lengthA} | B: ${data.lengthB}';
+          return 'Superlink Details:\n'
+              'Trailer A: Length: ${data.lengthA}, VIN: ${data.vinA}, Reg: ${data.registrationA}\n'
+              'Trailer B: Length: ${data.lengthB}, VIN: ${data.vinB}, Reg: ${data.registrationB}';
         }
         return 'Superlink';
       case 'Tri-Axle':
         final data = trailer.triAxleData;
+        debugPrint('Tri-Axle data: $data');
         if (data != null) {
-          return 'Length: ${data.length}';
+          return 'Tri-Axle Details:\n'
+              'Length: ${data.length}, VIN: ${data.vin}, Reg: ${data.registration}';
         }
         return 'Tri-Axle';
       default:
@@ -130,6 +136,9 @@ class TrailerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Debug: print complete trailer data
+    debugPrint('Building TrailerCard with data: ${trailer.toJson()}');
+
     const double cardHeight = 600.0;
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = min(screenWidth * 0.95, 500.0);
@@ -286,19 +295,27 @@ class TrailerCard extends StatelessWidget {
                         ClipRRect(
                           borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(24)),
-                          child: Image.network(
-                            trailer.mainImageUrl ?? '',
-                            width: cardW,
-                            height: imageSectionHeight,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(
-                              'lib/assets/default_vehicle_image.png',
-                              width: cardW,
-                              height: imageSectionHeight,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                          child: (trailer.mainImageUrl != null &&
+                                  trailer.mainImageUrl!.isNotEmpty)
+                              ? Image.network(
+                                  trailer.mainImageUrl!,
+                                  width: cardW,
+                                  height: imageSectionHeight,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Image.asset(
+                                    'lib/assets/default_vehicle_image.png',
+                                    width: cardW,
+                                    height: imageSectionHeight,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Image.asset(
+                                  'lib/assets/default_vehicle_image.png',
+                                  width: cardW,
+                                  height: imageSectionHeight,
+                                  fit: BoxFit.cover,
+                                ),
                         ),
                         Positioned(
                           top: 12,

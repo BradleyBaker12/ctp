@@ -1,6 +1,9 @@
 // lib/pages/truckForms/drive_train_page.dart
 
+import 'dart:convert';
 import 'dart:io';
+import 'dart:ui_web';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
@@ -8,6 +11,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'dart:typed_data';
+import 'dart:ui' as ui; // Added for platformViewRegistry
+import 'package:universal_html/html.dart' as html; // For web camera access
 
 class ImageData {
   File? file;
@@ -394,7 +399,74 @@ class DriveTrainPageState extends State<DriveTrainPage>
     return Container(); // Fallback empty container
   }
 
-  // Method to show the dialog for selecting image source (Camera or Gallery)
+  // Add web camera helper method:
+  Future<void> _takePhotoFromWeb(
+      void Function(Uint8List?, String) callback) async {
+    if (!kIsWeb) {
+      callback(null, '');
+      return;
+    }
+    try {
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) {
+        callback(null, '');
+        return;
+      }
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+      await videoElement.onLoadedMetadata.first;
+      String viewID =
+          'webcam_drivetrain_${DateTime.now().millisecondsSinceEpoch}';
+      platformViewRegistry.registerViewFactory(
+          viewID, (int viewId) => videoElement);
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(viewType: viewID),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(imageBytes, 'captured.png');
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(null, '');
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      callback(null, '');
+    }
+  }
+
+  // Update the image source dialog:
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
@@ -404,132 +476,73 @@ class DriveTrainPageState extends State<DriveTrainPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Updated Camera option:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final XFile? pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    setState(() {
-                      _selectedImages[title] = ImageData(
-                        file: File(pickedFile.path),
-                        webImage: bytes,
-                      );
-                    });
-                    widget.onProgressUpdate();
+                  if (kIsWeb) {
+                    bool cameraAvailable = false;
+                    try {
+                      cameraAvailable =
+                          html.window.navigator.mediaDevices != null;
+                    } catch (e) {
+                      cameraAvailable = false;
+                    }
+                    if (cameraAvailable) {
+                      await _takePhotoFromWeb((file, fileName) {
+                        if (file != null) {
+                          setState(() {
+                            // Assuming _selectedImages holds Uint8List for drive train images.
+                            _selectedImages[title] = ImageData(webImage: file);
+                          });
+                        }
+                      });
+                    } else {
+                      final pickedFile =
+                          await _picker.pickImage(source: ImageSource.camera);
+                      if (pickedFile != null) {
+                        final bytes = await pickedFile.readAsBytes();
+                        setState(() {
+                          _selectedImages[title] = ImageData(webImage: bytes);
+                        });
+                      }
+                    }
+                  } else {
+                    final pickedFile =
+                        await _picker.pickImage(source: ImageSource.camera);
+                    if (pickedFile != null) {
+                      final bytes = await pickedFile.readAsBytes();
+                      setState(() {
+                        _selectedImages[title] = ImageData(webImage: bytes);
+                      });
+                    }
                   }
+                  widget.onProgressUpdate();
                 },
               ),
+              // Existing Gallery option:
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final XFile? pickedFile =
+                  final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] = ImageData(
-                        file: File(pickedFile.path),
-                        webImage: bytes,
-                      );
+                      _selectedImages[title] = ImageData(webImage: bytes);
                     });
-                    widget.onProgressUpdate();
                   }
+                  widget.onProgressUpdate();
                 },
               ),
             ],
           ),
         );
       },
-    );
-  }
-
-  // Helper method to build yes/no section with optional image upload
-  Widget _buildYesNoSection({
-    required String title,
-    required String groupValue,
-    required ValueChanged<String?> onChanged,
-    required String imageKey,
-  }) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w900,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CustomRadioButton(
-              label: 'Yes',
-              value: 'yes',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-            const SizedBox(width: 15),
-            CustomRadioButton(
-              label: 'No',
-              value: 'no',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16.0),
-        // If user selects yes, show the image block with an 'X' button
-        if (groupValue == 'yes') _buildPhotoBlock(imageKey),
-      ],
-    );
-  }
-
-  // Helper method to build yes/no section without image upload
-  Widget _buildYesNoRadioOnlySection({
-    required String title,
-    required String groupValue,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            color: Color.fromARGB(221, 255, 255, 255),
-            fontWeight: FontWeight.w900,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16.0),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CustomRadioButton(
-              label: 'Yes',
-              value: 'yes',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-            const SizedBox(width: 15),
-            CustomRadioButton(
-              label: 'No',
-              value: 'no',
-              groupValue: groupValue,
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -786,5 +799,86 @@ class DriveTrainPageState extends State<DriveTrainPage>
     _updateAndNotify(() {
       _selectedImages[title] = ImageData(file: imageFile);
     });
+  }
+
+  Widget _buildYesNoSection({
+    required String title,
+    required String groupValue,
+    required ValueChanged<String?> onChanged,
+    required String imageKey,
+  }) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            color: Color.fromARGB(221, 255, 255, 255),
+            fontWeight: FontWeight.w900,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16.0),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: groupValue,
+              onChanged: onChanged,
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: groupValue,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16.0),
+        if (groupValue == 'yes') _buildPhotoBlock(imageKey),
+      ],
+    );
+  }
+
+  Widget _buildYesNoRadioOnlySection({
+    required String title,
+    required String groupValue,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            color: Color.fromARGB(221, 255, 255, 255),
+            fontWeight: FontWeight.w900,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16.0),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: groupValue,
+              onChanged: onChanged,
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: groupValue,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }

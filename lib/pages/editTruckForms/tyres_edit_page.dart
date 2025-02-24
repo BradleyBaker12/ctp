@@ -1,6 +1,8 @@
 // lib/pages/editTruckForms/tyres_edit_page.dart
 
+import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -14,6 +16,8 @@ import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/truck_info_web_nav.dart';
+import 'dart:ui' as ui; // Added for platformViewRegistry
+import 'package:universal_html/html.dart' as html; // For web camera access
 
 class TyresEditPage extends StatefulWidget {
   final String vehicleId;
@@ -171,38 +175,32 @@ class TyresEditPageState extends State<TyresEditPage>
               const SizedBox(height: 16.0),
               ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
               const SizedBox(height: 16.0),
-              const Divider(thickness: 1.0),
+              if (!isDealer) Divider(thickness: 1.0),
               const SizedBox(height: 16.0),
-              CustomButton(
-                text: 'Save Changes',
-                borderColor: Colors.deepOrange,
-                isLoading: _isSaving,
-                onPressed: () async {
-                  print("DEBUG: Save Changes button pressed");
-                  setState(() => _isSaving = true);
-                  try {
-                    final data = await getData();
-                    print("DEBUG: Data to be saved: $data");
-                    await _firestore
-                        .collection('vehicles')
-                        .doc(widget.vehicleId)
-                        .update({
-                      'truckConditions.tyres': data,
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Changes saved successfully!')),
-                    );
-                  } catch (e) {
-                    print("DEBUG: Error during save: $e");
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error saving changes: $e')),
-                    );
-                  } finally {
-                    setState(() => _isSaving = false);
-                  }
-                },
-              ),
+              if (!isDealer)
+                CustomButton(
+                  text: 'Save Changes',
+                  borderColor: Colors.deepOrange,
+                  isLoading: _isSaving,
+                  onPressed: () async {
+                    setState(() => _isSaving = true);
+                    try {
+                      final data = await getData();
+                      await _firestore
+                          .collection('vehicles')
+                          .doc(widget.vehicleId)
+                          .update({
+                        'truckConditions.tyres': data,
+                      });
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error saving changes: $e')),
+                      );
+                    } finally {
+                      setState(() => _isSaving = false);
+                    }
+                  },
+                ),
             ],
           ),
         ),
@@ -401,7 +399,7 @@ class TyresEditPageState extends State<TyresEditPage>
             enabled: !isDealer,
           ),
         ]),
-        const Divider(thickness: 1.0),
+        Divider(thickness: 1.0),
       ],
     );
   }
@@ -538,19 +536,27 @@ class TyresEditPageState extends State<TyresEditPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    print("DEBUG: Selected image from camera for key: $key");
-                    _updateAndNotify(() {
-                      _selectedImages[key] = bytes;
-                      _imageUrls.remove(key);
+                  if (kIsWeb) {
+                    await _takePhotoFromWeb((file, fileName) {
+                      if (file != null) {
+                        setState(() {
+                          // Here _selectedImages expects a Uint8List directly.
+                          _selectedImages[key] = file;
+                          _imageUrls.remove(key);
+                        });
+                      }
                     });
                   } else {
-                    print("DEBUG: No image selected from camera for key: $key");
+                    final XFile? pickedFile =
+                        await _picker.pickImage(source: ImageSource.camera);
+                    if (pickedFile != null) {
+                      final bytes = await pickedFile.readAsBytes();
+                      setState(() {
+                        _selectedImages[key] = bytes;
+                        _imageUrls.remove(key);
+                      });
+                    }
                   }
-                  widget.onProgressUpdate();
                 },
               ),
               ListTile(
@@ -558,20 +564,15 @@ class TyresEditPageState extends State<TyresEditPage>
                 title: const Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    print("DEBUG: Selected image from gallery for key: $key");
-                    _updateAndNotify(() {
+                    setState(() {
                       _selectedImages[key] = bytes;
                       _imageUrls.remove(key);
                     });
-                  } else {
-                    print(
-                        "DEBUG: No image selected from gallery for key: $key");
                   }
-                  widget.onProgressUpdate();
                 },
               ),
             ],
@@ -579,6 +580,73 @@ class TyresEditPageState extends State<TyresEditPage>
         );
       },
     );
+  }
+
+  // Add web camera helper method:
+  Future<void> _takePhotoFromWeb(
+      void Function(Uint8List?, String) callback) async {
+    if (!kIsWeb) {
+      callback(null, '');
+      return;
+    }
+    try {
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) {
+        callback(null, '');
+        return;
+      }
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+      await videoElement.onLoadedMetadata.first;
+      String viewID =
+          'webcam_tyres_edit_${DateTime.now().millisecondsSinceEpoch}';
+      platformViewRegistry.registerViewFactory(
+          viewID, (int viewId) => videoElement);
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(viewType: viewID),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(imageBytes, 'captured.png');
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(null, '');
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      callback(null, '');
+    }
   }
 
   /// A helper method to return either a local image, a network image, or a placeholder.

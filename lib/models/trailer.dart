@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/trailer_types/superlink.dart';
 import 'package:ctp/models/trailer_types/tri_axle.dart';
+import 'package:flutter/material.dart';
 
 class Trailer {
   final String id;
@@ -92,18 +93,56 @@ class Trailer {
   });
 
   factory Trailer.fromFirestore(String docId, Map<String, dynamic> data) {
-    // Parse type-specific data based on trailer type
+    debugPrint('Trailer.fromFirestore docId: $docId, data: $data');
     final typeSpecificData = data['trailerExtraInfo'] as Map<String, dynamic>?;
+    debugPrint('trailerExtraInfo: $typeSpecificData');
+
     SuperlinkTrailer? superlinkData;
     TriAxleTrailer? triAxleData;
 
-    if (data['trailerType'] == 'Superlink' && typeSpecificData != null) {
-      superlinkData = SuperlinkTrailer.fromJson(typeSpecificData);
-    } else if (data['trailerType'] == 'Tri-Axle' && typeSpecificData != null) {
-      triAxleData = TriAxleTrailer.fromJson(typeSpecificData);
-    } else if (data['trailerType'] == 'Double Axle' &&
-        typeSpecificData != null) {}
-
+    if (data['trailerType'] == 'Superlink') {
+      if (typeSpecificData != null &&
+          typeSpecificData.containsKey('trailerA')) {
+        // Merge data from trailerA and trailerB
+        final trailerAMap =
+            typeSpecificData['trailerA'] as Map<String, dynamic>;
+        final trailerBMap =
+            typeSpecificData['trailerB'] as Map<String, dynamic>? ?? {};
+        superlinkData = SuperlinkTrailer.fromJson({
+          'lengthA': trailerAMap['length'] ?? 'N/A',
+          'vinA': trailerAMap['vin'] ?? 'N/A',
+          'registrationA': trailerAMap['registration'] ?? 'N/A',
+          'lengthB': trailerBMap['length'] ?? 'N/A',
+          'vinB': trailerBMap['vin'] ?? 'N/A',
+          'registrationB': trailerBMap['registration'] ?? 'N/A',
+        });
+      } else if (typeSpecificData != null) {
+        superlinkData = SuperlinkTrailer.fromJson(typeSpecificData);
+      } else {
+        debugPrint(
+            'Fallback: No trailerExtraInfo for Superlink. Using fallback fields.');
+        superlinkData = SuperlinkTrailer.fromJson({
+          'lengthA': data['lengthA'] ?? 'N/A',
+          'vinA': data['vinA'] ?? 'N/A',
+          'registrationA': data['registrationA'] ?? 'N/A',
+          'lengthB': data['lengthB'] ?? 'N/A',
+          'vinB': data['vinB'] ?? 'N/A',
+          'registrationB': data['registrationB'] ?? 'N/A',
+        });
+      }
+    } else if (data['trailerType'] == 'Tri-Axle') {
+      if (typeSpecificData != null) {
+        triAxleData = TriAxleTrailer.fromJson(typeSpecificData);
+      } else {
+        debugPrint(
+            'Fallback: No trailerExtraInfo for Tri-Axle. Using fallback fields.');
+        triAxleData = TriAxleTrailer(
+          length: data['lengthTrailer'] ?? 'N/A',
+          vin: data['vin'] ?? 'N/A',
+          registration: data['registration'] ?? 'N/A',
+        );
+      }
+    }
     return Trailer(
       id: docId,
       makeModel: data['makeModel'] ?? '',

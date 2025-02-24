@@ -14,6 +14,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
+import 'package:ctp/components/trailer_card.dart'; // Trailer card widget
 
 class NavigationItem {
   final String title;
@@ -993,7 +994,8 @@ class _TruckPageState extends State<TruckPage> {
               ),
             )
           : CustomAppBar(),
-      drawer: _isCompactNavigation(context)
+      // Drawer now only activates on web
+      drawer: (kIsWeb && _isCompactNavigation(context))
           ? Drawer(
               child: Container(
                 decoration: const BoxDecoration(
@@ -1248,13 +1250,20 @@ class _TruckPageState extends State<TruckPage> {
                               (_isLoadingMore ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index < displayedVehicles.length) {
-                              return SizedBox(
-                                height: 1500,
-                                child: TruckCard(
-                                  vehicle: displayedVehicles[index],
-                                  onInterested: _markAsInterested,
-                                ),
-                              );
+                              final vehicle = displayedVehicles[index];
+                              debugPrint(
+                                  'Building card for vehicle id: ${vehicle.id}, type: ${vehicle.vehicleType}');
+                              return vehicle.vehicleType == 'trailer'
+                                  ? TrailerCard(
+                                      trailer: vehicle.trailer!,
+                                      onInterested: (trailer) {
+                                        _markAsInterested(trailer);
+                                      },
+                                    )
+                                  : TruckCard(
+                                      vehicle: vehicle,
+                                      onInterested: _markAsInterested,
+                                    );
                             } else {
                               return const Center(
                                 child: CircularProgressIndicator(),

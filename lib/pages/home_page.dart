@@ -402,8 +402,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Left section - Hamburger menu for compact screens
-            if (_isCompactNavigation)
+            // Left section - Hamburger menu (only for web, if compact)
+            if (kIsWeb && _isCompactNavigation)
               IconButton(
                 icon: const Icon(Icons.menu, color: Colors.white, size: 24),
                 onPressed: () {
@@ -649,7 +649,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 )
               : CustomAppBar(),
-          drawer: _isCompactNavigation
+          drawer: (kIsWeb && _isCompactNavigation)
               ? Drawer(
                   child: Container(
                     decoration: BoxDecoration(
@@ -1382,7 +1382,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: screenWidth),
+        constraints: BoxConstraints(maxWidth: screenWidth * 0.95),
         child: Container(
           padding: EdgeInsets.symmetric(
             horizontal: screenWidth * 0.05,

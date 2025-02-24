@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'dart:developer';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -17,7 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/truck_info_web_nav.dart';
 
 class MaintenanceEditSection extends StatefulWidget {
@@ -514,9 +512,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                     await _viewPdf(url, title);
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Please upload first")));
+                        SnackBar(content: Text("Please upload first")));
                   }
-                
                 },
               ),
               if (canEdit) // Only show Change option if not dealer
@@ -559,6 +556,26 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final bool canEdit = isAdmin ||
         isSales ||
         isTransporter; // New variable for edit permissions
+
+// Define different text prompts for dealers vs. transporters.
+    final String maintenanceTitle = isDealer ? 'Maintenance' : 'Maintenance';
+    final String maintenancePrompt = isDealer
+        ? 'VIEW MAINTENANCE DOCUMENTATION'
+        : 'PLEASE ATTACH MAINTENANCE DOCUMENTATION';
+    final String warrantyPrompt = isDealer
+        ? 'VIEW WARRANTY DOCUMENTATION'
+        : 'PLEASE ATTACH WARRANTY DOCUMENTATION';
+    final String maintanceUploadBlock =
+        isDealer ? 'MAINTENANCE DOCUMENTATION' : 'MAINTENANCE DOC UPLOAD';
+    final String warrantyUploadBlock =
+        isDealer ? 'WARRANTY DOCUMENTATION' : 'WARRANTY DOC UPLOAD';
+
+    final String oemInspectionPrompt = isDealer
+        ? 'AN OEM INSPECTION HAS BEEN DONE ON THIS VEHICLE'
+        : 'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?';
+    final String oemInspectionNote = isDealer
+        ? 'OEM WILL HANDLE THE INSPECTION PROCESS'
+        : 'PLEASE NOTE THAT OEM WILL CHARGE YOU FOR INSPECTION.';
 
     // Change the onTap/enabled conditions to exclude dealers
     return Scaffold(
@@ -643,7 +660,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             widget.maintenanceSelection == '') ...[
                           Center(
                             child: Text(
-                              'Maintenance'.toUpperCase(),
+                              maintenanceTitle.toUpperCase(),
                               style: const TextStyle(
                                 fontSize: 25,
                                 color: Colors.white,
@@ -656,8 +673,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           if (widget.maintenanceDocUrl == null)
                             Center(
                               child: Text(
-                                'PLEASE ATTACH MAINTENANCE DOCUMENTATION'
-                                    .toUpperCase(),
+                                maintenancePrompt.toUpperCase(),
                                 style: const TextStyle(
                                   fontSize: 15,
                                   color: Colors.white,
@@ -866,8 +882,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       ),
                                     )
                                   else if (!widget.isUploading)
-                                    const Text(
-                                      'MAINTENANCE DOC UPLOAD',
+                                    Text(
+                                      maintanceUploadBlock,
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: Colors.white70,
@@ -881,8 +897,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           const SizedBox(height: 15),
                           Center(
                             child: Text(
-                              'CAN YOUR VEHICLE BE SENT TO OEM FOR A FULL INSPECTION UNDER R&M CONTRACT?'
-                                  .toUpperCase(),
+                              oemInspectionPrompt.toUpperCase(),
                               style: const TextStyle(
                                   fontSize: 15, color: Colors.white),
                               textAlign: TextAlign.center,
@@ -891,8 +906,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           const SizedBox(height: 15),
                           Center(
                             child: Text(
-                              'Please note that OEM will charge you for inspection'
-                                  .toUpperCase(),
+                              oemInspectionNote.toUpperCase(),
                               style: const TextStyle(
                                   fontSize: 12, color: Colors.white),
                               textAlign: TextAlign.center,
@@ -961,8 +975,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                           if (widget.warrantyDocUrl == null)
                             Center(
                               child: Text(
-                                'PLEASE ATTACH WARRANTY DOCUMENTATION'
-                                    .toUpperCase(),
+                                warrantyPrompt.toUpperCase(),
                                 style: const TextStyle(
                                   fontSize: 15,
                                   color: Colors.white,
@@ -1110,8 +1123,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       ),
                                     )
                                   else if (!widget.isUploading)
-                                    const Text(
-                                      'WARRANTY DOC UPLOAD',
+                                    Text(
+                                      warrantyUploadBlock,
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: Colors.white70,

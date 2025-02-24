@@ -11,15 +11,18 @@ class TrailerProvider extends ChangeNotifier {
   // Fetch all trailers
   Future<void> fetchTrailers() async {
     try {
-      final QuerySnapshot snapshot =
-          await _firestore.collection('vehicles').get();
-      _trailers = snapshot.docs
-          .map((doc) =>
-              Trailer.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
-          .toList();
+      final snapshot = await _firestore
+          .collection('vehicles')
+          .where('vehicleType', isEqualTo: 'trailer')
+          .get();
+      _trailers = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        debugPrint('Parsing trailer doc ${doc.id}: $data');
+        return Trailer.fromFirestore(doc.id, data);
+      }).toList();
       notifyListeners();
     } catch (e) {
-      print('Error fetching trailers: $e');
+      debugPrint('Error fetching trailers: $e');
       rethrow;
     }
   }
@@ -28,7 +31,7 @@ class TrailerProvider extends ChangeNotifier {
   Future<void> addTrailer(Trailer trailer) async {
     try {
       await _firestore
-          .collection('trailers')
+          .collection('vehicles') // Changed from 'trailers'
           .doc(trailer.id)
           .set(trailer.toMap());
       _trailers.add(trailer);
@@ -43,7 +46,7 @@ class TrailerProvider extends ChangeNotifier {
   Future<void> updateTrailer(Trailer trailer) async {
     try {
       await _firestore
-          .collection('trailers')
+          .collection('vehicles') // Changed from 'trailers'
           .doc(trailer.id)
           .update(trailer.toMap());
       final index = _trailers.indexWhere((t) => t.id == trailer.id);
@@ -60,7 +63,10 @@ class TrailerProvider extends ChangeNotifier {
   // Delete trailer
   Future<void> deleteTrailer(String trailerId) async {
     try {
-      await _firestore.collection('trailers').doc(trailerId).delete();
+      await _firestore
+          .collection('vehicles')
+          .doc(trailerId)
+          .delete(); // Changed from 'trailers'
       _trailers.removeWhere((trailer) => trailer.id == trailerId);
       notifyListeners();
     } catch (e) {

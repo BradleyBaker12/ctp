@@ -1,13 +1,18 @@
 // lib/pages/truckForms/tyres_page.dart
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui; // Added for platformViewRegistry
+import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:universal_html/html.dart' as html; // For web camera access
 
 class ImageData {
   File? file;
@@ -477,25 +482,38 @@ class TyresPageState extends State<TyresPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Updated Camera option:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final XFile? pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    setState(() {
-                      _selectedImages[key] = ImageData(
-                        file: File(pickedFile.path),
-                        webImage: bytes,
-                      );
+                  if (kIsWeb) {
+                    await _takePhotoFromWeb((file, fileName) {
+                      if (file != null) {
+                        setState(() {
+                          // Wrap the Uint8List in ImageData
+                          _selectedImages[key] = ImageData(webImage: file);
+                        });
+                      }
                     });
-                    widget.onProgressUpdate();
+                  } else {
+                    final XFile? pickedFile =
+                        await _picker.pickImage(source: ImageSource.camera);
+                    if (pickedFile != null) {
+                      final bytes = await pickedFile.readAsBytes();
+                      setState(() {
+                        _selectedImages[key] = ImageData(
+                          file: File(pickedFile.path),
+                          webImage: bytes,
+                        );
+                      });
+                    }
                   }
+                  widget.onProgressUpdate();
                 },
               ),
+              // Existing Gallery option:
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
@@ -511,8 +529,8 @@ class TyresPageState extends State<TyresPage>
                         webImage: bytes,
                       );
                     });
-                    widget.onProgressUpdate();
                   }
+                  widget.onProgressUpdate();
                 },
               ),
             ],
@@ -520,6 +538,72 @@ class TyresPageState extends State<TyresPage>
         );
       },
     );
+  }
+
+  // Add helper method for web camera capture:
+  Future<void> _takePhotoFromWeb(
+      void Function(Uint8List?, String) callback) async {
+    if (!kIsWeb) {
+      callback(null, '');
+      return;
+    }
+    try {
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) {
+        callback(null, '');
+        return;
+      }
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+      await videoElement.onLoadedMetadata.first;
+      String viewID = 'webcam_tyres_${DateTime.now().millisecondsSinceEpoch}';
+      platformViewRegistry
+          .registerViewFactory(viewID, (int viewId) => videoElement);
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(viewType: viewID),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(imageBytes, 'captured.png');
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(null, '');
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      callback(null, '');
+    }
   }
 
   /// Validates and saves the data to Firestore

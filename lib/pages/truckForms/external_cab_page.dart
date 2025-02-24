@@ -1,12 +1,17 @@
 // lib/pages/truckForms/external_cab_page.dart
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui_web';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Image picker for uploading images
 import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_radio_button.dart'; // Ensure this import path is correct
+import 'package:ctp/components/custom_radio_button.dart';
+import 'package:universal_html/html.dart'
+    as html; // Ensure this import path is correct
 
 class ImageData {
   final Uint8List? file;
@@ -180,6 +185,144 @@ class ExternalCabPageState extends State<ExternalCabPage>
         ],
       ),
     );
+  }
+
+  Future<Uint8List?> capturePhotoFromWeb() async {
+    try {
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) return null;
+
+      // Request the camera stream
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+
+      // Wait for video metadata to load
+      await videoElement.onLoadedMetadata.first;
+
+      // Create a unique view type for this capture
+      String viewId = 'webcamView_${DateTime.now().millisecondsSinceEpoch}';
+      platformViewRegistry.registerViewFactory(
+          viewId, (int viewId) => videoElement);
+
+      Uint8List? capturedImage;
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(viewType: viewId),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  // Capture the current frame
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Data = dataUrl.split(',')[1];
+                  capturedImage = base64.decode(base64Data);
+                  // Stop all tracks before closing
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+      return capturedImage;
+    } catch (e) {
+      print('Error capturing photo: $e');
+      return null;
+    }
+  }
+
+  Future<void> _takePhotoFromWeb(
+      void Function(Uint8List?, String) callback) async {
+    if (!kIsWeb) {
+      callback(null, '');
+      return;
+    }
+    try {
+      bool cameraAvailable = false;
+      try {
+        cameraAvailable = html.window.navigator.mediaDevices != null;
+      } catch (e) {
+        cameraAvailable = false;
+      }
+      if (!cameraAvailable) {
+        callback(null, '');
+        return;
+      }
+      final mediaStream = await html.window.navigator.mediaDevices!
+          .getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+      await videoElement.onLoadedMetadata.first;
+      String viewID = 'webcam_${DateTime.now().millisecondsSinceEpoch}';
+      // using ui.platformViewRegistry
+      // ...existing code...
+      platformViewRegistry.registerViewFactory(
+          viewID, (int viewId) => videoElement);
+      await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+                title: const Text('Take Photo'),
+                content: SizedBox(
+                  width: 300,
+                  height: 300,
+                  child: HtmlElementView(viewType: viewID),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      final canvas = html.CanvasElement(
+                        width: videoElement.videoWidth,
+                        height: videoElement.videoHeight,
+                      );
+                      canvas.context2D.drawImage(videoElement, 0, 0);
+                      final dataUrl = canvas.toDataUrl('image/png');
+                      final base64Str = dataUrl.split(',').last;
+                      final imageBytes = base64.decode(base64Str);
+                      mediaStream.getTracks().forEach((track) => track.stop());
+                      Navigator.of(dialogContext).pop();
+                      callback(imageBytes, 'captured.png');
+                    },
+                    child: const Text('Capture'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      mediaStream.getTracks().forEach((track) => track.stop());
+                      Navigator.of(dialogContext).pop();
+                      callback(null, '');
+                    },
+                    child: const Text('Cancel'),
+                  )
+                ]);
+          });
+    } catch (e) {
+      callback(null, '');
+    }
   }
 
   @override
@@ -457,19 +600,49 @@ class ExternalCabPageState extends State<ExternalCabPage>
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
-                  Navigator.of(context).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
-                    setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: bytes, fileName: fileName);
-                    });
+                  if (kIsWeb) {
+                    bool cameraAvailable = false;
+                    try {
+                      cameraAvailable =
+                          html.window.navigator.mediaDevices != null;
+                    } catch (e) {
+                      cameraAvailable = false;
+                    }
+                    if (cameraAvailable) {
+                      await _takePhotoFromWeb((file, fileName) {
+                        if (file != null) {
+                          setState(() {
+                            _selectedImages[title] =
+                                ImageData(file: file, fileName: fileName);
+                          });
+                        }
+                        widget.onProgressUpdate();
+                        setState(() {});
+                      });
+                    } else {
+                      final imageBytes = await capturePhotoFromWeb();
+                      if (imageBytes != null) {
+                        setState(() {
+                          _selectedImages[title] = ImageData(
+                              file: imageBytes, fileName: 'webcam.jpg');
+                        });
+                        widget.onProgressUpdate();
+                        setState(() {});
+                      }
+                    }
+                  } else {
+                    Navigator.of(context).pop();
+                    final pickedFile =
+                        await _picker.pickImage(source: ImageSource.camera);
+                    if (pickedFile != null) {
+                      final bytes = await pickedFile.readAsBytes();
+                      final fileName = pickedFile.name;
+                      setState(() {
+                        _selectedImages[title] =
+                            ImageData(file: bytes, fileName: fileName);
+                      });
+                    }
                   }
-                  widget.onProgressUpdate();
-                  setState(() {});
                 },
               ),
               ListTile(
@@ -486,9 +659,9 @@ class ExternalCabPageState extends State<ExternalCabPage>
                       _selectedImages[title] =
                           ImageData(file: bytes, fileName: fileName);
                     });
+                    widget.onProgressUpdate();
+                    setState(() {});
                   }
-                  widget.onProgressUpdate();
-                  setState(() {});
                 },
               ),
             ],

@@ -30,10 +30,10 @@ class _ViewerPageState extends State<ViewerPage> {
   @override
   void initState() {
     super.initState();
-    debugPrint('DEBUG: ViewerPage initState');
-    debugPrint('DEBUG: Received URL: "${widget.url}"');
-    debugPrint('DEBUG: URL length: ${widget.url.length}');
-    debugPrint('DEBUG: URL characters: ${widget.url.codeUnits}');
+    // debugPrint('DEBUG: ViewerPage initState');
+    // debugPrint('DEBUG: Received URL: "${widget.url}"');
+    // debugPrint('DEBUG: URL length: ${widget.url.length}');
+    // debugPrint('DEBUG: URL characters: ${widget.url.codeUnits}');
 
     if (widget.url.isEmpty) {
       debugPrint('ERROR: Empty URL provided to ViewerPage');

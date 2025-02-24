@@ -102,6 +102,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     'Tanker Body Trucks',
     'Tipper Body Trucks',
     'Volume Body Trucks',
+    'Low Bed Trucks',
   ];
 
   // Define configuration options
@@ -1361,7 +1362,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         children: [
           const SizedBox(height: 10),
           Center(
-            child: Text('truck form'.toUpperCase(),
+            child: Text('BASIC INFORMATION'.toUpperCase(),
                 style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -1377,10 +1378,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                         color: Colors.white,
                         fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center)),
-          Center(
-              child: Text('Your trusted partner on the road.',
-                  style: const TextStyle(fontSize: 14, color: Colors.white),
-                  textAlign: TextAlign.center)),
+          if (isTransporter || isAdmin || isSalesRep)
+            Center(
+                child: Text('Your trusted partner on the road.',
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                    textAlign: TextAlign.center)),
           const SizedBox(height: 20),
           if (isTransporter || isAdmin || isSalesRep)
             CustomDropdown(

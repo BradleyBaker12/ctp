@@ -69,7 +69,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
   ];
 
   // Add loading state variables
-  Map<String, bool> _isUploading = {
+  final Map<String, bool> _isUploading = {
     'bankConfirmationUrl': false,
     'proxyUrl': false,
     'brncUrl': false,
@@ -265,7 +265,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
 
         // Create document metadata
         Map<String, dynamic> documentData = {
-          '${fieldName}': docUrl,
+          fieldName: docUrl,
           '${fieldName}Meta': {
             'fileName': fileName,
             'uploadDate': FieldValue.serverTimestamp(),

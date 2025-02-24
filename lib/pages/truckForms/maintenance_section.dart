@@ -1,11 +1,16 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:convert';
+import 'dart:html' as html;
+import 'dart:ui' as ui;
+import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 class MaintenanceSection extends StatefulWidget {
   final String vehicleId;
@@ -329,14 +334,119 @@ class MaintenanceSectionState extends State<MaintenanceSection>
     widget.onProgressUpdate();
   }
 
+  // NEW: Function to capture a photo from the web camera for maintenance section
+  Future<void> _takePhotoFromWebForMaintenance(int docNumber) async {
+    if (!kIsWeb) return;
+    try {
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) return;
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
+      await videoElement.onLoadedMetadata.first;
+      platformViewRegistry.registerViewFactory(
+        'maintenanceWebcamVideo_$docNumber',
+        (int viewId) => videoElement,
+      );
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Take Photo'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: HtmlElementView(
+                  viewType: 'maintenanceWebcamVideo_$docNumber'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  setState(() {
+                    if (docNumber == 1) {
+                      _maintenanceDocFile = imageBytes;
+                      _maintenanceDocFileName = "captured.png";
+                      widget.onMaintenanceFileSelected(imageBytes);
+                    } else if (docNumber == 2) {
+                      _warrantyDocFile = imageBytes;
+                      _warrantyDocFileName = "captured.png";
+                      widget.onWarrantyFileSelected(imageBytes);
+                    }
+                  });
+                },
+                child: const Text('Capture'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      print('Error capturing photo: $e');
+    }
+  }
+
+  // NEW: Function to show a dialog letting the user choose between taking a photo or picking a file for maintenance section
+  void _showMaintenanceFilePickerOptions(int docNumber) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhotoFromWebForMaintenance(docNumber);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder),
+                title: const Text('Choose from Files'),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (docNumber == 1) {
+                    _pickMaintenanceDocument();
+                  } else if (docNumber == 2) {
+                    _pickWarrantyDocument();
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
 
     print('Building MaintenanceSection');
-    //print('_maintenanceDocFile: ${_maintenanceDocFile?.path}');
     print('widget.maintenanceDocUrl: ${widget.maintenanceDocUrl}');
-    //print('_warrantyDocFile: ${_warrantyDocFile?.path}');
     print('widget.warrantyDocUrl: ${widget.warrantyDocUrl}');
 
     return SingleChildScrollView(
@@ -346,7 +456,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
           if (widget.maintenanceSelection == 'yes') ...[
             Center(
               child: Text(
-                'Maintenance'.toUpperCase(),
+                'MAINTENANCE'.toUpperCase(),
                 style: const TextStyle(
                   fontSize: 25,
                   color: Colors.white,
@@ -370,7 +480,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
             const SizedBox(height: 15),
             InkWell(
               onTap: () {
-                _pickMaintenanceDocument();
+                _showMaintenanceFilePickerOptions(1);
               },
               borderRadius: BorderRadius.circular(10.0),
               child: Container(
@@ -397,11 +507,9 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                     const SizedBox(height: 10),
                     if (_maintenanceDocFile != null ||
                         widget.maintenanceDocUrl != null)
-                      // Use a Stack so we can place a delete button on top
                       Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Display the image or icon
                           if (_maintenanceDocFile != null)
                             if (_isImageFile(_maintenanceDocFileName!))
                               ClipRRect(
@@ -430,7 +538,7 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                       horizontal: 16.0,
                                     ),
                                     child: Text(
-                                       _maintenanceDocFileName!.split('/').last,
+                                      _maintenanceDocFileName!.split('/').last,
                                       style: const TextStyle(
                                         fontSize: 14,
                                         color: Colors.white,
@@ -485,18 +593,14 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                   ),
                                 ],
                               ),
-
-                          // ADDED DELETE BUTTON HERE
                           Positioned(
                             top: 0,
                             right: 0,
                             child: GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  // Remove both the file and the URL
                                   _maintenanceDocFile = null;
                                   _maintenanceDocUrl = null;
-                                  // Also notify the parent that file is removed
                                   widget.onMaintenanceFileSelected(null);
                                 });
                               },
@@ -623,7 +727,9 @@ class MaintenanceSectionState extends State<MaintenanceSection>
             ),
             const SizedBox(height: 15),
             InkWell(
-              onTap: _pickWarrantyDocument,
+              onTap: () {
+                _showMaintenanceFilePickerOptions(2);
+              },
               borderRadius: BorderRadius.circular(10.0),
               child: Container(
                 width: double.infinity,
@@ -649,7 +755,6 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                     const SizedBox(height: 10),
                     if (_warrantyDocFile != null ||
                         widget.warrantyDocUrl != null)
-                      // Use a Stack so we can place a delete button on top
                       Stack(
                         alignment: Alignment.center,
                         children: [
@@ -726,18 +831,14 @@ class MaintenanceSectionState extends State<MaintenanceSection>
                                   ),
                                 ],
                               ),
-
-                          // ADDED DELETE BUTTON HERE
                           Positioned(
                             top: 0,
                             right: 0,
                             child: GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  // Remove both the file and the URL
                                   _warrantyDocFile = null;
                                   _warrantyDocUrl = null;
-                                  // Also notify the parent that file is removed
                                   widget.onWarrantyFileSelected(null);
                                 });
                               },
