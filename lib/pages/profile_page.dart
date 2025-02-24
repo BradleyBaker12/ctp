@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ctp/adminScreens/viewer_page.dart';
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/pages/bought_vehicles_list.dart';
 import 'package:ctp/pages/edit_profile_page.dart';
 import 'package:ctp/pages/sold_vehicles_list.dart';
@@ -231,15 +232,30 @@ class ProfilePage extends StatelessWidget {
                                       Row(
                                         children: [
                                           Expanded(
-                                            child: Text(
-                                              userProvider.getUserName
-                                                  .toUpperCase(),
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
+                                            child: Row(
+                                              children: [
+                                                Text(
+                                                  userProvider.getUserName
+                                                      .toUpperCase(),
+                                                  style: const TextStyle(
+                                                    fontSize: 24,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                // New: add verified icon if account is verified.
+                                                if (userProvider
+                                                    .isVerified) ...[
+                                                  const SizedBox(width: 8),
+                                                  const Icon(
+                                                    Icons.verified_rounded,
+                                                    color: AppColors.orange,
+                                                    size: 20,
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ),
                                           GestureDetector(

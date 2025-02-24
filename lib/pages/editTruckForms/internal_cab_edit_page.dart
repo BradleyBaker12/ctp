@@ -802,10 +802,10 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       await _takePhotoFromWeb((file, fileName) {
                         if (file != null) {
                           setState(() {
-                            // Assuming internal cab edit uses a similar _selectedImages map
-                            // Replace below with appropriate image handling:
-                            // For example, update a main image or a specific section image.
+                            _selectedImages[title] =
+                                ImageData(file: file, fileName: fileName);
                           });
+                          widget.onProgressUpdate();
                         }
                       });
                     } else {
@@ -815,8 +815,10 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                         final bytes = await pickedFile.readAsBytes();
                         final fileName = pickedFile.name;
                         setState(() {
-                          // Update chosen image state accordingly.
+                          _selectedImages[title] =
+                              ImageData(file: bytes, fileName: fileName);
                         });
+                        widget.onProgressUpdate();
                       }
                     }
                   } else {
@@ -826,13 +828,14 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       final bytes = await pickedFile.readAsBytes();
                       final fileName = pickedFile.name;
                       setState(() {
-                        // Update chosen image state accordingly.
+                        _selectedImages[title] =
+                            ImageData(file: bytes, fileName: fileName);
                       });
+                      widget.onProgressUpdate();
                     }
                   }
                 },
               ),
-              // ...existing Gallery option ListTile...
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
@@ -844,8 +847,10 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                     final bytes = await pickedFile.readAsBytes();
                     final fileName = pickedFile.name;
                     setState(() {
-                      // Update chosen image state accordingly.
+                      _selectedImages[title] =
+                          ImageData(file: bytes, fileName: fileName);
                     });
+                    widget.onProgressUpdate();
                   }
                 },
               ),
@@ -1080,13 +1085,13 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isTransporter = userProvider.getUserRole == 'transporter';
-
-    // Only transporters can upload data
-    if (!isTransporter) {
+    // Allow transporter, admin, and salesRep to upload data
+    final allowedRoles = ['transporter', 'admin', 'salesRep'];
+    if (!allowedRoles.contains(userProvider.getUserRole)) {
       return {};
     }
 
+    // ...existing serialization code...
     // Serialize main images
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
@@ -1342,8 +1347,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
         ..srcObject = mediaStream;
       await videoElement.onLoadedMetadata.first;
       String viewID = 'webcamEdit_${DateTime.now().millisecondsSinceEpoch}';
-      platformViewRegistry
-          .registerViewFactory(viewID, (int viewId) => videoElement);
+      platformViewRegistry.registerViewFactory(
+          viewID, (int viewId) => videoElement);
       await showDialog(
         context: context,
         barrierDismissible: false,

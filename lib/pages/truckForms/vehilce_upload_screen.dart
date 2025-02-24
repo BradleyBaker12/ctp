@@ -22,6 +22,7 @@ import 'package:file_picker/file_picker.dart'; // For file picking
 import 'dart:io' as io;
 import 'dart:html' as html;
 import 'dart:ui_web';
+import 'package:http/http.dart' as http;
 
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
@@ -173,24 +174,29 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   Future<void> _loadTruckData() async {
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final Map<String, dynamic> data = json.decode(response);
-    setState(() {
-      // Fix: Properly handle the nested structure
-      _makeModelOptions = {};
-      for (var year in data.keys) {
-        for (var brand in (data[year] as Map<String, dynamic>).keys) {
-          if (!_makeModelOptions.containsKey(brand)) {
-            _makeModelOptions[brand] = [];
-          }
-          final models = data[year][brand];
-          if (models is List) {
-            _makeModelOptions[brand]!.addAll(models.map((m) => m.toString()));
+    final response = await http.get(Uri.parse(
+        'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+    if (response.statusCode == 200) {
+      debugPrint('Loaded truck data from GitHub.');
+      final Map<String, dynamic> data = json.decode(response.body);
+      setState(() {
+        // Fix: Properly handle the nested structure
+        _makeModelOptions = {};
+        for (var year in data.keys) {
+          for (var brand in (data[year] as Map<String, dynamic>).keys) {
+            if (!_makeModelOptions.containsKey(brand)) {
+              _makeModelOptions[brand] = [];
+            }
+            final models = data[year][brand];
+            if (models is List) {
+              _makeModelOptions[brand]!.addAll(models.map((m) => m.toString()));
+            }
           }
         }
-      }
-    });
+      });
+    } else {
+      debugPrint('Failed to load truck data from GitHub.');
+    }
   }
 
   Future<void> _loadCountryOptions() async {
@@ -208,12 +214,17 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   Future<void> _loadYearOptions() async {
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-    setState(() {
-      _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
-    });
+    final response = await http.get(Uri.parse(
+        'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+    if (response.statusCode == 200) {
+      debugPrint('Loaded year options from GitHub.');
+      final data = json.decode(response.body);
+      setState(() {
+        _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
+      });
+    } else {
+      debugPrint('Failed to load year options from GitHub.');
+    }
   }
 
   void _updateProvinceOptions(String selectedCountry) async {
@@ -1780,59 +1791,67 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   Future<void> _loadBrandsForYear(String year) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-    setState(() {
-      _brandOptions = data[year]?.keys.toList() ?? [];
-      if (!widget.isDuplicating) {
-        formData.setBrands(null);
-        formData.setMakeModel(null);
-        formData.setVariant(null);
-      }
-    });
+    final response = await http.get(Uri.parse(
+        'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        _brandOptions = data[year]?.keys.toList() ?? [];
+        if (!widget.isDuplicating) {
+          formData.setBrands(null);
+          formData.setMakeModel(null);
+          formData.setVariant(null);
+        }
+      });
+    } else {
+      debugPrint('Failed to load brands for year from GitHub.');
+    }
   }
 
   Future<void> _loadModelsForBrand(String brand) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
     if (year == null) return;
-
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-    setState(() {
-      if (data[year] != null && data[year][brand] != null) {
-        final models = data[year][brand].keys.toList();
-        _makeModelOptions = {brand: models};
-        if (!widget.isDuplicating) {
-          formData.setMakeModel(null);
-          formData.setVariant(null);
-          _variantController.clear();
+    final response = await http.get(Uri.parse(
+        'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        if (data[year] != null && data[year][brand] != null) {
+          final models = data[year][brand].keys.toList();
+          _makeModelOptions = {brand: models};
+          if (!widget.isDuplicating) {
+            formData.setMakeModel(null);
+            formData.setVariant(null);
+            _variantController.clear();
+          }
         }
-      }
-    });
+      });
+    } else {
+      debugPrint('Failed to load models for brand from GitHub.');
+    }
   }
 
   Future<void> _loadVariantsForModel(String model) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final year = formData.year;
     final brand = formData.brands?.first;
-
     if (year == null || brand == null) return;
-
-    final String response =
-        await rootBundle.loadString('lib/assets/updated_truck_data.json');
-    final data = json.decode(response);
-
-    setState(() {
-      if (data[year]?[brand]?[model] != null) {
-        _variantOptions = List<String>.from(data[year][brand][model]);
-        formData.setVariant(null);
-      } else {
-        _variantOptions = [];
-      }
-    });
+    final response = await http.get(Uri.parse(
+        'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        if (data[year]?[brand]?[model] != null) {
+          _variantOptions = List<String>.from(data[year][brand][model]);
+          formData.setVariant(null);
+        } else {
+          _variantOptions = [];
+        }
+      });
+    } else {
+      debugPrint('Failed to load variants for model from GitHub.');
+    }
   }
 
   Future<void> _loadSavedFormData(FormDataProvider formData) async {

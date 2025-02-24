@@ -19,6 +19,7 @@ import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -1437,48 +1438,72 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 )
               else
-                SizedBox(
-                  height: containerHeight,
-                  child: Center(
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: preferredBrands.length,
-                      itemBuilder: (context, index) {
-                        final brand = preferredBrands[index];
-                        final logoPath = _getBrandLogoPath(brand);
+                // Change: Wrap ListView.builder with a Listener and use a ScrollController
+                Builder(builder: (context) {
+                  final ScrollController brandScrollController =
+                      ScrollController();
+                  return SizedBox(
+                    height: containerHeight,
+                    child: Center(
+                      child: Listener(
+                        onPointerSignal: (pointerSignal) {
+                          if (pointerSignal is PointerScrollEvent) {
+                            double newOffset = brandScrollController.offset +
+                                pointerSignal.scrollDelta.dy;
+                            if (newOffset < 0) {
+                              newOffset = 0;
+                            } else if (newOffset >
+                                brandScrollController
+                                    .position.maxScrollExtent) {
+                              newOffset = brandScrollController
+                                  .position.maxScrollExtent;
+                            }
+                            brandScrollController.jumpTo(newOffset);
+                          }
+                        },
+                        child: ListView.builder(
+                          controller: brandScrollController,
+                          scrollDirection: Axis.horizontal,
+                          itemCount: preferredBrands.length,
+                          itemBuilder: (context, index) {
+                            final brand = preferredBrands[index];
+                            final logoPath = _getBrandLogoPath(brand);
 
-                        return GestureDetector(
-                          onTap: () async {
-                            await MyNavigator.push(
-                              context,
-                              TruckPage(
-                                  vehicleType: 'all', selectedBrand: brand),
+                            return GestureDetector(
+                              onTap: () async {
+                                await MyNavigator.push(
+                                  context,
+                                  TruckPage(
+                                      vehicleType: 'all', selectedBrand: brand),
+                                );
+                              },
+                              child: Container(
+                                margin: EdgeInsets.symmetric(
+                                  horizontal: kIsWeb
+                                      ? screenWidth * 0.015
+                                      : screenWidth * 0.02,
+                                ),
+                                width: logoSize,
+                                height: logoSize,
+                                alignment: Alignment.center,
+                                child: logoPath != null
+                                    ? Image.asset(
+                                        logoPath,
+                                        width: logoSize * 0.9,
+                                        height: logoSize * 0.9,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : Icon(Icons.image_outlined,
+                                        color: Colors.white,
+                                        size: logoSize * 0.8),
+                              ),
                             );
                           },
-                          child: Container(
-                            margin: EdgeInsets.symmetric(
-                              horizontal: kIsWeb
-                                  ? screenWidth * 0.015
-                                  : screenWidth * 0.02,
-                            ),
-                            width: logoSize,
-                            height: logoSize,
-                            alignment: Alignment.center,
-                            child: logoPath != null
-                                ? Image.asset(
-                                    logoPath,
-                                    width: logoSize * 0.9,
-                                    height: logoSize * 0.9,
-                                    fit: BoxFit.contain,
-                                  )
-                                : Icon(Icons.image_outlined,
-                                    color: Colors.white, size: logoSize * 0.8),
-                          ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
             ],
           ),
         ),

@@ -20,9 +20,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/providers/complaints_provider.dart'; // Note the plural form
 import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/components/admin_web_navigation_bar.dart';
 
 class AdminHomePage extends StatefulWidget {
-  const AdminHomePage({super.key});
+  final int initialTab;
+  const AdminHomePage({super.key, this.initialTab = 0});
 
   @override
   State<AdminHomePage> createState() => _AdminHomePageState();
@@ -30,6 +32,8 @@ class AdminHomePage extends StatefulWidget {
 
 class _AdminHomePageState extends State<AdminHomePage>
     with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+      GlobalKey<ScaffoldState>(); // new key
   late TabController _tabController;
   int userCount = 0;
   int offerCount = 0;
@@ -51,7 +55,8 @@ class _AdminHomePageState extends State<AdminHomePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController =
+        TabController(length: 4, vsync: this, initialIndex: widget.initialTab);
 
     // Initialize all providers
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -153,82 +158,88 @@ class _AdminHomePageState extends State<AdminHomePage>
 
     return GradientBackground(
       child: Scaffold(
-        backgroundColor: Colors.transparent, // Transparent scaffold background
-        appBar: AppBar(
-          backgroundColor: blue,
-          elevation: 0,
-          automaticallyImplyLeading:
-              false, // Remove back arrow (since this is home)
-          title: Text(
-            isAdmin ? 'Admin Dashboard' : 'Sales Rep Dashboard',
-            style: GoogleFonts.montserrat(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 25.0),
-              child: GestureDetector(
-                onTap: () async {
-                  await MyNavigator.push(
-                    context,
-                    ProfilePage(),
-                  );
-                },
-                child: Consumer<UserProvider>(
-                  builder: (context, userProvider, _) {
-                    final profileImageUrl = userProvider.getProfileImageUrl;
-                    return CircleAvatar(
-                      radius: 26,
-                      backgroundColor: Colors.grey[200],
-                      backgroundImage: profileImageUrl.isNotEmpty
-                          ? NetworkImage(profileImageUrl)
-                          : const AssetImage(
-                                  'lib/assets/default-profile-photo.jpg')
-                              as ImageProvider,
-                      // Only display the fallback icon if the user is not a sales rep.
-                      child: () {
-                        if (currentUserRole == 'sales representative') {
-                          return null;
-                        }
-                        return profileImageUrl.isEmpty
-                            ? const Icon(
-                                Icons.person,
-                                size: 26,
-                                color: Colors.grey,
-                              )
-                            : null;
-                      }(),
-                    );
-                  },
-                ),
+        key: _scaffoldKey, // assign key here
+        backgroundColor: Colors.transparent,
+        drawer: Drawer(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black, Color(0xFF2F7FFD)],
               ),
             ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: getTabs(),
-            indicatorColor: Colors.white,
-            indicatorWeight: 3,
-            labelStyle: GoogleFonts.montserrat(
-              fontWeight: FontWeight.w600,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                DrawerHeader(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.black, Color(0xFF2F7FFD)],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Admin Menu',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 24,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Users'),
+                  textColor: Colors.white,
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/adminUsers');
+                  },
+                ),
+                ListTile(
+                  title: const Text('Offers'),
+                  textColor: Colors.white,
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/adminOffers');
+                  },
+                ),
+                ListTile(
+                  title: const Text('Complaints'),
+                  textColor: Colors.white,
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/adminComplaints');
+                  },
+                ),
+                ListTile(
+                  title: const Text('Vehicles'),
+                  textColor: Colors.white,
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/adminVehicles');
+                  },
+                ),
+              ],
             ),
-            unselectedLabelStyle: GoogleFonts.montserrat(
-              fontWeight: FontWeight.w400,
-            ),
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            isScrollable: true,
-            tabAlignment:
-                TabAlignment.center, // Add this line to center the tabs
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            labelPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+          ),
+        ),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(70),
+          child: AdminWebNavigationBar(
+            scaffoldKey: _scaffoldKey, // pass key here
+            isCompactNavigation: false,
+            currentRoute: _getCurrentTabTitle(),
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+            onTabSelected: (int index) {
+              _tabController.animateTo(index);
+              setState(() {}); // Refresh active state if needed
+            },
           ),
         ),
         body: TabBarView(
           controller: _tabController,
+          physics:
+              const NeverScrollableScrollPhysics(), // added to disable swipe navigation
           children: [
             UsersTab(),
             OffersTab(
@@ -243,5 +254,20 @@ class _AdminHomePageState extends State<AdminHomePage>
         ),
       ),
     );
+  }
+
+  String _getCurrentTabTitle() {
+    switch (_tabController.index) {
+      case 0:
+        return 'Users';
+      case 1:
+        return 'Offers';
+      case 2:
+        return 'Complaints';
+      case 3:
+        return 'Vehicles';
+      default:
+        return '';
+    }
   }
 }

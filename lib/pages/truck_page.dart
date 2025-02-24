@@ -1251,8 +1251,6 @@ class _TruckPageState extends State<TruckPage> {
                           itemBuilder: (context, index) {
                             if (index < displayedVehicles.length) {
                               final vehicle = displayedVehicles[index];
-                              debugPrint(
-                                  'Building card for vehicle id: ${vehicle.id}, type: ${vehicle.vehicleType}');
                               return vehicle.vehicleType == 'trailer'
                                   ? TrailerCard(
                                       trailer: vehicle.trailer!,

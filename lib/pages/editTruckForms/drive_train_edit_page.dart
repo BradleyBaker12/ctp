@@ -669,8 +669,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       await videoElement.onLoadedMetadata.first;
       String viewID =
           'webcam_drivetrain_edit_${DateTime.now().millisecondsSinceEpoch}';
-      platformViewRegistry
-          .registerViewFactory(viewID, (int viewId) => videoElement);
+      platformViewRegistry.registerViewFactory(
+          viewID, (int viewId) => videoElement);
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -817,9 +817,9 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   // ===========================================================================
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isTransporter = userProvider.getUserRole == 'transporter';
-
-    if (!isTransporter) {
+    // Allow transporter, admin, and salesRep to upload data
+    final allowedRoles = ['transporter', 'admin', 'salesRep'];
+    if (!allowedRoles.contains(userProvider.getUserRole)) {
       return {};
     }
 

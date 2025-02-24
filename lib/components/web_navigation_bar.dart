@@ -81,7 +81,13 @@ class WebNavigationBar extends StatelessWidget {
                     : MainAxisAlignment.start,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, '/home'),
+                    onTap: () {
+                      if (userRole == 'admin') {
+                        Navigator.pushNamed(context, '/adminHome');
+                      } else {
+                        Navigator.pushNamed(context, '/home');
+                      }
+                    },
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: Image.network(

@@ -1949,17 +1949,20 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               preferredSize: const Size.fromHeight(70),
               child: WebNavigationBar(
                 isCompactNavigation: _isCompactNavigation(context),
-                currentRoute: '/truckPage',
+                // Use the current route so the hamburger works like on the home page.
+                currentRoute:
+                    ModalRoute.of(context)?.settings.name ?? '/vehicle_details',
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
             )
           : AppBar(
               backgroundColor: Colors.white,
               elevation: 0,
+              // Replace the arrow with a hamburger menu:
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios,
-                    color: Color(0xFFFF4E00), size: 20),
-                onPressed: () => Navigator.pop(context),
+                icon:
+                    const Icon(Icons.menu, color: Color(0xFFFF4E00), size: 24),
+                onPressed: () => _showNavigationDrawer(navigationItems),
               ),
               title: Row(
                 children: [
@@ -1983,7 +1986,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 ],
               ),
             ),
-      drawer: _isCompactNavigation(context) && isWeb
+      // Use a drawer style identical to home_page.
+      drawer: (_isCompactNavigation(context) && isWeb)
           ? Drawer(
               child: Container(
                 decoration: BoxDecoration(
@@ -2002,39 +2006,41 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         ),
                       ),
                       child: Center(
-                        child: CachedNetworkImage(
-                          imageUrl:
-                              'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: size.height * 0.45,
-                          placeholder: (context, url) => SizedBox(
-                            height: 30,
-                            width: 30,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                valueColor:
-                                    AlwaysStoppedAnimation(Colors.white),
-                              ),
-                            ),
+                          // child: CachedNetworkImage(
+                          //   imageUrl:
+                          //       'https://raw.githubusercontent.com/BradleyBaker12/truckData/main/CTPLOGO3.png',
+                          //   fit: BoxFit.cover,
+                          //   width: double.infinity,
+                          //   height: size.height * 0.45,
+                          //   placeholder: (context, url) => SizedBox(
+                          //     height: 30,
+                          //     width: 30,
+                          //     child: Center(
+                          //       child: CircularProgressIndicator(
+                          //         valueColor:
+                          //             AlwaysStoppedAnimation(Colors.white),
+                          //       ),
+                          //     ),
+                          //   ),
+                          //   errorWidget: (context, url, error) => Container(
+                          //     color: Colors.grey[300],
+                          //     child: const Center(
+                          //       child: Icon(
+                          //         Icons.broken_image,
+                          //         color: Colors.grey,
+                          //         size: 22,
+                          //       ),
+                          //     ),
+                          //   ),
+                          // ),
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[300],
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                color: Colors.grey,
-                                size: 22,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
                     Expanded(
                       child: ListView(
                         children: navigationItems.map((item) {
-                          bool isActive = '/offers' == item.route;
+                          bool isActive =
+                              ModalRoute.of(context)?.settings.name ==
+                                  item.route;
                           return ListTile(
                             title: Text(
                               item.title,
@@ -2049,9 +2055,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             selectedTileColor: Colors.black12,
                             onTap: () {
                               Navigator.pop(context);
-                              if (!isActive) {
+                              if (!isActive)
                                 Navigator.pushNamed(context, item.route);
-                              }
                             },
                           );
                         }).toList(),
@@ -2100,15 +2105,17 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                   width: double.infinity,
                                                   height: size.height * 0.32,
                                                   // Add cacheWidth to optimize memory usage
-                                                  cacheWidth:
-                                                      (MediaQuery.of(context)
+                                                  cacheWidth: kIsWeb
+                                                      ? null
+                                                      : (MediaQuery.of(context)
                                                                   .size
                                                                   .width *
                                                               2)
                                                           .toInt(),
+
                                                   // Add key to force rebuild when URL changes
                                                   key: ValueKey(
-                                                      allPhotos[index].url),
+                                                      '${allPhotos[index].url}-${MediaQuery.of(context).size.width}'),
                                                   errorBuilder:
                                                       (ctx, error, st) {
                                                     return Image.asset(
@@ -3222,5 +3229,92 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
 
     return total == 0 ? 0.0 : completed / total;
+  }
+
+  void _showNavigationDrawer(List<NavigationItem> items) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final currentRoute =
+            ModalRoute.of(context)?.settings.name ?? '/vehicle_details';
+        return Stack(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(color: Colors.black54),
+            ),
+            Material(
+              color: Colors.transparent,
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.85,
+                height: MediaQuery.of(context).size.height,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Colors.black, Color(0xFF2F7FFD)],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).padding.top + 20,
+                        bottom: 20,
+                        left: 16,
+                        right: 16,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // You can add your logo here (e.g., using Image.network)
+                          const Text(
+                            'LOGO',
+                            style: TextStyle(color: Colors.white, fontSize: 20),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(color: Colors.white24),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.zero,
+                        children: items.map((item) {
+                          bool isActive = currentRoute == item.route;
+                          return ListTile(
+                            title: Text(
+                              item.title,
+                              style: TextStyle(
+                                color: isActive
+                                    ? const Color(0xFFFF4E00)
+                                    : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            selected: isActive,
+                            selectedTileColor: Colors.black12,
+                            onTap: () {
+                              Navigator.pop(context);
+                              if (!isActive) {
+                                Navigator.pushNamed(context, item.route);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

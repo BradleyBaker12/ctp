@@ -149,10 +149,15 @@ class MyApp extends StatelessWidget {
         '/waiting-for-approval': (context) => const AccountStatusPage(),
         '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
         '/admin-home': (context) => AdminHomePage(),
+        '/adminUsers': (context) => const AdminHomePage(initialTab: 0),
+        '/adminOffers': (context) => const AdminHomePage(initialTab: 1),
+        '/adminComplaints': (context) => const AdminHomePage(initialTab: 2),
+        '/adminVehicles': (context) => const AdminHomePage(initialTab: 3),
         '/vehicleUpload': (context) => const VehicleUploadScreen(),
         '/in-progress': (context) => const AcceptedOffersPage(),
         '/transporterList': (context) => const VehiclesListPage(),
         '/wishlist': (context) => const WishlistPage(),
+        '/adminHome': (context) => const AdminHomePage(),
         '/error': (context) => ErrorPage(), // Create a basic error page
         '/waitingApproval': (context) => AccountStatusPage(), // Create a b
         '/basic_information': (context) => BasicInformationEdit(), // Create a b
@@ -273,20 +278,33 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final userProvider = Provider.of<UserProvider>(context);
     User? firebaseUser = FirebaseAuth.instance.currentUser;
 
-    if (firebaseUser != null && !firebaseUser.isAnonymous) {
-      if (userProvider.getAccountStatus == 'suspended' ||
-          userProvider.getAccountStatus == 'inactive') {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Force navigation to status page if user is in a different route
-          if (!(ModalRoute.of(context)?.settings.name == '/account-status')) {
-            Navigator.of(context).pushReplacementNamed('/account-status');
-          }
-        });
-        return const AccountStatusPage();
-      }
-      return const HomePage();
-    } else {
+    if (firebaseUser == null || firebaseUser.isAnonymous) {
       return const LoginPage();
+    }
+
+    if (userProvider.getAccountStatus == 'suspended' ||
+        userProvider.getAccountStatus == 'inactive') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!(ModalRoute.of(context)?.settings.name == '/account-status')) {
+          Navigator.of(context).pushReplacementNamed('/account-status');
+        }
+      });
+      return const AccountStatusPage();
+    }
+
+    // Show a loading indicator until the role is available
+    if (userProvider.getUserRole == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Redirect based on user role
+    if (userProvider.getUserRole!.toLowerCase() == 'admin' ||
+        userProvider.getUserRole!.toLowerCase() == 'sales rep') {
+      return const AdminHomePage();
+    } else {
+      return const HomePage();
     }
   }
 }

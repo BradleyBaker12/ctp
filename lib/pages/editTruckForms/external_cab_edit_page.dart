@@ -16,6 +16,7 @@ import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart'; // Ensure this import path is correct
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:ui' as ui;
+
 import 'package:universal_html/html.dart'
     as html; // Added for platformViewRegistry
 
@@ -437,9 +438,9 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isTransporter = userProvider.getUserRole == 'transporter';
-
-    if (!isTransporter) {
+    // Allow transporter, admin, and salesRep to upload data
+    final allowedRoles = ['transporter', 'admin', 'salesRep'];
+    if (!allowedRoles.contains(userProvider.getUserRole)) {
       return {};
     }
 
@@ -1254,8 +1255,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         ..srcObject = mediaStream;
       await videoElement.onLoadedMetadata.first;
       String viewID = 'webcamEdit_${DateTime.now().millisecondsSinceEpoch}';
-      platformViewRegistry
-          .registerViewFactory(viewID, (int viewId) => videoElement);
+      platformViewRegistry.registerViewFactory(
+          viewID, (int viewId) => videoElement);
       await showDialog(
           context: context,
           barrierDismissible: false,
