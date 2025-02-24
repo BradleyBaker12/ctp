@@ -34,11 +34,15 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart'; // Add this import
+// Update the admin navbar import to avoid conflict:
+import 'package:ctp/components/admin_web_navigation_bar.dart'
+    hide NavigationItem; // New import for admin navbar
 
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
   final String url;
   final String label;
+
   PhotoItem({required this.url, required this.label});
 }
 
@@ -1921,6 +1925,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
+    final String userRole = userProvider.getUserRole?.toLowerCase() ?? '';
     // ...existing user role definitions...
 
     final size = MediaQuery.of(context).size;
@@ -1944,16 +1949,24 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.black,
-      appBar: isWeb
+      appBar: kIsWeb
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
-              child: WebNavigationBar(
-                isCompactNavigation: _isCompactNavigation(context),
-                // Use the current route so the hamburger works like on the home page.
-                currentRoute:
-                    ModalRoute.of(context)?.settings.name ?? '/vehicle_details',
-                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              ),
+              child: (userRole == 'admin' || userRole == 'sales rep')
+                  ? AdminWebNavigationBar(
+                      isCompactNavigation: _isCompactNavigation(context),
+                      currentRoute: ModalRoute.of(context)?.settings.name ??
+                          '/vehicle_details',
+                      onMenuPressed: () =>
+                          _scaffoldKey.currentState?.openDrawer(),
+                    )
+                  : WebNavigationBar(
+                      isCompactNavigation: _isCompactNavigation(context),
+                      currentRoute: ModalRoute.of(context)?.settings.name ??
+                          '/vehicle_details',
+                      onMenuPressed: () =>
+                          _scaffoldKey.currentState?.openDrawer(),
+                    ),
             )
           : AppBar(
               backgroundColor: Colors.white,

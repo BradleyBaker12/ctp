@@ -30,9 +30,10 @@ class AdminWebNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Define a single breakpoint for compact mode.
+    final bool isCompact = MediaQuery.of(context).size.width < 900;
     final userProvider = Provider.of<UserProvider>(context);
 
-    // Updated navigation items
     List<NavigationItem> navigationItems = [
       NavigationItem(title: 'Users', route: '/adminUsers'),
       NavigationItem(title: 'Offers', route: '/adminOffers'),
@@ -42,10 +43,9 @@ class AdminWebNavigationBar extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Use 900px as threshold for tablet and smaller devices.
-        if (constraints.maxWidth < 900) {
+        if (isCompact) {
           return Container(
-            height: double.infinity, // modified from 70
+            height: double.infinity,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
@@ -53,10 +53,7 @@ class AdminWebNavigationBar extends StatelessWidget {
                 colors: const [Colors.black, Color(0xFF2F7FFD)],
               ),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10),
               ],
             ),
             child: Padding(
@@ -64,26 +61,21 @@ class AdminWebNavigationBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Wrap IconButton in a Builder to get correct context for openDrawer()
-                  Builder(
-                    builder: (context) => IconButton(
-                      icon:
-                          const Icon(Icons.menu, color: Colors.white, size: 24),
-                      onPressed: () {
-                        if (onMenuPressed != null) {
-                          onMenuPressed!();
-                        } else {
-                          Scaffold.of(context).openDrawer();
-                        }
-                      },
-                      tooltip: 'Open menu',
-                    ),
-                  ),
-                  // Logo
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, '/adminHome');
+                  // Hamburger menu in compact mode.
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+                    onPressed: () {
+                      if (onMenuPressed != null) {
+                        onMenuPressed!();
+                      } else {
+                        Scaffold.of(context).openDrawer();
+                      }
                     },
+                    tooltip: 'Open menu',
+                  ),
+                  // Logo.
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/adminHome'),
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: Image.network(
@@ -101,11 +93,9 @@ class AdminWebNavigationBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Profile icon
+                  // Profile icon.
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, '/profile');
-                    },
+                    onTap: () => Navigator.pushNamed(context, '/profile'),
                     child: CircleAvatar(
                       radius: 18,
                       backgroundImage: userProvider.getProfileImageUrl != null
@@ -119,9 +109,9 @@ class AdminWebNavigationBar extends StatelessWidget {
             ),
           );
         } else {
-          // For larger screens, show full navigation bar with nav items.
+          // Full navigation bar for larger screens.
           return Container(
-            height: double.infinity, // modified from 70
+            height: double.infinity,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
@@ -129,10 +119,7 @@ class AdminWebNavigationBar extends StatelessWidget {
                 colors: const [Colors.black, Color(0xFF2F7FFD)],
               ),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10),
               ],
             ),
             child: Padding(
@@ -140,24 +127,14 @@ class AdminWebNavigationBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Hamburger menu (only if isCompactNavigation is true)
-                  if (isCompactNavigation)
-                    IconButton(
-                      icon:
-                          const Icon(Icons.menu, color: Colors.white, size: 24),
-                      onPressed: onMenuPressed,
-                      tooltip: 'Open menu',
-                    ),
+                  // Do not show hamburger here in full mode.
                   Expanded(
                     child: Row(
-                      mainAxisAlignment: isCompactNavigation
-                          ? MainAxisAlignment.center
-                          : MainAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         GestureDetector(
-                          onTap: () {
-                            Navigator.pushNamed(context, '/adminHome');
-                          },
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/adminHome'),
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: Image.network(
@@ -192,9 +169,7 @@ class AdminWebNavigationBar extends StatelessWidget {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, '/profile');
-                    },
+                    onTap: () => Navigator.pushNamed(context, '/profile'),
                     child: CircleAvatar(
                       radius: 18,
                       backgroundImage: userProvider.getProfileImageUrl != null
