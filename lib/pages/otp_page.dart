@@ -35,9 +35,10 @@ class _OTPScreenState extends State<OTPScreen> {
           'OTPScreen: User verified and linked with UID: $userId'); // Debugging
       Navigator.pushReplacementNamed(context, '/firstNamePage');
     } catch (e) {
-      print("OTPScreen Error: ${e.toString()}");
+      // Display a friendly message for OTP verification failure.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        const SnackBar(
+            content: Text('Invalid verification code. Please try again.')),
       );
     } finally {
       setState(() {
@@ -60,9 +61,10 @@ class _OTPScreenState extends State<OTPScreen> {
         setState(() {
           _isLoading = false;
         });
-        print(e);
+        // Use a friendlier error message when resend fails.
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.message}')),
+          const SnackBar(
+              content: Text('Unable to resend code. Please try again later.')),
         );
       },
       codeSent: (String verificationId, int? forceResendingToken) {

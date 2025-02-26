@@ -1952,7 +1952,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       appBar: kIsWeb
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
-              child: (userRole == 'admin' || userRole == 'sales rep')
+              child: (userRole == 'admin' || userRole == 'sales representative')
                   ? AdminWebNavigationBar(
                       isCompactNavigation: _isCompactNavigation(context),
                       currentRoute: ModalRoute.of(context)?.settings.name ??

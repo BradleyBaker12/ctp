@@ -1,14 +1,14 @@
 import 'dart:typed_data';
 import 'dart:convert';
-import 'dart:html' as html;
 import 'dart:ui' as ui;
-import 'dart:ui_web';
+// import 'dart:ui_web';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:universal_html/html.dart' as html;
 
 class AdminSection extends StatefulWidget {
   final String vehicleId; // Required vehicleId
@@ -540,10 +540,10 @@ class AdminSectionState extends State<AdminSection>
 
       await videoElement.onLoadedMetadata.first;
 
-      platformViewRegistry.registerViewFactory(
-        'adminWebcamVideo_$docNumber',
-        (int viewId) => videoElement,
-      );
+      // platformViewRegistry.registerViewFactory(
+      //   'adminWebcamVideo_$docNumber',
+      //   (int viewId) => videoElement,
+      // );
 
       await showDialog(
         context: context,
@@ -559,46 +559,46 @@ class AdminSectionState extends State<AdminSection>
             actions: [
               TextButton(
                 onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
+                  // final canvas = html.CanvasElement(
+                  //   width: videoElement.videoWidth,
+                  //   height: videoElement.videoHeight,
+                  // );
+                  // canvas.context2D.drawImage(videoElement, 0, 0);
+                  // final dataUrl = canvas.toDataUrl('image/png');
+                  // final base64Str = dataUrl.split(',').last;
+                  // final imageBytes = base64.decode(base64Str);
+                  // mediaStream.getTracks().forEach((track) => track.stop());
+                  // Navigator.of(dialogContext).pop();
 
-                  setState(() {
-                    switch (docNumber) {
-                      case 1:
-                        _natisRc1File = imageBytes;
-                        _natisRc1FileName = "captured.png";
-                        _natisRc1Url = null;
-                        widget.onAdminDoc1Selected(imageBytes);
-                        break;
-                      case 2:
-                        _licenseDiskFile = imageBytes;
-                        _licenseDiskFileName = "captured.png";
-                        _licenseDiskUrl = null;
-                        widget.onAdminDoc2Selected(imageBytes);
-                        break;
-                      case 3:
-                        _settlementLetterFile = imageBytes;
-                        _settlementLetterFileName = "captured.png";
-                        _settlementLetterUrl = null;
-                        widget.onAdminDoc3Selected(imageBytes);
-                        break;
-                    }
-                  });
+                  // setState(() {
+                  //   switch (docNumber) {
+                  //     case 1:
+                  //       _natisRc1File = imageBytes;
+                  //       _natisRc1FileName = "captured.png";
+                  //       _natisRc1Url = null;
+                  //       widget.onAdminDoc1Selected(imageBytes);
+                  //       break;
+                  //     case 2:
+                  //       _licenseDiskFile = imageBytes;
+                  //       _licenseDiskFileName = "captured.png";
+                  //       _licenseDiskUrl = null;
+                  //       widget.onAdminDoc2Selected(imageBytes);
+                  //       break;
+                  //     case 3:
+                  //       _settlementLetterFile = imageBytes;
+                  //       _settlementLetterFileName = "captured.png";
+                  //       _settlementLetterUrl = null;
+                  //       widget.onAdminDoc3Selected(imageBytes);
+                  //       break;
+                  //   }
+                  // });
                 },
                 child: const Text('Capture'),
               ),
               TextButton(
                 onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
+                  // mediaStream.getTracks().forEach((track) => track.stop());
+                  // Navigator.of(dialogContext).pop();
                 },
                 child: const Text('Cancel'),
               ),

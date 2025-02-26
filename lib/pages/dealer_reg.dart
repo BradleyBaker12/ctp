@@ -112,27 +112,57 @@ class _DealerRegPageState extends State<DealerRegPage> {
           'xlsx'
         ],
       );
-
       if (result != null) {
-        final bytes = await result.files.single.xFile.readAsBytes();
-        setState(() {
-          if (fieldName == 'bankConfirmation') {
-            _bankConfirmationByte = bytes;
-            _bankConfirmationFileName = result.files.single.name;
-          } else if (fieldName == 'cipcCertificate') {
-            _cipcCertificateByte = bytes;
-            _cipcCertificateFileName = result.files.single.name;
-          } else if (fieldName == 'proxy') {
-            _proxyByte = bytes;
-            _proxyFileName = result.files.single.name;
-          } else if (fieldName == 'brnc') {
-            _brncByte = bytes;
-            _brncFileName = result.files.single.name;
-          } else if (fieldName == 'taxCertificate') {
-            _taxCertificateByte = bytes;
-            _taxCertificateFileName = result.files.single.name;
+        if (kIsWeb) {
+          final bytes = await result.files.single.xFile.readAsBytes();
+          setState(() {
+            if (fieldName == 'bankConfirmation') {
+              _bankConfirmationByte = bytes;
+              _bankConfirmationFileName = result.files.single.name;
+            } else if (fieldName == 'cipcCertificate') {
+              _cipcCertificateByte = bytes;
+              _cipcCertificateFileName = result.files.single.name;
+            } else if (fieldName == 'proxy') {
+              _proxyByte = bytes;
+              _proxyFileName = result.files.single.name;
+            } else if (fieldName == 'brnc') {
+              _brncByte = bytes;
+              _brncFileName = result.files.single.name;
+            } else if (fieldName == 'taxCertificate') {
+              _taxCertificateByte = bytes;
+              _taxCertificateFileName = result.files.single.name;
+            }
+          });
+        } else {
+          final filePath = result.files.single.path;
+          if (filePath != null) {
+            final file = File(filePath);
+            final bytes = await file.readAsBytes();
+            setState(() {
+              if (fieldName == 'bankConfirmation') {
+                _bankConfirmationByte = bytes;
+                _bankConfirmationFileName = result.files.single.name;
+                _bankConfirmationFile = filePath;
+              } else if (fieldName == 'cipcCertificate') {
+                _cipcCertificateByte = bytes;
+                _cipcCertificateFileName = result.files.single.name;
+                _cipcCertificateFile = filePath;
+              } else if (fieldName == 'proxy') {
+                _proxyByte = bytes;
+                _proxyFileName = result.files.single.name;
+                _proxyFile = filePath;
+              } else if (fieldName == 'brnc') {
+                _brncByte = bytes;
+                _brncFileName = result.files.single.name;
+                _brncFile = filePath;
+              } else if (fieldName == 'taxCertificate') {
+                _taxCertificateByte = bytes;
+                _taxCertificateFileName = result.files.single.name;
+                _taxCertificateFile = filePath;
+              }
+            });
           }
-        });
+        }
       }
     } catch (e) {
       print("Error picking file: $e");
@@ -165,7 +195,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
   Future<String?> _uploadDocument(String documentType) async {
     try {
       final userId = Provider.of<UserProvider>(context, listen: false).userId;
-      if (userId == null) throw Exception('User ID is not available');
+      if (userId == null) throw Exception('User account is not available');
 
       final storage = FirebaseStorage.instance;
       final fileName = '${documentType.toLowerCase()}.pdf';
@@ -212,7 +242,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
       }
     } catch (e) {
       print('Error uploading $documentType: $e');
-      throw Exception('Failed to upload $documentType: $e');
+      throw Exception('Failed to upload.');
     }
   }
 
@@ -236,7 +266,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
 
     try {
       final userId = Provider.of<UserProvider>(context, listen: false).userId;
-      if (userId == null) throw Exception('User ID is not available');
+      if (userId == null) throw Exception('User account is not available');
 
       // Flatten data structure to match transporter
       Map<String, dynamic> dealerData = {
@@ -918,27 +948,25 @@ class _DealerRegPageState extends State<DealerRegPage> {
   }
 
   String? _validateRegistrationNumber(String? value) {
-    // Regex for South African Company Registration Number YYYY/NNNNNN/NN
     final regExp = RegExp(r'^\d{4}/\d{6}/\d{2}$');
     if (value == null || value.isEmpty) {
       _scrollToFocusNode(_registrationNumberFocusNode);
-      return 'Please enter Registration Number';
+      return 'Registration number is required.';
     } else if (!regExp.hasMatch(value)) {
       _scrollToFocusNode(_registrationNumberFocusNode);
-      return 'Please enter a valid Registration Number in the format YYYY/NNNNNN/NN';
+      return 'Invalid registration number. Expected format: YYYY/NNNNNN/NN.';
     }
     return null;
   }
 
   String? _validateVATNumber(String? value) {
-    // VAT number should be exactly 10 digits and start with 4
     final regExp = RegExp(r'^4\d{9}$');
     if (value == null || value.isEmpty) {
       _scrollToFocusNode(_vatNumberFocusNode);
-      return 'Please enter VAT Number';
+      return 'VAT number is required.';
     } else if (!regExp.hasMatch(value)) {
       _scrollToFocusNode(_vatNumberFocusNode);
-      return 'Please enter a valid VAT Number starting with 4 and having 10 digits';
+      return 'Invalid VAT number. It must start with 4 and be 10 digits.';
     }
     return null;
   }

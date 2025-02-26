@@ -116,15 +116,27 @@ class _TransporterRegistrationPageState
           if (fieldName == 'bankConfirmation') {
             _bankConfirmationByte = bytes;
             _bankConfirmationFileName = result.files.single.name;
+            if (!kIsWeb && result.files.single.path != null) {
+              _bankConfirmationFile = result.files.single.path;
+            }
           } else if (fieldName == 'proxy') {
             _proxyByte = bytes;
             _proxyFileName = result.files.single.name;
+            if (!kIsWeb && result.files.single.path != null) {
+              _proxyFile = result.files.single.path;
+            }
           } else if (fieldName == 'brnc') {
             _brncByte = bytes;
             _brncFileName = result.files.single.name;
+            if (!kIsWeb && result.files.single.path != null) {
+              _brncFile = result.files.single.path;
+            }
           } else if (fieldName == 'taxCertificate') {
             _taxCertificateByte = bytes;
             _taxCertificateFileName = result.files.single.name;
+            if (!kIsWeb && result.files.single.path != null) {
+              _taxCertificateFile = result.files.single.path;
+            }
           }
         });
       }
@@ -831,27 +843,25 @@ class _TransporterRegistrationPageState
   }
 
   String? _validateRegistrationNumber(String? value) {
-    // Regex for South African Company Registration Number YYYY/NNNNNN/NN
     final regExp = RegExp(r'^\d{4}/\d{6}/\d{2}$');
     if (value == null || value.isEmpty) {
       _scrollToFocusNode(_registrationNumberFocusNode);
-      return 'Please enter Registration Number';
+      return 'Registration number is required.';
     } else if (!regExp.hasMatch(value)) {
       _scrollToFocusNode(_registrationNumberFocusNode);
-      return 'Please enter a valid Registration Number in the format YYYY/NNNNNN/NN';
+      return 'Invalid registration number. Expected format: YYYY/NNNNNN/NN.';
     }
     return null;
   }
 
   String? _validateVATNumber(String? value) {
-    // VAT number should be exactly 10 digits and start with 4
     final regExp = RegExp(r'^4\d{9}$');
     if (value == null || value.isEmpty) {
       _scrollToFocusNode(_vatNumberFocusNode);
-      return 'Please enter VAT Number';
+      return 'VAT number is required.';
     } else if (!regExp.hasMatch(value)) {
       _scrollToFocusNode(_vatNumberFocusNode);
-      return 'Please enter a valid VAT Number starting with 4 and having 10 digits';
+      return 'Invalid VAT number. It must start with 4 and be 10 digits.';
     }
     return null;
   }

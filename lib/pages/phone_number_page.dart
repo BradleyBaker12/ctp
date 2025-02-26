@@ -177,8 +177,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
         verificationFailed: (FirebaseAuthException e) {
           setState(() {
             _isLoading = false;
+            // Friendly error message instead of a technical Firebase error message.
             _errorMessage =
-                e.message ?? "Verification failed. Please try again.";
+                "Phone verification failed. Please check your number and try again.";
           });
         },
         codeSent: (String verificationId, int? forceResendingToken) {

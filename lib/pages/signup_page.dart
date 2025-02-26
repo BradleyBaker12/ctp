@@ -80,17 +80,14 @@ class _SignUpPageState extends State<SignUpPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Password must be at least 8 characters long, include a number, and a special character.',
+            'Password must be at least 8 characters long and include one number, one uppercase letter and one special character.',
           ),
         ),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
@@ -146,13 +143,7 @@ class _SignUpPageState extends State<SignUpPage> {
         Navigator.pushReplacementNamed(context, '/phoneNumber');
       }
     } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      if (e.code == 'email-already-in-use') {
-        errorMessage =
-            'The email address is already in use by another account.';
-      } else {
-        errorMessage = 'An error occurred. Please try again.';
-      }
+      String errorMessage = e.message ?? 'An error occurred. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
@@ -163,9 +154,7 @@ class _SignUpPageState extends State<SignUpPage> {
       );
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }

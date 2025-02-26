@@ -487,7 +487,7 @@ class _OfferCardState extends State<OfferCard> {
     try {
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.id == widget.offer.vehicleId,
-        orElse: () => throw Exception('Vehicle not found in provider'),
+        orElse: () => throw Exception('Vehicle not found'),
       );
     } catch (e) {
       try {
@@ -891,7 +891,7 @@ class _OfferCardState extends State<OfferCard> {
     try {
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.id == widget.offer.vehicleId,
-        orElse: () => throw Exception('Vehicle not found in provider'),
+        orElse: () => throw Exception('Vehicle not found'),
       );
     } catch (e) {
       try {

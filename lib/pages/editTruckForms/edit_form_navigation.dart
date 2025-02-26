@@ -4,12 +4,15 @@ import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ctp/components/truck_info_web_nav.dart';
+import 'package:provider/provider.dart'; // import for TruckInfoWebNavBar
 
 class EditFormNavigation extends StatefulWidget {
   final Vehicle vehicle;
@@ -553,12 +556,47 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     final double screenWidth = MediaQuery.of(context).size.width;
     final bool isCompactNavigation = screenWidth < 800;
     final bool showHamburger = screenWidth <= 1024; // Added this line
+    final userProvider = Provider.of<UserProvider>(context);
+    final String userRole = userProvider.getUserRole;
 
     return Scaffold(
       key: _scaffoldKey,
       drawer: null,
-      appBar: !kIsWeb
-          ? AppBar(
+      appBar: kIsWeb
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: (userRole == 'admin' || userRole == 'salesRep')
+                  ? TruckInfoWebNavBar(
+                      scaffoldKey: _scaffoldKey,
+                      selectedTab: "Edit Form",
+                      vehicleId: vehicle!.id,
+                      onHomePressed: () =>
+                          Navigator.pushNamed(context, '/home'),
+                      onBasicInfoPressed: () =>
+                          Navigator.pushNamed(context, '/basic_information'),
+                      onTruckConditionsPressed: () =>
+                          Navigator.pushNamed(context, '/truck_conditions'),
+                      onMaintenanceWarrantyPressed: () =>
+                          Navigator.pushNamed(context, '/maintenance_warranty'),
+                      onExternalCabPressed: () =>
+                          Navigator.pushNamed(context, '/external_cab'),
+                      onInternalCabPressed: () =>
+                          Navigator.pushNamed(context, '/internal_cab'),
+                      onChassisPressed: () =>
+                          Navigator.pushNamed(context, '/chassis'),
+                      onDriveTrainPressed: () =>
+                          Navigator.pushNamed(context, '/drive_train'),
+                      onTyresPressed: () =>
+                          Navigator.pushNamed(context, '/tyres'),
+                    )
+                  : WebNavigationBar(
+                      scaffoldKey: _scaffoldKey,
+                      isCompactNavigation: isCompactNavigation,
+                      currentRoute: '/editForm',
+                      onMenuPressed: () => _showNavigationDrawer([]),
+                    ),
+            )
+          : AppBar(
               backgroundColor: Colors.blueAccent,
               leading: showHamburger
                   ? Builder(
@@ -618,11 +656,10 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                   ),
                 ),
               ],
-            )
-          : null,
+            ),
       body: Column(
         children: [
-          if (kIsWeb)
+          if (!kIsWeb)
             WebNavigationBar(
               scaffoldKey: _scaffoldKey,
               isCompactNavigation: isCompactNavigation,
