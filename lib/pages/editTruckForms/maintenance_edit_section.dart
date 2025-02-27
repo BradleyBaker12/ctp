@@ -468,8 +468,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final bool isSales = userRole == 'sales';
     final bool canEdit = isAdmin || isSales || isTransporter;
 
-    final String? url =
-        isMaintenance ? _currentMaintenanceDocUrl : _currentWarrantyDocUrl;
+    // Use the widget URL if the local state variable is null.
+    final String? url = isMaintenance
+        ? (_currentMaintenanceDocUrl ?? widget.maintenanceDocUrl)
+        : (_currentWarrantyDocUrl ?? widget.warrantyDocUrl);
     final Uint8List? file =
         isMaintenance ? _maintenanceDocFile : _warrantyDocFile;
     final String title =
@@ -516,7 +518,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                   }
                 },
               ),
-              if (canEdit) // Only show Change option if not dealer
+              if (canEdit)
                 ListTile(
                   leading: const Icon(Icons.edit),
                   title: const Text('Change'),

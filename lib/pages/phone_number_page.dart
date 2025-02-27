@@ -1,3 +1,4 @@
+import 'package:ctp/components/custom_back_button.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -412,6 +413,11 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                 ),
               ],
             ),
+          ),
+          const Positioned(
+            top: 40,
+            left: 16,
+            child: CustomBackButton(),
           ),
           if (_isLoading) const LoadingScreen()
         ],

@@ -1,7 +1,5 @@
 // admin_section.dart
 
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
@@ -32,7 +30,7 @@ class AdminEditSection extends StatefulWidget {
   final String? settlementLetterUrl;
 
   const AdminEditSection({
-    super.key,
+    Key? key,
     required this.vehicle,
     required this.isUploading,
     this.isEditing = false,
@@ -44,7 +42,7 @@ class AdminEditSection extends StatefulWidget {
     this.natisRc1Url,
     this.licenseDiskUrl,
     this.settlementLetterUrl,
-  });
+  }) : super(key: key);
 
   @override
   AdminEditSectionState createState() => AdminEditSectionState();
@@ -116,7 +114,6 @@ class AdminEditSectionState extends State<AdminEditSection>
             case 1:
               _natisRc1File = bytes;
               _natisRc1FileName = fileName;
-
               _natisRc1Url = null; // Clear URL when a new file is selected
               widget.onAdminDoc1Selected(bytes, fileName);
               break;
@@ -129,7 +126,8 @@ class AdminEditSectionState extends State<AdminEditSection>
             case 3:
               _settlementLetterFile = bytes;
               _settlementLetterFileName = fileName;
-              _settlementLetterUrl = null; // Clear URL when a new file selected
+              _settlementLetterUrl =
+                  null; // Clear URL when a new file is selected
               widget.onAdminDoc3Selected(bytes, fileName);
               break;
           }
@@ -185,14 +183,15 @@ class AdminEditSectionState extends State<AdminEditSection>
     return url.split('/').last.split('?').first;
   }
 
-  // Helper method to display uploaded files in a Stack with "X" to remove
-  Widget _buildUploadedFile(
-      {required Uint8List? file,
-      required String? fileUrl,
-      required bool isUploading,
-      required VoidCallback onRemove, // Callback to remove this doc
-      required String docName,
-      required String fileName}) {
+  // Helper method to display uploaded files.
+  Widget _buildUploadedFile({
+    required Uint8List? file,
+    required String? fileUrl,
+    required bool isUploading,
+    required VoidCallback onRemove,
+    required String docName,
+    required String fileName,
+  }) {
     // If no file or URL, show "No file selected"
     if (file == null && fileUrl == null) {
       return const Text(
@@ -201,18 +200,6 @@ class AdminEditSectionState extends State<AdminEditSection>
       );
     }
 
-    // Otherwise, gather file name + extension
-    // String fileName;
-    // String extension;
-    // if (file != null) {
-    //   fileName = file.path.split('/').last;
-    //   extension = fileName.split('.').last;
-    // } else {
-    //   fileName = getFileNameFromUrl(fileUrl!);
-    //   extension = fileName.split('.').last;
-    // }
-
-    // "Main widget" is either an image or an icon
     Widget mainWidget;
     if (file != null) {
       // We have a local file
@@ -254,22 +241,37 @@ class AdminEditSectionState extends State<AdminEditSection>
         );
       }
     } else {
-      // We have a URL
+      // We have a URL – use Image.network similar to maintenance_section.dart
       if (_isImageUrl(fileUrl!)) {
         mainWidget = ClipRRect(
           borderRadius: BorderRadius.circular(8.0),
-          child: CachedNetworkImage(
-            imageUrl: fileUrl,
+          child: Image.network(
+            fileUrl,
             width: 100,
             height: 100,
             fit: BoxFit.cover,
-            placeholder: (context, url) => Center(
-              child: SizedBox(
-                width: 30,
-                height: 30,
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Center(
+                child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    value: progress.expectedTotalBytes != null
+                        ? progress.cumulativeBytesLoaded /
+                            progress.expectedTotalBytes!
+                        : null,
+                    valueColor: const AlwaysStoppedAnimation(Colors.white),
+                  ),
                 ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 100,
+              height: 100,
+              color: Colors.grey,
+              child: const Center(
+                child: Icon(Icons.error, color: Colors.white),
               ),
             ),
           ),
@@ -325,7 +327,6 @@ class AdminEditSectionState extends State<AdminEditSection>
               ),
           ],
         ),
-
         // Show "X" only if editing is allowed & we have a file/URL
         if (widget.isEditing && (file != null || fileUrl != null))
           Positioned(
@@ -463,7 +464,7 @@ class AdminEditSectionState extends State<AdminEditSection>
       // Save to Firestore using the vehicle's ID
       await FirebaseFirestore.instance
           .collection('vehicles')
-          .doc(widget.vehicle.id) // Use the vehicle ID here
+          .doc(widget.vehicle.id)
           .set({'adminData': adminData}, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -538,6 +539,97 @@ class AdminEditSectionState extends State<AdminEditSection>
     }
 
     return totalFields == 0 ? 1.0 : filledFields / totalFields;
+  }
+
+  // New function: show view/change/cancel options for admin documents
+  void _showDocumentOptionsAdmin(String docType) {
+    String? url;
+    Uint8List? file;
+    switch (docType) {
+      case 'natisRc1':
+        url = _natisRc1Url;
+        file = _natisRc1File;
+        break;
+      case 'licenseDisk':
+        url = _licenseDiskUrl;
+        file = _licenseDiskFile;
+        break;
+      case 'settlementLetter':
+        url = _settlementLetterUrl;
+        file = _settlementLetterFile;
+        break;
+    }
+    String title;
+    switch (docType) {
+      case 'natisRc1':
+        title = 'NATIS/RC1 Document';
+        break;
+      case 'licenseDisk':
+        title = 'License Disk Document';
+        break;
+      case 'settlementLetter':
+        title = 'Settlement Letter';
+        break;
+      default:
+        title = 'Document';
+    }
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Document URL not available')),
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.visibility),
+                title: const Text('View'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _viewPdf(url!, title);
+                },
+              ),
+              if (widget.isEditing)
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Change'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (docType == 'natisRc1') {
+                      _pickFile(1);
+                    } else if (docType == 'licenseDisk') {
+                      _pickFile(2);
+                    } else if (docType == 'settlementLetter') {
+                      _pickFile(3);
+                    }
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('Cancel'),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Updated _viewPdf to open a full-screen image viewer.
+  Future<void> _viewPdf(String url, String title) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ImageViewerPage(imageUrl: url, title: title),
+      ),
+    );
   }
 
   @override
@@ -651,8 +743,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                         // Upload NATIS/RC1 Document
                         Center(
                           child: Text(
-                            'Please attach NATIS/RC1 Documentation'
-                                .toUpperCase(),
+                            'PLEASE ATTACH NATIS/RC1 DOCUMENTATION',
                             style: const TextStyle(
                               fontSize: 15,
                               color: Colors.white,
@@ -663,7 +754,13 @@ class AdminEditSectionState extends State<AdminEditSection>
                         ),
                         const SizedBox(height: 15),
                         InkWell(
-                          onTap: () => _pickFile(1),
+                          onTap: () {
+                            if (_natisRc1File != null || _natisRc1Url != null) {
+                              _showDocumentOptionsAdmin('natisRc1');
+                            } else {
+                              _pickFile(1);
+                            }
+                          },
                           borderRadius: BorderRadius.circular(10.0),
                           child: Container(
                             width: double.infinity,
@@ -696,7 +793,6 @@ class AdminEditSectionState extends State<AdminEditSection>
                                     fileName: _natisRc1FileName ?? "",
                                     docName: 'NATIS/RC1',
                                     onRemove: () {
-                                      // Remove NATIS/RC1 doc
                                       setState(() {
                                         _natisRc1File = null;
                                         _natisRc1Url = null;
@@ -721,7 +817,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                         // Upload License Disk
                         Center(
                           child: Text(
-                            'Please attach License Disk Photo'.toUpperCase(),
+                            'PLEASE ATTACH LICENSE DISK PHOTO',
                             style: const TextStyle(
                               fontSize: 15,
                               color: Colors.white,
@@ -732,7 +828,14 @@ class AdminEditSectionState extends State<AdminEditSection>
                         ),
                         const SizedBox(height: 15),
                         InkWell(
-                          onTap: () => _pickFile(2),
+                          onTap: () {
+                            if (_licenseDiskFile != null ||
+                                _licenseDiskUrl != null) {
+                              _showDocumentOptionsAdmin('licenseDisk');
+                            } else {
+                              _pickFile(2);
+                            }
+                          },
                           borderRadius: BorderRadius.circular(10.0),
                           child: Container(
                             width: double.infinity,
@@ -765,7 +868,6 @@ class AdminEditSectionState extends State<AdminEditSection>
                                     isUploading: _isUploading,
                                     docName: 'License Disk',
                                     onRemove: () {
-                                      // Remove License Disk doc
                                       setState(() {
                                         _licenseDiskFile = null;
                                         _licenseDiskUrl = null;
@@ -787,13 +889,11 @@ class AdminEditSectionState extends State<AdminEditSection>
                           ),
                         ),
                         const SizedBox(height: 15),
-
                         // Conditionally display Settlement Letter upload and Settlement Amount field
                         if (widget.requireToSettleType == 'yes') ...[
-                          // Upload Settlement Letter
                           Center(
                             child: Text(
-                              'Please attach Settlement Letter'.toUpperCase(),
+                              'PLEASE ATTACH SETTLEMENT LETTER',
                               style: const TextStyle(
                                 fontSize: 15,
                                 color: Colors.white,
@@ -804,7 +904,14 @@ class AdminEditSectionState extends State<AdminEditSection>
                           ),
                           const SizedBox(height: 15),
                           InkWell(
-                            onTap: () => _pickFile(3),
+                            onTap: () {
+                              if (_settlementLetterFile != null ||
+                                  _settlementLetterUrl != null) {
+                                _showDocumentOptionsAdmin('settlementLetter');
+                              } else {
+                                _pickFile(3);
+                              }
+                            },
                             borderRadius: BorderRadius.circular(10.0),
                             child: Container(
                               width: double.infinity,
@@ -837,7 +944,6 @@ class AdminEditSectionState extends State<AdminEditSection>
                                       isUploading: _isUploading,
                                       docName: 'Settlement Letter',
                                       onRemove: () {
-                                        // Remove Settlement Letter doc
                                         setState(() {
                                           _settlementLetterFile = null;
                                           _settlementLetterUrl = null;
@@ -863,8 +969,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                           // Input Field for Settlement Amount
                           Center(
                             child: Text(
-                              'Please fill in your settlement amount'
-                                  .toUpperCase(),
+                              'PLEASE FILL IN YOUR SETTLEMENT AMOUNT',
                               style: const TextStyle(
                                 fontSize: 15,
                                 color: Colors.white,
@@ -878,25 +983,23 @@ class AdminEditSectionState extends State<AdminEditSection>
                             height: 60.0,
                             child: CustomTextField(
                               controller: _settlementAmountController,
-                              hintText: 'Amount'.toUpperCase(),
+                              hintText: 'AMOUNT',
                               keyboardType: TextInputType.number,
                             ),
                           ),
                           const SizedBox(height: 20),
                         ],
-
                         const SizedBox(height: 20),
                         // Done Button
                         Center(
                           child: CustomButton(
                             onPressed: _isLoading
-                                ? null // Disable button if loading
+                                ? null
                                 : () async {
                                     setState(() {
-                                      _isLoading = true; // Set loading state
+                                      _isLoading = true;
                                     });
 
-                                    // Show loading indicator
                                     showDialog(
                                       context: context,
                                       barrierDismissible: false,
@@ -913,9 +1016,9 @@ class AdminEditSectionState extends State<AdminEditSection>
 
                                     try {
                                       bool success = await saveAdminData();
-                                      Navigator.pop(context); // Dismiss loading
+                                      Navigator.pop(context);
                                       if (success) {
-                                        Navigator.pop(context); // pop the page
+                                        Navigator.pop(context);
                                         Navigator.pushReplacement(
                                             context,
                                             MaterialPageRoute(
@@ -931,7 +1034,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                                         );
                                       }
                                     } catch (error) {
-                                      Navigator.pop(context); // Dismiss loading
+                                      Navigator.pop(context);
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
                                         SnackBar(
@@ -942,8 +1045,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                                       );
                                     } finally {
                                       setState(() {
-                                        _isLoading =
-                                            false; // Reset loading state
+                                        _isLoading = false;
                                       });
                                     }
                                   },
@@ -958,12 +1060,51 @@ class AdminEditSectionState extends State<AdminEditSection>
                 ),
               ),
             ),
-          ),
+          )
         ],
       ),
     );
   }
 
   @override
-  bool get wantKeepAlive => true; // Ensure the state is kept alive
+  bool get wantKeepAlive => true;
+}
+
+// New widget to display the enlarged image
+class ImageViewerPage extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  const ImageViewerPage({Key? key, required this.imageUrl, required this.title})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Colors.blueAccent,
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image.network(
+            imageUrl,
+            errorBuilder: (context, error, stackTrace) => const Center(
+              child: Icon(Icons.error, color: Colors.red, size: 50),
+            ),
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  value: progress.expectedTotalBytes != null
+                      ? progress.cumulativeBytesLoaded /
+                          progress.expectedTotalBytes!
+                      : null,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 }

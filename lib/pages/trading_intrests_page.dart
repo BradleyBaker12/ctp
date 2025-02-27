@@ -1,5 +1,6 @@
 // lib/adminScreens/trading_interests_page.dart
 
+import 'package:ctp/components/custom_back_button.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -66,11 +67,11 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            children: [
-              Column(
+      body: Stack(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
                 children: [
                   Container(
                     width: double.infinity,
@@ -133,24 +134,30 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                                   _updateTradingInterest(context, 'both'),
                             ),
                             SizedBox(height: constraints.maxHeight * 0.03),
-                          ],                        ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ],
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: BlurryAppBar(
-                    // Adjust as needed
-                    ),
-              ),
-              if (_isLoading) const LoadingScreen(),
-            ],
-          );
-        },
+              );
+            },
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: BlurryAppBar(
+                // Adjust as needed
+                ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            child: CustomBackButton(),
+          ),
+          if (_isLoading) const LoadingScreen(),
+        ],
       ),
     );
   }

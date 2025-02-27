@@ -94,132 +94,143 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
     var blue = const Color(0xFF2F7FFF);
     var isPortrait = screenSize.height > screenSize.width;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GradientBackground(
-            child: Column(
-              children: [
-                const BlurryAppBar(),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: screenSize.width,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenSize.width * 0.04,
-                          vertical: screenSize.height * 0.02,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            SizedBox(height: screenSize.height * 0.02),
-                            Image.asset(
-                              'lib/assets/CTPLogo.png',
-                              height: screenSize.height * 0.2,
-                              width: screenSize.height * 0.2,
-                              fit: BoxFit.cover,
-                            ),
-                            SizedBox(height: screenSize.height * 0.03),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 64.0),
-                              child: const ProgressBar(progress: 0.80),
-                            ),
-                            SizedBox(height: screenSize.height * 0.06),
-                            Text(
-                              'PREFERRED BRANDS',
-                              style: GoogleFonts.montserrat(
-                                fontSize: screenSize.height * 0.022,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.of(context).pop();
+        return false;
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GradientBackground(
+              child: Column(
+                children: [
+                  const BlurryAppBar(),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: screenSize.width,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenSize.width * 0.04,
+                            vertical: screenSize.height * 0.02,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              SizedBox(height: screenSize.height * 0.02),
+                              Image.asset(
+                                'lib/assets/CTPLogo.png',
+                                height: screenSize.height * 0.2,
+                                width: screenSize.height * 0.2,
+                                fit: BoxFit.cover,
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(height: screenSize.height * 0.04),
-                            Expanded(
-                              child: GridView.builder(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: screenSize.width * 0.01),
-                                shrinkWrap: true,
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: isPortrait ? 3 : 5,
-                                  crossAxisSpacing: screenSize.width * 0.02,
-                                  mainAxisSpacing: screenSize.height * 0.01,
-                                  childAspectRatio:
-                                      isPortrait ? 1 : 1, // Square aspect ratio
+                              SizedBox(height: screenSize.height * 0.03),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 64.0),
+                                child: const ProgressBar(progress: 0.80),
+                              ),
+                              SizedBox(height: screenSize.height * 0.06),
+                              Text(
+                                'PREFERRED BRANDS',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: screenSize.height * 0.022,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
                                 ),
-                                itemCount: semiTruckBrands.length,
-                                itemBuilder: (BuildContext context, int index) {
-                                  final brand = semiTruckBrands[index]['name']!;
-                                  final path = semiTruckBrands[index]['path']!;
-                                  final isSelected =
-                                      selectedBrands.contains(brand);
-                                  return GestureDetector(
-                                    onTap: () => _toggleSelection(brand),
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(
-                                          vertical: screenSize.height * 0.01),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? blue.withOpacity(0.8)
-                                            : blue.withOpacity(0.3),
-                                        border: Border.all(color: blue),
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Expanded(
-                                            child: Image.asset(
-                                              path,
-                                              fit: BoxFit.contain,
-                                            ),
-                                          ),
-                                          SizedBox(
-                                              height: screenSize.height * 0.01),
-                                          Text(
-                                            brand,
-                                            textAlign: TextAlign.center,
-                                            style: GoogleFonts.montserrat(
-                                              fontSize:
-                                                  screenSize.height * 0.012,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
+                                textAlign: TextAlign.center,
                               ),
-                            ),
-                            CustomButton(
-                              text: 'CONTINUE',
-                              borderColor: blue,
-                              onPressed: () => _savePreferredBrands(context),
-                            ),
-                            SizedBox(height: screenSize.height * 0.02),
-                          ],
+                              SizedBox(height: screenSize.height * 0.04),
+                              Expanded(
+                                child: GridView.builder(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: screenSize.width * 0.01),
+                                  shrinkWrap: true,
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: isPortrait ? 3 : 5,
+                                    crossAxisSpacing: screenSize.width * 0.02,
+                                    mainAxisSpacing: screenSize.height * 0.01,
+                                    childAspectRatio: isPortrait
+                                        ? 1
+                                        : 1, // Square aspect ratio
+                                  ),
+                                  itemCount: semiTruckBrands.length,
+                                  itemBuilder:
+                                      (BuildContext context, int index) {
+                                    final brand =
+                                        semiTruckBrands[index]['name']!;
+                                    final path =
+                                        semiTruckBrands[index]['path']!;
+                                    final isSelected =
+                                        selectedBrands.contains(brand);
+                                    return GestureDetector(
+                                      onTap: () => _toggleSelection(brand),
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                            vertical: screenSize.height * 0.01),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? blue.withOpacity(0.8)
+                                              : blue.withOpacity(0.3),
+                                          border: Border.all(color: blue),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Expanded(
+                                              child: Image.asset(
+                                                path,
+                                                fit: BoxFit.contain,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                                height:
+                                                    screenSize.height * 0.01),
+                                            Text(
+                                              brand,
+                                              textAlign: TextAlign.center,
+                                              style: GoogleFonts.montserrat(
+                                                fontSize:
+                                                    screenSize.height * 0.012,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              CustomButton(
+                                text: 'CONTINUE',
+                                borderColor: blue,
+                                onPressed: () => _savePreferredBrands(context),
+                              ),
+                              SizedBox(height: screenSize.height * 0.02),
+                            ],
+                          ),
                         ),
-                      ),
-                      const Positioned(
-                        top: 40,
-                        left: 16,
-                        child: CustomBackButton(),
-                      ),
-                    ],
+                        const Positioned(
+                          top: 40,
+                          left: 16,
+                          child: CustomBackButton(),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          if (_isLoading) const LoadingScreen()
-        ],
+            if (_isLoading) const LoadingScreen()
+          ],
+        ),
       ),
     );
   }

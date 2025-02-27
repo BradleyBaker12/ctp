@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:ctp/components/custom_back_button.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -629,11 +630,12 @@ class _DealerRegPageState extends State<DealerRegPage> {
               ],
             ),
           ),
-          // const Positioned(
-          //   top: 120,
-          //   left: 16,
-          //   child: CustomBackButton(),
-          // ),
+          const Positioned(
+            top: 40,
+            left: 16,
+            // Replace the CustomBackButton with a back button that navigates correctly
+            child: _DealerBackButton(),
+          ),
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
@@ -1028,6 +1030,22 @@ class PDFViewerScreen extends StatelessWidget {
       body: PDFView(
         filePath: filePath,
       ),
+    );
+  }
+}
+
+/// New back button widget for DealerRegPage
+class _DealerBackButton extends StatelessWidget {
+  const _DealerBackButton({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        // Navigate to the intended previous page in the signup flow.
+        Navigator.pushReplacementNamed(context, '/preferedBrands');
+      },
     );
   }
 }

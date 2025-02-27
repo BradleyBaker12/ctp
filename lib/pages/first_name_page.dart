@@ -96,119 +96,122 @@ class _FirstNamePageState extends State<FirstNamePage> {
     var blue = const Color(0xFF2F7FFF);
     var orange = const Color(0xFFFF4E00);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GradientBackground(
-            child: Column(
-              children: [
-                const BlurryAppBar(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenSize.width * 0.05,
-                        vertical: screenSize.height * 0.02,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(height: screenSize.height * 0.02),
-                          Image.asset(
-                            'lib/assets/CTPLogo.png',
-                            height: screenSize.height * 0.2,
-                            fit: BoxFit.contain,
-                          ),
-                          SizedBox(height: screenSize.height * 0.1),
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: screenSize.width * 0.15),
-                            child: const ProgressBar(progress: 0.20),
-                          ),
-                          SizedBox(height: screenSize.height * 0.07),
-                          Text(
-                            'MY FIRST NAME IS',
-                            style: GoogleFonts.montserrat(
-                              fontSize: screenSize.width * 0.045,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GradientBackground(
+              child: Column(
+                children: [
+                  const BlurryAppBar(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenSize.width * 0.05,
+                          vertical: screenSize.height * 0.02,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(height: screenSize.height * 0.02),
+                            Image.asset(
+                              'lib/assets/CTPLogo.png',
+                              height: screenSize.height * 0.2,
+                              fit: BoxFit.contain,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: screenSize.height * 0.02),
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: screenSize.width * 0.15),
-                            child: TextField(
-                              controller: _firstNameController,
+                            SizedBox(height: screenSize.height * 0.1),
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: screenSize.width * 0.15),
+                              child: const ProgressBar(progress: 0.20),
+                            ),
+                            SizedBox(height: screenSize.height * 0.07),
+                            Text(
+                              'MY FIRST NAME IS',
+                              style: GoogleFonts.montserrat(
+                                fontSize: screenSize.width * 0.045,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
                               textAlign: TextAlign.center,
-                              cursorColor: orange,
-                              decoration: InputDecoration(
-                                hintText: '',
-                                hintStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
+                            ),
+                            SizedBox(height: screenSize.height * 0.02),
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: screenSize.width * 0.15),
+                              child: TextField(
+                                controller: _firstNameController,
+                                textAlign: TextAlign.center,
+                                cursorColor: orange,
+                                decoration: InputDecoration(
+                                  hintText: '',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.transparent,
+                                  enabledBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: blue),
+                                  ),
+                                  focusedBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: blue),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: screenSize.height * 0.02,
+                                    horizontal: screenSize.width * 0.04,
+                                  ),
                                 ),
-                                filled: true,
-                                fillColor: Colors.transparent,
-                                enabledBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(color: blue),
-                                ),
-                                focusedBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(color: blue),
-                                ),
-                                contentPadding: EdgeInsets.symmetric(
-                                  vertical: screenSize.height * 0.02,
-                                  horizontal: screenSize.width * 0.04,
+                                style: GoogleFonts.montserrat(
+                                  color: Colors.white,
+                                  fontSize: screenSize.width * 0.04,
                                 ),
                               ),
+                            ),
+                            SizedBox(height: screenSize.height * 0.05),
+                            Text(
+                              'This is the name that will appear to other users in the app',
                               style: GoogleFonts.montserrat(
-                                color: Colors.white,
-                                fontSize: screenSize.width * 0.04,
+                                fontSize: screenSize.width * 0.025,
+                                color: Colors.white.withOpacity(0.7),
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: screenSize.height * 0.03),
+                            TextButton(
+                              onPressed: () {
+                                // Handle name changes approval info
+                              },
+                              child: Text(
+                                'Name changes will have to be approved',
+                                style: GoogleFonts.montserrat(
+                                  color: Colors.white,
+                                  fontSize: screenSize.width * 0.03,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Colors.white,
+                                ),
                               ),
                             ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.05),
-                          Text(
-                            'This is the name that will appear to other users in the app',
-                            style: GoogleFonts.montserrat(
-                              fontSize: screenSize.width * 0.025,
-                              color: Colors.white.withOpacity(0.7),
-                              fontWeight: FontWeight.w600,
+                            SizedBox(height: screenSize.height * 0.07),
+                            CustomButton(
+                              text: 'CONTINUE',
+                              borderColor: blue,
+                              onPressed: _continue,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: screenSize.height * 0.03),
-                          TextButton(
-                            onPressed: () {
-                              // Handle name changes approval info
-                            },
-                            child: Text(
-                              'Name changes will have to be approved',
-                              style: GoogleFonts.montserrat(
-                                color: Colors.white,
-                                fontSize: screenSize.width * 0.03,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.07),
-                          CustomButton(
-                            text: 'CONTINUE',
-                            borderColor: blue,
-                            onPressed: _continue,
-                          ),
-                          SizedBox(height: screenSize.height * 0.04),
-                        ],
+                            SizedBox(height: screenSize.height * 0.04),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          if (_isLoading) const LoadingScreen()
-        ],
+            if (_isLoading) const LoadingScreen()
+          ],
+        ),
       ),
     );
   }

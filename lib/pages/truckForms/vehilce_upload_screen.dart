@@ -108,6 +108,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     '8X4',
   ];
 
+  // Add this field to your _VehicleUploadScreenState:
+  bool _useFrontCamera = true;
+
   late Map<String, List<String>> _makeModelOptions = {};
   List<String> _brandOptions = [];
   List<String> _variantOptions = [];
@@ -2059,71 +2062,115 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       return;
     }
 
-    try {
+    // Helper to initialize the camera stream with the correct facingMode.
+    Future<html.VideoElement> initializeCamera() async {
       final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-
-      final videoElement = html.VideoElement()
+      final constraints = {
+        'video': {
+          'facingMode': _useFrontCamera ? 'user' : 'environment',
+        }
+      };
+      final mediaStream = await mediaDevices?.getUserMedia(constraints);
+      final videoElem = html.VideoElement()
         ..autoplay = true
         ..srcObject = mediaStream;
-
-      await videoElement.onLoadedMetadata.first;
-
-      // platformViewRegistry.registerViewFactory(
-      //   'webcamVideo',
-      //   (int viewId) => videoElement,
-      // );
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: isWebPlatform
-                  ? HtmlElementView(viewType: 'webcamVideo')
-                  : const Center(child: Text('Camera not available')),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  // final canvas = html.CanvasElement(
-                  //   width: videoElement.videoWidth,
-                  //   height: videoElement.videoHeight,
-                  // );
-                  // canvas.context2D.drawImage(videoElement, 0, 0);
-                  // final dataUrl = canvas.toDataUrl('image/png');
-                  // final base64Str = dataUrl.split(',').last;
-                  // final imageBytes = base64.decode(base64Str);
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      debugPrint('Error in web photo capture: $e');
-      callback(null, '');
+      await videoElem.onLoadedMetadata.first;
+      return videoElem;
     }
+
+    // Generates a unique view factory ID based on the current camera mode.
+    String generateViewFactoryId() =>
+        'webcamVideo_${_useFrontCamera ? "user" : "env"}_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Initialize camera stream.
+    String viewFactoryId = generateViewFactoryId();
+    html.VideoElement videoElement = await initializeCamera();
+    // platformViewRegistry.registerViewFactory(
+    //     viewFactoryId, (int viewId) => videoElement);
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Take Photo'),
+              content: SizedBox(
+                width: 300,
+                height: 350,
+                child: Column(
+                  children: [
+                    // Assign a unique key so that when viewFactoryId changes, the widget rebuilds immediately.
+                    Expanded(
+                      child: HtmlElementView(
+                        key: ValueKey(viewFactoryId),
+                        viewType: viewFactoryId,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () async {
+                        // Toggle the camera mode.
+                        // setState(() {
+                        //   _useFrontCamera = !_useFrontCamera;
+                        // });
+                        // // Stop the current stream.
+                        // (videoElement.srcObject as html.MediaStream)
+                        //     .getTracks()
+                        //     .forEach((track) => track.stop());
+                        // // Reinitialize the camera stream with the new facing mode.
+                        // viewFactoryId = generateViewFactoryId();
+                        // videoElement = await initializeCamera();
+                        // platformViewRegistry.registerViewFactory(
+                        //     viewFactoryId, (int viewId) => videoElement);
+                        // // Call setState to update the HtmlElementView immediately.
+                        // setState(() {});
+                      },
+                      child: Text(_useFrontCamera
+                          ? 'Switch to Back Camera'
+                          : 'Switch to Front Camera'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    // Capture the current frame.
+                    // final canvas = html.CanvasElement(
+                    //   width: videoElement.videoWidth,
+                    //   height: videoElement.videoHeight,
+                    // );
+                    // canvas.context2D.drawImage(videoElement, 0, 0);
+                    // final dataUrl = canvas.toDataUrl('image/png');
+                    // final base64Str = dataUrl.split(',').last;
+                    // final imageBytes = base64.decode(base64Str);
+                    // // Stop the stream.
+                    // (videoElement.srcObject as html.MediaStream)
+                    //     .getTracks()
+                    //     .forEach((track) => track.stop());
+                    // Navigator.of(dialogContext).pop();
+                    // callback(imageBytes, 'captured.png');
+                  },
+                  child: const Text('Capture'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // Stop the stream and cancel.
+                    // (videoElement.srcObject as html.MediaStream)
+                    //     .getTracks()
+                    //     .forEach((track) => track.stop());
+                    // Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   bool get isWebPlatform => kIsWeb;

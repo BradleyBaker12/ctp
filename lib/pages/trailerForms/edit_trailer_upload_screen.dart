@@ -20,7 +20,6 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:universal_html/html.dart' as html;
 import '../truckForms/custom_text_field.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-// Import dart:html for web camera capture (only on web).
 // import 'dart:ui_web';
 import 'package:ctp/providers/trailer_form_provider.dart';
 

@@ -1,3 +1,4 @@
+import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
@@ -204,6 +205,11 @@ class _OTPScreenState extends State<OTPScreen> {
                 ),
               ],
             ),
+          ),
+          const Positioned(
+            top: 40,
+            left: 16,
+            child: CustomBackButton(),
           ),
           if (_isLoading) const LoadingScreen()
         ],

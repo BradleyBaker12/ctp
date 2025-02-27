@@ -77,155 +77,165 @@ class _AddProfilePhotoPageState extends State<AddProfilePhotoPage> {
     var screenSize = MediaQuery.of(context).size;
     var blue = const Color(0xFF2F7FFF);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GradientBackground(
-            child: Column(
-              children: [
-                const BlurryAppBar(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: screenSize.width,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8.0, vertical: 8.0),
-                          child: Column(
-                            children: [
-                              SizedBox(height: screenSize.height * 0.02),
-                              Image.asset(
-                                'lib/assets/CTPLogo.png',
-                                height: screenSize.height * 0.2,
-                                width: screenSize.height * 0.2,
-                                fit: BoxFit.cover,
-                              ),
-                              SizedBox(height: screenSize.height * 0.09),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 64.0),
-                                child: const ProgressBar(progress: 0.9),
-                              ),
-                              SizedBox(height: screenSize.height * 0.045),
-                              Text(
-                                'ADD A PROFILE PHOTO',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: screenSize.height * 0.025,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
+    return PopScope(
+      onPopInvokedWithResult: (canPop, result) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DealerRegPage()),
+        );
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GradientBackground(
+              child: Column(
+                children: [
+                  const BlurryAppBar(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: screenSize.width,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8.0, vertical: 8.0),
+                            child: Column(
+                              children: [
+                                SizedBox(height: screenSize.height * 0.02),
+                                Image.asset(
+                                  'lib/assets/CTPLogo.png',
+                                  height: screenSize.height * 0.2,
+                                  width: screenSize.height * 0.2,
+                                  fit: BoxFit.cover,
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(height: screenSize.height * 0.09),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Column(
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                              color: blue, width: 2.0),
-                                          color: blue.withOpacity(0.2),
-                                          borderRadius:
-                                              BorderRadius.circular(8.0),
-                                        ),
-                                        child: IconButton(
-                                          icon: Padding(
-                                            padding: EdgeInsets.all(
-                                                screenSize.height * 0.008),
-                                            child: Icon(Icons.camera_alt,
-                                                size: screenSize.height * 0.05,
-                                                color: Colors.white),
-                                          ),
-                                          onPressed: () =>
-                                              _pickImage(ImageSource.camera),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                          height: screenSize.height * 0.02),
-                                      Text(
-                                        'CAMERA',
-                                        style: GoogleFonts.montserrat(
-                                          fontSize: 24,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(width: screenSize.width * 0.15),
-                                  Column(
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                              color: blue, width: 2.0),
-                                          color: blue.withOpacity(0.2),
-                                          borderRadius:
-                                              BorderRadius.circular(8.0),
-                                        ),
-                                        child: IconButton(
-                                          icon: Padding(
-                                            padding: EdgeInsets.all(
-                                                screenSize.height * 0.008),
-                                            child: Icon(Icons.photo_library,
-                                                size: screenSize.height * 0.05,
-                                                color: Colors.white),
-                                          ),
-                                          onPressed: () =>
-                                              _pickImage(ImageSource.gallery),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                          height: screenSize.height * 0.02),
-                                      Text(
-                                        'GALLERY',
-                                        style: GoogleFonts.montserrat(
-                                          fontSize: 24,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: screenSize.height * 0.04),
-                              TextButton(
-                                onPressed: _useDefaultImage,
-                                child: Text(
-                                  'UPLOAD LATER',
+                                SizedBox(height: screenSize.height * 0.09),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 64.0),
+                                  child: const ProgressBar(progress: 0.9),
+                                ),
+                                SizedBox(height: screenSize.height * 0.045),
+                                Text(
+                                  'ADD A PROFILE PHOTO',
                                   style: GoogleFonts.montserrat(
-                                      fontSize: screenSize.height * 0.015,
-                                      color: Colors.white,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: Colors.white,
-                                      letterSpacing: 2.0,
-                                      fontWeight: FontWeight.w600),
+                                    fontSize: screenSize.height * 0.025,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                              SizedBox(height: screenSize.height * 0.04),
-                              CustomButton(
-                                text: 'CONTINUE',
-                                borderColor: blue,
-                                onPressed: () {}, // No action needed
-                              ),
-                            ],
+                                SizedBox(height: screenSize.height * 0.09),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                                color: blue, width: 2.0),
+                                            color: blue.withOpacity(0.2),
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
+                                          ),
+                                          child: IconButton(
+                                            icon: Padding(
+                                              padding: EdgeInsets.all(
+                                                  screenSize.height * 0.008),
+                                              child: Icon(Icons.camera_alt,
+                                                  size:
+                                                      screenSize.height * 0.05,
+                                                  color: Colors.white),
+                                            ),
+                                            onPressed: () =>
+                                                _pickImage(ImageSource.camera),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                            height: screenSize.height * 0.02),
+                                        Text(
+                                          'CAMERA',
+                                          style: GoogleFonts.montserrat(
+                                            fontSize: 24,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(width: screenSize.width * 0.15),
+                                    Column(
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                                color: blue, width: 2.0),
+                                            color: blue.withOpacity(0.2),
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
+                                          ),
+                                          child: IconButton(
+                                            icon: Padding(
+                                              padding: EdgeInsets.all(
+                                                  screenSize.height * 0.008),
+                                              child: Icon(Icons.photo_library,
+                                                  size:
+                                                      screenSize.height * 0.05,
+                                                  color: Colors.white),
+                                            ),
+                                            onPressed: () =>
+                                                _pickImage(ImageSource.gallery),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                            height: screenSize.height * 0.02),
+                                        Text(
+                                          'GALLERY',
+                                          style: GoogleFonts.montserrat(
+                                            fontSize: 24,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: screenSize.height * 0.04),
+                                TextButton(
+                                  onPressed: _useDefaultImage,
+                                  child: Text(
+                                    'UPLOAD LATER',
+                                    style: GoogleFonts.montserrat(
+                                        fontSize: screenSize.height * 0.015,
+                                        color: Colors.white,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: Colors.white,
+                                        letterSpacing: 2.0,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                SizedBox(height: screenSize.height * 0.04),
+                                CustomButton(
+                                  text: 'CONTINUE',
+                                  borderColor: blue,
+                                  onPressed: () {}, // No action needed
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const Positioned(
-                          top: 40,
-                          left: 16,
-                          child: CustomBackButton(),
-                        ),
-                      ],
+                          const Positioned(
+                            top: 40,
+                            left: 16,
+                            child: CustomBackButton(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
