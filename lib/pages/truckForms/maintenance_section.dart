@@ -1,17 +1,12 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:convert';
-
-import 'dart:ui' as ui;
-import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
+import 'package:ctp/utils/camera_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:universal_html/html.dart' as html;
 
 class MaintenanceSection extends StatefulWidget {
   final String vehicleId;
@@ -338,74 +333,23 @@ class MaintenanceSectionState extends State<MaintenanceSection>
   // NEW: Function to capture a photo from the web camera for maintenance section
   Future<void> _takePhotoFromWebForMaintenance(int docNumber) async {
     if (!kIsWeb) return;
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) return;
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      platformViewRegistry.registerViewFactory(
-        'maintenanceWebcamVideo_$docNumber',
-        (int viewId) => videoElement,
-      );
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(
-                  viewType: 'maintenanceWebcamVideo_$docNumber'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  setState(() {
-                    if (docNumber == 1) {
-                      _maintenanceDocFile = imageBytes;
-                      _maintenanceDocFileName = "captured.png";
-                      widget.onMaintenanceFileSelected(imageBytes);
-                    } else if (docNumber == 2) {
-                      _warrantyDocFile = imageBytes;
-                      _warrantyDocFileName = "captured.png";
-                      widget.onWarrantyFileSelected(imageBytes);
-                    }
-                  });
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      print('Error capturing photo: $e');
+    final imageBytes = await capturePhoto(context);
+    if (imageBytes != null) {
+      setState(() {
+        if (docNumber == 1) {
+          _maintenanceDocFile = imageBytes;
+          _maintenanceDocFileName = "captured.png";
+          widget.onMaintenanceFileSelected(imageBytes);
+        } else if (docNumber == 2) {
+          _warrantyDocFile = imageBytes;
+          _warrantyDocFileName = "captured.png";
+          widget.onWarrantyFileSelected(imageBytes);
+        }
+      });
     }
   }
 
-  // NEW: Function to show a dialog letting the user choose between taking a photo or picking a file for maintenance section
+// Updated method to show file picker options for maintenance uploads:
   void _showMaintenanceFilePickerOptions(int docNumber) {
     showDialog(
       context: context,

@@ -10,13 +10,13 @@ class TrailerForm extends StatefulWidget {
   final Future<void> Function(Trailer trailer) onSubmit;
 
   const TrailerForm({
-    Key? key,
+    super.key,
     this.initialTrailer,
     required this.isEdit,
     required this.isAdminUpload,
     this.transporterId,
     required this.onSubmit,
-  }) : super(key: key);
+  });
 
   @override
   _TrailerFormState createState() => _TrailerFormState();
@@ -171,11 +171,12 @@ class _TrailerFormState extends State<TrailerForm> {
             value: _selectedTrailerType,
             decoration: const InputDecoration(labelText: 'Trailer Type'),
             items: const [
-              DropdownMenuItem(child: Text('Superlink'), value: 'Superlink'),
-              DropdownMenuItem(child: Text('Tri-Axle'), value: 'Tri-Axle'),
+              DropdownMenuItem(value: 'Superlink', child: Text('Superlink')),
+              DropdownMenuItem(value: 'Tri-Axle', child: Text('Tri-Axle')),
               DropdownMenuItem(
-                  child: Text('Double Axle'), value: 'Double Axle'),
-              DropdownMenuItem(child: Text('Other'), value: 'Other'),
+                  value: 'Double Axle',
+                  child: Text('Double Axle')),
+              DropdownMenuItem(value: 'Other', child: Text('Other')),
             ],
             onChanged: (value) => setState(() => _selectedTrailerType = value),
             validator: (val) =>

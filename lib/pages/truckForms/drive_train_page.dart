@@ -1,8 +1,5 @@
 // lib/pages/truckForms/drive_train_page.dart
-
-import 'dart:convert';
 import 'dart:io';
-import 'dart:ui_web';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,9 +7,11 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-import 'dart:typed_data';
-import 'dart:ui' as ui; // Added for platformViewRegistry
-import 'package:universal_html/html.dart' as html; // For web camera access
+// Added for platformViewRegistry
+// For web camera access
+
+// Import the camera helper for cross-platform photo capture
+import 'package:ctp/utils/camera_helper.dart';
 
 class ImageData {
   File? file;
@@ -180,7 +179,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
-
             // Engine Photos (Engine Left/Right but not leaks)
             GridView.count(
               shrinkWrap: true,
@@ -195,7 +193,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
                   .toList(),
             ),
             const SizedBox(height: 16.0),
-
             // Engine Oil Leak Section
             _buildYesNoSection(
               title: 'Are there any oil leaks in the engine?',
@@ -204,7 +201,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
               imageKey: 'Engine Oil Leak',
             ),
             const SizedBox(height: 16.0),
-
             // Engine Water Leak Section
             _buildYesNoSection(
               title: 'Are there any water leaks in the engine?',
@@ -213,7 +209,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
               imageKey: 'Engine Water Leak',
             ),
             const SizedBox(height: 16.0),
-
             // Blowby Condition Section (No Image)
             _buildYesNoRadioOnlySection(
               title: 'Is there blowby/engine breathing?',
@@ -235,7 +230,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
-
             // Gearbox Photos (but not leaks)
             GridView.count(
               shrinkWrap: true,
@@ -250,7 +244,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
                   .toList(),
             ),
             const SizedBox(height: 16.0),
-
             // Gearbox Oil Leak Section
             _buildYesNoSection(
               title: 'Are there any oil leaks in the gearbox?',
@@ -259,7 +252,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
               imageKey: 'Gearbox Oil Leak',
             ),
             const SizedBox(height: 16.0),
-
             // Retarder Condition Section (No Image)
             _buildYesNoRadioOnlySection(
               title: 'Does the gearbox come with a retarder?',
@@ -281,7 +273,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
-
             // Diffs Photos
             GridView.count(
               shrinkWrap: true,
@@ -338,14 +329,12 @@ class DriveTrainPageState extends State<DriveTrainPage>
                     borderRadius: BorderRadius.circular(8.0),
                     child: _getImageWidget(_selectedImages[title]!),
                   ),
-
                   // 'X' button to remove the image
                   Positioned(
                     top: 0,
                     right: 0,
                     child: GestureDetector(
                       onTap: () {
-                        // Stop the parent onTap from also firing
                         setState(() {
                           _selectedImages[title] = ImageData();
                         });
@@ -399,74 +388,7 @@ class DriveTrainPageState extends State<DriveTrainPage>
     return Container(); // Fallback empty container
   }
 
-  // Add web camera helper method:
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      String viewID =
-          'webcam_drivetrain_${DateTime.now().millisecondsSinceEpoch}';
-      platformViewRegistry.registerViewFactory(
-          viewID, (int viewId) => videoElement);
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(viewType: viewID),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(null, '');
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      callback(null, '');
-    }
-  }
-
-  // Update the image source dialog:
+  // Updated image source dialog that uses the external camera helper:
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
@@ -476,48 +398,17 @@ class DriveTrainPageState extends State<DriveTrainPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Updated Camera option:
+              // Camera option using the external helper:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  if (kIsWeb) {
-                    bool cameraAvailable = false;
-                    try {
-                      cameraAvailable =
-                          html.window.navigator.mediaDevices != null;
-                    } catch (e) {
-                      cameraAvailable = false;
-                    }
-                    if (cameraAvailable) {
-                      await _takePhotoFromWeb((file, fileName) {
-                        if (file != null) {
-                          setState(() {
-                            // Assuming _selectedImages holds Uint8List for drive train images.
-                            _selectedImages[title] = ImageData(webImage: file);
-                          });
-                        }
-                      });
-                    } else {
-                      final pickedFile =
-                          await _picker.pickImage(source: ImageSource.camera);
-                      if (pickedFile != null) {
-                        final bytes = await pickedFile.readAsBytes();
-                        setState(() {
-                          _selectedImages[title] = ImageData(webImage: bytes);
-                        });
-                      }
-                    }
-                  } else {
-                    final pickedFile =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (pickedFile != null) {
-                      final bytes = await pickedFile.readAsBytes();
-                      setState(() {
-                        _selectedImages[title] = ImageData(webImage: bytes);
-                      });
-                    }
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[title] = ImageData(webImage: imageBytes);
+                    });
                   }
                   widget.onProgressUpdate();
                 },
@@ -546,7 +437,6 @@ class DriveTrainPageState extends State<DriveTrainPage>
     );
   }
 
-  // Method to upload images (if required)
   Future<bool> saveData() async {
     // You can implement save logic here if needed
     return true;

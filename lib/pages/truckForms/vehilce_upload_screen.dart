@@ -21,8 +21,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
 import 'dart:io' as io;
-// Remove web-specific imports from here since they are encapsulated in the helper.
-// import 'dart:ui_web';
 // import 'package:universal_html/html.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
@@ -111,7 +109,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   ];
 
   // Add this field to your _VehicleUploadScreenState:
-  bool _useFrontCamera = false;
+  final bool _useFrontCamera = false;
 
   late Map<String, List<String>> _makeModelOptions = {};
   List<String> _brandOptions = [];
@@ -403,44 +401,74 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   }
 
   Future<void> _pickNatisRc1File() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: [
-          'pdf',
-          'jpg',
-          'jpeg',
-          'png',
-          'doc',
-          'docx',
-          'xls',
-          'xlsx'
-        ],
-      );
-      if (result != null) {
-        Uint8List? bytes;
-        if (result.files.single.bytes != null) {
-          bytes = result.files.single.bytes;
-        } else if (result.files.single.path != null) {
-          if (kIsWeb) {
-            bytes = result.files.single.bytes;
-          } else {
-            final file = io.File(result.files.single.path!);
-            bytes = await file.readAsBytes();
-          }
-        }
-        final fileName = result.files.single.name;
-        setState(() {
-          _natisRc1File = bytes;
-          _natisRc1FileName = fileName;
-        });
-        debugPrint("Picked NATIS/RC1 file: $_natisRc1FileName");
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking file: $e')),
-      );
-    }
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Choose Source for NATIS/RC1 Document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _natisRc1File = imageBytes;
+                      _natisRc1FileName = "captured_natisRc1.png";
+                    });
+                    debugPrint("Captured NATIS/RC1 image from camera.");
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: [
+                      'pdf',
+                      'jpg',
+                      'jpeg',
+                      'png',
+                      'doc',
+                      'docx',
+                      'xls',
+                      'xlsx'
+                    ],
+                  );
+                  if (result != null) {
+                    Uint8List? bytes;
+                    if (result.files.single.bytes != null) {
+                      bytes = result.files.single.bytes;
+                    } else if (result.files.single.path != null) {
+                      if (kIsWeb) {
+                        bytes = result.files.single.bytes;
+                      } else {
+                        final file = io.File(result.files.single.path!);
+                        bytes = await file.readAsBytes();
+                      }
+                    }
+                    final fileName = result.files.single.name;
+                    setState(() {
+                      _natisRc1File = bytes;
+                      _natisRc1FileName = fileName;
+                    });
+                    debugPrint("Picked NATIS/RC1 file from gallery: $fileName");
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   IconData _getFileIcon(String extension) {

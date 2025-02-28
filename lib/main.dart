@@ -292,16 +292,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const AccountStatusPage();
     }
 
-    // Show a loading indicator until the role is available
-    if (userProvider.getUserRole == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     // Redirect based on user role
-    if (userProvider.getUserRole!.toLowerCase() == 'admin' ||
-        userProvider.getUserRole!.toLowerCase() == 'sales rep') {
+    if (userProvider.getUserRole.toLowerCase() == 'admin' ||
+        userProvider.getUserRole.toLowerCase() == 'sales rep') {
       return const AdminHomePage();
     } else {
       return const HomePage();

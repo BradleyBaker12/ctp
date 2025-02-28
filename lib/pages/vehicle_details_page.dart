@@ -1505,6 +1505,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   // Add this new method before the build method:
+  // Builds the entire truck conditions block that mimics the VehicleDetailsPage design.
   Widget _buildTruckConditionsSection(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isLargeScreen = size.width > 600;
@@ -1925,26 +1926,37 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final String userRole = userProvider.getUserRole?.toLowerCase() ?? '';
+    final String userRole = userProvider.getUserRole.toLowerCase() ?? '';
     // ...existing user role definitions...
 
     final size = MediaQuery.of(context).size;
     final bool isTrailer = (vehicle.vehicleType.toLowerCase() == 'trailer');
     const bool isWeb = kIsWeb;
 
-    List<NavigationItem> navigationItems = userProvider.getUserRole == 'dealer'
-        ? [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
-            NavigationItem(title: 'Wishlist', route: '/wishlist'),
-            NavigationItem(title: 'Pending Offers', route: '/offers'),
-          ]
-        : [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-            NavigationItem(title: 'Your Offers', route: '/offers'),
-            NavigationItem(title: 'In-Progress', route: '/in-progress'),
-          ];
+    List<NavigationItem> navigationItems;
+    if (userProvider.getUserRole == 'dealer') {
+      navigationItems = [
+        NavigationItem(title: 'Home', route: '/home'),
+        NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+        NavigationItem(title: 'Wishlist', route: '/wishlist'),
+        NavigationItem(title: 'Pending Offers', route: '/offers'),
+      ];
+    } else if (userProvider.getUserRole == 'admin' ||
+        userProvider.getUserRole == 'sales representative') {
+      navigationItems = [
+        NavigationItem(title: 'Users', route: '/adminUsers'),
+        NavigationItem(title: 'Offers', route: '/adminOffers'),
+        NavigationItem(title: 'Complaints', route: '/adminComplaints'),
+        NavigationItem(title: 'Vehicles', route: '/adminVehicles'),
+      ];
+    } else {
+      navigationItems = [
+        NavigationItem(title: 'Home', route: '/home'),
+        NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+        NavigationItem(title: 'Your Offers', route: '/offers'),
+        NavigationItem(title: 'In-Progress', route: '/in-progress'),
+      ];
+    }
 
     return Scaffold(
       key: _scaffoldKey,
@@ -1968,37 +1980,62 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           _scaffoldKey.currentState?.openDrawer(),
                     ),
             )
-          : AppBar(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              // Replace the arrow with a hamburger menu:
-              leading: IconButton(
-                icon:
-                    const Icon(Icons.menu, color: Color(0xFFFF4E00), size: 24),
-                onPressed: () => _showNavigationDrawer(navigationItems),
-              ),
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${vehicle.brands.join(', ')} '
-                      '${vehicle.makeModel.toUpperCase()} '
-                      '${vehicle.year}',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2F7FFF),
+          : (userRole == 'admin' || userRole == 'sales representative')
+              ? AppBar(
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  title: Row(
+                    children: [
+                      // Admin-specific title or widgets
+                      Expanded(
+                        child: Text(
+                          '${vehicle.brands.join(', ')} ${vehicle.makeModel.toUpperCase()} ${vehicle.year}',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF2F7FFF),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
+                      // You might add admin-specific actions here
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.verified,
-                      color: Color(0xFFFF4E00), size: 24),
-                ],
-              ),
-            ),
+                  leading: IconButton(
+                    icon: const Icon(Icons.menu,
+                        color: Color(0xFFFF4E00), size: 24),
+                    onPressed: () => _showNavigationDrawer(navigationItems),
+                  ),
+                )
+              : AppBar(
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.menu,
+                        color: Color(0xFFFF4E00), size: 24),
+                    onPressed: () => _showNavigationDrawer(navigationItems),
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${vehicle.brands.join(', ')} ${vehicle.makeModel.toUpperCase()} ${vehicle.year}',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF2F7FFF),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.verified,
+                          color: Color(0xFFFF4E00), size: 24),
+                    ],
+                  ),
+                ),
       // Use a drawer style identical to home_page.
       drawer: (_isCompactNavigation(context) && isWeb)
           ? Drawer(
@@ -2068,8 +2105,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                             selectedTileColor: Colors.black12,
                             onTap: () {
                               Navigator.pop(context);
-                              if (!isActive)
+                              if (!isActive) {
                                 Navigator.pushNamed(context, item.route);
+                              }
                             },
                           );
                         }).toList(),
@@ -3281,11 +3319,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // You can add your logo here (e.g., using Image.network)
-                          const Text(
-                            'LOGO',
-                            style: TextStyle(color: Colors.white, fontSize: 20),
-                          ),
                           IconButton(
                             icon: const Icon(Icons.close, color: Colors.white),
                             onPressed: () => Navigator.pop(context),

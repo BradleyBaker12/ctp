@@ -1,8 +1,6 @@
 // lib/pages/truckForms/external_cab_page.dart
 
-import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -15,10 +13,8 @@ import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart'; // Ensure this import path is correct
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:ui' as ui;
 
-import 'package:universal_html/html.dart'
-    as html; // Added for platformViewRegistry
+// Added for platformViewRegistry
 import 'package:ctp/utils/camera_helper.dart'; // Added camera helper import
 
 /// Class to handle both local files and network URLs for images

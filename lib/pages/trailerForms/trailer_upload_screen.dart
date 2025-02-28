@@ -1,4 +1,5 @@
 import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/utils/camera_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +21,6 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:universal_html/html.dart' as html;
 import '../truckForms/custom_text_field.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-import 'dart:ui_web';
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -322,83 +322,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Web Photo Capture
-  // ---------------------------------------------------------------------------
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-
-      await videoElement.onLoadedMetadata.first;
-
-      // platformViewRegistry.registerViewFactory(
-      //   'webcamVideo',
-      //   (int viewId) => videoElement,
-      // );
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: isWebPlatform
-                  ? HtmlElementView(viewType: 'webcamVideo')
-                  : const Center(child: Text('Camera not available')),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      debugPrint('Error in web photo capture: $e');
-      callback(null, '');
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // Helper: Pick Image or File
   // ---------------------------------------------------------------------------
   void _pickImageOrFile({
@@ -430,7 +353,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                         title: const Text('Take Photo'),
                         onTap: () async {
                           Navigator.of(ctx).pop();
-                          await _takePhotoFromWeb(callback);
+                          // Use the camera helper method instead of inline code
+                          final imageBytes = await capturePhoto(context);
+                          if (imageBytes != null) {
+                            callback(imageBytes, 'captured.png');
+                          }
                         },
                       ),
                     ListTile(

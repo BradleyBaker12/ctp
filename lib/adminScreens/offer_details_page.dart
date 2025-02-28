@@ -680,7 +680,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e, stackTrace) {
+    } catch (e) {
       // debugText('Exception in $action: $e');
       // debugText('Stack trace: $stackTrace');
       ScaffoldMessenger.of(context).showSnackBar(

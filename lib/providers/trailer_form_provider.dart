@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'dart:typed_data';
 
 class TrailerFormProvider with ChangeNotifier {
   // Trailer common fields

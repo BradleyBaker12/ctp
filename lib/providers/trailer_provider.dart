@@ -16,7 +16,7 @@ class TrailerProvider extends ChangeNotifier {
           .where('vehicleType', isEqualTo: 'trailer')
           .get();
       _trailers = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         debugPrint('Parsing trailer doc ${doc.id}: $data');
         return Trailer.fromFirestore(doc.id, data);
       }).toList();

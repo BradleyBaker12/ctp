@@ -6,7 +6,6 @@ import 'package:ctp/adminScreens/user_tabs.dart';
 import 'package:ctp/adminScreens/vehicle_tab.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/adminScreens/complaints_tab.dart';
 import 'package:ctp/adminScreens/offers_tab.dart';
@@ -17,7 +16,6 @@ import 'package:google_fonts/google_fonts.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 
 // Import the ProfilePage for navigation
-import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/providers/complaints_provider.dart'; // Note the plural form
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/components/admin_web_navigation_bar.dart';

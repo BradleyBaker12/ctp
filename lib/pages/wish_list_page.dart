@@ -1018,23 +1018,23 @@ class _WishlistPageState extends State<WishlistPage> {
             style: _customFont(16, FontWeight.normal, Colors.white),
           ),
           const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Text(
-              "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the database",
-              style: _customFont(16, FontWeight.normal, Colors.white),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _clearLikedAndDislikedVehicles,
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(
-              'Clear Liked & Disliked Vehicles',
-              style: _customFont(14, FontWeight.bold, Colors.white),
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          //   child: Text(
+          //     "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the database",
+          //     style: _customFont(16, FontWeight.normal, Colors.white),
+          //     textAlign: TextAlign.center,
+          //   ),
+          // ),
+          // const SizedBox(height: 16),
+          // ElevatedButton(
+          //   onPressed: _clearLikedAndDislikedVehicles,
+          //   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          //   child: Text(
+          //     'Clear Liked & Disliked Vehicles',
+          //     style: _customFont(14, FontWeight.bold, Colors.white),
+          //   ),
+          // ),
         ],
       ),
     );

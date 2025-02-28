@@ -1036,7 +1036,7 @@ class PDFViewerScreen extends StatelessWidget {
 
 /// New back button widget for DealerRegPage
 class _DealerBackButton extends StatelessWidget {
-  const _DealerBackButton({Key? key}) : super(key: key);
+  const _DealerBackButton({super.key});
 
   @override
   Widget build(BuildContext context) {

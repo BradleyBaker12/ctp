@@ -1,9 +1,8 @@
 import 'dart:typed_data';
 import 'dart:convert';
-import 'dart:html' as html;
-import 'dart:ui' as ui;
 import 'dart:ui_web';
 import 'package:flutter/material.dart';
+import 'package:universal_html/html.dart' as html;
 
 Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
   // Default to back (environment) camera.

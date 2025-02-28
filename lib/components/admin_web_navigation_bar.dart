@@ -195,9 +195,9 @@ class AdminWebNavigationBar extends StatelessWidget {
         onTap: () {
           // use the callback if provided
           if (onTabSelected != null) {
-            if (title == 'Users')
+            if (title == 'Users') {
               onTabSelected!(0);
-            else if (title == 'Offers')
+            } else if (title == 'Offers')
               onTabSelected!(1);
             else if (title == 'Complaints')
               onTabSelected!(2);

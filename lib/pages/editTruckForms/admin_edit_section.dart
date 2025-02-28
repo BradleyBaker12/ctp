@@ -29,7 +29,7 @@ class AdminEditSection extends StatefulWidget {
   final String? settlementLetterUrl;
 
   const AdminEditSection({
-    Key? key,
+    super.key,
     required this.vehicle,
     required this.isUploading,
     this.isEditing = false,
@@ -41,7 +41,7 @@ class AdminEditSection extends StatefulWidget {
     this.natisRc1Url,
     this.licenseDiskUrl,
     this.settlementLetterUrl,
-  }) : super(key: key);
+  });
 
   @override
   AdminEditSectionState createState() => AdminEditSectionState();
@@ -685,60 +685,6 @@ class AdminEditSectionState extends State<AdminEditSection>
   Widget build(BuildContext context) {
     super.build(context); // For AutomaticKeepAliveClientMixin
     return Scaffold(
-      appBar: !kIsWeb
-          ? AppBar(
-              backgroundColor: Colors.blueAccent,
-              leading: Container(
-                margin: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 30,
-                    minHeight: 30,
-                  ),
-                  icon: const Text(
-                    'BACK',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    widget.vehicle.referenceNumber ?? 'REF',
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    widget.vehicle.makeModel.toString().toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                  ),
-                ],
-              ),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: CircleAvatar(
-                    radius: 24,
-                    backgroundImage: widget.vehicle.mainImageUrl != null
-                        ? NetworkImage(widget.vehicle.mainImageUrl!)
-                        : const AssetImage('assets/truck_image.png')
-                            as ImageProvider,
-                  ),
-                ),
-              ],
-            )
-          : null,
       body: Column(
         children: [
           if (kIsWeb)
@@ -1123,8 +1069,7 @@ class AdminEditSectionState extends State<AdminEditSection>
 class ImageViewerPage extends StatelessWidget {
   final String imageUrl;
   final String title;
-  const ImageViewerPage({Key? key, required this.imageUrl, required this.title})
-      : super(key: key);
+  const ImageViewerPage({super.key, required this.imageUrl, required this.title});
 
   @override
   Widget build(BuildContext context) {

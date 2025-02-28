@@ -1,5 +1,3 @@
-// maintenance_warrenty_screen.dart
-
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
@@ -13,6 +11,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb; // Add this import
 import 'package:ctp/components/truck_info_web_nav.dart'; // Add this import
+
+// Import the external camera helper for cross-platform photo capture
 
 class MaintenanceWarrantyScreen extends StatefulWidget {
   final String vehicleId;
@@ -325,12 +325,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
         'maintenance': maintenanceData,
       });
 
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   const SnackBar(
-      //     content: Text('Maintenance & Warranty data saved successfully'),
-      //   ),
-      // );
-
       return true; // Indicate success
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -584,7 +578,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final useWebLayout = isWeb && screenWidth > 600;
 
-    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () {
         Navigator.pushReplacement(
@@ -604,7 +597,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                 child: Column(
                   children: [
                     if (useWebLayout)
-                      // Web navigation bar
                       TruckInfoWebNavBar(
                         onHomePressed: () => Navigator.pop(context),
                         onBasicInfoPressed: () =>
@@ -655,7 +647,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                     else
                       Column(
                         children: [
-                          // Original header
                           Container(
                             color: AppColors.blue,
                             padding: EdgeInsets.only(
@@ -705,8 +696,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                               ],
                             ),
                           ),
-
-                          // Only show tab buttons in mobile layout
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -720,16 +709,12 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                           ),
                         ],
                       ),
-
-                    // Rest of the existing content
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: _buildContent(),
                       ),
                     ),
-
-                    // Modified buttons section
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16.0, vertical: 10.0),

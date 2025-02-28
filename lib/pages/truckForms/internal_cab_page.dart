@@ -1,10 +1,7 @@
 // lib/pages/truckForms/internal_cab_page.dart
 
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui' as ui; // Added for platformViewRegistry
-import 'dart:ui_web';
+// Added for platformViewRegistry
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Added for Firebase Storage
 import 'package:flutter/foundation.dart';
@@ -12,7 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-import 'package:universal_html/html.dart' as html; // For web functionality
+// For web functionality
+
+// Import the camera helper for cross-platform photo capture
+import 'package:ctp/utils/camera_helper.dart';
 
 class ImageData {
   final Uint8List? file;
@@ -380,7 +380,6 @@ class InternalCabPageState extends State<InternalCabPage>
                     right: 0,
                     child: GestureDetector(
                       onTap: () {
-                        // Stop event propagation so tapping 'X' doesn't open the picker
                         setState(() {
                           _selectedImages[title] = ImageData();
                         });
@@ -407,7 +406,7 @@ class InternalCabPageState extends State<InternalCabPage>
     );
   }
 
-  // Method to show the dialog for selecting image source (Camera or Gallery)
+  // Updated image source dialog that uses the external camera helper:
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
@@ -417,57 +416,23 @@ class InternalCabPageState extends State<InternalCabPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Camera option using the external helper:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  if (kIsWeb) {
-                    bool cameraAvailable = false;
-                    try {
-                      cameraAvailable =
-                          html.window.navigator.mediaDevices != null;
-                    } catch (e) {
-                      cameraAvailable = false;
-                    }
-                    if (cameraAvailable) {
-                      await _takePhotoFromWeb((file, fileName) {
-                        if (file != null) {
-                          setState(() {
-                            _selectedImages[title] =
-                                ImageData(file: file, fileName: fileName);
-                          });
-                        }
-                      });
-                    } else {
-                      // Fallback to standard picker if needed
-                      final pickedFile =
-                          await _picker.pickImage(source: ImageSource.camera);
-                      if (pickedFile != null) {
-                        final bytes = await pickedFile.readAsBytes();
-                        final fileName = pickedFile.name;
-                        setState(() {
-                          _selectedImages[title] =
-                              ImageData(file: bytes, fileName: fileName);
-                        });
-                      }
-                    }
-                  } else {
-                    final pickedFile =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (pickedFile != null) {
-                      final bytes = await pickedFile.readAsBytes();
-                      final fileName = pickedFile.name;
-                      setState(() {
-                        _selectedImages[title] =
-                            ImageData(file: bytes, fileName: fileName);
-                      });
-                    }
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[title] =
+                          ImageData(file: imageBytes, fileName: 'captured.png');
+                    });
                   }
                   widget.onProgressUpdate();
                 },
               ),
-              // ...existing Gallery option ListTile...
+              // Existing Gallery option:
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
@@ -656,7 +621,6 @@ class InternalCabPageState extends State<InternalCabPage>
           ],
         ),
         const SizedBox(height: 16.0),
-
         // Container for the item image
         GestureDetector(
           onTap: () => showImageSourceDialog(item),
@@ -758,7 +722,7 @@ class InternalCabPageState extends State<InternalCabPage>
     _showImageSourceDialogForItem(faultCode);
   }
 
-  // Generic method to show dialog for selecting image source for a given item
+  // Generic method to show dialog for selecting image source for a given item.
   void _showImageSourceDialogForItem(ItemData item) {
     showDialog(
       context: context,
@@ -768,23 +732,22 @@ class InternalCabPageState extends State<InternalCabPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Camera option using the external helper:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
                     setState(() {
                       item.imageData =
-                          ImageData(file: bytes, fileName: fileName);
+                          ImageData(file: imageBytes, fileName: 'captured.png');
                     });
                   }
                 },
               ),
+              // Gallery option:
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
@@ -829,7 +792,6 @@ class InternalCabPageState extends State<InternalCabPage>
 
   // Method to upload all images and retrieve their URLs
   Future<Map<String, dynamic>> getData() async {
-    // Serialize and upload view images
     Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
       if (entry.value.file != null) {
@@ -844,7 +806,6 @@ class InternalCabPageState extends State<InternalCabPage>
       }
     }
 
-    // Serialize and upload damages
     List<Map<String, dynamic>> serializedDamages = [];
     for (var damage in _damageList) {
       if (damage.imageData.file != null) {
@@ -866,7 +827,6 @@ class InternalCabPageState extends State<InternalCabPage>
       }
     }
 
-    // Serialize and upload additional features
     List<Map<String, dynamic>> serializedFeatures = [];
     for (var feature in _additionalFeaturesList) {
       if (feature.imageData.file != null) {
@@ -888,7 +848,6 @@ class InternalCabPageState extends State<InternalCabPage>
       }
     }
 
-    // Serialize and upload fault codes
     List<Map<String, dynamic>> serializedFaultCodes = [];
     for (var faultCode in _faultCodesList) {
       if (faultCode.imageData.file != null) {
@@ -932,7 +891,6 @@ class InternalCabPageState extends State<InternalCabPage>
           .set({'internalCab': dataToSave}, SetOptions(merge: true));
       return true;
     } catch (e) {
-      // Handle errors appropriately
       print('Error saving data: $e');
       return false;
     }
@@ -941,15 +899,12 @@ class InternalCabPageState extends State<InternalCabPage>
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
     setState(() {
-      // _isInitialized = true;
-      // Initialize basic fields
       _selectedCondition = data['condition'] ?? 'good';
       _damagesCondition = data['damagesCondition'] ?? 'no';
       _additionalFeaturesCondition =
           data['additionalFeaturesCondition'] ?? 'no';
       _faultCodesCondition = data['faultCodesCondition'] ?? 'no';
 
-      // Initialize view images
       if (data['viewImages'] != null) {
         Map<String, dynamic> viewImages =
             Map<String, dynamic>.from(data['viewImages']);
@@ -968,7 +923,6 @@ class InternalCabPageState extends State<InternalCabPage>
         });
       }
 
-      // Initialize damages list
       if (data['damages'] != null) {
         _damageList = (data['damages'] as List).map((damage) {
           return ItemData(
@@ -984,7 +938,6 @@ class InternalCabPageState extends State<InternalCabPage>
         }).toList();
       }
 
-      // Initialize additional features list
       if (data['additionalFeatures'] != null) {
         _additionalFeaturesList =
             (data['additionalFeatures'] as List).map((feature) {
@@ -1001,7 +954,6 @@ class InternalCabPageState extends State<InternalCabPage>
         }).toList();
       }
 
-      // Initialize fault codes list
       if (data['faultCodes'] != null) {
         _faultCodesList = (data['faultCodes'] as List).map((faultCode) {
           return ItemData(
@@ -1042,15 +994,12 @@ class InternalCabPageState extends State<InternalCabPage>
     int totalFields = 18; // Total number of fields to fill
     int filledFields = 0;
 
-    // Check condition selection (1 field)
     if (_selectedCondition.isNotEmpty) filledFields++;
 
-    // Check all images (14 fields)
     _selectedImages.forEach((key, value) {
       if (value.file != null) filledFields++;
     });
 
-    // Check damages section (1 field)
     if (_damagesCondition == 'no') {
       filledFields++;
     } else if (_damagesCondition == 'yes' && _damageList.isNotEmpty) {
@@ -1059,7 +1008,6 @@ class InternalCabPageState extends State<InternalCabPage>
       if (isDamagesComplete) filledFields++;
     }
 
-    // Check additional features section (1 field)
     if (_additionalFeaturesCondition == 'no') {
       filledFields++;
     } else if (_additionalFeaturesCondition == 'yes' &&
@@ -1069,7 +1017,6 @@ class InternalCabPageState extends State<InternalCabPage>
       if (isFeaturesComplete) filledFields++;
     }
 
-    // Check fault codes section (1 field)
     if (_faultCodesCondition == 'no') {
       filledFields++;
     } else if (_faultCodesCondition == 'yes' && _faultCodesList.isNotEmpty) {
@@ -1078,7 +1025,6 @@ class InternalCabPageState extends State<InternalCabPage>
       if (isFaultCodesComplete) filledFields++;
     }
 
-    // Ensure we don't exceed 1.0 and handle potential division errors
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
@@ -1087,71 +1033,6 @@ class InternalCabPageState extends State<InternalCabPage>
       updateFunction();
     });
     widget.onProgressUpdate();
-  }
-
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      String viewID = 'webcam_${DateTime.now().millisecondsSinceEpoch}';
-      platformViewRegistry.registerViewFactory(
-          viewID, (int viewId) => videoElement);
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(viewType: viewID),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(null, '');
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      callback(null, '');
-    }
   }
 
   @override

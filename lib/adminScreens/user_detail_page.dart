@@ -258,10 +258,20 @@ class _UserDetailPageState extends State<UserDetailPage> {
           _isUploading[fieldName] = true;
         });
 
-        final bytes = result.files.first.bytes;
-        final fileName = result.files.first.name;
-        String docUrl = await _uploadDocument(
-            bytes!, fieldName, fileName); // Pass original filename
+        final fileInfo = result.files.first;
+        Uint8List bytes;
+        // Check if bytes are provided (typically on web)
+        if (fileInfo.bytes != null) {
+          bytes = fileInfo.bytes!;
+        } else if (fileInfo.path != null) {
+          // On mobile, read the file from the provided path
+          bytes = await File(fileInfo.path!).readAsBytes();
+        } else {
+          throw Exception("Cannot retrieve file data.");
+        }
+
+        final fileName = fileInfo.name;
+        String docUrl = await _uploadDocument(bytes, fieldName, fileName);
 
         // Create document metadata
         Map<String, dynamic> documentData = {

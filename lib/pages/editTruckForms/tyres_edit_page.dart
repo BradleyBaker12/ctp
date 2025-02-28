@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -14,8 +12,8 @@ import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/truck_info_web_nav.dart';
-import 'dart:ui' as ui; // Added for platformViewRegistry
-import 'package:universal_html/html.dart' as html; // For web camera access
+// Added for platformViewRegistry
+// For web camera access
 import 'package:ctp/utils/camera_helper.dart'; // Import the camera helper
 
 class TyresEditPage extends StatefulWidget {

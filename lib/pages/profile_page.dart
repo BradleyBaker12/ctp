@@ -178,7 +178,7 @@ class ProfilePage extends StatelessWidget {
               child: Column(
                 children: [
                   Center(
-                    child: Container(
+                    child: SizedBox(
                       width: 600, // Profile content container
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -465,7 +465,7 @@ class ProfilePage extends StatelessWidget {
                   ),
                   // Add WebFooter full-width on web
                   if (kIsWeb)
-                    Container(
+                    SizedBox(
                       width: MediaQuery.of(context).size.width,
                       child: const WebFooter(),
                     )

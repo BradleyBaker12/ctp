@@ -1,14 +1,10 @@
-import 'dart:typed_data';
-import 'dart:convert';
-import 'dart:ui' as ui;
-import 'dart:ui_web';
+import 'package:ctp/utils/camera_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:universal_html/html.dart' as html;
 
 class AdminSection extends StatefulWidget {
   final String vehicleId; // Required vehicleId
@@ -528,86 +524,30 @@ class AdminSectionState extends State<AdminSection>
   // NEW: Function to capture a photo from the web camera for admin uploads
   Future<void> _takePhotoFromWebForAdmin(int docNumber) async {
     if (!kIsWeb) return;
-
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) return;
-
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-
-      await videoElement.onLoadedMetadata.first;
-
-      platformViewRegistry.registerViewFactory(
-        'adminWebcamVideo_$docNumber',
-        (int viewId) => videoElement,
-      );
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(viewType: 'adminWebcamVideo_$docNumber'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-
-                  setState(() {
-                    switch (docNumber) {
-                      case 1:
-                        _natisRc1File = imageBytes;
-                        _natisRc1FileName = "captured.png";
-                        _natisRc1Url = null;
-                        widget.onAdminDoc1Selected(imageBytes);
-                        break;
-                      case 2:
-                        _licenseDiskFile = imageBytes;
-                        _licenseDiskFileName = "captured.png";
-                        _licenseDiskUrl = null;
-                        widget.onAdminDoc2Selected(imageBytes);
-                        break;
-                      case 3:
-                        _settlementLetterFile = imageBytes;
-                        _settlementLetterFileName = "captured.png";
-                        _settlementLetterUrl = null;
-                        widget.onAdminDoc3Selected(imageBytes);
-                        break;
-                    }
-                  });
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      debugPrint('Error capturing photo: $e');
+    final imageBytes = await capturePhoto(context);
+    if (imageBytes != null) {
+      setState(() {
+        switch (docNumber) {
+          case 1:
+            _natisRc1File = imageBytes;
+            _natisRc1FileName = "captured.png";
+            _natisRc1Url = null;
+            widget.onAdminDoc1Selected(imageBytes);
+            break;
+          case 2:
+            _licenseDiskFile = imageBytes;
+            _licenseDiskFileName = "captured.png";
+            _licenseDiskUrl = null;
+            widget.onAdminDoc2Selected(imageBytes);
+            break;
+          case 3:
+            _settlementLetterFile = imageBytes;
+            _settlementLetterFileName = "captured.png";
+            _settlementLetterUrl = null;
+            widget.onAdminDoc3Selected(imageBytes);
+            break;
+        }
+      });
     }
   }
 

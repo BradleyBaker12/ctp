@@ -1,10 +1,6 @@
 // lib/pages/truckForms/tyres_page.dart
-
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui' as ui; // Added for platformViewRegistry
-import 'dart:ui_web';
+// Added for platformViewRegistry
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -12,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-import 'package:universal_html/html.dart' as html; // For web camera access
+// For web camera access
+import 'package:ctp/utils/camera_helper.dart'; // Import camera helper
 
 class ImageData {
   File? file;
@@ -102,7 +99,6 @@ class TyresPageState extends State<TyresPage>
             if (data['imageUrl'] != null) {
               _selectedImages[photoKey] = ImageData(url: data['imageUrl']);
             }
-            // Note: imagePath is not typically stored; if needed, handle accordingly
           }
         }
         setState(() {
@@ -119,6 +115,7 @@ class TyresPageState extends State<TyresPage>
 
   @override
   bool get wantKeepAlive => true; // Implementing the required getter
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -482,33 +479,17 @@ class TyresPageState extends State<TyresPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Updated Camera option:
+              // Updated Camera option using the camera helper:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  if (kIsWeb) {
-                    await _takePhotoFromWeb((file, fileName) {
-                      if (file != null) {
-                        setState(() {
-                          // Wrap the Uint8List in ImageData
-                          _selectedImages[key] = ImageData(webImage: file);
-                        });
-                      }
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[key] = ImageData(webImage: imageBytes);
                     });
-                  } else {
-                    final XFile? pickedFile =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (pickedFile != null) {
-                      final bytes = await pickedFile.readAsBytes();
-                      setState(() {
-                        _selectedImages[key] = ImageData(
-                          file: File(pickedFile.path),
-                          webImage: bytes,
-                        );
-                      });
-                    }
                   }
                   widget.onProgressUpdate();
                 },
@@ -538,72 +519,6 @@ class TyresPageState extends State<TyresPage>
         );
       },
     );
-  }
-
-  // Add helper method for web camera capture:
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      String viewID = 'webcam_tyres_${DateTime.now().millisecondsSinceEpoch}';
-      platformViewRegistry
-          .registerViewFactory(viewID, (int viewId) => videoElement);
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(viewType: viewID),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final canvas = html.CanvasElement(
-                    width: videoElement.videoWidth,
-                    height: videoElement.videoHeight,
-                  );
-                  canvas.context2D.drawImage(videoElement, 0, 0);
-                  final dataUrl = canvas.toDataUrl('image/png');
-                  final base64Str = dataUrl.split(',').last;
-                  final imageBytes = base64.decode(base64Str);
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  mediaStream.getTracks().forEach((track) => track.stop());
-                  Navigator.of(dialogContext).pop();
-                  callback(null, '');
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      callback(null, '');
-    }
   }
 
   /// Validates and saves the data to Firestore
@@ -696,8 +611,6 @@ class TyresPageState extends State<TyresPage>
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
     UploadTask uploadTask = storageRef.putFile(imageFile);
 
-    // Optionally, you can monitor upload progress here
-
     TaskSnapshot snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }
@@ -736,33 +649,16 @@ class TyresPageState extends State<TyresPage>
 
   /// Calculates the completion percentage based on filled fields
   double getCompletionPercentage() {
-    int totalFields = widget.numberOfTyrePositions *
-        4; // Number of tyre positions × (1 image + 3 selections) = 4 fields per position
+    int totalFields = widget.numberOfTyrePositions * 4; // 4 fields per position
     int filledFields = 0;
 
-    // Check each tyre position (Number of tyre positions)
     for (int pos = 1; pos <= widget.numberOfTyrePositions; pos++) {
       String photoKey = 'Tyre_Pos_$pos Photo';
 
-      // Check image (1 field per position)
-      if (_selectedImages[photoKey]?.hasImage == true) {
-        filledFields++;
-      }
-
-      // Check chassis condition (1 field per position)
-      if (_chassisConditions[pos]?.isNotEmpty == true) {
-        filledFields++;
-      }
-
-      // Check virgin/recap selection (1 field per position)
-      if (_virginOrRecaps[pos]?.isNotEmpty == true) {
-        filledFields++;
-      }
-
-      // Check rim type selection (1 field per position)
-      if (_rimTypes[pos]?.isNotEmpty == true) {
-        filledFields++;
-      }
+      if (_selectedImages[photoKey]?.hasImage == true) filledFields++;
+      if (_chassisConditions[pos]?.isNotEmpty == true) filledFields++;
+      if (_virginOrRecaps[pos]?.isNotEmpty == true) filledFields++;
+      if (_rimTypes[pos]?.isNotEmpty == true) filledFields++;
     }
 
     return (filledFields / totalFields).clamp(0.0, 1.0);
@@ -789,7 +685,6 @@ class TyresPageState extends State<TyresPage>
 
           String photoKey = '$key Photo';
 
-          // Handle image data
           if (value['imageUrl'] != null) {
             _selectedImages[photoKey] = ImageData(url: value['imageUrl']);
           }

@@ -1,9 +1,6 @@
 // lib/pages/truckForms/external_cab_page.dart
-
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui_web';
+import 'package:ctp/utils/camera_helper.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -251,77 +248,6 @@ class ExternalCabPageState extends State<ExternalCabPage>
     } catch (e) {
       print('Error capturing photo: $e');
       return null;
-    }
-  }
-
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-    try {
-      bool cameraAvailable = false;
-      try {
-        cameraAvailable = html.window.navigator.mediaDevices != null;
-      } catch (e) {
-        cameraAvailable = false;
-      }
-      if (!cameraAvailable) {
-        callback(null, '');
-        return;
-      }
-      final mediaStream = await html.window.navigator.mediaDevices!
-          .getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      String viewID = 'webcam_${DateTime.now().millisecondsSinceEpoch}';
-      // using ui.platformViewRegistry
-      // ...existing code...
-      platformViewRegistry.registerViewFactory(
-          viewID, (int viewId) => videoElement);
-      await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext dialogContext) {
-            return AlertDialog(
-                title: const Text('Take Photo'),
-                content: SizedBox(
-                  width: 300,
-                  height: 300,
-                  child: HtmlElementView(viewType: viewID),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      final canvas = html.CanvasElement(
-                        width: videoElement.videoWidth,
-                        height: videoElement.videoHeight,
-                      );
-                      canvas.context2D.drawImage(videoElement, 0, 0);
-                      final dataUrl = canvas.toDataUrl('image/png');
-                      final base64Str = dataUrl.split(',').last;
-                      final imageBytes = base64.decode(base64Str);
-                      mediaStream.getTracks().forEach((track) => track.stop());
-                      Navigator.of(dialogContext).pop();
-                      callback(imageBytes, 'captured.png');
-                    },
-                    child: const Text('Capture'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      mediaStream.getTracks().forEach((track) => track.stop());
-                      Navigator.of(dialogContext).pop();
-                      callback(null, '');
-                    },
-                    child: const Text('Cancel'),
-                  )
-                ]);
-          });
-    } catch (e) {
-      callback(null, '');
     }
   }
 
@@ -587,6 +513,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
   }
 
   // Method to show the dialog for selecting image source (Camera or Gallery)
+  // Updated _showImageSourceDialog method:
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
@@ -596,72 +523,38 @@ class ExternalCabPageState extends State<ExternalCabPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Camera option using the shared helper:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
-                  if (kIsWeb) {
-                    bool cameraAvailable = false;
-                    try {
-                      cameraAvailable =
-                          html.window.navigator.mediaDevices != null;
-                    } catch (e) {
-                      cameraAvailable = false;
-                    }
-                    if (cameraAvailable) {
-                      await _takePhotoFromWeb((file, fileName) {
-                        if (file != null) {
-                          setState(() {
-                            _selectedImages[title] =
-                                ImageData(file: file, fileName: fileName);
-                          });
-                        }
-                        widget.onProgressUpdate();
-                        setState(() {});
-                      });
-                    } else {
-                      final imageBytes = await capturePhotoFromWeb();
-                      if (imageBytes != null) {
-                        setState(() {
-                          _selectedImages[title] = ImageData(
-                              file: imageBytes, fileName: 'webcam.jpg');
-                        });
-                        widget.onProgressUpdate();
-                        setState(() {});
-                      }
-                    }
-                  } else {
-                    Navigator.of(context).pop();
-                    final pickedFile =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (pickedFile != null) {
-                      final bytes = await pickedFile.readAsBytes();
-                      final fileName = pickedFile.name;
-                      setState(() {
-                        _selectedImages[title] =
-                            ImageData(file: bytes, fileName: fileName);
-                      });
-                    }
+                  Navigator.of(context).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[title] =
+                          ImageData(file: imageBytes, fileName: 'captured.png');
+                    });
                   }
+                  widget.onProgressUpdate();
                 },
               ),
+              // Gallery option remains unchanged:
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final pickedFile =
+                  final XFile? pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
                     setState(() {
                       _selectedImages[title] =
-                          ImageData(file: bytes, fileName: fileName);
+                          ImageData(file: bytes, fileName: pickedFile.name);
                     });
-                    widget.onProgressUpdate();
-                    setState(() {});
                   }
+                  widget.onProgressUpdate();
                 },
               ),
             ],
