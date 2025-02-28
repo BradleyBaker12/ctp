@@ -1,5 +1,3 @@
-// admin_section.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
@@ -11,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:ctp/utils/camera_helper.dart'; // Import shared camera helper
 
 class AdminEditSection extends StatefulWidget {
   final Vehicle vehicle;
@@ -86,58 +85,108 @@ class AdminEditSectionState extends State<AdminEditSection>
     super.dispose();
   }
 
-  // Helper function to pick files
+  /// This updated _pickFile method now shows a dialog that lets the user choose
+  /// between using the Camera (via the shared camera helper) or picking a file from Gallery.
   Future<void> _pickFile(int docNumber) async {
     // Only pick files if editing is enabled
     if (!widget.isEditing) return;
 
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: [
-          'pdf',
-          'jpg',
-          'jpeg',
-          'png',
-          'doc',
-          'docx',
-          'xls',
-          'xlsx'
-        ],
-      );
-
-      if (result != null) {
-        final bytes = await result.xFiles.first.readAsBytes();
-        final fileName = result.xFiles.first.name;
-        setState(() {
-          switch (docNumber) {
-            case 1:
-              _natisRc1File = bytes;
-              _natisRc1FileName = fileName;
-              _natisRc1Url = null; // Clear URL when a new file is selected
-              widget.onAdminDoc1Selected(bytes, fileName);
-              break;
-            case 2:
-              _licenseDiskFile = bytes;
-              _licenseDiskFileName = fileName;
-              _licenseDiskUrl = null; // Clear URL when a new file is selected
-              widget.onAdminDoc2Selected(bytes, fileName);
-              break;
-            case 3:
-              _settlementLetterFile = bytes;
-              _settlementLetterFileName = fileName;
-              _settlementLetterUrl =
-                  null; // Clear URL when a new file is selected
-              widget.onAdminDoc3Selected(bytes, fileName);
-              break;
-          }
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking file: $e')),
-      );
-    }
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Choose Source for Document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      switch (docNumber) {
+                        case 1:
+                          _natisRc1File = imageBytes;
+                          _natisRc1FileName = "captured_natisRc1.png";
+                          _natisRc1Url = null;
+                          widget.onAdminDoc1Selected(
+                              imageBytes, _natisRc1FileName);
+                          break;
+                        case 2:
+                          _licenseDiskFile = imageBytes;
+                          _licenseDiskFileName = "captured_licenseDisk.png";
+                          _licenseDiskUrl = null;
+                          widget.onAdminDoc2Selected(
+                              imageBytes, _licenseDiskFileName);
+                          break;
+                        case 3:
+                          _settlementLetterFile = imageBytes;
+                          _settlementLetterFileName =
+                              "captured_settlementLetter.png";
+                          _settlementLetterUrl = null;
+                          widget.onAdminDoc3Selected(
+                              imageBytes, _settlementLetterFileName);
+                          break;
+                      }
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: [
+                      'pdf',
+                      'jpg',
+                      'jpeg',
+                      'png',
+                      'doc',
+                      'docx',
+                      'xls',
+                      'xlsx'
+                    ],
+                  );
+                  if (result != null) {
+                    final bytes = await result.xFiles.first.readAsBytes();
+                    final fileName = result.xFiles.first.name;
+                    setState(() {
+                      switch (docNumber) {
+                        case 1:
+                          _natisRc1File = bytes;
+                          _natisRc1FileName = fileName;
+                          _natisRc1Url = null;
+                          widget.onAdminDoc1Selected(bytes, fileName);
+                          break;
+                        case 2:
+                          _licenseDiskFile = bytes;
+                          _licenseDiskFileName = fileName;
+                          _licenseDiskUrl = null;
+                          widget.onAdminDoc2Selected(bytes, fileName);
+                          break;
+                        case 3:
+                          _settlementLetterFile = bytes;
+                          _settlementLetterFileName = fileName;
+                          _settlementLetterUrl = null;
+                          widget.onAdminDoc3Selected(bytes, fileName);
+                          break;
+                      }
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // Helper function to get file icon based on extension
@@ -241,7 +290,7 @@ class AdminEditSectionState extends State<AdminEditSection>
         );
       }
     } else {
-      // We have a URL – use Image.network similar to maintenance_section.dart
+      // We have a URL – use Image.network if it's an image, otherwise show icon + text
       if (_isImageUrl(fileUrl!)) {
         mainWidget = ClipRRect(
           borderRadius: BorderRadius.circular(8.0),

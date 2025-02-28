@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 
 import 'dart:ui' as ui;
-// import 'dart:ui_web';
+import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
@@ -346,10 +346,10 @@ class MaintenanceSectionState extends State<MaintenanceSection>
         ..autoplay = true
         ..srcObject = mediaStream;
       await videoElement.onLoadedMetadata.first;
-      // platformViewRegistry.registerViewFactory(
-      //   'maintenanceWebcamVideo_$docNumber',
-      //   (int viewId) => videoElement,
-      // );
+      platformViewRegistry.registerViewFactory(
+        'maintenanceWebcamVideo_$docNumber',
+        (int viewId) => videoElement,
+      );
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -365,34 +365,34 @@ class MaintenanceSectionState extends State<MaintenanceSection>
             actions: [
               TextButton(
                 onPressed: () {
-                  // final canvas = html.CanvasElement(
-                  //   width: videoElement.videoWidth,
-                  //   height: videoElement.videoHeight,
-                  // );
-                  // canvas.context2D.drawImage(videoElement, 0, 0);
-                  // final dataUrl = canvas.toDataUrl('image/png');
-                  // final base64Str = dataUrl.split(',').last;
-                  // final imageBytes = base64.decode(base64Str);
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // setState(() {
-                  //   if (docNumber == 1) {
-                  //     _maintenanceDocFile = imageBytes;
-                  //     _maintenanceDocFileName = "captured.png";
-                  //     widget.onMaintenanceFileSelected(imageBytes);
-                  //   } else if (docNumber == 2) {
-                  //     _warrantyDocFile = imageBytes;
-                  //     _warrantyDocFileName = "captured.png";
-                  //     widget.onWarrantyFileSelected(imageBytes);
-                  //   }
-                  // });
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  setState(() {
+                    if (docNumber == 1) {
+                      _maintenanceDocFile = imageBytes;
+                      _maintenanceDocFileName = "captured.png";
+                      widget.onMaintenanceFileSelected(imageBytes);
+                    } else if (docNumber == 2) {
+                      _warrantyDocFile = imageBytes;
+                      _warrantyDocFileName = "captured.png";
+                      widget.onWarrantyFileSelected(imageBytes);
+                    }
+                  });
                 },
                 child: const Text('Capture'),
               ),
               TextButton(
                 onPressed: () {
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
                 },
                 child: const Text('Cancel'),
               ),

@@ -1,8 +1,6 @@
-// lib/pages/editTruckForms/tyres_edit_page.dart
-
 import 'dart:convert';
 import 'dart:typed_data';
-// import 'dart:ui_web';
+import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -18,6 +16,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/truck_info_web_nav.dart';
 import 'dart:ui' as ui; // Added for platformViewRegistry
 import 'package:universal_html/html.dart' as html; // For web camera access
+import 'package:ctp/utils/camera_helper.dart'; // Import the camera helper
 
 class TyresEditPage extends StatefulWidget {
   final String vehicleId;
@@ -128,8 +127,6 @@ class TyresEditPageState extends State<TyresEditPage>
   Widget _buildResponsiveRow(List<Widget> children) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // If width is greater than 600, use a fixed spacing of 20 pixels;
-        // otherwise, use 5% of the available width.
         double spacing =
             constraints.maxWidth > 600 ? 20.0 : constraints.maxWidth * 0.05;
         List<Widget> spacedChildren = [];
@@ -405,7 +402,7 @@ class TyresEditPageState extends State<TyresEditPage>
   }
 
   // =======================
-  // IMAGE UPLOAD BLOCK (Square with Responsive Sizing, Fixed at Large Screen)
+  // IMAGE UPLOAD BLOCK (Square with Responsive Sizing)
   // =======================
   Widget _buildImageUploadBlock(String key) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -462,14 +459,8 @@ class TyresEditPageState extends State<TyresEditPage>
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
-          double blockSize;
-          // When available width exceeds 600, fix the size at 200 pixels;
-          // otherwise, use 80% of available width.
-          if (constraints.maxWidth > 600) {
-            blockSize = 500;
-          } else {
-            blockSize = constraints.maxWidth * 0.8;
-          }
+          double blockSize =
+              constraints.maxWidth > 600 ? 500 : constraints.maxWidth * 0.8;
           return Center(
             child: Container(
               width: blockSize,
@@ -536,26 +527,12 @@ class TyresEditPageState extends State<TyresEditPage>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  if (kIsWeb) {
-                    await _takePhotoFromWeb((file, fileName) {
-                      if (file != null) {
-                        setState(() {
-                          // Here _selectedImages expects a Uint8List directly.
-                          _selectedImages[key] = file;
-                          _imageUrls.remove(key);
-                        });
-                      }
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[key] = imageBytes;
+                      _imageUrls.remove(key);
                     });
-                  } else {
-                    final XFile? pickedFile =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (pickedFile != null) {
-                      final bytes = await pickedFile.readAsBytes();
-                      setState(() {
-                        _selectedImages[key] = bytes;
-                        _imageUrls.remove(key);
-                      });
-                    }
                   }
                 },
               ),
@@ -582,74 +559,7 @@ class TyresEditPageState extends State<TyresEditPage>
     );
   }
 
-  // Add web camera helper method:
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      String viewID =
-          'webcam_tyres_edit_${DateTime.now().millisecondsSinceEpoch}';
-      // platformViewRegistry.registerViewFactory(
-      //     viewID, (int viewId) => videoElement);
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(viewType: viewID),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  // final canvas = html.CanvasElement(
-                  //   width: videoElement.videoWidth,
-                  //   height: videoElement.videoHeight,
-                  // );
-                  // canvas.context2D.drawImage(videoElement, 0, 0);
-                  // final dataUrl = canvas.toDataUrl('image/png');
-                  // final base64Str = dataUrl.split(',').last;
-                  // final imageBytes = base64.decode(base64Str);
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(null, '');
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      callback(null, '');
-    }
-  }
-
-  /// A helper method to return either a local image, a network image, or a placeholder.
+  /// Returns either a local image, a network image, or a placeholder.
   Widget _getImageWidget(String title, bool isDealer) {
     final file = _selectedImages[title];
     final url = _imageUrls[title];
@@ -701,7 +611,7 @@ class TyresEditPageState extends State<TyresEditPage>
     }
   }
 
-  /// Collects all data (for tyre positions) and uploads new images if necessary.
+  /// Collects all tyre data and uploads new images if needed.
   Future<Map<String, dynamic>> getData() async {
     Map<String, dynamic> allTyresData = {};
 
@@ -745,7 +655,7 @@ class TyresEditPageState extends State<TyresEditPage>
     return allTyresData;
   }
 
-  /// Uploads an image file to Firebase Storage and returns its download URL.
+  /// Uploads an image to Firebase Storage and returns its download URL.
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
     try {
@@ -801,7 +711,7 @@ class TyresEditPageState extends State<TyresEditPage>
     return completion;
   }
 
-  /// A helper to update state and notify progress.
+  /// Helper to update state and notify progress.
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(() {
       updateFunction();

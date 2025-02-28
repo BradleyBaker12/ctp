@@ -2,6 +2,7 @@ import 'dart:convert'; // For JSON decoding
 import 'package:ctp/pages/report_vehicle_issue.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
 import 'package:ctp/services/vin_service.dart';
+import 'package:ctp/utils/camera_helper.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/services.dart'; // For loading assets
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,14 +21,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // For file picking
 import 'dart:io' as io;
+// Remove web-specific imports from here since they are encapsulated in the helper.
 // import 'dart:ui_web';
+// import 'package:universal_html/html.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
-
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
-// import 'dart:ui' as ui;
+// Import the camera helper
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
@@ -109,7 +111,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   ];
 
   // Add this field to your _VehicleUploadScreenState:
-  bool _useFrontCamera = true;
+  bool _useFrontCamera = false;
 
   late Map<String, List<String>> _makeModelOptions = {};
   List<String> _brandOptions = [];
@@ -1711,50 +1713,32 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     });
   }
 
+  /// UPDATED: Use the camera helper method for capturing images.
   Future<void> _pickImage(ImageSource source) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
-
     try {
-      if (kIsWeb) {
-        bool cameraAvailable = false;
-        try {
-          cameraAvailable = html.window.navigator.mediaDevices != null;
-        } catch (e) {
-          cameraAvailable = false;
-        }
-
-        if (source == ImageSource.camera && cameraAvailable) {
-          await _takePhotoFromWeb((file, fileName) {
-            if (file != null) {
-              setState(() => _selectedMainImage = file);
-              _selectedMainImageFileName = fileName;
-              formData.setSelectedMainImage(file, fileName);
-              if (_vehicleId != null) {
-                _uploadAndUpdateMainImage(file);
-              }
-            }
+      if (source == ImageSource.camera) {
+        // Use the helper method to capture a photo
+        final imageBytes = await capturePhoto(context);
+        if (imageBytes != null) {
+          setState(() {
+            _selectedMainImage = imageBytes;
           });
-        } else {
-          final picker = ImagePicker();
-          final XFile? image =
-              await picker.pickImage(source: ImageSource.gallery);
-          if (image != null) {
-            final bytes = await image.readAsBytes();
-            setState(() => _selectedMainImage = bytes);
-            _selectedMainImageFileName = image.name;
-            formData.setSelectedMainImage(bytes, image.name);
-            if (_vehicleId != null) {
-              _uploadAndUpdateMainImage(bytes);
-            }
+          _selectedMainImageFileName = 'captured.png';
+          formData.setSelectedMainImage(imageBytes, 'captured.png');
+          if (_vehicleId != null) {
+            _uploadAndUpdateMainImage(imageBytes);
           }
         }
       } else {
         final picker = ImagePicker();
-        final XFile? image = await picker.pickImage(source: source);
-
+        final XFile? image =
+            await picker.pickImage(source: ImageSource.gallery);
         if (image != null) {
           final bytes = await image.readAsBytes();
-          setState(() => _selectedMainImage = bytes);
+          setState(() {
+            _selectedMainImage = bytes;
+          });
           _selectedMainImageFileName = image.name;
           formData.setSelectedMainImage(bytes, image.name);
           if (_vehicleId != null) {
@@ -2055,124 +2039,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     debugPrint("NATIS/RC1 document removed");
   }
 
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-
-    // Helper to initialize the camera stream with the correct facingMode.
-    Future<html.VideoElement> initializeCamera() async {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      final constraints = {
-        'video': {
-          'facingMode': _useFrontCamera ? 'user' : 'environment',
-        }
-      };
-      final mediaStream = await mediaDevices?.getUserMedia(constraints);
-      final videoElem = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElem.onLoadedMetadata.first;
-      return videoElem;
-    }
-
-    // Generates a unique view factory ID based on the current camera mode.
-    String generateViewFactoryId() =>
-        'webcamVideo_${_useFrontCamera ? "user" : "env"}_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Initialize camera stream.
-    String viewFactoryId = generateViewFactoryId();
-    html.VideoElement videoElement = await initializeCamera();
-    // platformViewRegistry.registerViewFactory(
-    //     viewFactoryId, (int viewId) => videoElement);
-
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Take Photo'),
-              content: SizedBox(
-                width: 300,
-                height: 350,
-                child: Column(
-                  children: [
-                    // Assign a unique key so that when viewFactoryId changes, the widget rebuilds immediately.
-                    Expanded(
-                      child: HtmlElementView(
-                        key: ValueKey(viewFactoryId),
-                        viewType: viewFactoryId,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: () async {
-                        // Toggle the camera mode.
-                        // setState(() {
-                        //   _useFrontCamera = !_useFrontCamera;
-                        // });
-                        // // Stop the current stream.
-                        // (videoElement.srcObject as html.MediaStream)
-                        //     .getTracks()
-                        //     .forEach((track) => track.stop());
-                        // // Reinitialize the camera stream with the new facing mode.
-                        // viewFactoryId = generateViewFactoryId();
-                        // videoElement = await initializeCamera();
-                        // platformViewRegistry.registerViewFactory(
-                        //     viewFactoryId, (int viewId) => videoElement);
-                        // // Call setState to update the HtmlElementView immediately.
-                        // setState(() {});
-                      },
-                      child: Text(_useFrontCamera
-                          ? 'Switch to Back Camera'
-                          : 'Switch to Front Camera'),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    // Capture the current frame.
-                    // final canvas = html.CanvasElement(
-                    //   width: videoElement.videoWidth,
-                    //   height: videoElement.videoHeight,
-                    // );
-                    // canvas.context2D.drawImage(videoElement, 0, 0);
-                    // final dataUrl = canvas.toDataUrl('image/png');
-                    // final base64Str = dataUrl.split(',').last;
-                    // final imageBytes = base64.decode(base64Str);
-                    // // Stop the stream.
-                    // (videoElement.srcObject as html.MediaStream)
-                    //     .getTracks()
-                    //     .forEach((track) => track.stop());
-                    // Navigator.of(dialogContext).pop();
-                    // callback(imageBytes, 'captured.png');
-                  },
-                  child: const Text('Capture'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Stop the stream and cancel.
-                    // (videoElement.srcObject as html.MediaStream)
-                    //     .getTracks()
-                    //     .forEach((track) => track.stop());
-                    // Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('Cancel'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   bool get isWebPlatform => kIsWeb;
 
   dynamic getWebWindow() {
@@ -2185,4 +2051,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
     return null;
   }
+
+  // Note: The old _takePhotoFromWeb method has been removed.
+  // Instead, the _pickImage method now calls capturePhoto(context) from our helper.
+
+  @override
+  bool get wantKeepAlive => true;
 }

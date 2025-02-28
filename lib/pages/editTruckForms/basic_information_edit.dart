@@ -28,6 +28,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ctp/utils/camera_helper.dart'; // <-- New import for camera helper
 
 class BasicInformationEdit extends StatefulWidget {
   final bool isDuplicating;
@@ -687,33 +688,62 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   // Function to pick NATIS/RC1 file
   Future<void> _pickNatisRc1File() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: [
-          'pdf',
-          'jpg',
-          'jpeg',
-          'png',
-          'doc',
-          'docx',
-          'xls',
-          'xlsx'
-        ],
-      );
-      if (result != null) {
-        final bytes = await result.xFiles.first.readAsBytes();
-        final fileName = result.xFiles.first.name;
-        setState(() {
-          _natisRc1File = bytes;
-          _natisRc1FileName = fileName;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking NATIS/RC1 file: $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error picking file: $e')));
-    }
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Choose Source for NATIS/RC1 Document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _natisRc1File = imageBytes;
+                      _natisRc1FileName = "captured_natisRc1.png";
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: [
+                      'pdf',
+                      'jpg',
+                      'jpeg',
+                      'png',
+                      'doc',
+                      'docx',
+                      'xls',
+                      'xlsx'
+                    ],
+                  );
+                  if (result != null) {
+                    final bytes = await result.xFiles.first.readAsBytes();
+                    final fileName = result.xFiles.first.name;
+                    setState(() {
+                      _natisRc1File = bytes;
+                      _natisRc1FileName = fileName;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // Helper function to get file icon based on extension
@@ -2089,15 +2119,26 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     final ImagePicker picker = ImagePicker();
     try {
-      final XFile? image = await picker.pickImage(source: source);
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        final fileName = image.name;
-        formData.setSelectedMainImage(
-            bytes, fileName); // Changed to pass both parameters
-        debugPrint('Image picked from $source: ${image.path}');
+      if (source == ImageSource.camera) {
+        // Use the shared camera helper to capture a photo
+        final imageBytes = await capturePhoto(context);
+        if (imageBytes != null) {
+          formData.setSelectedMainImage(imageBytes, 'captured.png');
+          debugPrint("Image captured from camera.");
+        } else {
+          debugPrint("No image captured from camera.");
+        }
       } else {
-        debugPrint('No image selected from $source.');
+        // Use the gallery via ImagePicker
+        final XFile? image = await picker.pickImage(source: source);
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          final fileName = image.name;
+          formData.setSelectedMainImage(bytes, fileName);
+          debugPrint('Image picked from gallery: ${image.path}');
+        } else {
+          debugPrint('No image selected.');
+        }
       }
     } catch (e) {
       debugPrint('Error picking image from $source: $e');

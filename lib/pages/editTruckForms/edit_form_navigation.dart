@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
@@ -682,17 +683,17 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    _buildSection(context, 'BASIC\nINFORMATION',
-                        '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED'),
+                    _buildSection(context, 'BASIC INFORMATION',
+                        '${_calculateBasicInfoProgress()} OF 11'),
                     _buildSection(context, 'TRUCK CONDITION',
-                        '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED'),
+                        '${_calculateTruckConditionsProgress()} OF 35'),
                     _buildSection(
                       context,
-                      'MAINTENANCE\nAND WARRANTY',
-                      '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
+                      'MAINTENANCE AND WARRANTY',
+                      '${_calculateMaintenanceProgress()} OF 4',
                     ),
-                    _buildSection(context, 'ADMIN',
-                        '${_calculateAdminProgress()} OF 4 STEPS\nCOMPLETED'),
+                    _buildSection(
+                        context, 'ADMIN', '${_calculateAdminProgress()} OF 4'),
                     const SizedBox(height: 20),
                     // if (vehicle?.vehicleStatus == 'Draft')
                     //   Padding(
@@ -745,154 +746,260 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     );
   }
 
+  String _calculateAdminProgressString() {
+    int completed = 0;
+    int total = 3; // NATIS/RC1, License Disk, and Settlement if required
+
+    // Check NATIS/RC1
+    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) {
+      completed++;
+    }
+
+    // Check License Disk
+    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
+      completed++;
+    }
+
+    // Check Settlement Letter if required
+    if (widget.vehicle.requireToSettleType == 'yes') {
+      total++; // Add settlement amount to total
+      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
+        completed++;
+      }
+      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
+        completed++;
+      }
+    }
+
+    return "$completed/$total";
+  }
+
+  double _calculateAdminProgressPercentage() {
+    int completed = 0;
+    int total = 3;
+
+    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) completed++;
+    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
+      completed++;
+    }
+
+    if (widget.vehicle.requireToSettleType == 'yes') {
+      total++;
+      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
+        completed++;
+      }
+      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
+        completed++;
+      }
+    }
+
+    return total == 0 ? 0.0 : completed / total;
+  }
+
   Widget _buildSection(BuildContext context, String title, String progress) {
+    final size = MediaQuery.of(context).size;
+    // Expecting progress in the format "current/total"
+    final parts = progress.split('/');
+    final current = int.tryParse(parts[0]) ?? 0;
+    final total = int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1;
+    final progressRatio = total == 0 ? 0.0 : (current / total);
+
+    final isLargeScreen = size.width > 600;
+    final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
+    final containerPadding = isLargeScreen ? 37.31 : 20.0;
+    const borderSideWidth = 0.93;
+    const borderRadius = 20.0;
+    const borderColor = Color(0xFF2F7FFF);
+    final titleBoxHeight = isLargeScreen ? 76.48 : 45.0;
+    final titleBoxPadding = isLargeScreen
+        ? const EdgeInsets.symmetric(horizontal: 48.50, vertical: 18.65)
+        : const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0);
+    const titleBoxRadius = 6.0;
+    final titleFontSize = isLargeScreen ? 20.0 : 16.0;
+    final titleLetterSpace = isLargeScreen ? 1.87 : 1.0;
+    final progressFontSize = isLargeScreen ? 14.0 : 12.0;
+    final progressLetterSp = isLargeScreen ? 2.24 : 1.0;
+    final gapHeight = isLargeScreen ? 20.98 : 20.0;
+    const progressBarHeight = 5.0;
+    final progressSpacing = isLargeScreen ? 0.0 : 20.0;
+
+    // If you have a special progress string for ADMIN, use it here.
+    final displayProgress = title.contains('ADMIN')
+        ? _calculateAdminProgressString() // Ensure this method exists
+        : progress;
+
+    // Clean title to remove newlines for navigation matching
+    final cleanTitle = title.replaceAll('\n', ' ').trim();
+
     return GestureDetector(
-      onTap: () async {
-        if (title.contains('MAINTENANCE')) {
-          try {
-            // Fetch the maintenance data from Firestore
-            DocumentSnapshot doc = await FirebaseFirestore.instance
-                .collection('vehicles')
-                .doc(vehicle!.id)
-                .get();
-
-            if (!doc.exists) {
-              throw Exception('Vehicle document not found');
-            }
-
-            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            Map<String, dynamic> maintenanceData =
-                data['maintenanceData'] as Map<String, dynamic>? ?? {};
-
-            // Navigate to maintenance section with existing data - Modified this part
-            await Navigator.of(context).push(
+      onTap: () {
+        // Navigation logic based on the clean title
+        switch (cleanTitle) {
+          case 'BASIC INFORMATION':
+            Navigator.push(
+              context,
               MaterialPageRoute(
-                builder: (BuildContext context) => MaintenanceEditSection(
+                builder: (context) => BasicInformationEdit(vehicle: vehicle!),
+              ),
+            );
+            break;
+          case 'MAINTENANCE AND WARRANTY':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MaintenanceEditSection(
                   vehicleId: vehicle!.id,
                   isUploading: false,
-                  isEditing: true,
-                  isFromAdmin: true,
-                  onMaintenanceFileSelected: (file) {
-                    // Handle maintenance file selection
-                  },
-                  onWarrantyFileSelected: (file) {
-                    // Handle warranty file selection
-                  },
+                  onMaintenanceFileSelected: (file) {},
+                  onWarrantyFileSelected: (file) {},
                   oemInspectionType:
-                      maintenanceData['oemInspectionType'] ?? 'yes',
-                  oemInspectionExplanation: maintenanceData['oemReason'] ?? '',
-                  onProgressUpdate: () {
-                    setState(() {
-                      // Update progress if needed
-                    });
-                  },
+                      vehicle!.maintenance.oemInspectionType ?? '',
+                  oemInspectionExplanation:
+                      vehicle!.maintenance.oemReason ?? '',
+                  onProgressUpdate: () {},
                   maintenanceSelection:
-                      maintenanceData['maintenanceSelection'] ?? 'yes',
+                      vehicle!.maintenance.maintenanceSelection ?? '',
                   warrantySelection:
-                      maintenanceData['warrantySelection'] ?? 'yes',
-                  maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
-                  warrantyDocUrl: maintenanceData['warrantyDocUrl'],
+                      vehicle!.maintenance.warrantySelection ?? '',
+                  isFromAdmin: Provider.of<UserProvider>(context, listen: false)
+                          .getUserRole ==
+                      'admin',
                 ),
               ),
             );
-
-            // Refresh the vehicle data after returning from maintenance
-            setState(() {});
-          } catch (e) {
-            print('Error loading maintenance data: $e');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error loading maintenance data: $e'),
-                backgroundColor: Colors.red,
+            break;
+          case 'ADMIN':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AdminEditSection(
+                  vehicle: vehicle!,
+                  isUploading: false,
+                  isEditing: true,
+                  onAdminDoc1Selected: (file, name) {},
+                  onAdminDoc2Selected: (file, name) {},
+                  onAdminDoc3Selected: (file, name) {},
+                  requireToSettleType: vehicle!.requireToSettleType ?? 'no',
+                  settlementAmount: vehicle!.adminData.settlementAmount,
+                  natisRc1Url: vehicle!.adminData.natisRc1Url,
+                  licenseDiskUrl: vehicle!.adminData.licenseDiskUrl,
+                  settlementLetterUrl: vehicle!.adminData.settlementLetterUrl,
+                ),
               ),
             );
-          }
-        } else if (title.contains('BASIC')) {
-          var updatedVehicle = await Navigator.of(context).push<Vehicle>(
-            MaterialPageRoute(
-              builder: (BuildContext context) => BasicInformationEdit(
-                vehicle: vehicle!,
-              ),
-            ),
-          );
-          if (updatedVehicle != null) {
-            setState(() {
-              vehicle = updatedVehicle;
-            });
-          }
-        } else if (title.contains('TRUCK CONDITION')) {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (BuildContext context) => ExternalCabEditPage(
-                vehicleId: vehicle!.id,
-                isEditing: true,
-                onProgressUpdate: () {
-                  setState(() {
-                    // Refresh the UI when progress is updated
-                  });
-                },
-              ),
-            ),
-          );
-          // Refresh the vehicle data after returning from truck conditions
-          setState(() {});
-        } else if (title.contains('ADMIN')) {
-          // Navigate to AdminEditSection with vehicleId
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (BuildContext context) => AdminEditSection(
-                vehicle: vehicle!,
-                isUploading: false,
-                isEditing: true,
-                onAdminDoc1Selected: (file, fileName) {
-                  // Handle admin doc 1 selection
-                },
-                onAdminDoc2Selected: (file, fileName) {
-                  // Handle admin doc 2 selection
-                },
-                onAdminDoc3Selected: (file, fileName) {
-                  // Handle admin doc 3 selection
-                },
-                requireToSettleType: vehicle!.requireToSettleType ?? 'no',
-                settlementAmount: vehicle!.adminData.settlementAmount,
-                natisRc1Url: vehicle!.adminData.natisRc1Url,
-                licenseDiskUrl: vehicle!.adminData.licenseDiskUrl,
-                settlementLetterUrl: vehicle!.adminData.settlementLetterUrl,
-              ),
-            ),
-          );
-          // Refresh the vehicle data after returning from admin edit
-          setState(() {});
+            break;
+          default:
+            if (cleanTitle.contains('TRUCK')) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExternalCabEditPage(
+                    vehicleId: vehicle!.id,
+                    onProgressUpdate: () {
+                      setState(() {
+                        // Refresh UI after progress update if needed.
+                      });
+                    },
+                  ),
+                ),
+              );
+            }
+            break;
         }
       },
       child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.blue,
-          borderRadius: BorderRadius.circular(8),
+        width: containerWidth,
+        padding: EdgeInsets.all(containerPadding),
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        decoration: ShapeDecoration(
+          color: const Color(0x332F7FFF),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(width: borderSideWidth, color: borderColor),
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            // Title Box
+            Container(
+              width: double.infinity,
+              height: titleBoxHeight,
+              // padding: titleBoxPadding,
+              decoration: ShapeDecoration(
+                color: borderColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(titleBoxRadius),
+                ),
+              ),
+              child: Center(
+                child: AutoSizeText(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: titleFontSize,
+                    fontFamily: 'Montserrat',
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: titleLetterSpace,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              progress,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-              ),
-            ),
+            SizedBox(height: gapHeight),
+            // Progress Row with flexible widgets to allow wrapping
+            LayoutBuilder(builder: (context, constraints) {
+              return Row(
+                children: [
+                  // Progress bar takes 70% of available space
+                  Expanded(
+                    flex: 7,
+                    child: Container(
+                      height: progressBarHeight,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            height: progressBarHeight,
+                            decoration: const BoxDecoration(
+                              color: Color(0x7F526584),
+                            ),
+                          ),
+                          FractionallySizedBox(
+                            widthFactor: progressRatio.clamp(0.0, 1.0),
+                            child: Container(
+                              height: progressBarHeight,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF39BB36),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: progressSpacing),
+                  // Progress text takes 30% but will wrap if needed.
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      displayProgress,
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: progressFontSize,
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: progressLetterSp,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),

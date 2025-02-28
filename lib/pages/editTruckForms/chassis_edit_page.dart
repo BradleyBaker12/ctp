@@ -1,12 +1,10 @@
-// lib/pages/truckForms/chassis_edit_page.dart
-
 import 'dart:convert';
 import 'dart:typed_data';
-// import 'dart:ui_web';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/camera_helper.dart'; // Uses the camera helper
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
@@ -15,8 +13,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/truck_info_web_nav.dart';
-import 'dart:ui' as ui; // Added for platformViewRegistry
-import 'package:universal_html/html.dart' as html; // For web camera access
 
 class ChassisEditPage extends StatefulWidget {
   final String vehicleId;
@@ -377,13 +373,12 @@ class ChassisEditPageState extends State<ChassisEditPage>
   Widget _buildImageGrid(List<String> titles) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: titles.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+            crossAxisCount: constraints.maxWidth < 600 ? 1 : 2,
             crossAxisSpacing: 16.0,
             mainAxisSpacing: 16.0,
             childAspectRatio: 1.0, // Square blocks
@@ -617,13 +612,12 @@ class ChassisEditPageState extends State<ChassisEditPage>
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+                crossAxisCount: constraints.maxWidth < 600 ? 1 : 2,
                 crossAxisSpacing: 16.0,
                 mainAxisSpacing: 16.0,
                 childAspectRatio: 0.8,
@@ -819,17 +813,16 @@ class ChassisEditPageState extends State<ChassisEditPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Use our helper for camera capture:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.camera);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
                     _updateAndNotify(() {
-                      item['image'] = bytes;
+                      item['image'] = imageBytes;
                       item['imageUrl'] = '';
                     });
                   }
@@ -1078,9 +1071,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
   }
 
   // =======================
-  // Missing Methods: IMAGE SOURCE DIALOG & PLACEHOLDER
+  // IMAGE SOURCE DIALOG FOR MAIN IMAGES
   // =======================
-  // Method to show image source dialog for main images.
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
@@ -1090,62 +1082,28 @@ class ChassisEditPageState extends State<ChassisEditPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Updated Camera option:
+              // Use the unified camera helper
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
-                  Navigator.of(context).pop();
-                  if (kIsWeb) {
-                    bool cameraAvailable = false;
-                    try {
-                      cameraAvailable =
-                          html.window.navigator.mediaDevices != null;
-                    } catch (e) {
-                      cameraAvailable = false;
-                    }
-                    if (cameraAvailable) {
-                      await _takePhotoFromWeb((file, fileName) {
-                        if (file != null) {
-                          setState(() {
-                            // Update the image for the given title.
-                            _selectedImages[title] = file;
-                            _imageUrls[title] = '';
-                          });
-                        }
-                      });
-                    } else {
-                      final pickedFile = await ImagePicker()
-                          .pickImage(source: ImageSource.camera);
-                      if (pickedFile != null) {
-                        final bytes = await pickedFile.readAsBytes();
-                        setState(() {
-                          _selectedImages[title] = bytes;
-                          _imageUrls[title] = '';
-                        });
-                      }
-                    }
-                  } else {
-                    final pickedFile = await ImagePicker()
-                        .pickImage(source: ImageSource.camera);
-                    if (pickedFile != null) {
-                      final bytes = await pickedFile.readAsBytes();
-                      setState(() {
-                        _selectedImages[title] = bytes;
-                        _imageUrls[title] = '';
-                      });
-                    }
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[title] = imageBytes;
+                      _imageUrls[title] = '';
+                    });
                   }
                 },
               ),
-              // Existing Gallery option:
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
                 onTap: () async {
-                  Navigator.of(context).pop();
-                  final pickedFile = await ImagePicker()
-                      .pickImage(source: ImageSource.gallery);
+                  Navigator.of(ctx).pop();
+                  final pickedFile =
+                      await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
                     setState(() {
@@ -1182,71 +1140,5 @@ class ChassisEditPageState extends State<ChassisEditPage>
         ],
       ),
     );
-  }
-
-  // Add helper method for web camera capture:
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      String viewID =
-          'webcam_chassis_edit_${DateTime.now().millisecondsSinceEpoch}';
-      // platformViewRegistry.registerViewFactory(
-      //     viewID, (int viewId) => videoElement);
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(viewType: viewID),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  // final canvas = html.CanvasElement(
-                  //     width: videoElement.videoWidth,
-                  //     height: videoElement.videoHeight);
-                  // canvas.context2D.drawImage(videoElement, 0, 0);
-                  // final dataUrl = canvas.toDataUrl('image/png');
-                  // final base64Str = dataUrl.split(',').last;
-                  // final imageBytes = base64.decode(base64Str);
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(null, '');
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      callback(null, '');
-    }
   }
 }

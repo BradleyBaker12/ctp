@@ -1,4 +1,3 @@
-// maintenance_section.dart
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/vehicles_list.dart';
@@ -17,6 +16,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
+// Import the shared camera helper
+import 'package:ctp/utils/camera_helper.dart';
 
 class MaintenanceEditSection extends StatefulWidget {
   final String vehicleId;
@@ -214,122 +215,124 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     }
   }
 
+  /// Updated method to pick a maintenance document.
+  /// Presents a dialog allowing the user to choose either Camera or Gallery.
   Future<void> _pickMaintenanceDocument() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: [
-          'pdf',
-          'jpg',
-          'jpeg',
-          'png',
-          'doc',
-          'docx',
-          'xls',
-          'xlsx'
-        ],
-      );
-
-      if (result != null) {
-        final bytes = await result.files.single.xFile.readAsBytes();
-        _maintenanceDocFile = bytes;
-        _maintenanceDocFileName = result.files.single.xFile.name;
-        setState(() {});
-
-        // // Show loading dialog during conversion
-        // showDialog(
-        //   context: context,
-        //   barrierDismissible: false,
-        //   builder: (BuildContext context) {
-        //     return const Center(
-        //       child: CircularProgressIndicator(
-        //         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        //       ),
-        //     );
-        //   },
-        // );
-
-        // Convert file to PDF if possible
-        // File? processedFile = await convertToPdf(selectedFile);
-
-        // Dismiss loading dialog
-        // if (mounted) Navigator.pop(context);
-
-        // if (processedFile != null) {
-        //   setState(() {
-        //     _maintenanceDocFile = processedFile;
-        //     widget.onMaintenanceFileSelected(processedFile);
-        //   });
-        //   notifyProgress();
-        // }
-      }
-    } catch (e) {
-      // Dismiss loading dialog if showing
-      // if (mounted) Navigator.pop(context);
-
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Error picking maintenance file: $e')),
-      // );
-    }
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Choose Source for Maintenance Document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _maintenanceDocFile = imageBytes;
+                      _maintenanceDocFileName = "captured_maintenance.png";
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: [
+                      'pdf',
+                      'jpg',
+                      'jpeg',
+                      'png',
+                      'doc',
+                      'docx',
+                      'xls',
+                      'xlsx'
+                    ],
+                  );
+                  if (result != null) {
+                    final bytes = await result.files.single.xFile.readAsBytes();
+                    setState(() {
+                      _maintenanceDocFile = bytes;
+                      _maintenanceDocFileName = result.files.single.xFile.name;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
+  /// Updated method to pick a warranty document.
+  /// Presents a dialog allowing the user to choose either Camera or Gallery.
   Future<void> _pickWarrantyDocument() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: [
-          'pdf',
-          'jpg',
-          'jpeg',
-          'png',
-          'doc',
-          'docx',
-          'xls',
-          'xlsx'
-        ],
-      );
-
-      if (result != null) {
-        final bytes = await result.files.single.xFile.readAsBytes();
-        _warrantyDocFile = bytes;
-        _warrantyDocFileName = result.files.single.xFile.name;
-        setState(() {});
-
-        // Show loading dialog during conversion
-        // showDialog(
-        //   context: context,
-        //   barrierDismissible: false,
-        //   builder: (BuildContext context) {
-        //     return const Center(
-        //       child: CircularProgressIndicator(
-        //         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        //       ),
-        //     );
-        //   },
-        // );
-
-        // Convert file to PDF if possible
-        // File? processedFile = await convertToPdf(selectedFile);
-
-        // // Dismiss loading dialog
-        // if (mounted) Navigator.pop(context);
-
-        // if (processedFile != null) {
-        //   setState(() {
-        //     _warrantyDocFile = processedFile;
-        //     widget.onWarrantyFileSelected(processedFile);
-        //   });
-        //   notifyProgress();
-        // }
-      }
-    } catch (e) {
-      // // Dismiss loading dialog if showing
-      // if (mounted) Navigator.pop(context);
-
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Error picking warranty file: $e')),
-      // );
-    }
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Choose Source for Warranty Document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _warrantyDocFile = imageBytes;
+                      _warrantyDocFileName = "captured_warranty.png";
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: [
+                      'pdf',
+                      'jpg',
+                      'jpeg',
+                      'png',
+                      'doc',
+                      'docx',
+                      'xls',
+                      'xlsx'
+                    ],
+                  );
+                  if (result != null) {
+                    final bytes = await result.files.single.xFile.readAsBytes();
+                    setState(() {
+                      _warrantyDocFile = bytes;
+                      _warrantyDocFileName = result.files.single.xFile.name;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   IconData _getFileIcon(String fileName) {
@@ -367,12 +370,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   }
 
   String getFileNameFromUrl(String url) {
-    // if (url.contains('maintenance_doc')) {
-    //   return 'Maintenance Doc';
-    // } else if (url.contains('warranty_doc')) {
-    //   return 'Warranty Doc';
-    // }
-    // Fallback to original filename if pattern doesn't match
     return url.split('/').last.split('?').first;
   }
 
@@ -555,11 +552,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final bool isDealer = userRole == 'dealer';
     final bool isTransporter = userRole == 'transporter';
     final bool isSales = userRole == 'sales';
-    final bool canEdit = isAdmin ||
-        isSales ||
-        isTransporter; // New variable for edit permissions
+    final bool canEdit = isAdmin || isSales || isTransporter;
 
-// Define different text prompts for dealers vs. transporters.
+    // Define different text prompts for dealers vs. transporters.
     final String maintenanceTitle = isDealer ? 'Maintenance' : 'Maintenance';
     final String maintenancePrompt = isDealer
         ? 'VIEW MAINTENANCE DOCUMENTATION'
@@ -579,51 +574,11 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
         ? 'OEM WILL HANDLE THE INSPECTION PROCESS'
         : 'PLEASE NOTE THAT OEM WILL CHARGE YOU FOR INSPECTION.';
 
-    // Change the onTap/enabled conditions to exclude dealers
     return Scaffold(
       key: _scaffoldKey,
       appBar: !kIsWeb
           ? null
-          // AppBar(
-          //     backgroundColor: Colors.blueAccent,
-          //     leading: Container(
-          //       margin: const EdgeInsets.all(4),
-          //       decoration: BoxDecoration(
-          //         color: Colors.black,
-          //         borderRadius: BorderRadius.circular(4),
-          //       ),
-          //       child: IconButton(
-          //         padding: EdgeInsets.zero,
-          //         constraints: const BoxConstraints(
-          //           minWidth: 30,
-          //           minHeight: 30,
-          //         ),
-          //         icon: const Text(
-          //           'BACK',
-          //           style: TextStyle(
-          //             color: Colors.white,
-          //             fontSize: 12,
-          //             fontWeight: FontWeight.bold,
-          //           ),
-          //         ),
-          //         onPressed: () => Navigator.pop(context),
-          //       ),
-          //     ),
-          //     title: Row(
-          //       mainAxisAlignment: MainAxisAlignment.end,
-          //       children: const [
-          //         Text(
-          //           "Maintenance and Warranty",
-          //           style: TextStyle(color: Colors.white, fontSize: 15),
-          //         ),
-          //       ],
-          //     ),
-          //   )
-          : null,
-      body: Column(
-        children: [
-          if (kIsWeb)
-            PreferredSize(
+          : PreferredSize(
               preferredSize: const Size.fromHeight(70),
               child: TruckInfoWebNavBar(
                 scaffoldKey: _scaffoldKey,
@@ -647,6 +602,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                 onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
               ),
             ),
+      body: Column(
+        children: [
           Expanded(
             child: GradientBackground(
               child: SizedBox(
@@ -686,10 +643,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             ),
                           const SizedBox(height: 15),
                           InkWell(
-                            // Only allow admin, sales, and transporters to pick the doc (exclude dealers)
-                            onTap: canEdit
-                                ? _pickMaintenanceDocument
-                                : null, // Only allow editing if not dealer
+                            onTap: canEdit ? _pickMaintenanceDocument : null,
                             borderRadius: BorderRadius.circular(10.0),
                             child: Container(
                               width: double.infinity,
@@ -721,11 +675,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       child: Column(
                                         children: [
                                           if (_maintenanceDocFile != null)
-                                            if (_isImageFile(
-                                                _maintenanceDocFileName!))
-                                              Column(
-                                                children: [
-                                                  ClipRRect(
+                                            _isImageFile(
+                                                    _maintenanceDocFileName ??
+                                                        '')
+                                                ? ClipRRect(
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             8.0),
@@ -735,69 +688,48 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                       height: 100,
                                                       fit: BoxFit.cover,
                                                     ),
-                                                  ),
-                                                  SizedBox(height: 5),
-                                                  Container(
-                                                    width: double.infinity,
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 16.0),
-                                                    child: Text(
-                                                      _maintenanceDocFileName!,
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
+                                                  )
+                                                : Column(
+                                                    children: [
+                                                      Icon(
+                                                        _getFileIcon(
+                                                            _maintenanceDocFileName ??
+                                                                ''),
                                                         color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w500,
+                                                        size: 50.0,
                                                       ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  ),
-                                                ],
-                                              )
-                                            else
-                                              Column(
-                                                children: [
-                                                  Icon(
-                                                    _getFileIcon(
-                                                        _maintenanceDocFileName!),
-                                                    color: Colors.white,
-                                                    size: 50.0,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Container(
-                                                    width: double.infinity,
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 16.0),
-                                                    child: Text(
-                                                      _maintenanceDocFileName!,
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w500,
+                                                      const SizedBox(height: 8),
+                                                      Container(
+                                                        width: double.infinity,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal:
+                                                                    16.0),
+                                                        child: Text(
+                                                          _maintenanceDocFileName ??
+                                                              '',
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 14,
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                          ),
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                        ),
                                                       ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  ),
-                                                ],
-                                              )
+                                                    ],
+                                                  )
                                           else if (widget.maintenanceDocUrl !=
                                               null)
-                                            if (_isImageFile(
-                                                widget.maintenanceDocUrl!))
-                                              Column(
-                                                children: [
-                                                  ClipRRect(
+                                            _isImageFile(
+                                                    widget.maintenanceDocUrl!)
+                                                ? ClipRRect(
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             8.0),
@@ -807,64 +739,42 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                       height: 100,
                                                       fit: BoxFit.cover,
                                                     ),
-                                                  ),
-                                                  SizedBox(height: 5),
-                                                  Container(
-                                                    width: double.infinity,
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 16.0),
-                                                    child: Text(
-                                                      getFileNameFromUrl(widget
-                                                          .maintenanceDocUrl!),
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
+                                                  )
+                                                : Column(
+                                                    children: [
+                                                      Icon(
+                                                        _getFileIcon(widget
+                                                            .maintenanceDocUrl!),
                                                         color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w500,
+                                                        size: 50.0,
                                                       ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  ),
-                                                ],
-                                              )
-                                            else
-                                              Column(
-                                                children: [
-                                                  Icon(
-                                                    _getFileIcon(widget
-                                                        .maintenanceDocUrl!),
-                                                    color: Colors.white,
-                                                    size: 50.0,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Container(
-                                                    width: double.infinity,
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 16.0),
-                                                    child: Text(
-                                                      getFileNameFromUrl(widget
-                                                          .maintenanceDocUrl!),
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w500,
+                                                      const SizedBox(height: 8),
+                                                      Container(
+                                                        width: double.infinity,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal:
+                                                                    16.0),
+                                                        child: Text(
+                                                          getFileNameFromUrl(widget
+                                                              .maintenanceDocUrl!),
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 14,
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                          ),
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                        ),
                                                       ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
+                                                    ],
                                                   ),
-                                                ],
-                                              ),
                                           const SizedBox(height: 8),
                                           if (widget.isUploading)
                                             Row(
@@ -934,8 +844,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                           notifyProgress();
                                         }
                                       }
-                                    : (String?
-                                        value) {}, // Provide empty function when not editable
+                                    : (String? value) {},
                                 enabled: canEdit,
                               ),
                               const SizedBox(width: 15),
@@ -952,14 +861,12 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                           notifyProgress();
                                         }
                                       }
-                                    : (String?
-                                        value) {}, // Provide empty function when not editable
+                                    : (String? value) {},
                                 enabled: canEdit,
                               ),
                             ],
                           ),
                           const SizedBox(height: 15),
-                          // Conditional Explanation Input Field
                           if (_oemInspectionType == 'no')
                             Padding(
                               padding:
@@ -988,10 +895,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             ),
                           const SizedBox(height: 15),
                           InkWell(
-                            // Only allow admin, sales, and transporters to pick the doc (exclude dealers)
-                            onTap: canEdit
-                                ? _pickWarrantyDocument
-                                : null, // Only allow editing if not dealer
+                            onTap: canEdit ? _pickWarrantyDocument : null,
                             borderRadius: BorderRadius.circular(10.0),
                             child: Container(
                               width: double.infinity,
@@ -1022,90 +926,95 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       child: Column(
                                         children: [
                                           if (_warrantyDocFile != null)
-                                            if (_isImageFile(
-                                                _warrantyDocFileName!))
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(8.0),
-                                                child: Image.memory(
-                                                  _warrantyDocFile!,
-                                                  width: 100,
-                                                  height: 100,
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              )
-                                            else
-                                              Column(
-                                                children: [
-                                                  Icon(
-                                                    _getFileIcon(
-                                                        _warrantyDocFileName!),
-                                                    color: Colors.white,
-                                                    size: 50.0,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Container(
-                                                    width: double.infinity,
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 16.0),
-                                                    child: Text(
-                                                      _warrantyDocFileName!,
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      textAlign:
-                                                          TextAlign.center,
+                                            _isImageFile(
+                                                    _warrantyDocFileName ?? '')
+                                                ? ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8.0),
+                                                    child: Image.memory(
+                                                      _warrantyDocFile!,
+                                                      width: 100,
+                                                      height: 100,
+                                                      fit: BoxFit.cover,
                                                     ),
-                                                  ),
-                                                ],
-                                              )
+                                                  )
+                                                : Column(
+                                                    children: [
+                                                      Icon(
+                                                        _getFileIcon(
+                                                            _warrantyDocFileName ??
+                                                                ''),
+                                                        color: Colors.white,
+                                                        size: 50.0,
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Container(
+                                                        width: double.infinity,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal:
+                                                                    16.0),
+                                                        child: Text(
+                                                          _warrantyDocFileName ??
+                                                              '',
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 14,
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                          ),
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  )
                                           else if (widget.warrantyDocUrl !=
                                               null)
-                                            if (_isImageFile(
-                                                widget.warrantyDocUrl!))
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(8.0),
-                                                child: Image.network(
-                                                  widget.warrantyDocUrl!,
-                                                  width: 100,
-                                                  height: 100,
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              )
-                                            else
-                                              Column(
-                                                children: [
-                                                  Icon(
-                                                    _getFileIcon(
-                                                        widget.warrantyDocUrl!),
-                                                    color: Colors.white,
-                                                    size: 50.0,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    getFileNameFromUrl(
-                                                        widget.warrantyDocUrl!),
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w500,
+                                            _isImageFile(widget.warrantyDocUrl!)
+                                                ? ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8.0),
+                                                    child: Image.network(
+                                                      widget.warrantyDocUrl!,
+                                                      width: 100,
+                                                      height: 100,
+                                                      fit: BoxFit.cover,
                                                     ),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    textAlign: TextAlign.center,
+                                                  )
+                                                : Column(
+                                                    children: [
+                                                      Icon(
+                                                        _getFileIcon(widget
+                                                            .warrantyDocUrl!),
+                                                        color: Colors.white,
+                                                        size: 50.0,
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        getFileNameFromUrl(widget
+                                                            .warrantyDocUrl!),
+                                                        style: const TextStyle(
+                                                          fontSize: 14,
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                    ],
                                                   ),
-                                                ],
-                                              ),
                                           const SizedBox(height: 8),
                                           if (widget.isUploading)
                                             Row(
@@ -1138,7 +1047,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             ),
                           ),
                           const SizedBox(height: 20),
-                          // Show the DONE button for admin, sales, or transporters (exclude dealers)
                           if (isTransporter || isSales || isAdmin)
                             CustomButton(
                               onPressed: () async {
@@ -1193,7 +1101,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                         await storageRef.getDownloadURL();
                                   }
 
-                                  // Prepare the maintenance data
                                   Map<String, dynamic> maintenanceData = {
                                     'vehicleId': widget.vehicleId,
                                     'oemInspectionType': _oemInspectionType,
@@ -1208,8 +1115,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                         widget.warrantySelection,
                                     'lastUpdated': FieldValue.serverTimestamp(),
                                   };
-
-                                  // Update the vehicle document in Firestore
 
                                   log("Maintenance data before save $maintenanceData");
                                   await FirebaseFirestore.instance
@@ -1227,7 +1132,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                 },
                                           SetOptions(merge: true));
 
-                                  // Dismiss loading indicator and pop back
                                   Navigator.pop(
                                       context); // Dismiss loading indicator
                                   Navigator.pop(
@@ -1246,17 +1150,13 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                 const TruckPage()));
                                   }
 
-                                  // Show success message
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                         content: Text(
                                             'Maintenance data saved successfully')),
                                   );
                                 } catch (error) {
-                                  // Dismiss loading indicator
                                   Navigator.pop(context);
-
-                                  // Show error message
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(

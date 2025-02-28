@@ -3,7 +3,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-// import 'dart:ui_web';
+import 'dart:ui_web';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -280,8 +280,8 @@ class ExternalCabPageState extends State<ExternalCabPage>
       String viewID = 'webcam_${DateTime.now().millisecondsSinceEpoch}';
       // using ui.platformViewRegistry
       // ...existing code...
-      // platformViewRegistry.registerViewFactory(
-      //     viewID, (int viewId) => videoElement);
+      platformViewRegistry.registerViewFactory(
+          viewID, (int viewId) => videoElement);
       await showDialog(
           context: context,
           barrierDismissible: false,
@@ -296,25 +296,25 @@ class ExternalCabPageState extends State<ExternalCabPage>
                 actions: [
                   TextButton(
                     onPressed: () {
-                      // final canvas = html.CanvasElement(
-                      //   width: videoElement.videoWidth,
-                      //   height: videoElement.videoHeight,
-                      // );
-                      // canvas.context2D.drawImage(videoElement, 0, 0);
-                      // final dataUrl = canvas.toDataUrl('image/png');
-                      // final base64Str = dataUrl.split(',').last;
-                      // final imageBytes = base64.decode(base64Str);
-                      // mediaStream.getTracks().forEach((track) => track.stop());
-                      // Navigator.of(dialogContext).pop();
-                      // callback(imageBytes, 'captured.png');
+                      final canvas = html.CanvasElement(
+                        width: videoElement.videoWidth,
+                        height: videoElement.videoHeight,
+                      );
+                      canvas.context2D.drawImage(videoElement, 0, 0);
+                      final dataUrl = canvas.toDataUrl('image/png');
+                      final base64Str = dataUrl.split(',').last;
+                      final imageBytes = base64.decode(base64Str);
+                      mediaStream.getTracks().forEach((track) => track.stop());
+                      Navigator.of(dialogContext).pop();
+                      callback(imageBytes, 'captured.png');
                     },
                     child: const Text('Capture'),
                   ),
                   TextButton(
                     onPressed: () {
-                      // mediaStream.getTracks().forEach((track) => track.stop());
-                      // Navigator.of(dialogContext).pop();
-                      // callback(null, '');
+                      mediaStream.getTracks().forEach((track) => track.stop());
+                      Navigator.of(dialogContext).pop();
+                      callback(null, '');
                     },
                     child: const Text('Cancel'),
                   )

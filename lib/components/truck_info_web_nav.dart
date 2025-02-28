@@ -39,21 +39,20 @@ class TruckInfoWebNavBar extends StatelessWidget {
     // Width per navigation item (includes padding and text)
     const itemWidth = 180.0;
 
-    // Calculate total width needed based on which navigation items are shown
+    // Calculate the total width needed based on which navigation items are shown
     double requiredWidth = baseWidth;
 
     if (["External Cab", "Internal Cab", "Chassis", "Drive Train", "Tyres"]
         .contains(selectedTab)) {
-      // Add width for 5 truck condition items plus Home
+      // Truck condition pages show 5 conditions plus Home
       requiredWidth += itemWidth * 6; // 5 conditions + Home
     } else {
-      // Add width for 3 main nav items plus Home
-      requiredWidth +=
-          itemWidth * 4; // Basic Info, Truck Conditions, Maintenance + Home
+      // Basic navigation items: Basic Info, Truck Conditions, Maintenance + Home
+      requiredWidth += itemWidth * 4;
     }
 
-    // Return true if screen width is less than required width
-    return MediaQuery.of(context).size.width <= requiredWidth;
+    // Show hamburger menu as soon as available width is less than needed.
+    return MediaQuery.of(context).size.width < requiredWidth;
   }
 
   @override

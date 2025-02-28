@@ -1,10 +1,8 @@
-// lib/pages/truckForms/drive_train_page.dart
-
 import 'dart:convert';
 import 'dart:typed_data';
-// import 'dart:ui_web';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/camera_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
@@ -15,8 +13,6 @@ import 'package:provider/provider.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/truck_info_web_nav.dart';
-import 'dart:ui' as ui; // Added for platformViewRegistry
-import 'package:universal_html/html.dart' as html; // For web camera access
 
 class DriveTrainEditPage extends StatefulWidget {
   final String vehicleId;
@@ -40,8 +36,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     with AutomaticKeepAliveClientMixin {
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage =
-      FirebaseStorage.instance; // Firebase Storage instance
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   String _selectedCondition = 'good'; // Default selected value
@@ -83,7 +78,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   @override
   void initState() {
     super.initState();
-    // Load data directly if not already initialized
     if (!_isInitialized) {
       _loadExistingData();
     }
@@ -407,11 +401,9 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         ),
       ),
     );
-    // If not in tabs page, wrap with GradientBackground
     if (!widget.inTabsPage) {
       content = GradientBackground(child: content);
     }
-
     return Scaffold(
       key: _scaffoldKey,
       appBar: kIsWeb
@@ -420,7 +412,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               child: TruckInfoWebNavBar(
                 scaffoldKey: _scaffoldKey,
                 selectedTab: "Drive Train",
-                vehicleId: widget.vehicleId, // Add this line
+                vehicleId: widget.vehicleId,
                 onHomePressed: () => Navigator.pushNamed(context, '/home'),
                 onBasicInfoPressed: () =>
                     Navigator.pushNamed(context, '/basic_information'),
@@ -440,7 +432,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               ),
             )
           : null,
-      body: content, // your existing content
+      body: content,
     );
   }
 
@@ -456,7 +448,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
 
     return GestureDetector(
       onTap: () {
-        // If there's an image, allow viewing in full screen
         if (hasLocalFile || hasUrl) {
           Navigator.push(
             context,
@@ -474,12 +465,11 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
             ),
           );
         } else if (!isDealer) {
-          // For transporters - pick image
           _showImageSourceDialog(title);
         }
       },
       child: AspectRatio(
-        aspectRatio: 1.0, // Enforce a square block
+        aspectRatio: 1.0,
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.blue.withOpacity(0.3),
@@ -488,9 +478,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           ),
           child: Stack(
             children: [
-              // Existing image or placeholder
               _getImageWidget(title, isDealer),
-              // The "X" button (only if not a dealer AND an image is present)
               if (!isDealer && (hasLocalFile || hasUrl))
                 Positioned(
                   top: 0,
@@ -513,11 +501,9 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     );
   }
 
-  // Returns either a local file image, a network image, or a placeholder
   Widget _getImageWidget(String title, bool isDealer) {
     final file = _selectedImages[title];
     final url = _imageUrls[title];
-
     if (file != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
@@ -545,7 +531,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (!isDealer)
               const Icon(Icons.add_circle_outline,
@@ -567,70 +552,38 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   }
 
   // ===========================================================================
-  // 2) IMAGE SOURCE DIALOG
+  // 2) IMAGE SOURCE DIALOG (Using unified camera helper)
   // ===========================================================================
   void _showImageSourceDialog(String title) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (ctx) {
         return AlertDialog(
           title: Text('Choose Image Source for $title'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Updated Camera option:
+              // Camera option uses the helper
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
                 onTap: () async {
-                  Navigator.of(context).pop();
-                  if (kIsWeb) {
-                    bool cameraAvailable = false;
-                    try {
-                      cameraAvailable =
-                          html.window.navigator.mediaDevices != null;
-                    } catch (e) {
-                      cameraAvailable = false;
-                    }
-                    if (cameraAvailable) {
-                      await _takePhotoFromWeb((file, fileName) {
-                        if (file != null) {
-                          setState(() {
-                            _selectedImages[title] = file;
-                            _imageUrls[title] = '';
-                          });
-                        }
-                      });
-                    } else {
-                      final pickedFile =
-                          await _picker.pickImage(source: ImageSource.camera);
-                      if (pickedFile != null) {
-                        final bytes = await pickedFile.readAsBytes();
-                        setState(() {
-                          _selectedImages[title] = bytes;
-                          _imageUrls[title] = '';
-                        });
-                      }
-                    }
-                  } else {
-                    final pickedFile =
-                        await _picker.pickImage(source: ImageSource.camera);
-                    if (pickedFile != null) {
-                      final bytes = await pickedFile.readAsBytes();
-                      setState(() {
-                        _selectedImages[title] = bytes;
-                        _imageUrls[title] = '';
-                      });
-                    }
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[title] = imageBytes;
+                      _imageUrls[title] = '';
+                    });
                   }
                 },
               ),
-              // Existing Gallery option:
+              // Gallery option remains unchanged
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
                 onTap: () async {
-                  Navigator.of(context).pop();
+                  Navigator.of(ctx).pop();
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
@@ -649,73 +602,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     );
   }
 
-  // Add web camera helper method:
-  Future<void> _takePhotoFromWeb(
-      void Function(Uint8List?, String) callback) async {
-    if (!kIsWeb) {
-      callback(null, '');
-      return;
-    }
-    try {
-      final mediaDevices = html.window.navigator.mediaDevices;
-      if (mediaDevices == null) {
-        callback(null, '');
-        return;
-      }
-      final mediaStream = await mediaDevices.getUserMedia({'video': true});
-      final videoElement = html.VideoElement()
-        ..autoplay = true
-        ..srcObject = mediaStream;
-      await videoElement.onLoadedMetadata.first;
-      String viewID =
-          'webcam_drivetrain_edit_${DateTime.now().millisecondsSinceEpoch}';
-      // platformViewRegistry.registerViewFactory(
-      //     viewID, (int viewId) => videoElement);
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Take Photo'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: HtmlElementView(viewType: viewID),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  // final canvas = html.CanvasElement(
-                  //   width: videoElement.videoWidth,
-                  //   height: videoElement.videoHeight,
-                  // );
-                  // canvas.context2D.drawImage(videoElement, 0, 0);
-                  // final dataUrl = canvas.toDataUrl('image/png');
-                  // final base64Str = dataUrl.split(',').last;
-                  // final imageBytes = base64.decode(base64Str);
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(imageBytes, 'captured.png');
-                },
-                child: const Text('Capture'),
-              ),
-              TextButton(
-                onPressed: () {
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(null, '');
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      callback(null, '');
-    }
-  }
-
   // ===========================================================================
   // 3) YES/NO SECTIONS (WITH/WITHOUT IMAGES)
   // ===========================================================================
@@ -727,7 +613,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   }) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
-
     return Column(
       children: [
         Text(
@@ -761,13 +646,11 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           ],
         ),
         const SizedBox(height: 16.0),
-        // If the user selects "Yes", allow uploading/viewing the leak photo
         if (groupValue == 'yes') _buildPhotoBlock(imageKey),
       ],
     );
   }
 
-  // Same yes/no but without image upload (radio buttons only)
   Widget _buildYesNoRadioOnlySection({
     required String title,
     required String groupValue,
@@ -775,7 +658,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   }) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
-
     return Column(
       children: [
         Text(
@@ -817,39 +699,31 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   // ===========================================================================
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    // Allow transporter, admin, and salesRep to upload data
     final allowedRoles = ['transporter', 'admin', 'salesRep'];
     if (!allowedRoles.contains(userProvider.getUserRole)) {
       return {};
     }
 
     Map<String, dynamic> serializedImages = {};
-
-    // Validate and sanitize images data
     for (var entry in _selectedImages.entries) {
       String? imageUrl;
-
       if (entry.value != null) {
-        // Upload new image
         imageUrl = await _uploadImageToFirebase(
           entry.value!,
           entry.key.replaceAll(' ', '_').toLowerCase(),
         );
       } else if (_imageUrls[entry.key] != null &&
           _imageUrls[entry.key]!.isNotEmpty) {
-        // Use existing URL
         imageUrl = _imageUrls[entry.key];
       }
-
       if (imageUrl != null && imageUrl.isNotEmpty) {
         serializedImages[entry.key] = {
           'url': imageUrl,
-          'isNew': entry.value != null, // true if it's a new upload
+          'isNew': entry.value != null,
         };
       }
     }
 
-    // Create a sanitized data map
     Map<String, dynamic> data = {
       'condition': _selectedCondition,
       'engineOilLeak': _oilLeakConditionEngine,
@@ -862,7 +736,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     if (serializedImages.isNotEmpty) {
       data['images'] = serializedImages;
     }
-
     return data;
   }
 
@@ -875,22 +748,19 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error uploading image: $e')));
       return '';
     }
   }
 
   Future<bool> saveData() async {
-    // Implement save logic if needed
     return true;
   }
 
   void initializeWithData(Map<String, dynamic> data) {
     print('DriveTrain: Starting initialization with data: $data');
     if (data.isEmpty) return;
-
     setState(() {
       _selectedCondition = data['condition'] ?? 'good';
       _oilLeakConditionEngine = data['engineOilLeak'] ?? 'no';
@@ -899,7 +769,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       _oilLeakConditionGearbox = data['gearboxOilLeak'] ?? 'no';
       _retarderCondition = data['retarderCondition'] ?? 'no';
 
-      // Initialize images
       if (data['images'] != null) {
         final images = Map<String, dynamic>.from(data['images']);
         images.forEach((key, value) {
@@ -909,15 +778,11 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
             if (url != null && url.isNotEmpty) {
               print('DriveTrain: Setting URL for $key: $url');
               _imageUrls[key] = url;
-              _selectedImages[key] = null; // Clear any existing file data
+              _selectedImages[key] = null;
             }
           }
         });
       }
-    });
-
-    _imageUrls.forEach((key, value) {
-      print('DriveTrain: Final URL for $key: $value');
     });
     print('DriveTrain: Initialization complete');
   }
@@ -934,24 +799,17 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       _selectedImages.forEach((key, _) {
         _selectedImages[key] = null;
       });
-
       _imageUrls.clear();
-
-      _isInitialized = false; // Allow re-initialization if needed
+      _isInitialized = false;
     });
   }
 
   double getCompletionPercentage() {
-    int totalFields = 19; // Total number of fields to fill
+    int totalFields = 19;
     int filledFields = 0;
-
-    // 1) Condition
     if (_selectedCondition.isNotEmpty) filledFields++;
-
-    // 2) Images (16 total possible)
     _selectedImages.forEach((key, value) {
       if (key.contains('Leak')) {
-        // For "Leak" images, only count if the condition is "yes"
         if ((key == 'Engine Oil Leak' &&
                 _oilLeakConditionEngine == 'yes' &&
                 (value != null ||
@@ -970,15 +828,12 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           filledFields++;
         }
       } else {
-        // Non-leak images always count if present
         if (value != null ||
             (_imageUrls[key] != null && _imageUrls[key]!.isNotEmpty)) {
           filledFields++;
         }
       }
     });
-
-    // 3) Conditions for leaks, blowby, retarder (5 fields)
     if (_oilLeakConditionEngine == 'no' ||
         (_oilLeakConditionEngine == 'yes' &&
             (_selectedImages['Engine Oil Leak'] != null ||
@@ -986,7 +841,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                     _imageUrls['Engine Oil Leak']!.isNotEmpty)))) {
       filledFields++;
     }
-
     if (_waterLeakConditionEngine == 'no' ||
         (_waterLeakConditionEngine == 'yes' &&
             (_selectedImages['Engine Water Leak'] != null ||
@@ -994,9 +848,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                     _imageUrls['Engine Water Leak']!.isNotEmpty)))) {
       filledFields++;
     }
-
     if (_blowbyCondition.isNotEmpty) filledFields++;
-
     if (_oilLeakConditionGearbox == 'no' ||
         (_oilLeakConditionGearbox == 'yes' &&
             (_selectedImages['Gearbox Oil Leak'] != null ||
@@ -1004,13 +856,10 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                     _imageUrls['Gearbox Oil Leak']!.isNotEmpty)))) {
       filledFields++;
     }
-
     if (_retarderCondition.isNotEmpty) filledFields++;
-
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
-  // Utility method to update state and notify progress
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(() {
       updateFunction();
@@ -1018,7 +867,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     widget.onProgressUpdate();
   }
 
-  // Condition selection
   void _updateCondition(String? value) {
     if (value != null) {
       _updateAndNotify(() {
@@ -1027,7 +875,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
   }
 
-  // Engine oil leak
   void _updateOilLeakCondition(String? value) {
     if (value != null) {
       _updateAndNotify(() {
@@ -1040,7 +887,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
   }
 
-  // Engine water leak
   void _updateWaterLeakCondition(String? value) {
     if (value != null) {
       _updateAndNotify(() {
@@ -1053,7 +899,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
   }
 
-  // Blowby condition
   void _updateBlowbyCondition(String? value) {
     if (value != null) {
       _updateAndNotify(() {
@@ -1062,7 +907,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
   }
 
-  // Gearbox oil leak
   void _updateGearboxOilLeakCondition(String? value) {
     if (value != null) {
       _updateAndNotify(() {
@@ -1075,7 +919,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
   }
 
-  // Retarder condition
   void _updateRetarderCondition(String? value) {
     if (value != null) {
       _updateAndNotify(() {
@@ -1084,11 +927,10 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
   }
 
-  // For image selection
   Future<void> _updateImage(String title, Uint8List imageFile) async {
     _updateAndNotify(() {
       _selectedImages[title] = imageFile;
-      _imageUrls[title] = ''; // Clear any existing URL
+      _imageUrls[title] = '';
     });
   }
 }

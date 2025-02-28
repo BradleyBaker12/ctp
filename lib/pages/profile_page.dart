@@ -102,7 +102,8 @@ class ProfilePage extends StatelessWidget {
               ),
             )
           : null,
-      drawer: _isCompactNavigation(context)
+      // Change here: show drawer only on web
+      drawer: kIsWeb && _isCompactNavigation(context)
           ? Drawer(
               child: Container(
                 decoration: BoxDecoration(

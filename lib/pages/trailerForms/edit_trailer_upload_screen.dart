@@ -20,7 +20,8 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:universal_html/html.dart' as html;
 import '../truckForms/custom_text_field.dart';
 import 'package:ctp/components/custom_radio_button.dart';
-// import 'dart:ui_web';
+// Import dart:html for web camera capture (only on web).
+import 'dart:ui_web';
 import 'package:ctp/providers/trailer_form_provider.dart';
 
 /// Formats input text to uppercase.
@@ -340,24 +341,24 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
     }
 
     try {
-      // final mediaDevices = html.window.navigator.mediaDevices;
-      // if (mediaDevices == null) {
-      //   callback(null, '');
-      //   return;
-      // }
+      final mediaDevices = html.window.navigator.mediaDevices;
+      if (mediaDevices == null) {
+        callback(null, '');
+        return;
+      }
 
-      // final mediaStream = await mediaDevices.getUserMedia({'video': true});
+      final mediaStream = await mediaDevices.getUserMedia({'video': true});
 
-      // final videoElement = html.VideoElement()
-      //   ..autoplay = true
-      //   ..srcObject = mediaStream;
+      final videoElement = html.VideoElement()
+        ..autoplay = true
+        ..srcObject = mediaStream;
 
-      // await videoElement.onLoadedMetadata.first;
+      await videoElement.onLoadedMetadata.first;
 
-      // platformViewRegistry.registerViewFactory(
-      //   'webcamVideo',
-      //   (int viewId) => videoElement,
-      // );
+      platformViewRegistry.registerViewFactory(
+        'webcamVideo',
+        (int viewId) => videoElement,
+      );
 
       await showDialog(
         context: context,
@@ -375,24 +376,24 @@ class _EditTrailerUploadScreenState extends State<EditTrailerUploadScreen> {
             actions: [
               TextButton(
                 onPressed: () {
-                  // final canvas = html.CanvasElement(
-                  //   width: videoElement.videoWidth,
-                  //   height: videoElement.videoHeight,
-                  // );
-                  // canvas.context2D.drawImage(videoElement, 0, 0);
-                  // final dataUrl = canvas.toDataUrl('image/png');
-                  // final base64Str = dataUrl.split(',').last;
-                  // final imageBytes = base64.decode(base64Str);
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
-                  // callback(imageBytes, 'captured.png');
+                  final canvas = html.CanvasElement(
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                  );
+                  canvas.context2D.drawImage(videoElement, 0, 0);
+                  final dataUrl = canvas.toDataUrl('image/png');
+                  final base64Str = dataUrl.split(',').last;
+                  final imageBytes = base64.decode(base64Str);
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
+                  callback(imageBytes, 'captured.png');
                 },
                 child: const Text('Capture'),
               ),
               TextButton(
                 onPressed: () {
-                  // mediaStream.getTracks().forEach((track) => track.stop());
-                  // Navigator.of(dialogContext).pop();
+                  mediaStream.getTracks().forEach((track) => track.stop());
+                  Navigator.of(dialogContext).pop();
                 },
                 child: const Text('Cancel'),
               ),
