@@ -33,92 +33,93 @@ Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
         builder: (context, setState) {
           return AlertDialog(
             title: const Text('Take Photo'),
-            content: FutureBuilder<html.VideoElement>(
-              future: initializeCamera(useFrontCamera),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(
-                    width: 320,
-                    height: 320,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                } else if (snapshot.hasError) {
-                  return const SizedBox(
-                    width: 320,
-                    height: 320,
-                    child: Center(child: Text('Error initializing camera')),
-                  );
-                }
-                final videoElement = snapshot.data!;
-                // Create a unique view ID.
-                final viewID =
-                    'webcam_${DateTime.now().millisecondsSinceEpoch}';
-                // Register the view factory.
-                platformViewRegistry.registerViewFactory(
-                    viewID, (int viewId) => videoElement);
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Display the live camera feed inside a rounded container.
-                    SizedBox(
+            content: SingleChildScrollView(
+              child: FutureBuilder<html.VideoElement>(
+                future: initializeCamera(useFrontCamera),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
                       width: 320,
                       height: 320,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: HtmlElementView(viewType: viewID),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  } else if (snapshot.hasError) {
+                    return const SizedBox(
+                      width: 320,
+                      height: 320,
+                      child: Center(child: Text('Error initializing camera')),
+                    );
+                  }
+                  final videoElement = snapshot.data!;
+                  final viewID =
+                      'webcam_${DateTime.now().millisecondsSinceEpoch}';
+                  platformViewRegistry.registerViewFactory(
+                      viewID, (int viewId) => videoElement);
+                  final double feedSize =
+                      MediaQuery.of(context).size.width * 0.8;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Display the live camera feed inside a rounded container.
+                      SizedBox(
+                        width: feedSize,
+                        height: feedSize,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: HtmlElementView(viewType: viewID),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            // Capture the current frame.
-                            final canvas = html.CanvasElement(
-                              width: videoElement.videoWidth,
-                              height: videoElement.videoHeight,
-                            );
-                            canvas.context2D.drawImage(videoElement, 0, 0);
-                            final dataUrl = canvas.toDataUrl('image/png');
-                            final base64Str = dataUrl.split(',').last;
-                            final bytes = base64.decode(base64Str);
-                            // Stop all tracks.
-                            (videoElement.srcObject as html.MediaStream)
-                                .getTracks()
-                                .forEach((track) => track.stop());
-                            capturedImage = bytes;
-                            Navigator.of(dialogContext).pop();
-                          },
-                          child: const Text('Capture'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            // Toggle camera mode.
-                            setState(() {
-                              useFrontCamera = !useFrontCamera;
-                            });
-                          },
-                          child: Text(useFrontCamera
-                              ? 'Switch to Back Camera'
-                              : 'Switch to Front Camera'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        // Cancel and stop the stream.
-                        (videoElement.srcObject as html.MediaStream)
-                            .getTracks()
-                            .forEach((track) => track.stop());
-                        Navigator.of(dialogContext).pop();
-                      },
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                );
-              },
+                      const SizedBox(height: 12),
+                      // Use Wrap for buttons to avoid overflow on smaller screens.
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () {
+                              final canvas = html.CanvasElement(
+                                width: videoElement.videoWidth,
+                                height: videoElement.videoHeight,
+                              );
+                              canvas.context2D.drawImage(videoElement, 0, 0);
+                              final dataUrl = canvas.toDataUrl('image/png');
+                              final base64Str = dataUrl.split(',').last;
+                              final bytes = base64.decode(base64Str);
+                              (videoElement.srcObject as html.MediaStream)
+                                  .getTracks()
+                                  .forEach((track) => track.stop());
+                              capturedImage = bytes;
+                              Navigator.of(dialogContext).pop();
+                            },
+                            child: const Text('Capture'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                useFrontCamera = !useFrontCamera;
+                              });
+                            },
+                            child: Text(useFrontCamera
+                                ? 'Switch to Back Camera'
+                                : 'Switch to Front Camera'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          (videoElement.srcObject as html.MediaStream)
+                              .getTracks()
+                              .forEach((track) => track.stop());
+                          Navigator.of(dialogContext).pop();
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           );
         },

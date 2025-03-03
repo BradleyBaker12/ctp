@@ -278,8 +278,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final userProvider = Provider.of<UserProvider>(context);
     User? firebaseUser = FirebaseAuth.instance.currentUser;
 
+    // Wait for user data to load
     if (firebaseUser == null || firebaseUser.isAnonymous) {
       return const LoginPage();
+    }
+    if (userProvider.getAccountStatus.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (userProvider.getAccountStatus == 'suspended' ||

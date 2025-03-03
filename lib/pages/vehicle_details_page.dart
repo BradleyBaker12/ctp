@@ -30,7 +30,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
 // Add this import
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart'; // Add this import

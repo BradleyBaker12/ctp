@@ -336,8 +336,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: kIsWeb
-          ? PreferredSize(
+      appBar: PreferredSize(
               preferredSize: const Size.fromHeight(70),
               child: TruckInfoWebNavBar(
                 scaffoldKey: _scaffoldKey,
@@ -360,8 +359,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                     Navigator.pushNamed(context, '/drive_train'),
                 onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
               ),
-            )
-          : null,
+            ),
       body: content,
     );
   }

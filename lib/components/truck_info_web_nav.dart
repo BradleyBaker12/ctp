@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/foundation.dart'; // Added for kIsWeb
 
 class TruckInfoWebNavBar extends StatelessWidget {
   final VoidCallback onHomePressed;
@@ -60,6 +61,8 @@ class TruckInfoWebNavBar extends StatelessWidget {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
     final isCompact = _isCompactNavigation(context);
+    final double logoHeight =
+        kIsWeb ? 40.0 : 30.0; // Set logo size based on platform
 
     // Check if we're on a truck condition page
     final bool isOnTruckConditionPage = [
@@ -127,11 +130,11 @@ class TruckInfoWebNavBar extends StatelessWidget {
                       cursor: SystemMouseCursors.click,
                       child: Image.network(
                         'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                        height: 40,
+                        height: logoHeight, // Updated logo height
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            height: 40,
-                            width: 40,
+                            height: logoHeight,
+                            width: logoHeight,
                             color: Colors.grey[900],
                             child: const Icon(Icons.local_shipping,
                                 color: Colors.white),
@@ -260,6 +263,8 @@ class TruckInfoWebNavBar extends StatelessWidget {
   }
 
   void _showNavigationDrawer(BuildContext context) {
+    final double logoHeight =
+        kIsWeb ? 40.0 : 60.0; // Set logo size based on platform
     // Check if we're on a truck condition page
     final bool isOnTruckConditionPage = [
       "External Cab",
@@ -316,7 +321,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
                           children: [
                             Image.network(
                               'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                              height: 40,
+                              height: logoHeight, // Updated logo height
                             ),
                             IconButton(
                               icon:

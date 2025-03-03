@@ -285,32 +285,30 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: kIsWeb
-          ? PreferredSize(
-              preferredSize: const Size.fromHeight(70),
-              child: TruckInfoWebNavBar(
-                scaffoldKey: _scaffoldKey,
-                selectedTab: "External Cab", // Set selected tab
-                vehicleId: widget.vehicleId, // Pass the vehicleId
-                onHomePressed: () => Navigator.pushNamed(context, '/home'),
-                onBasicInfoPressed: () =>
-                    Navigator.pushNamed(context, '/basic_information'),
-                onTruckConditionsPressed: () =>
-                    Navigator.pushNamed(context, '/truck_conditions'),
-                onMaintenanceWarrantyPressed: () =>
-                    Navigator.pushNamed(context, '/maintenance_warranty'),
-                onExternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/external_cab'),
-                onInternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/internal_cab'),
-                onChassisPressed: () =>
-                    Navigator.pushNamed(context, '/chassis'),
-                onDriveTrainPressed: () =>
-                    Navigator.pushNamed(context, '/drive_train'),
-                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
-              ),
-            )
-          : null,
+      appBar: PreferredSize(
+        // Always show the TruckInfoWebNavBar
+        preferredSize: const Size.fromHeight(70),
+        child: TruckInfoWebNavBar(
+          scaffoldKey: _scaffoldKey,
+          selectedTab: "External Cab",
+          vehicleId: widget.vehicleId,
+          onHomePressed: () => Navigator.pushNamed(context, '/home'),
+          onBasicInfoPressed: () =>
+              Navigator.pushNamed(context, '/basic_information'),
+          onTruckConditionsPressed: () =>
+              Navigator.pushNamed(context, '/truck_conditions'),
+          onMaintenanceWarrantyPressed: () =>
+              Navigator.pushNamed(context, '/maintenance_warranty'),
+          onExternalCabPressed: () =>
+              Navigator.pushNamed(context, '/external_cab'),
+          onInternalCabPressed: () =>
+              Navigator.pushNamed(context, '/internal_cab'),
+          onChassisPressed: () => Navigator.pushNamed(context, '/chassis'),
+          onDriveTrainPressed: () =>
+              Navigator.pushNamed(context, '/drive_train'),
+          onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+        ),
+      ),
       body: content, // your existing content
     );
   }

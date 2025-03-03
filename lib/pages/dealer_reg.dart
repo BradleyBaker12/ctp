@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -1036,7 +1035,7 @@ class PDFViewerScreen extends StatelessWidget {
 
 /// New back button widget for DealerRegPage
 class _DealerBackButton extends StatelessWidget {
-  const _DealerBackButton({super.key});
+  const _DealerBackButton();
 
   @override
   Widget build(BuildContext context) {

@@ -405,8 +405,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
     return Scaffold(
       key: _scaffoldKey,
-      appBar: kIsWeb
-          ? PreferredSize(
+      appBar:PreferredSize(
               preferredSize: const Size.fromHeight(70),
               child: TruckInfoWebNavBar(
                 scaffoldKey: _scaffoldKey,
@@ -429,8 +428,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                     Navigator.pushNamed(context, '/drive_train'),
                 onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
               ),
-            )
-          : null,
+            ),
       body: content,
     );
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:ctp/models/trailer.dart';
-import 'package:ctp/providers/form_data_provider.dart';
 
 class TrailerForm extends StatefulWidget {
   final Trailer? initialTrailer;

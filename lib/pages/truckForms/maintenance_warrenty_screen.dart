@@ -576,7 +576,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
     const isWeb = kIsWeb;
     final screenWidth = MediaQuery.of(context).size.width;
-    final useWebLayout = isWeb && screenWidth > 600;
+    final useWebLayout = true; // Previously: kIsWeb && screenWidth > 600
 
     return WillPopScope(
       onWillPop: () {
@@ -596,119 +596,51 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
               body: GradientBackground(
                 child: Column(
                   children: [
-                    if (useWebLayout)
-                      TruckInfoWebNavBar(
-                        onHomePressed: () => Navigator.pop(context),
-                        onBasicInfoPressed: () =>
-                            Navigator.pushReplacementNamed(
-                          context,
-                          '/basic_information',
-                          arguments: widget.vehicleId,
-                        ),
-                        onTruckConditionsPressed: () =>
-                            Navigator.pushReplacementNamed(
-                          context,
-                          '/external_cab',
-                          arguments: widget.vehicleId,
-                        ),
-                        onMaintenanceWarrantyPressed: () {},
-                        scaffoldKey: _scaffoldKey,
-                        onExternalCabPressed: () =>
-                            Navigator.pushReplacementNamed(
-                          context,
-                          '/external_cab',
-                          arguments: widget.vehicleId,
-                        ),
-                        onInternalCabPressed: () =>
-                            Navigator.pushReplacementNamed(
-                          context,
-                          '/internal_cab',
-                          arguments: widget.vehicleId,
-                        ),
-                        onChassisPressed: () => Navigator.pushReplacementNamed(
-                          context,
-                          '/chassis',
-                          arguments: widget.vehicleId,
-                        ),
-                        onDriveTrainPressed: () =>
-                            Navigator.pushReplacementNamed(
-                          context,
-                          '/drive_train',
-                          arguments: widget.vehicleId,
-                        ),
-                        onTyresPressed: () => Navigator.pushReplacementNamed(
-                          context,
-                          '/tyres',
-                          arguments: widget.vehicleId,
-                        ),
-                        vehicleId: widget.vehicleId,
-                        selectedTab: 'Maintenance and Warranty',
-                      )
-                    else
-                      Column(
-                        children: [
-                          Container(
-                            color: AppColors.blue,
-                            padding: EdgeInsets.only(
-                              top: MediaQuery.of(context).padding.top,
-                              left: 10,
-                              right: 10,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Text(
-                                  "Ref#: ${widget.vehicleRef}",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 15),
-                                Expanded(
-                                  child: Text(
-                                    "Make/Model: ${widget.makeModel}",
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  margin: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    image: DecorationImage(
-                                      image: NetworkImage(widget.mainImageUrl),
-                                      fit: BoxFit.cover,
-                                      onError: (error, stackTrace) {
-                                        print('Error loading image: $error');
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 10.0),
-                            child: Row(
-                              children:
-                                  List.generate(_tabTitles.length, (index) {
-                                return _buildCustomTabButton(
-                                    _tabTitles[index], index);
-                              }),
-                            ),
-                          ),
-                        ],
+                    TruckInfoWebNavBar(
+                      onHomePressed: () => Navigator.pop(context),
+                      onBasicInfoPressed: () => Navigator.pushReplacementNamed(
+                        context,
+                        '/basic_information',
+                        arguments: widget.vehicleId,
                       ),
+                      onTruckConditionsPressed: () =>
+                          Navigator.pushReplacementNamed(
+                        context,
+                        '/external_cab',
+                        arguments: widget.vehicleId,
+                      ),
+                      onMaintenanceWarrantyPressed: () {},
+                      scaffoldKey: _scaffoldKey,
+                      onExternalCabPressed: () =>
+                          Navigator.pushReplacementNamed(
+                        context,
+                        '/external_cab',
+                        arguments: widget.vehicleId,
+                      ),
+                      onInternalCabPressed: () =>
+                          Navigator.pushReplacementNamed(
+                        context,
+                        '/internal_cab',
+                        arguments: widget.vehicleId,
+                      ),
+                      onChassisPressed: () => Navigator.pushReplacementNamed(
+                        context,
+                        '/chassis',
+                        arguments: widget.vehicleId,
+                      ),
+                      onDriveTrainPressed: () => Navigator.pushReplacementNamed(
+                        context,
+                        '/drive_train',
+                        arguments: widget.vehicleId,
+                      ),
+                      onTyresPressed: () => Navigator.pushReplacementNamed(
+                        context,
+                        '/tyres',
+                        arguments: widget.vehicleId,
+                      ),
+                      vehicleId: widget.vehicleId,
+                      selectedTab: 'Maintenance and Warranty',
+                    ),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),

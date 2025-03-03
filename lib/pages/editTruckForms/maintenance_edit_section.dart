@@ -1,3 +1,4 @@
+import 'package:ctp/adminScreens/local_viewer_page.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/vehicles_list.dart';
@@ -100,6 +101,20 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     _oemReasonController.addListener(notifyProgress);
   }
 
+  @override
+  void didUpdateWidget(covariant MaintenanceEditSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.vehicleId != widget.vehicleId) {
+      _oemInspectionType = widget.oemInspectionType;
+      _oemReasonController.text = widget.oemInspectionExplanation;
+      _currentMaintenanceDocUrl = widget.maintenanceDocUrl;
+      _currentWarrantyDocUrl = widget.warrantyDocUrl;
+      _maintenanceDocFile = null;
+      _warrantyDocFile = null;
+      _fetchMaintenanceData();
+    }
+  }
+
   Future<void> _fetchMaintenanceData() async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -108,36 +123,53 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
           .get();
 
       if (!doc.exists) {
-        debugPrint('ERROR: Document does not exist');
+        debugPrint(
+            'DEBUG: Document does not exist for vehicleId: ${widget.vehicleId}');
         return;
       }
 
       final data = doc.data();
-      debugPrint('DEBUG: Retrieved document data: $data');
+      debugPrint('DEBUG: Fetched document data: $data');
 
-      // Try both paths for maintenance data
-      final maintenanceData = data?['maintenance'] ?? data?['maintenanceData'];
-      debugPrint('DEBUG: Parsed maintenance data: $maintenanceData');
+      // Use an if/else block to set maintenanceData instead of a nested ternary operator.
+      Map<String, dynamic>? maintenanceData;
+      if (data?['maintenanceData'] is Map<String, dynamic>) {
+        maintenanceData = data?['maintenanceData'] as Map<String, dynamic>;
+      } else if (data?['maintenance'] is Map<String, dynamic>) {
+        maintenanceData = data?['maintenance'] as Map<String, dynamic>;
+      } else {
+        maintenanceData = null;
+      }
+
+      debugPrint('DEBUG: Fetched maintenanceData: $maintenanceData');
 
       if (maintenanceData != null) {
-        setState(() {
-          _oemInspectionType =
-              maintenanceData['oemInspectionType']?.toString() ?? 'yes';
-          _oemReasonController.text =
-              maintenanceData['oemReason']?.toString() ?? '';
-          _currentMaintenanceDocUrl =
-              maintenanceData['maintenanceDocUrl']?.toString();
-          _currentWarrantyDocUrl =
-              maintenanceData['warrantyDocUrl']?.toString();
-
-          debugPrint('DEBUG: Updated state with:');
-          debugPrint('maintenanceDocUrl: "$_currentMaintenanceDocUrl"');
-          debugPrint('warrantyDocUrl: "$_currentWarrantyDocUrl"');
-        });
+        try {
+          setState(() {
+            _oemInspectionType =
+                maintenanceData!['oemInspectionType']?.toString() ?? 'yes';
+            _oemReasonController.text =
+                maintenanceData!['oemReason']?.toString() ?? '';
+            _currentMaintenanceDocUrl =
+                maintenanceData!['maintenanceDocUrl']?.toString() ??
+                    maintenanceData['maintenanceDocumentUrl']?.toString();
+            _currentWarrantyDocUrl =
+                maintenanceData!['warrantyDocUrl']?.toString() ??
+                    maintenanceData!['warrantyDocumentUrl']?.toString();
+          });
+          debugPrint(
+              'DEBUG: Updated _currentMaintenanceDocUrl: $_currentMaintenanceDocUrl');
+          debugPrint(
+              'DEBUG: Updated _currentWarrantyDocUrl: $_currentWarrantyDocUrl');
+        } catch (e) {
+          debugPrint('DEBUG: Exception during conversion: $e');
+        }
+      } else {
+        debugPrint('DEBUG: No maintenanceData found in document.');
       }
     } catch (e, stack) {
-      debugPrint('ERROR: Failed to fetch maintenance data: $e');
-      debugPrint('Stack trace: $stack');
+      debugPrint('DEBUG: Error fetching maintenance data: $e');
+      debugPrint('DEBUG: Stack: $stack');
     }
   }
 
@@ -394,7 +426,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     // Check for maintenance document
     if (widget.maintenanceSelection == 'yes') {
       totalFields += 1;
-      if (_maintenanceDocFile != null || widget.maintenanceDocUrl != null) {
+      if (_maintenanceDocFile != null || _currentMaintenanceDocUrl != null) {
         filledFields += 1;
       }
 
@@ -413,7 +445,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     // Check for warranty document
     if (widget.warrantySelection == 'yes') {
       totalFields += 1;
-      if (_warrantyDocFile != null || widget.warrantyDocUrl != null) {
+      if (_warrantyDocFile != null || _currentWarrantyDocUrl != null) {
         filledFields += 1;
       }
     }
@@ -456,6 +488,16 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     }
   }
 
+  // New method to view a local document.
+  Future<void> _viewLocalDocument(Uint8List file, String title) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocalViewerPage(file: file, title: title),
+      ),
+    );
+  }
+
   void _showDocumentOptions(bool isMaintenance) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
@@ -483,7 +525,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     debugPrint('DEBUG: file exists: ${file != null}');
     debugPrint('DEBUG: title: "$title"');
 
-    if (url == null || url.isEmpty) {
+    if ((url == null || url.isEmpty) && file == null) {
       debugPrint('ERROR: URL is null or empty. Widget URLs:');
       debugPrint('maintenanceDocUrl: "${widget.maintenanceDocUrl}"');
       debugPrint('warrantyDocUrl: "${widget.warrantyDocUrl}"');
@@ -507,11 +549,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                 title: const Text('View'),
                 onTap: () async {
                   Navigator.pop(context);
-                  if (file == null) {
-                    await _viewPdf(url, title);
+                  if (file != null) {
+                    await _viewLocalDocument(file, title);
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Please upload first")));
+                    await _viewPdf(url ?? '', title);
                   }
                 },
               ),
@@ -543,6 +584,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    debugPrint(
+        'DEBUG: In build() with _currentMaintenanceDocUrl: $_currentMaintenanceDocUrl');
+    debugPrint(
+        'DEBUG: In build() with _currentWarrantyDocUrl: $_currentWarrantyDocUrl');
     final userProvider = Provider.of<UserProvider>(context);
     final String userRole = userProvider.getUserRole;
     print("UserRole: $userRole");
@@ -576,32 +621,29 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: !kIsWeb
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(70),
-              child: TruckInfoWebNavBar(
-                scaffoldKey: _scaffoldKey,
-                selectedTab: "Maintenance and Warranty",
-                vehicleId: widget.vehicleId,
-                onHomePressed: () => Navigator.pushNamed(context, '/home'),
-                onBasicInfoPressed: () =>
-                    Navigator.pushNamed(context, '/basic_information'),
-                onTruckConditionsPressed: () =>
-                    Navigator.pushNamed(context, '/truck_conditions'),
-                onMaintenanceWarrantyPressed: () =>
-                    Navigator.pushNamed(context, '/maintenance_warranty'),
-                onExternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/external_cab'),
-                onInternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/internal_cab'),
-                onChassisPressed: () =>
-                    Navigator.pushNamed(context, '/chassis'),
-                onDriveTrainPressed: () =>
-                    Navigator.pushNamed(context, '/drive_train'),
-                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
-              ),
-            ),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: TruckInfoWebNavBar(
+          scaffoldKey: _scaffoldKey,
+          selectedTab: "Maintenance and Warranty",
+          vehicleId: widget.vehicleId,
+          onHomePressed: () => Navigator.pushNamed(context, '/home'),
+          onBasicInfoPressed: () =>
+              Navigator.pushNamed(context, '/basic_information'),
+          onTruckConditionsPressed: () =>
+              Navigator.pushNamed(context, '/truck_conditions'),
+          onMaintenanceWarrantyPressed: () =>
+              Navigator.pushNamed(context, '/maintenance_warranty'),
+          onExternalCabPressed: () =>
+              Navigator.pushNamed(context, '/external_cab'),
+          onInternalCabPressed: () =>
+              Navigator.pushNamed(context, '/internal_cab'),
+          onChassisPressed: () => Navigator.pushNamed(context, '/chassis'),
+          onDriveTrainPressed: () =>
+              Navigator.pushNamed(context, '/drive_train'),
+          onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -659,7 +701,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                               child: Column(
                                 children: [
                                   if (_maintenanceDocFile == null &&
-                                      widget.maintenanceDocUrl == null)
+                                      _currentMaintenanceDocUrl == null)
                                     Icon(
                                       Icons.drive_folder_upload_outlined,
                                       color: Colors.white,
@@ -669,7 +711,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                     ),
                                   const SizedBox(height: 10),
                                   if (_maintenanceDocFile != null ||
-                                      widget.maintenanceDocUrl != null)
+                                      _currentMaintenanceDocUrl != null)
                                     InkWell(
                                       onTap: () => _showDocumentOptions(true),
                                       child: Column(
@@ -725,16 +767,16 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                       ),
                                                     ],
                                                   )
-                                          else if (widget.maintenanceDocUrl !=
+                                          else if (_currentMaintenanceDocUrl !=
                                               null)
                                             _isImageFile(
-                                                    widget.maintenanceDocUrl!)
+                                                    _currentMaintenanceDocUrl!)
                                                 ? ClipRRect(
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             8.0),
                                                     child: Image.network(
-                                                      widget.maintenanceDocUrl!,
+                                                      _currentMaintenanceDocUrl!,
                                                       width: 100,
                                                       height: 100,
                                                       fit: BoxFit.cover,
@@ -743,8 +785,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                 : Column(
                                                     children: [
                                                       Icon(
-                                                        _getFileIcon(widget
-                                                            .maintenanceDocUrl!),
+                                                        _getFileIcon(
+                                                            _currentMaintenanceDocUrl!),
                                                         color: Colors.white,
                                                         size: 50.0,
                                                       ),
@@ -757,8 +799,8 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                                 horizontal:
                                                                     16.0),
                                                         child: Text(
-                                                          getFileNameFromUrl(widget
-                                                              .maintenanceDocUrl!),
+                                                          getFileNameFromUrl(
+                                                              _currentMaintenanceDocUrl!),
                                                           style:
                                                               const TextStyle(
                                                             fontSize: 14,
@@ -911,7 +953,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                               child: Column(
                                 children: [
                                   if (_warrantyDocFile == null &&
-                                      widget.warrantyDocUrl == null)
+                                      _currentWarrantyDocUrl == null)
                                     Icon(
                                       Icons.drive_folder_upload_outlined,
                                       color: Colors.white,
@@ -920,7 +962,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                     ),
                                   const SizedBox(height: 10),
                                   if (_warrantyDocFile != null ||
-                                      widget.warrantyDocUrl != null)
+                                      _currentWarrantyDocUrl != null)
                                     InkWell(
                                       onTap: () => _showDocumentOptions(false),
                                       child: Column(
@@ -975,15 +1017,16 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                       ),
                                                     ],
                                                   )
-                                          else if (widget.warrantyDocUrl !=
+                                          else if (_currentWarrantyDocUrl !=
                                               null)
-                                            _isImageFile(widget.warrantyDocUrl!)
+                                            _isImageFile(
+                                                    _currentWarrantyDocUrl!)
                                                 ? ClipRRect(
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             8.0),
                                                     child: Image.network(
-                                                      widget.warrantyDocUrl!,
+                                                      _currentWarrantyDocUrl!,
                                                       width: 100,
                                                       height: 100,
                                                       fit: BoxFit.cover,
@@ -992,15 +1035,15 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                                 : Column(
                                                     children: [
                                                       Icon(
-                                                        _getFileIcon(widget
-                                                            .warrantyDocUrl!),
+                                                        _getFileIcon(
+                                                            _currentWarrantyDocUrl!),
                                                         color: Colors.white,
                                                         size: 50.0,
                                                       ),
                                                       const SizedBox(height: 8),
                                                       Text(
-                                                        getFileNameFromUrl(widget
-                                                            .warrantyDocUrl!),
+                                                        getFileNameFromUrl(
+                                                            _currentWarrantyDocUrl!),
                                                         style: const TextStyle(
                                                           fontSize: 14,
                                                           color: Colors.white,
@@ -1089,16 +1132,19 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
                                   // Upload warranty file if new one is selected
                                   if (_warrantyDocFile != null) {
+                                    debugPrint(
+                                        'DEBUG: Warranty file detected with name: $_warrantyDocFileName');
                                     final storageRef = FirebaseStorage.instance
                                         .ref()
                                         .child(
                                             'vehicles/${widget.vehicleId}/maintenance')
                                         .child(
                                             'warranty_doc_${DateTime.now().millisecondsSinceEpoch}$_warrantyDocFileName');
-
                                     await storageRef.putData(_warrantyDocFile!);
                                     warrantyDocUrl =
                                         await storageRef.getDownloadURL();
+                                    debugPrint(
+                                        'DEBUG: Uploaded warranty URL: $warrantyDocUrl');
                                   }
 
                                   Map<String, dynamic> maintenanceData = {

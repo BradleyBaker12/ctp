@@ -1356,7 +1356,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                           value: 'yes',
                           groupValue: formData.maintenance,
                           onChanged: (value) {
-                            formData.setMaintenance(value);
+                            setState(() {
+                              formData.setMaintenance(value);
+                            });
                           },
                         ),
                         const SizedBox(width: 15),
@@ -1365,7 +1367,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                           value: 'no',
                           groupValue: formData.maintenance,
                           onChanged: (value) {
-                            formData.setMaintenance(value);
+                            setState(() {
+                              formData.setMaintenance(value);
+                            });
                           },
                         ),
                       ],

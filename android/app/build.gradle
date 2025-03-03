@@ -84,10 +84,10 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
-        ndk {
-                // Generate a full debug symbols file for native code
-                debugSymbolLevel 'FULL'
-            }
+        // ndk {
+        //         // Generate a full debug symbols file for native code
+        //         debugSymbolLevel 'FULL'
+        //     }
     }
 }
 

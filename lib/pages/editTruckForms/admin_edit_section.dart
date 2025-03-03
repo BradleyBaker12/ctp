@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/adminScreens/local_viewer_page.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -74,9 +76,14 @@ class AdminEditSectionState extends State<AdminEditSection>
   void initState() {
     super.initState();
     _settlementAmountController.text = widget.settlementAmount ?? '';
-    _natisRc1Url = widget.natisRc1Url;
-    _licenseDiskUrl = widget.licenseDiskUrl;
-    _settlementLetterUrl = widget.settlementLetterUrl;
+    _natisRc1Url =
+        (widget.natisRc1Url?.isNotEmpty ?? false) ? widget.natisRc1Url : null;
+    _licenseDiskUrl = (widget.licenseDiskUrl?.isNotEmpty ?? false)
+        ? widget.licenseDiskUrl
+        : null;
+    _settlementLetterUrl = (widget.settlementLetterUrl?.isNotEmpty ?? false)
+        ? widget.settlementLetterUrl
+        : null;
   }
 
   @override
@@ -622,7 +629,8 @@ class AdminEditSectionState extends State<AdminEditSection>
       default:
         title = 'Document';
     }
-    if (url == null || url.isEmpty) {
+    // Updated condition: Show error only if both local file and URL are absent.
+    if ((url == null || url.isEmpty) && file == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Document URL not available')),
       );
@@ -641,7 +649,11 @@ class AdminEditSectionState extends State<AdminEditSection>
                 title: const Text('View'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await _viewPdf(url!, title);
+                  if (file != null) {
+                    await _viewLocalDocument(file, title);
+                  } else {
+                    await _viewDocument(url ?? '', title);
+                  }
                 },
               ),
               if (widget.isEditing)
@@ -671,12 +683,27 @@ class AdminEditSectionState extends State<AdminEditSection>
     );
   }
 
-  // Updated _viewPdf to open a full-screen image viewer.
-  Future<void> _viewPdf(String url, String title) async {
+  // Updated: Rename _viewPdf to _viewDocument
+  Future<void> _viewDocument(String url, String title) async {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ImageViewerPage(imageUrl: url, title: title),
+        builder: (context) => ViewerPage(
+          url: url,
+        ),
+      ),
+    );
+  }
+
+  // New method to view a local document.
+  Future<void> _viewLocalDocument(Uint8List file, String title) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocalViewerPage(
+          file: file,
+          title: title,
+        ),
       ),
     );
   }
@@ -687,31 +714,29 @@ class AdminEditSectionState extends State<AdminEditSection>
     return Scaffold(
       body: Column(
         children: [
-          if (kIsWeb)
-            PreferredSize(
-              preferredSize: const Size.fromHeight(70),
-              child: TruckInfoWebNavBar(
-                scaffoldKey: _scaffoldKey,
-                selectedTab: "Admin",
-                vehicleId: widget.vehicle.id,
-                onHomePressed: () => Navigator.pushNamed(context, '/home'),
-                onBasicInfoPressed: () =>
-                    Navigator.pushNamed(context, '/basic_information'),
-                onTruckConditionsPressed: () =>
-                    Navigator.pushNamed(context, '/truck_conditions'),
-                onMaintenanceWarrantyPressed: () =>
-                    Navigator.pushNamed(context, '/maintenance_warranty'),
-                onExternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/external_cab'),
-                onInternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/internal_cab'),
-                onChassisPressed: () =>
-                    Navigator.pushNamed(context, '/chassis'),
-                onDriveTrainPressed: () =>
-                    Navigator.pushNamed(context, '/drive_train'),
-                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
-              ),
+          PreferredSize(
+            preferredSize: const Size.fromHeight(70),
+            child: TruckInfoWebNavBar(
+              scaffoldKey: _scaffoldKey,
+              selectedTab: "Admin",
+              vehicleId: widget.vehicle.id,
+              onHomePressed: () => Navigator.pushNamed(context, '/home'),
+              onBasicInfoPressed: () =>
+                  Navigator.pushNamed(context, '/basic_information'),
+              onTruckConditionsPressed: () =>
+                  Navigator.pushNamed(context, '/truck_conditions'),
+              onMaintenanceWarrantyPressed: () =>
+                  Navigator.pushNamed(context, '/maintenance_warranty'),
+              onExternalCabPressed: () =>
+                  Navigator.pushNamed(context, '/external_cab'),
+              onInternalCabPressed: () =>
+                  Navigator.pushNamed(context, '/internal_cab'),
+              onChassisPressed: () => Navigator.pushNamed(context, '/chassis'),
+              onDriveTrainPressed: () =>
+                  Navigator.pushNamed(context, '/drive_train'),
+              onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
             ),
+          ),
           Expanded(
             child: SizedBox(
               height: MediaQuery.of(context).size.height,
@@ -1063,42 +1088,4 @@ class AdminEditSectionState extends State<AdminEditSection>
 
   @override
   bool get wantKeepAlive => true;
-}
-
-// New widget to display the enlarged image
-class ImageViewerPage extends StatelessWidget {
-  final String imageUrl;
-  final String title;
-  const ImageViewerPage({super.key, required this.imageUrl, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: Colors.blueAccent,
-      ),
-      body: Center(
-        child: InteractiveViewer(
-          child: Image.network(
-            imageUrl,
-            errorBuilder: (context, error, stackTrace) => const Center(
-              child: Icon(Icons.error, color: Colors.red, size: 50),
-            ),
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  value: progress.expectedTotalBytes != null
-                      ? progress.cumulativeBytesLoaded /
-                          progress.expectedTotalBytes!
-                      : null,
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
 }
