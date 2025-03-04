@@ -1,5 +1,3 @@
-// lib/pages/truck_page.dart
-
 import 'dart:convert';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -72,6 +70,9 @@ class _TruckPageState extends State<TruckPage> {
   bool _hasReachedEnd = false;
   bool _isLoading = true;
   final bool _isFiltering = false;
+
+  /// NEW: Track total number of filtered vehicles
+  int _totalFilteredVehicles = 0;
 
   // --------------------------------------------------------------------
   // 1) Filter State
@@ -317,19 +318,33 @@ class _TruckPageState extends State<TruckPage> {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       await vehicleProvider.fetchAllVehicles();
+
       setState(() {
+        /// Base filter: only vehicles with status "Live"
         var filteredVehicles = vehicleProvider.vehicles
             .where((vehicle) => vehicle.vehicleStatus == 'Live');
-        if (widget.selectedBrand != null) {
+
+        /// If a brand was passed in, apply it only if != 'All'
+        if (widget.selectedBrand != null && widget.selectedBrand != 'All') {
           filteredVehicles = filteredVehicles.where(
             (vehicle) => vehicle.brands.contains(widget.selectedBrand),
           );
         }
+
+        // Apply any user-chosen filters
         filteredVehicles = _applySelectedFilters(filteredVehicles);
+
+        /// 1) Count them all
+        _totalFilteredVehicles = filteredVehicles.length;
+
+        /// 2) Take the first page
         displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
         _currentPage = 1;
         _isLoading = false;
         loadedVehicleIndex = displayedVehicles.length;
+
+        /// If we already got them all in the first page, mark `_hasReachedEnd`
+        _hasReachedEnd = displayedVehicles.length >= _totalFilteredVehicles;
       });
     } catch (e) {
       print('Error in _loadInitialVehicles: $e');
@@ -342,6 +357,9 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   void _loadMoreVehicles() async {
+    // If we've loaded all already, no need to do more
+    if (_hasReachedEnd) return;
+
     setState(() {
       _isLoadingMore = true;
     });
@@ -349,22 +367,32 @@ class _TruckPageState extends State<TruckPage> {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       int startIndex = _currentPage * _itemsPerPage;
-      int endIndex = startIndex + _itemsPerPage;
+
+      // Re-filter everything (same logic as in _loadInitialVehicles)
       var filteredVehicles = vehicleProvider.vehicles
           .where((vehicle) => vehicle.vehicleStatus == 'Live');
-      if (widget.selectedBrand != null) {
+
+      if (widget.selectedBrand != null && widget.selectedBrand != 'All') {
         filteredVehicles = filteredVehicles.where(
           (vehicle) => vehicle.brands.contains(widget.selectedBrand),
         );
       }
       filteredVehicles = _applySelectedFilters(filteredVehicles);
+
+      // Get the next batch
       List<Vehicle> moreVehicles =
           filteredVehicles.skip(startIndex).take(_itemsPerPage).toList();
+
       if (moreVehicles.isNotEmpty) {
         setState(() {
           displayedVehicles.addAll(moreVehicles);
           _currentPage++;
           _isLoadingMore = false;
+
+          // Check if we’ve now got them all
+          if (displayedVehicles.length >= _totalFilteredVehicles) {
+            _hasReachedEnd = true;
+          }
         });
       } else {
         setState(() {
@@ -396,6 +424,7 @@ class _TruckPageState extends State<TruckPage> {
         if (!_selectedYears.contains(vehicle.year)) return false;
       }
       if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
+        // The brand must appear in the vehicle's brand list
         if (!vehicle.brands.any((brand) => _selectedBrands.contains(brand))) {
           return false;
         }
@@ -927,15 +956,7 @@ class _TruckPageState extends State<TruckPage> {
             style: _customFont(16, FontWeight.normal, Colors.white),
           ),
           const SizedBox(height: 16),
-          // Padding(
-          //   padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          //   child: Text(
-          //     "For TESTING PURPOSES ONLY the below button can be used to loop through all the trucks on the database",
-          //     style: _customFont(16, FontWeight.normal, Colors.white),
-          //     textAlign: TextAlign.center,
-          //   ),
-          // ),
-          const SizedBox(height: 16),
+          // For testing only, you could reintroduce the button to clear liked/disliked:
           // ElevatedButton(
           //   onPressed: _clearLikedAndDislikedVehicles,
           //   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -949,7 +970,6 @@ class _TruckPageState extends State<TruckPage> {
     );
   }
 
-  // Modify this method to handle the aspect ratio correctly
   int _calculateCrossAxisCount(BuildContext context) {
     double width = MediaQuery.of(context).size.width;
     // Adjust breakpoints to account for card width
@@ -967,7 +987,6 @@ class _TruckPageState extends State<TruckPage> {
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
-    final size = MediaQuery.of(context).size;
 
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
@@ -995,7 +1014,6 @@ class _TruckPageState extends State<TruckPage> {
               ),
             )
           : CustomAppBar(),
-      // Drawer now only activates on web
       drawer: (kIsWeb && _isCompactNavigation(context))
           ? Drawer(
               child: Container(
@@ -1073,8 +1091,9 @@ class _TruckPageState extends State<TruckPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                /// Show the *total* number of filtered vehicles, not just the first page
                 Text(
-                  'All Vehicles Total: ${displayedVehicles.length}',
+                  'All Vehicles Total: $_totalFilteredVehicles',
                   style: _customFont(16, FontWeight.bold, Colors.white),
                 ),
                 Row(
@@ -1238,13 +1257,12 @@ class _TruckPageState extends State<TruckPage> {
                         },
                         child: GridView.builder(
                           controller: _scrollController,
-                          padding:
-                              const EdgeInsets.all(24), // Increased from 16
+                          padding: const EdgeInsets.all(24),
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: _calculateCrossAxisCount(context),
-                            crossAxisSpacing: 24, // Increased from 16
-                            mainAxisSpacing: 24, // Increased from 16
+                            crossAxisSpacing: 24,
+                            mainAxisSpacing: 24,
                             mainAxisExtent: 600,
                           ),
                           itemCount: displayedVehicles.length +
@@ -1264,6 +1282,7 @@ class _TruckPageState extends State<TruckPage> {
                                       onInterested: _markAsInterested,
                                     );
                             } else {
+                              // Loading indicator for the next page
                               return const Center(
                                 child: CircularProgressIndicator(),
                               );
@@ -1289,7 +1308,7 @@ class _TruckPageState extends State<TruckPage> {
   }
 }
 
-// Extension to capitalize the first letter of a string
+// Extension to capitalize the first letter of a string (if you need it)
 extension StringExtension on String {
   String capitalize() {
     if (isEmpty) return this;

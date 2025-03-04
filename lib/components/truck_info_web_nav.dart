@@ -61,8 +61,12 @@ class TruckInfoWebNavBar extends StatelessWidget {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
     final isCompact = _isCompactNavigation(context);
-    final double logoHeight =
-        kIsWeb ? 40.0 : 30.0; // Set logo size based on platform
+
+    // Get the screen width and determine logo width.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isTabletOrLarger = screenWidth >= 600;
+    // For tablet or larger, use a fixed width of 150; otherwise 10% of the screen width.
+    final logoWidth = isTabletOrLarger ? 200.0 : screenWidth * 0.3;
 
     // Check if we're on a truck condition page
     final bool isOnTruckConditionPage = [
@@ -97,7 +101,6 @@ class TruckInfoWebNavBar extends StatelessWidget {
             Row(
               children: [
                 if (isCompact) ...[
-                  // Use spread operator to include both buttons in compact mode
                   IconButton(
                     icon: const Icon(Icons.menu, color: Colors.white, size: 24),
                     onPressed: () => _showNavigationDrawer(context),
@@ -128,22 +131,26 @@ class TruckInfoWebNavBar extends StatelessWidget {
                     ),
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
-                      child: Image.network(
-                        'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                        height: logoHeight, // Updated logo height
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: logoHeight,
-                            width: logoHeight,
-                            color: Colors.grey[900],
-                            child: const Icon(Icons.local_shipping,
-                                color: Colors.white),
-                          );
-                        },
+                      child: Container(
+                        width: logoWidth,
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: logoWidth,
+                              height: logoWidth,
+                              color: Colors.grey[900],
+                              child: const Icon(
+                                Icons.local_shipping,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
-
                   // Navigation items only shown in full mode
                   if (!isCompact) ...[
                     const SizedBox(width: 60),
@@ -160,10 +167,8 @@ class TruckInfoWebNavBar extends StatelessWidget {
                               onHomePressed();
                             }
                           }),
-
                           // Show either truck condition pages OR main navigation
                           if (isOnTruckConditionPage) ...[
-                            // Show truck condition navigation buttons
                             _buildNavItem(
                               context,
                               "External Cab",
@@ -205,7 +210,6 @@ class TruckInfoWebNavBar extends StatelessWidget {
                                   arguments: vehicleId),
                             ),
                           ] else ...[
-                            // Show main navigation buttons
                             _buildNavItem(
                               context,
                               "Basic Information",
@@ -245,7 +249,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
               ),
             ),
 
-            // Profile icon
+            // Right section - Profile icon
             GestureDetector(
               onTap: () => Navigator.pushNamed(context, '/profile'),
               child: CircleAvatar(
@@ -263,8 +267,10 @@ class TruckInfoWebNavBar extends StatelessWidget {
   }
 
   void _showNavigationDrawer(BuildContext context) {
-    final double logoHeight =
-        kIsWeb ? 40.0 : 60.0; // Set logo size based on platform
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isTabletOrLarger = screenWidth >= 600;
+    final logoWidth = isTabletOrLarger ? screenWidth * 0.15 : screenWidth * 0.1;
+
     // Check if we're on a truck condition page
     final bool isOnTruckConditionPage = [
       "External Cab",
@@ -319,9 +325,21 @@ class TruckInfoWebNavBar extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Image.network(
-                              'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                              height: logoHeight, // Updated logo height
+                            Container(
+                              width: logoWidth,
+                              child: Image.network(
+                                'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: logoWidth,
+                                    height: logoWidth,
+                                    color: Colors.grey[900],
+                                    child: const Icon(Icons.local_shipping,
+                                        color: Colors.white),
+                                  );
+                                },
+                              ),
                             ),
                             IconButton(
                               icon:
@@ -352,7 +370,6 @@ class TruckInfoWebNavBar extends StatelessWidget {
                         },
                       ),
                       if (isOnTruckConditionPage) ...[
-                        // Show truck condition navigation items
                         _buildDrawerItem(context, "External Cab", () {
                           Navigator.pushReplacementNamed(
                               context, '/external_cab',
@@ -377,7 +394,6 @@ class TruckInfoWebNavBar extends StatelessWidget {
                               arguments: vehicleId);
                         }),
                       ] else ...[
-                        // Show main navigation items
                         _buildDrawerItem(
                             context, "Basic Information", onBasicInfoPressed),
                         _buildDrawerItem(context, "Truck Conditions",

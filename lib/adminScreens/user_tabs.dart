@@ -27,7 +27,7 @@ class _UsersTabState extends State<UsersTab> {
   String _searchQuery = '';
 
   // Pagination variables
-  final int _limit = 20; // Increased from 10 to 20
+  final int _limit = 50; // Changed from 20 to 50 for lazy loading/pagination
   DocumentSnapshot? _lastDocument;
   bool _isLoading = false;
   bool _hasMore = true;
@@ -600,6 +600,7 @@ class _UsersTabState extends State<UsersTab> {
                           ),
                         )
                       : ListView.builder(
+                          key: const PageStorageKey('users_list'),
                           controller: _scrollController,
                           itemCount: filteredUsers.length + (_hasMore ? 1 : 0),
                           itemBuilder: (context, index) {

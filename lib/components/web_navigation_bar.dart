@@ -30,6 +30,10 @@ class WebNavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // If screenWidth is 600 or more, use a fixed width of 150, otherwise 10% of the width.
+    final bool isTabletOrLarger = screenWidth >= 600;
+    final logoWidth = isTabletOrLarger ? 200.0 : screenWidth * 0.3;
 
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
@@ -73,7 +77,7 @@ class WebNavigationBar extends StatelessWidget {
                 tooltip: 'Open menu',
               ),
 
-            // Center section - Logo
+            // Center section - Logo and Navigation Links
             Expanded(
               child: Row(
                 mainAxisAlignment: isCompactNavigation
@@ -90,18 +94,23 @@ class WebNavigationBar extends StatelessWidget {
                     },
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
-                      child: Image.network(
-                        'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                        height: 40,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 40,
-                            width: 40,
-                            color: Colors.grey[900],
-                            child: const Icon(Icons.local_shipping,
-                                color: Colors.white),
-                          );
-                        },
+                      child: Container(
+                        width: logoWidth,
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: logoWidth,
+                              height: logoWidth,
+                              color: Colors.grey[900],
+                              child: const Icon(
+                                Icons.local_shipping,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -125,7 +134,7 @@ class WebNavigationBar extends StatelessWidget {
               ),
             ),
 
-            // Right section - Profile
+            // Right section - Profile icon
             GestureDetector(
               onTap: () {
                 Navigator.pushNamed(context, '/profile');

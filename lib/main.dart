@@ -59,29 +59,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
 }
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (!kIsWeb && Platform.isAndroid) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } else {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  }
-
-  // Only set up messaging and crashlytics for mobile platforms
-  if (!kIsWeb) {
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
-  }
-
-  // Setup auth token refresh
-  final authService = AuthService();
-  await authService.setupTokenRefresh();
-
   setPathUrlStrategy();
   runApp(
     MultiProvider(
@@ -110,6 +89,63 @@ void main() async {
   );
 }
 
+// New widget to handle asynchronous initialization and show a splash screen.
+class AppInitializer extends StatefulWidget {
+  const AppInitializer({super.key});
+  @override
+  State<AppInitializer> createState() => _AppInitializerState();
+}
+
+class _AppInitializerState extends State<AppInitializer> {
+  bool _initialized = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      // Setup messaging and crashlytics for mobile only
+      if (!kIsWeb) {
+        FirebaseMessaging.onBackgroundMessage(
+            _firebaseMessagingBackgroundHandler);
+        FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+      }
+      // Setup auth token refresh
+      final authService = AuthService();
+      await authService.setupTokenRefresh();
+      setState(() {
+        _initialized = true;
+      });
+    } catch (e) {
+      setState(() {
+        _error = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error) {
+      return const Scaffold(
+        body: Center(child: Text("Initialization error")),
+      );
+    }
+    if (!_initialized) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return const AuthWrapper();
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -121,7 +157,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
       ),
-      home: const AuthWrapper(),
+      home: const AppInitializer(), // Updated home widget
       routes: {
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
@@ -268,7 +304,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           Provider.of<ComplaintsProvider>(context, listen: false);
 
       userProvider.fetchUserData();
-      userProvider.initializeStatusListener(); // Add this line
+      userProvider.initializeStatusListener();
       complaintsProvider.fetchAllComplaints();
     });
   }
@@ -287,7 +323,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
+    // New check: if the account does not exist, show the error page.
+    if (userProvider.getAccountStatus == 'not_found') {
+      return const ErrorPage();
+    }
     if (userProvider.getAccountStatus == 'suspended' ||
         userProvider.getAccountStatus == 'inactive') {
       WidgetsBinding.instance.addPostFrameCallback((_) {

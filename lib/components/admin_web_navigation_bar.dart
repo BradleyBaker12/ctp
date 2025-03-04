@@ -30,7 +30,13 @@ class AdminWebNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Define a single breakpoint for compact mode.
+    // Determine logo width based on screen size:
+    // On tablets or larger (>=600px), use a fixed width of 150.0; otherwise, use 10% of the screen width.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isTabletOrLarger = screenWidth >= 600;
+    final logoWidth = isTabletOrLarger ? 200.0 : screenWidth * 0.3;
+
+    // Define compact mode for the layout; here using a breakpoint of 900px.
     final bool isCompact = MediaQuery.of(context).size.width < 900;
     final userProvider = Provider.of<UserProvider>(context);
 
@@ -53,7 +59,10 @@ class AdminWebNavigationBar extends StatelessWidget {
                 colors: const [Colors.black, Color(0xFF2F7FFD)],
               ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                ),
               ],
             ),
             child: Padding(
@@ -78,18 +87,23 @@ class AdminWebNavigationBar extends StatelessWidget {
                     onTap: () => Navigator.pushNamed(context, '/adminHome'),
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
-                      child: Image.network(
-                        'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                        height: 40,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 40,
-                            width: 40,
-                            color: Colors.grey[900],
-                            child: const Icon(Icons.local_shipping,
-                                color: Colors.white),
-                          );
-                        },
+                      child: Container(
+                        width: logoWidth,
+                        child: Image.network(
+                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: logoWidth,
+                              height: logoWidth,
+                              color: Colors.grey[900],
+                              child: const Icon(
+                                Icons.local_shipping,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -119,7 +133,10 @@ class AdminWebNavigationBar extends StatelessWidget {
                 colors: const [Colors.black, Color(0xFF2F7FFD)],
               ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                ),
               ],
             ),
             child: Padding(
@@ -127,7 +144,7 @@ class AdminWebNavigationBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Do not show hamburger here in full mode.
+                  // No hamburger in full mode.
                   Expanded(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
@@ -137,18 +154,23 @@ class AdminWebNavigationBar extends StatelessWidget {
                               Navigator.pushNamed(context, '/adminHome'),
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
-                            child: Image.network(
-                              'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                              height: 40,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  height: 40,
-                                  width: 40,
-                                  color: Colors.grey[900],
-                                  child: const Icon(Icons.local_shipping,
-                                      color: Colors.white),
-                                );
-                              },
+                            child: Container(
+                              width: logoWidth,
+                              child: Image.network(
+                                'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: logoWidth,
+                                    height: logoWidth,
+                                    color: Colors.grey[900],
+                                    child: const Icon(
+                                      Icons.local_shipping,
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
@@ -193,15 +215,17 @@ class AdminWebNavigationBar extends StatelessWidget {
       cursor: SystemMouseCursors.click,
       child: InkWell(
         onTap: () {
-          // use the callback if provided
+          // Use the callback if provided.
           if (onTabSelected != null) {
             if (title == 'Users') {
               onTabSelected!(0);
-            } else if (title == 'Offers')
+            } else if (title == 'Offers') {
               onTabSelected!(1);
-            else if (title == 'Complaints')
+            } else if (title == 'Complaints') {
               onTabSelected!(2);
-            else if (title == 'Vehicles') onTabSelected!(3);
+            } else if (title == 'Vehicles') {
+              onTabSelected!(3);
+            }
           }
         },
         child: Container(
