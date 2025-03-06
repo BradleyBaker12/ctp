@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:ctp/firebase_options.dart';
 import 'package:ctp/pages/accepted_offers.dart';
 import 'package:ctp/pages/add_profile_photo.dart';
@@ -62,8 +61,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   setPathUrlStrategy();
-  runApp(
-    MultiProvider(
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => TrailerProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
@@ -84,12 +90,141 @@ void main() {
         ),
         ChangeNotifierProvider(create: (_) => TrailerFormProvider()),
       ],
-      child: const MyApp(),
-    ),
-  );
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Commercial Trader Portal',
+        theme: ThemeData(
+          useMaterial3: true,
+        ),
+        home: const AppInitializer(), // Updated home widget
+        routes: {
+          '/login': (context) => const LoginPage(),
+          '/signup': (context) => const SignUpPage(),
+          '/signin': (context) => const SignInPage(),
+          '/home': (context) => const HomePage(),
+          '/phoneNumber': (context) => const PhoneNumberPage(),
+          '/otp': (context) => const OTPScreen(),
+          '/firstNamePage': (context) => const FirstNamePage(),
+          '/tradingCategory': (context) => const TradingCategoryPage(),
+          '/addProfilePhoto': (context) => const AddProfilePhotoPage(),
+          '/addProfilePhotoTransporter': (context) =>
+              const AddProfilePhotoPageTransporter(),
+          '/transporterRegister': (context) =>
+              const TransporterRegistrationPage(),
+          '/dealerRegister': (context) => const DealerRegPage(),
+          '/houseRules': (context) => const HouseRulesPage(),
+          '/preferedBrands': (context) => const PreferredBrandsPage(),
+          '/tradingInterests': (context) => const TradingInterestsPage(),
+          '/tutorial': (context) => const TutorialPage(),
+          '/tutorialStarted': (context) => const TutorialStartedPage(),
+          '/pendingOffers': (context) => const PendingOffersPage(),
+          '/truckPage': (context) => const TruckPage(),
+          '/offers': (context) => const OffersPage(),
+          '/profile': (context) => ProfilePage(),
+          '/waiting-for-approval': (context) => const AccountStatusPage(),
+          '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
+          '/admin-home': (context) => AdminHomePage(),
+          '/adminUsers': (context) => const AdminHomePage(initialTab: 0),
+          '/adminOffers': (context) => const AdminHomePage(initialTab: 1),
+          '/adminComplaints': (context) => const AdminHomePage(initialTab: 2),
+          '/adminVehicles': (context) => const AdminHomePage(initialTab: 3),
+          '/vehicleUpload': (context) => const VehicleUploadScreen(),
+          '/in-progress': (context) => const AcceptedOffersPage(),
+          '/transporterList': (context) => const VehiclesListPage(),
+          '/wishlist': (context) => const WishlistPage(),
+          '/adminHome': (context) => const AdminHomePage(),
+          '/error': (context) => ErrorPage(), // Create a basic error page
+          '/waitingApproval': (context) => AccountStatusPage(), // Create a b
+          '/basic_information': (context) =>
+              BasicInformationEdit(), // Create a b
+          '/maintenance_warranty': (context) {
+            final vehicleId =
+                ModalRoute.of(context)!.settings.arguments as String;
+            return MaintenanceEditSection(
+              vehicleId: vehicleId,
+              isUploading: false,
+              onMaintenanceFileSelected: (file) {},
+              onWarrantyFileSelected: (file) {},
+              oemInspectionType: '',
+              oemInspectionExplanation: '',
+              onProgressUpdate: () {},
+              maintenanceSelection: '',
+              warrantySelection: '',
+              isFromAdmin: false,
+            );
+          },
+          '/external_cab': (context) {
+            final vehicleId =
+                ModalRoute.of(context)!.settings.arguments as String;
+            return ExternalCabEditPage(
+              vehicleId: vehicleId,
+              onProgressUpdate: () {},
+              inTabsPage: false,
+            );
+          },
+          '/internal_cab': (context) {
+            final vehicleId =
+                ModalRoute.of(context)!.settings.arguments as String;
+            return InternalCabEditPage(
+              vehicleId: vehicleId,
+              onProgressUpdate: () {},
+              inTabsPage: false,
+            );
+          },
+          '/chassis': (context) {
+            final vehicleId =
+                ModalRoute.of(context)!.settings.arguments as String;
+            return ChassisEditPage(
+              vehicleId: vehicleId,
+              onProgressUpdate: () {},
+              inTabsPage: false,
+            );
+          },
+          '/drive_train': (context) {
+            final vehicleId =
+                ModalRoute.of(context)!.settings.arguments as String;
+            return DriveTrainEditPage(
+              vehicleId: vehicleId,
+              onProgressUpdate: () {},
+              inTabsPage: false,
+            );
+          },
+          '/tyres': (context) {
+            final vehicleId =
+                ModalRoute.of(context)!.settings.arguments as String;
+            return TyresEditPage(
+              vehicleId: vehicleId,
+              onProgressUpdate: () {},
+              inTabsPage: false,
+            );
+          },
+        },
+        onGenerateRoute: (settings) {
+          if (settings.name == '/inspectionDetails') {
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (context) => InspectionDetailsPage(
+                offerId: args['offerId'] as String,
+                offerAmount: args['offerAmount'] as String,
+                vehicleId: args['vehicleId'] as String,
+                brand: args['brands'] as String,
+                variant: args['variant'] as String,
+              ),
+            );
+          }
+          return null;
+        },
+        onUnknownRoute: (settings) {
+          return MaterialPageRoute(
+            builder: (context) =>
+                const AuthWrapper(), // Redirect to AuthWrapper on unknown route
+          );
+        },
+      ),
+    );
+  }
 }
 
-// New widget to handle asynchronous initialization and show a splash screen.
 class AppInitializer extends StatefulWidget {
   const AppInitializer({super.key});
   @override
@@ -98,7 +233,7 @@ class AppInitializer extends StatefulWidget {
 
 class _AppInitializerState extends State<AppInitializer> {
   bool _initialized = false;
-  bool _error = false;
+  // Removed _error variable
 
   @override
   void initState() {
@@ -124,19 +259,14 @@ class _AppInitializerState extends State<AppInitializer> {
         _initialized = true;
       });
     } catch (e) {
-      setState(() {
-        _error = true;
-      });
+      // Retry initialization after a short delay
+      await Future.delayed(const Duration(seconds: 2));
+      _initializeApp();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_error) {
-      return const Scaffold(
-        body: Center(child: Text("Initialization error")),
-      );
-    }
     if (!_initialized) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -146,204 +276,76 @@ class _AppInitializerState extends State<AppInitializer> {
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Commercial Trader Portal',
-      theme: ThemeData(
-        useMaterial3: true,
-      ),
-      home: const AppInitializer(), // Updated home widget
-      routes: {
-        '/login': (context) => const LoginPage(),
-        '/signup': (context) => const SignUpPage(),
-        '/signin': (context) => const SignInPage(),
-        '/home': (context) => const HomePage(),
-        '/phoneNumber': (context) => const PhoneNumberPage(),
-        '/otp': (context) => const OTPScreen(),
-        '/firstNamePage': (context) => const FirstNamePage(),
-        '/tradingCategory': (context) => const TradingCategoryPage(),
-        '/addProfilePhoto': (context) => const AddProfilePhotoPage(),
-        '/addProfilePhotoTransporter': (context) =>
-            const AddProfilePhotoPageTransporter(),
-        '/transporterRegister': (context) =>
-            const TransporterRegistrationPage(),
-        '/dealerRegister': (context) => const DealerRegPage(),
-        '/houseRules': (context) => const HouseRulesPage(),
-        '/preferedBrands': (context) => const PreferredBrandsPage(),
-        '/tradingInterests': (context) => const TradingInterestsPage(),
-        '/tutorial': (context) => const TutorialPage(),
-        '/tutorialStarted': (context) => const TutorialStartedPage(),
-        '/pendingOffers': (context) => const PendingOffersPage(),
-        '/truckPage': (context) => const TruckPage(),
-        '/offers': (context) => const OffersPage(),
-        '/profile': (context) => ProfilePage(),
-        '/waiting-for-approval': (context) => const AccountStatusPage(),
-        '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
-        '/admin-home': (context) => AdminHomePage(),
-        '/adminUsers': (context) => const AdminHomePage(initialTab: 0),
-        '/adminOffers': (context) => const AdminHomePage(initialTab: 1),
-        '/adminComplaints': (context) => const AdminHomePage(initialTab: 2),
-        '/adminVehicles': (context) => const AdminHomePage(initialTab: 3),
-        '/vehicleUpload': (context) => const VehicleUploadScreen(),
-        '/in-progress': (context) => const AcceptedOffersPage(),
-        '/transporterList': (context) => const VehiclesListPage(),
-        '/wishlist': (context) => const WishlistPage(),
-        '/adminHome': (context) => const AdminHomePage(),
-        '/error': (context) => ErrorPage(), // Create a basic error page
-        '/waitingApproval': (context) => AccountStatusPage(), // Create a b
-        '/basic_information': (context) => BasicInformationEdit(), // Create a b
-        '/maintenance_warranty': (context) {
-          final vehicleId =
-              ModalRoute.of(context)!.settings.arguments as String;
-          return MaintenanceEditSection(
-            vehicleId: vehicleId,
-            isUploading: false,
-            onMaintenanceFileSelected: (file) {},
-            onWarrantyFileSelected: (file) {},
-            oemInspectionType: '',
-            oemInspectionExplanation: '',
-            onProgressUpdate: () {},
-            maintenanceSelection: '',
-            warrantySelection: '',
-            isFromAdmin: false,
-          );
-        },
-        '/external_cab': (context) {
-          final vehicleId =
-              ModalRoute.of(context)!.settings.arguments as String;
-          return ExternalCabEditPage(
-            vehicleId: vehicleId,
-            onProgressUpdate: () {},
-            inTabsPage: false,
-          );
-        },
-        '/internal_cab': (context) {
-          final vehicleId =
-              ModalRoute.of(context)!.settings.arguments as String;
-          return InternalCabEditPage(
-            vehicleId: vehicleId,
-            onProgressUpdate: () {},
-            inTabsPage: false,
-          );
-        },
-        '/chassis': (context) {
-          final vehicleId =
-              ModalRoute.of(context)!.settings.arguments as String;
-          return ChassisEditPage(
-            vehicleId: vehicleId,
-            onProgressUpdate: () {},
-            inTabsPage: false,
-          );
-        },
-        '/drive_train': (context) {
-          final vehicleId =
-              ModalRoute.of(context)!.settings.arguments as String;
-          return DriveTrainEditPage(
-            vehicleId: vehicleId,
-            onProgressUpdate: () {},
-            inTabsPage: false,
-          );
-        },
-        '/tyres': (context) {
-          final vehicleId =
-              ModalRoute.of(context)!.settings.arguments as String;
-          return TyresEditPage(
-            vehicleId: vehicleId,
-            onProgressUpdate: () {},
-            inTabsPage: false,
-          );
-        },
-      },
-      onGenerateRoute: (settings) {
-        if (settings.name == '/inspectionDetails') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder: (context) => InspectionDetailsPage(
-              offerId: args['offerId'] as String,
-              offerAmount: args['offerAmount'] as String,
-              vehicleId: args['vehicleId'] as String,
-              brand: args['brands'] as String,
-              variant: args['variant'] as String,
-            ),
-          );
-        }
-        return null;
-      },
-      onUnknownRoute: (settings) {
-        return MaterialPageRoute(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: Text('Route ${settings.name} not found'),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class AuthWrapper extends StatefulWidget {
+class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
-  @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
+  Future<bool> _verifyAccount(BuildContext context) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final complaintsProvider =
+        Provider.of<ComplaintsProvider>(context, listen: false);
+    // Fetch all necessary data.
+    await Future.wait([
+      userProvider.fetchUserData(),
+      userProvider.initializeStatusListener(),
+      complaintsProvider.fetchAllComplaints(),
+    ]);
 
-class _AuthWrapperState extends State<AuthWrapper> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final complaintsProvider =
-          Provider.of<ComplaintsProvider>(context, listen: false);
+    // If admin or sales rep, bypass account status check.
+    if (['admin', 'sales representitive']
+        .contains(userProvider.getUserRole.toLowerCase())) {
+      return true;
+    }
 
-      userProvider.fetchUserData();
-      userProvider.initializeStatusListener();
-      complaintsProvider.fetchAllComplaints();
-    });
+    return userProvider.getAccountStatus != 'not_found';
   }
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context);
-    User? firebaseUser = FirebaseAuth.instance.currentUser;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
 
-    // Wait for user data to load
+    // If no Firebase user, show login.
     if (firebaseUser == null || firebaseUser.isAnonymous) {
       return const LoginPage();
     }
-    if (userProvider.getAccountStatus.isEmpty) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    // New check: if the account does not exist, show the error page.
-    if (userProvider.getAccountStatus == 'not_found') {
-      return const ErrorPage();
-    }
-    if (userProvider.getAccountStatus == 'suspended' ||
-        userProvider.getAccountStatus == 'inactive') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!(ModalRoute.of(context)?.settings.name == '/account-status')) {
-          Navigator.of(context).pushReplacementNamed('/account-status');
-        }
-      });
-      return const AccountStatusPage();
-    }
 
-    // Redirect based on user role
-    if (userProvider.getUserRole.toLowerCase() == 'admin' ||
-        userProvider.getUserRole.toLowerCase() == 'sales rep') {
-      return const AdminHomePage();
-    } else {
-      return const HomePage();
-    }
+    return FutureBuilder<bool>(
+      future: _verifyAccount(context),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // While waiting for verification, show a loader.
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // If an error occurs or account is not found, show error page.
+        if (snapshot.hasError || snapshot.data == false) {
+          return const ErrorPage();
+        }
+
+        final userProvider = Provider.of<UserProvider>(context);
+
+        // If the account is suspended or inactive, redirect to the status page.
+        if (userProvider.getAccountStatus == 'suspended' ||
+            userProvider.getAccountStatus == 'inactive') {
+          // Use a post frame callback to ensure navigation happens after build.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ModalRoute.of(context)?.settings.name != '/account-status') {
+              Navigator.of(context).pushReplacementNamed('/account-status');
+            }
+          });
+          return const AccountStatusPage();
+        }
+
+        // Redirect based on user role.
+        if (userProvider.getUserRole.toLowerCase() == 'admin' ||
+            userProvider.getUserRole.toLowerCase() == 'sales rep') {
+          return const AdminHomePage();
+        } else {
+          return const HomePage();
+        }
+      },
+    );
   }
 }
 

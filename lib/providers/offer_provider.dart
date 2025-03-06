@@ -204,7 +204,10 @@ extension IterableExtensions<E> on Iterable<E> {
 
 /// The OfferProvider manages the state and operations related to offers, including pagination.
 class OfferProvider with ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Remove the early initialization:
+  // final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+
   List<Offer> _offers = [];
   bool _isFetching = false;
   bool _hasMore = true;
@@ -236,8 +239,11 @@ class OfferProvider with ChangeNotifier {
   }
 
   /// Fetches the initial batch of offers based on user ID and role.
-  Future<void> fetchOffers(String userId, String userRole) async {
-    print('DEBUG: Starting fetchOffers');
+  Future<void> fetchOffers(String userId, String userRole, {int? limit}) async {
+    if (userId.isEmpty) {
+      print('User ID is empty, cannot fetch offers.');
+      return;
+    }
     if (_isFetching) return;
 
     try {
@@ -245,22 +251,27 @@ class OfferProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      Query query = _buildQuery(userId, userRole).limit(_limit);
+      Query query = _buildQuery(userId, userRole);
+      if (limit != null) {
+        query = query.limit(limit);
+      } else {
+        // When limit is null, fetch without pagination limit.
+      }
+
       QuerySnapshot querySnapshot = await query.get();
 
       _offers = await Future.wait(querySnapshot.docs.map((doc) async {
         print('DEBUG: Processing offer ${doc.id}');
         Offer offer = Offer.fromFirestore(doc);
         await offer.fetchVehicleDetails();
-        print(
-            'DEBUG: Vehicle details fetched - mainImage: ${offer.vehicleMainImage}');
         return offer;
       }));
 
-      if (_offers.isNotEmpty) {
+      if (_offers.isNotEmpty && limit != null) {
         _lastDocument = querySnapshot.docs.last;
-        _hasMore = querySnapshot.docs.length >= _limit;
+        _hasMore = querySnapshot.docs.length >= limit;
       } else {
+        // When limit is null, disable further pagination.
         _hasMore = false;
       }
 
@@ -384,7 +395,6 @@ class OfferProvider with ChangeNotifier {
       print('Error updating offer status: $e');
     }
   }
-  
 
   /// Deletes an offer from Firestore and updates the local list.
   Future<void> deleteOffer(String offerId) async {
@@ -534,16 +544,20 @@ Widget _buildOfferImage(Offer offer) {
     );
   }
 
-  return offer.vehicleMainImage != null
-      ? Image.network(
-          offer.vehicleMainImage!,
-          width: 50,
-          height: 50,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            print('DEBUG: Error loading image: $error');
-            return Icon(Icons.directions_car, color: Colors.blueAccent);
-          },
-        )
-      : Icon(Icons.directions_car, color: Colors.blueAccent);
+  final imageUrl = offer.vehicleMainImage;
+  // Check for null, empty or non-http URLs.
+  if (imageUrl == null || imageUrl.isEmpty || !imageUrl.startsWith('http')) {
+    return Icon(Icons.directions_car, color: Colors.blueAccent);
+  }
+
+  return Image.network(
+    imageUrl,
+    width: 50,
+    height: 50,
+    fit: BoxFit.cover,
+    errorBuilder: (context, error, stackTrace) {
+      print('DEBUG: Error loading image: $error');
+      return Icon(Icons.directions_car, color: Colors.blueAccent);
+    },
+  );
 }

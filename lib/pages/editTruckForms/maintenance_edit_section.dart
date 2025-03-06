@@ -149,13 +149,13 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
             _oemInspectionType =
                 maintenanceData!['oemInspectionType']?.toString() ?? 'yes';
             _oemReasonController.text =
-                maintenanceData!['oemReason']?.toString() ?? '';
+                maintenanceData['oemReason']?.toString() ?? '';
             _currentMaintenanceDocUrl =
-                maintenanceData!['maintenanceDocUrl']?.toString() ??
+                maintenanceData['maintenanceDocUrl']?.toString() ??
                     maintenanceData['maintenanceDocumentUrl']?.toString();
             _currentWarrantyDocUrl =
-                maintenanceData!['warrantyDocUrl']?.toString() ??
-                    maintenanceData!['warrantyDocumentUrl']?.toString();
+                maintenanceData['warrantyDocUrl']?.toString() ??
+                    maintenanceData['warrantyDocumentUrl']?.toString();
           });
           debugPrint(
               'DEBUG: Updated _currentMaintenanceDocUrl: $_currentMaintenanceDocUrl');

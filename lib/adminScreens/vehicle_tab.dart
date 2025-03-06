@@ -1,6 +1,7 @@
 // lib/adminScreens/vehicle_tab.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
@@ -383,12 +384,9 @@ class _VehiclesTabState extends State<VehiclesTab>
   // 4) Client-Side Searching
   // --------------------------------------------------------------------
   bool _matchesSearch(Map<String, dynamic> vehicleData) {
-    // Return true if no search query
     if (_searchQuery.isEmpty) return true;
-
     final query = _searchQuery.toLowerCase();
-
-    // Extract all searchable fields with null safety
+    String reference = (vehicleData['referenceNumber'] ?? '').toLowerCase();
     List<dynamic> brandList = vehicleData['brands'] ?? [];
     String brandConcat = brandList.join(' ').toLowerCase();
     String makeModel = (vehicleData['makeModel'] ?? '').toLowerCase();
@@ -403,7 +401,6 @@ class _VehiclesTabState extends State<VehiclesTab>
     String configStr = (vehicleData['config'] ?? '').toLowerCase();
     String vehicleTypeStr = (vehicleData['vehicleType'] ?? '').toLowerCase();
 
-    // Check if any field contains the search query
     return brandConcat.contains(query) ||
         makeModel.contains(query) ||
         variant.contains(query) ||
@@ -414,7 +411,8 @@ class _VehiclesTabState extends State<VehiclesTab>
         provinceStr.contains(query) ||
         applicationStr.contains(query) ||
         configStr.contains(query) ||
-        vehicleTypeStr.contains(query);
+        vehicleTypeStr.contains(query) ||
+        reference.contains(query);
   }
 
   // --------------------------------------------------------------------
@@ -746,10 +744,27 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 color: Colors.white,
                               ),
                             ),
-                            subtitle: Text(
-                              'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}\nTransmission: ${vehicle.transmissionType}',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white70),
+                            subtitle: RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'Ref: ${vehicle.referenceNumber}\n',
+                                    style: GoogleFonts.montserrat(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.orange,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text:
+                                        'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}\nTransmission: ${vehicle.transmissionType}',
+                                    style: GoogleFonts.montserrat(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             isThreeLine: true,
                             onTap: () {

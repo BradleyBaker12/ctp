@@ -57,6 +57,8 @@ class _CollectionConfirmationPageState
   // Add getter for large screen
   bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
 
+  bool _firestoreDeliveryOffer = false;
+
   @override
   void initState() {
     super.initState();
@@ -100,41 +102,36 @@ class _CollectionConfirmationPageState
 
       if (offerSnapshot.exists) {
         final data = offerSnapshot.data() as Map<String, dynamic>;
-        final bool dealerSelectedDelivery =
-            data['dealerSelectedDelivery'] ?? false;
+        // Store the transporter’s delivery offer flag from Firestore.
+        _firestoreDeliveryOffer = data['dealerSelectedDelivery'] ?? false;
 
+        final userRole =
+            Provider.of<UserProvider>(context, listen: false).getUserRole;
         String addressToUse = widget.address;
         LatLng? latLngToUse = widget.latLng;
 
-        if (dealerSelectedDelivery) {
-          // Update text for delivery
+        // Instead of checking dealerChoice, choose delivery branch if widget.latLng is null.
+        if (widget.latLng == null) {
+          // Delivery branch: adjust header and meeting texts.
           setState(() {
             _headerText = 'DELIVERY CONFIRMATION';
             _meetingInfoText = 'Delivery information:';
             _doneButtonText = 'CONFIRM DELIVERY';
           });
-
-          addressToUse = data['transporterDeliveryAddress'] ?? 'Unknown';
-          final deliveryLatLng = data['transporterDeliveryLatLng'];
-
-          if (deliveryLatLng != null) {
-            latLngToUse = LatLng(
-              deliveryLatLng['latitude'],
-              deliveryLatLng['longitude'],
-            );
-          } else {
-            // Fallback to geocoding the transporter delivery address
-            List<Location> locations = await locationFromAddress(addressToUse);
+          // Use dealer’s provided delivery address
+          if (latLngToUse == null) {
+            List<Location> locations =
+                await locationFromAddress(widget.address);
             if (locations.isNotEmpty) {
               final location = locations.first;
               latLngToUse = LatLng(location.latitude, location.longitude);
             } else {
-              throw 'No locations found for the provided transporter delivery address';
+              throw 'No locations found for the provided dealer address';
             }
           }
         } else {
-          // Use default location if dealerSelectedDelivery is not true
-          if (widget.latLng == null) {
+          // Collection branch
+          if (latLngToUse == null) {
             List<Location> locations =
                 await locationFromAddress(widget.address);
             if (locations.isNotEmpty) {
@@ -192,6 +189,7 @@ class _CollectionConfirmationPageState
     final userRole = userProvider.getUserRole;
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
 
+    // Moved navigationItems declaration above all references.
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
             NavigationItem(title: 'Home', route: '/home'),

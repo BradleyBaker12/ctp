@@ -114,105 +114,109 @@ class _OTPScreenState extends State<OTPScreen> {
     print('OTPScreen: Received phoneNumber: $phoneNumber'); // Debugging
     print('OTPScreen: Received userId: $userId'); // Debugging
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GradientBackground(
-            child: Column(
-              children: [
-                const BlurryAppBar(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Container(
-                      width: screenSize.width,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenSize.width * 0.05,
-                        vertical: screenSize.height * 0.02,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(height: screenSize.height * 0.03),
-                          Image.asset(
-                            'lib/assets/CTPLogo.png',
-                            height: screenSize.height * 0.23,
-                          ),
-                          SizedBox(height: screenSize.height * 0.1),
-                          Text(
-                            'MY CODE IS',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
+    return PopScope(
+      onPopInvokedWithResult: (route, result) async => false,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GradientBackground(
+              child: Column(
+                children: [
+                  const BlurryAppBar(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Container(
+                        width: screenSize.width,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenSize.width * 0.05,
+                          vertical: screenSize.height * 0.02,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(height: screenSize.height * 0.03),
+                            Image.asset(
+                              'lib/assets/CTPLogo.png',
+                              height: screenSize.height * 0.23,
                             ),
-                          ),
-                          Text(
-                            'We will send you a six digit code',
-                            style: GoogleFonts.montserrat(
-                              fontSize: screenSize.height * 0.02,
-                              color: Colors.white.withOpacity(0.7),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.01),
-                          Pinput(
-                            length: 6,
-                            controller: _otpController,
-                            defaultPinTheme: PinTheme(
-                              width: screenSize.width * 0.1,
-                              height: screenSize.height * 0.07,
-                              textStyle: GoogleFonts.montserrat(
-                                fontSize: screenSize.height * 0.025,
+                            SizedBox(height: screenSize.height * 0.1),
+                            Text(
+                              'MY CODE IS',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
-                                fontWeight: FontWeight.w600,
                               ),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: blue,
-                                    width: 2.0,
+                            ),
+                            Text(
+                              'We will send you a six digit code',
+                              style: GoogleFonts.montserrat(
+                                fontSize: screenSize.height * 0.02,
+                                color: Colors.white.withOpacity(0.7),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: screenSize.height * 0.01),
+                            Pinput(
+                              length: 6,
+                              controller: _otpController,
+                              defaultPinTheme: PinTheme(
+                                width: screenSize.width * 0.1,
+                                height: screenSize.height * 0.07,
+                                textStyle: GoogleFonts.montserrat(
+                                  fontSize: screenSize.height * 0.025,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: blue,
+                                      width: 2.0,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.03),
-                          TextButton(
-                            onPressed: () {
-                              _resendCode(phoneNumber);
-                            },
-                            child: Text(
-                              'Resend code',
-                              style: GoogleFonts.montserrat(
-                                color: Colors.white,
-                                fontSize: 16,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white,
+                            SizedBox(height: screenSize.height * 0.03),
+                            TextButton(
+                              onPressed: () {
+                                _resendCode(phoneNumber);
+                              },
+                              child: Text(
+                                'Resend code',
+                                style: GoogleFonts.montserrat(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Colors.white,
+                                ),
                               ),
                             ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.15),
-                          CustomButton(
-                            text: 'CONTINUE',
-                            borderColor: blue,
-                            onPressed: () => _verifyOTP(verificationId, userId),
-                          ),
-                          SizedBox(height: screenSize.height * 0.03),
-                        ],
+                            SizedBox(height: screenSize.height * 0.15),
+                            CustomButton(
+                              text: 'CONTINUE',
+                              borderColor: blue,
+                              onPressed: () =>
+                                  _verifyOTP(verificationId, userId),
+                            ),
+                            SizedBox(height: screenSize.height * 0.03),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Positioned(
-            top: 40,
-            left: 16,
-            child: CustomBackButton(),
-          ),
-          if (_isLoading) const LoadingScreen()
-        ],
+            const Positioned(
+              top: 40,
+              left: 16,
+              child: CustomBackButton(),
+            ),
+            if (_isLoading) const LoadingScreen()
+          ],
+        ),
       ),
     );
   }

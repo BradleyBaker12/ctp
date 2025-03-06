@@ -1,0 +1,2 @@
+/Users/bradleybaker/ctp/android/app/.cxx/RelWithDebInfo/2e295u4w/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/bradleybaker/ctp/android/app/.cxx/RelWithDebInfo/2e295u4w/arm64-v8a/CMakeFiles/rebuild_cache.dir

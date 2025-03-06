@@ -12,7 +12,6 @@ import 'package:image_picker/image_picker.dart'; // Image picker for uploading i
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart'; // Ensure this import path is correct
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Added for platformViewRegistry
 import 'package:ctp/utils/camera_helper.dart'; // Added camera helper import

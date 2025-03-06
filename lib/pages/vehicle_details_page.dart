@@ -1378,7 +1378,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                     TextButton(
@@ -1390,8 +1390,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               .update({
                             'vehicleStatus': 'Archived',
                           });
-                          Navigator.of(context).pop();
-                          Navigator.of(context).pop();
+                          Navigator.pop(context);
+                          Navigator.pop(context);
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -1414,6 +1414,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             borderColor: orangeColor,
             onPressed: _navigateToDuplicatePage,
           ),
+
+          if (isAdmin && isDraft)
+            CustomButton(
+              text: 'Push to Live',
+              borderColor: Colors.green,
+              onPressed: () => _updateVehicleStatus('Live'),
+            ),
 
           // If admin & pending => Approve for live
           if (isAdmin && isPending)
@@ -1970,6 +1977,22 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           '/vehicle_details',
                       onMenuPressed: () =>
                           _scaffoldKey.currentState?.openDrawer(),
+                      onTabSelected: (index) {
+                        switch (index) {
+                          case 0:
+                            Navigator.pushNamed(context, '/adminUsers');
+                            break;
+                          case 1:
+                            Navigator.pushNamed(context, '/adminOffers');
+                            break;
+                          case 2:
+                            Navigator.pushNamed(context, '/adminComplaints');
+                            break;
+                          case 3:
+                            Navigator.pushNamed(context, '/adminVehicles');
+                            break;
+                        }
+                      },
                     )
                   : WebNavigationBar(
                       isCompactNavigation: _isCompactNavigation(context),
@@ -2395,17 +2418,68 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                       ),
                                                     );
                                                   }
+                                                  // Create a copy and sort dealers alphabetically.
+                                                  List<Dealer> sortedDealers =
+                                                      List.from(
+                                                          userProv.dealers);
+                                                  sortedDealers.sort((a, b) {
+                                                    // Try to use the dealer's firstName and lastName if available.
+                                                    String nameA = (a.firstName !=
+                                                                null &&
+                                                            a.lastName !=
+                                                                null &&
+                                                            a.firstName!
+                                                                .trim()
+                                                                .isNotEmpty &&
+                                                            a.lastName!
+                                                                .trim()
+                                                                .isNotEmpty)
+                                                        ? '${a.firstName} ${a.lastName}'
+                                                        : a.email;
+                                                    String nameB = (b.firstName !=
+                                                                null &&
+                                                            b.lastName !=
+                                                                null &&
+                                                            b.firstName!
+                                                                .trim()
+                                                                .isNotEmpty &&
+                                                            b.lastName!
+                                                                .trim()
+                                                                .isNotEmpty)
+                                                        ? '${b.firstName} ${b.lastName}'
+                                                        : b.email;
+                                                    return nameA
+                                                        .toLowerCase()
+                                                        .compareTo(nameB
+                                                            .toLowerCase());
+                                                  });
+
                                                   return DropdownButtonFormField<
                                                       Dealer>(
                                                     value: _selectedDealer,
                                                     isExpanded: true,
-                                                    items: userProv.dealers
+                                                    items: sortedDealers
                                                         .map((Dealer dealer) {
+                                                      // Use full name if available, otherwise use email.
+                                                      String displayName = (dealer
+                                                                      .firstName !=
+                                                                  null &&
+                                                              dealer
+                                                                      .lastName !=
+                                                                  null &&
+                                                              dealer.firstName!
+                                                                  .trim()
+                                                                  .isNotEmpty &&
+                                                              dealer.lastName!
+                                                                  .trim()
+                                                                  .isNotEmpty)
+                                                          ? '${dealer.firstName} ${dealer.lastName}'
+                                                          : dealer.email;
                                                       return DropdownMenuItem<
                                                           Dealer>(
                                                         value: dealer,
                                                         child:
-                                                            Text(dealer.email),
+                                                            Text(displayName),
                                                       );
                                                     }).toList(),
                                                     onChanged:

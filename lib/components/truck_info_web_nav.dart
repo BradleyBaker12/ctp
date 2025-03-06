@@ -131,7 +131,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
                     ),
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
-                      child: Container(
+                      child: SizedBox(
                         width: logoWidth,
                         child: Image.network(
                           'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
@@ -325,7 +325,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
+                            SizedBox(
                               width: logoWidth,
                               child: Image.network(
                                 'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',

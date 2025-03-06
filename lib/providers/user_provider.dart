@@ -122,19 +122,23 @@ class UserProvider extends ChangeNotifier {
   }
 
   UserProvider() {
-    _checkAuthState();
-    FirebaseAuth.instance.authStateChanges().listen((User? newUser) async {
-      if (newUser != null) {
-        _user = newUser;
-        try {
-          await fetchUserData();
-        } catch (e) {
-          print('Error fetching user data: $e');
-          _clearUserData();
+    try {
+      _checkAuthState();
+      FirebaseAuth.instance.authStateChanges().listen((User? newUser) async {
+        if (newUser != null) {
+          _user = newUser;
+          try {
+            await fetchUserData();
+          } catch (e) {
+            print('Error fetching user data: $e');
+            _clearUserData();
+          }
+          notifyListeners();
         }
-        notifyListeners();
-      }
-    });
+      });
+    } catch (e) {
+      print("Error initializing FirebaseAuth in UserProvider: $e");
+    }
   }
 
   // Add this method inside the UserProvider class
@@ -250,10 +254,16 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> _checkAuthState() async {
-    _user = FirebaseAuth.instance.currentUser;
-    if (_user != null) {
-      await fetchUserData();
-    } else {
+    try {
+      _user = FirebaseAuth.instance.currentUser;
+      if (_user != null) {
+        await fetchUserData();
+      } else {
+        _isLoading = false;
+        notifyListeners();
+      }
+    } catch (e) {
+      print("Error in _checkAuthState: $e");
       _isLoading = false;
       notifyListeners();
     }

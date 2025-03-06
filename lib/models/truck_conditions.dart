@@ -23,9 +23,6 @@ class TruckConditions {
   });
 
   factory TruckConditions.fromMap(Map<String, dynamic> map) {
-    debugPrint('=== TruckConditions Raw Data ===');
-    debugPrint('Raw map: $map');
-
     // First try to get the nested cab data
     Map<String, dynamic> extData = {};
     Map<String, dynamic> intData = {};

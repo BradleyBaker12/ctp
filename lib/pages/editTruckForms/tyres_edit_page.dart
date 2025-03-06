@@ -10,7 +10,6 @@ import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/truck_info_web_nav.dart';
 // Added for platformViewRegistry
 // For web camera access

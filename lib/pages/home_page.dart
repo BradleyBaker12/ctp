@@ -233,6 +233,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           currentUser.uid, userProvider.getUserRole);
       likedVehicles = List<String>.from(userProvider.getLikedVehicles);
       dislikedVehicles = List<String>.from(userProvider.getDislikedVehicles);
+
+      // Update recentOffers with the 5 most recent offers
+      setState(() {
+        recentOffers = List<Offer>.from(_offerProvider.offers);
+        // recentOffers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        if (recentOffers.length > 5) {
+          recentOffers = recentOffers.sublist(0, 5);
+        }
+      });
     } catch (e, stackTrace) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

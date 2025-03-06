@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
         await Firebase.initializeApp();
       }
     } catch (e) {
-      debugPrint('Firebase initialization error: $e');
+      debugPrint('Firebase database error: $e');
     }
   }
 

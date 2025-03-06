@@ -51,11 +51,8 @@ class TradingCategoryPage extends StatelessWidget {
     var blue = const Color(0xFF2F7FFF);
     var orange = const Color(0xFFFF4E00);
 
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pop();
-        return false;
-      },
+    return PopScope(
+      onPopInvokedWithResult: (route, result) async => false,
       child: Scaffold(
         body: GradientBackground(
           child: Column(

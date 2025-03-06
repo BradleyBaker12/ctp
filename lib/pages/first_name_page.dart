@@ -96,8 +96,8 @@ class _FirstNamePageState extends State<FirstNamePage> {
     var blue = const Color(0xFF2F7FFF);
     var orange = const Color(0xFFFF4E00);
 
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      onPopInvokedWithResult: (route, result) async => false,
       child: Scaffold(
         body: Stack(
           children: [

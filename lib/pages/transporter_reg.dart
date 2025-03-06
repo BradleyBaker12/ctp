@@ -307,251 +307,256 @@ class _TransporterRegistrationPageState
     var screenSize = MediaQuery.of(context).size;
     var orange = const Color(0xFFFF4E00);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GradientBackground(
-            child: Column(
-              children: [
-                const BlurryAppBar(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 36),
-                          Center(
-                            child: Image.asset('lib/assets/CTPLogo.png',
-                                height: 100), // Adjust the height as needed
-                          ),
-                          const SizedBox(height: 36),
-                          Center(
-                            child: Text(
-                              'TRANSPORTER REGISTRATION',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
+    return PopScope(
+      onPopInvokedWithResult: (route, result) async => false,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GradientBackground(
+              child: Column(
+                children: [
+                  const BlurryAppBar(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 36),
+                            Center(
+                              child: Image.asset('lib/assets/CTPLogo.png',
+                                  height: 100), // Adjust the height as needed
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          Center(
-                            child: Text(
-                              'Fill out the form carefully to register.',
-                              style: GoogleFonts.montserrat(
+                            const SizedBox(height: 36),
+                            Center(
+                              child: Text(
+                                'TRANSPORTER REGISTRATION',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Center(
+                              child: Text(
+                                'Fill out the form carefully to register.',
+                                style: GoogleFonts.montserrat(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 30),
+                            Center(
+                              child: Text(
+                                'CTP offers a way for you to sell your vehicle to multiple dealers in SA.',
+                                style: GoogleFonts.montserrat(
                                   fontSize: 16,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                          Center(
-                            child: Text(
-                              'CTP offers a way for you to sell your vehicle to multiple dealers in SA.',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 16,
-                                color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 30),
-                          Center(
-                            child: Text(
-                              "CTP's fees are R12 500 flat fee.",
-                              style: GoogleFonts.montserrat(
-                                fontSize: 16,
-                                color: Colors.white,
+                            const SizedBox(height: 30),
+                            Center(
+                              child: Text(
+                                "CTP's fees are R12 500 flat fee.",
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Company Details *'.toUpperCase(),
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _companyNameController,
-                                    focusNode: _companyNameFocusNode,
-                                    hintText: 'Company Name'),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _tradingNameController,
-                                    focusNode: _tradingNameFocusNode,
-                                    hintText: 'Trading Name',
-                                    isOptional: true),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _fleetSizeController,
-                                    focusNode: _fleetSizeFocusNode,
-                                    hintText: 'Fleet Size'),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _registrationNumberController,
-                                    focusNode: _registrationNumberFocusNode,
-                                    hintText: 'Registration Number',
-                                    validator: _validateRegistrationNumber,
-                                    inputFormatters: [
-                                      RegistrationNumberInputFormatter()
-                                    ]),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _vatNumberController,
-                                    focusNode: _vatNumberFocusNode,
-                                    hintText: 'VAT Number',
-                                    validator: _validateVATNumber),
-                                const SizedBox(height: 15),
-                                Text(
-                                  'Dealer Personal Details *'.toUpperCase(),
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _firstNameController,
-                                    focusNode: _firstNameFocusNode,
-                                    hintText: 'First Name'),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _middleNameController,
-                                    focusNode: _middleNameFocusNode,
-                                    hintText: 'Middle Name (Optional)',
-                                    isOptional: true),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _lastNameController,
-                                    focusNode: _lastNameFocusNode,
-                                    hintText: 'Last Name'),
-                                const SizedBox(height: 15),
-                                Text(
-                                  'Address'.toUpperCase(),
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                const SizedBox(height: 15),
-                                _buildDropdownField(),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _addressLine1Controller,
-                                    focusNode: _addressLine1FocusNode,
-                                    hintText: 'Address Line 1'),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _addressLine2Controller,
-                                    focusNode: _addressLine2FocusNode,
-                                    hintText: 'Address Line 2',
-                                    isOptional: true),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _cityController,
-                                    focusNode: _cityFocusNode,
-                                    hintText: 'City'),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _stateController,
-                                    focusNode: _stateFocusNode,
-                                    hintText: 'State/Province/Region'),
-                                const SizedBox(height: 15),
-                                _buildTextField(
-                                    controller: _postalCodeController,
-                                    focusNode: _postalCodeFocusNode,
-                                    hintText: 'Postal Code'),
-                                const SizedBox(height: 30),
-                                Text(
-                                  'Document Uploads'.toUpperCase(),
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: screenSize.height * 0.02),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Bank Confirmation *',
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
-                                _buildUploadButton(
-                                    'bankConfirmation', _bankConfirmationFile),
-                                const SizedBox(height: 15),
-                                Text(
-                                  'Proxy *',
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
-                                _buildUploadButton('proxy', _proxyFile),
-                                const SizedBox(height: 15),
-                                Text(
-                                  'BRNC *',
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
-                                _buildUploadButton('brnc', _brncFile),
-                                const SizedBox(height: 15),
-                                Text(
-                                  'Tax Certificate *',
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white),
-                                ),
-                                const SizedBox(height: 5),
-                                _buildUploadButton(
-                                    'taxCertificate', _taxCertificateFile),
-                                const SizedBox(height: 15),
-                                Center(
-                                  child: CustomButton(
-                                    text:
-                                        _isLoading ? 'Submitting...' : 'SUBMIT',
-                                    borderColor: orange,
-                                    onPressed: _isLoading ? () {} : _submitForm,
+                            const SizedBox(height: 20),
+                            Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Company Details *'.toUpperCase(),
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500),
                                   ),
-                                ),
-                                const SizedBox(height: 30),
-                              ],
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _companyNameController,
+                                      focusNode: _companyNameFocusNode,
+                                      hintText: 'Company Name'),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _tradingNameController,
+                                      focusNode: _tradingNameFocusNode,
+                                      hintText: 'Trading Name',
+                                      isOptional: true),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _fleetSizeController,
+                                      focusNode: _fleetSizeFocusNode,
+                                      hintText: 'Fleet Size'),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _registrationNumberController,
+                                      focusNode: _registrationNumberFocusNode,
+                                      hintText: 'Registration Number',
+                                      validator: _validateRegistrationNumber,
+                                      inputFormatters: [
+                                        RegistrationNumberInputFormatter()
+                                      ]),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _vatNumberController,
+                                      focusNode: _vatNumberFocusNode,
+                                      hintText: 'VAT Number',
+                                      validator: _validateVATNumber),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    'Dealer Personal Details *'.toUpperCase(),
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _firstNameController,
+                                      focusNode: _firstNameFocusNode,
+                                      hintText: 'First Name'),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _middleNameController,
+                                      focusNode: _middleNameFocusNode,
+                                      hintText: 'Middle Name (Optional)',
+                                      isOptional: true),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _lastNameController,
+                                      focusNode: _lastNameFocusNode,
+                                      hintText: 'Last Name'),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    'Address'.toUpperCase(),
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  const SizedBox(height: 15),
+                                  _buildDropdownField(),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _addressLine1Controller,
+                                      focusNode: _addressLine1FocusNode,
+                                      hintText: 'Address Line 1'),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _addressLine2Controller,
+                                      focusNode: _addressLine2FocusNode,
+                                      hintText: 'Address Line 2',
+                                      isOptional: true),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _cityController,
+                                      focusNode: _cityFocusNode,
+                                      hintText: 'City'),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _stateController,
+                                      focusNode: _stateFocusNode,
+                                      hintText: 'State/Province/Region'),
+                                  const SizedBox(height: 15),
+                                  _buildTextField(
+                                      controller: _postalCodeController,
+                                      focusNode: _postalCodeFocusNode,
+                                      hintText: 'Postal Code'),
+                                  const SizedBox(height: 30),
+                                  Text(
+                                    'Document Uploads'.toUpperCase(),
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: screenSize.height * 0.02),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Bank Confirmation *',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  _buildUploadButton('bankConfirmation',
+                                      _bankConfirmationFile),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    'Proxy *',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  _buildUploadButton('proxy', _proxyFile),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    'BRNC *',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  _buildUploadButton('brnc', _brncFile),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    'Tax Certificate *',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  _buildUploadButton(
+                                      'taxCertificate', _taxCertificateFile),
+                                  const SizedBox(height: 15),
+                                  Center(
+                                    child: CustomButton(
+                                      text: _isLoading
+                                          ? 'Submitting...'
+                                          : 'SUBMIT',
+                                      borderColor: orange,
+                                      onPressed:
+                                          _isLoading ? () {} : _submitForm,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 30),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const Positioned(
-            top: 40,
-            left: 16,
-            child: CustomBackButton(),
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFFFF4E00),
-                ),
+                ],
               ),
             ),
-        ],
+            const Positioned(
+              top: 40,
+              left: 16,
+              child: CustomBackButton(),
+            ),
+            if (_isLoading)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFFF4E00),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

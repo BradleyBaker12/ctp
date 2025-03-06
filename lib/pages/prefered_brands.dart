@@ -94,11 +94,8 @@ class _PreferredBrandsPageState extends State<PreferredBrandsPage> {
     var blue = const Color(0xFF2F7FFF);
     var isPortrait = screenSize.height > screenSize.width;
 
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pop();
-        return false;
-      },
+    return PopScope(
+      onPopInvokedWithResult: (route, result) async => false,
       child: Scaffold(
         body: Stack(
           children: [

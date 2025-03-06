@@ -9,9 +9,9 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:provider/provider.dart'; // Add this import
-import 'package:ctp/providers/user_provider.dart'; // Add this import
-import 'package:flutter/foundation.dart' show kIsWeb; // Add this import
+import 'package:provider/provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class NavigationItem {
   final String title;
@@ -66,6 +66,11 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   final TextEditingController _deliveryPostalCodeController =
       TextEditingController();
 
+  // New state variables for delivery confirmation view
+  bool _deliveryConfirmed = false;
+  String _fullDeliveryAddress = '';
+  LatLng? _deliveryLatLng;
+
   @override
   void initState() {
     super.initState();
@@ -95,28 +100,10 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       final Map<String, dynamic>? offerData =
           offerSnapshot.data() as Map<String, dynamic>?;
 
-      // This must match what you have in Firestore:
-      // e.g. "offerDeliveryService": true/false
       final bool offerDeliveryService =
           offerData?['offerDeliveryService'] ?? false;
 
       // 3) Extract collectionDetails -> locations from the same offer
-      //
-      // We expect structure like:
-      // collectionDetails: {
-      //   locations: [
-      //     {
-      //       address: "...",
-      //       dates: ["29-01-2025", ...],
-      //       timeSlots: [
-      //         {
-      //           date: "29-01-2025",
-      //           times: ["12:30 PM", ...]
-      //         }
-      //       ]
-      //     }
-      //   ]
-      // }
       final Map<String, dynamic>? collectionDetails =
           offerData?['collectionDetails'] as Map<String, dynamic>?;
 
@@ -164,17 +151,14 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         final List<dynamic> timeSlots = locationEntry['timeSlots'] ?? [];
         final List<dynamic> dateStrings = locationEntry['dates'] ?? [];
 
-        // Basic validation
         if (address.isEmpty || timeSlots.isEmpty || dateStrings.isEmpty) {
           continue;
         }
 
-        // Parse date strings -> DateTime
         final List<DateTime> parsedDates = [];
         for (var dateStr in dateStrings) {
           if (dateStr is String) {
             try {
-              // e.g. "29-01-2025"
               final DateTime dt = DateFormat('d-MM-yyyy').parse(dateStr);
               parsedDates.add(dt);
             } catch (e) {
@@ -183,7 +167,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           }
         }
 
-        // Parse timeSlots -> each slot has date and times
         final List<Map<String, dynamic>> parsedTimeSlots = [];
         for (var slot in timeSlots) {
           if (slot == null) continue;
@@ -193,7 +176,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           if (slotDateStr == null || times.isEmpty) continue;
 
           try {
-            // e.g. "29-01-2025"
             final DateTime slotDate =
                 DateFormat('d-MM-yyyy').parse(slotDateStr);
 
@@ -206,14 +188,12 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
           }
         }
 
-        // If we still have valid data, add to our lists
         if (parsedDates.isNotEmpty && parsedTimeSlots.isNotEmpty) {
           locations.add(address);
           addresses.add(address);
           locationDates.add(parsedDates);
           locationTimeSlots.add(parsedTimeSlots);
 
-          // Attempt geocoding for each location
           try {
             final List<Location> geoLocations =
                 await locationFromAddress(address);
@@ -229,7 +209,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         }
       }
 
-      // 6) If no valid parsed locations
       if (locations.isEmpty) {
         setState(() {
           _offerDeliveryService = offerDeliveryService;
@@ -243,11 +222,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         return;
       }
 
-      // 7) Auto-select earliest date
       DateTime? earliest;
       for (var dateList in locationDates) {
         for (var d in dateList) {
-          // choose earliest date after "now"
           if (d.isAfter(DateTime.now().subtract(const Duration(days: 1))) &&
               (earliest == null || d.isBefore(earliest))) {
             earliest = d;
@@ -263,8 +240,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         _locationTimeSlots = locationTimeSlots;
         _latLngs = latLngs;
         _isLoading = false;
-
-        // If we found an earliest date, focus on it
         _focusedDay = earliest ?? DateTime.now();
         _selectedDay = _focusedDay;
       });
@@ -278,19 +253,15 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     }
   }
 
-  /// If user picks "Delivery", we show times from the "first location"
-  /// or any custom logic you prefer.
+  /// For delivery, always use location index = 0.
   int get _currentLocationIndex {
     if (_selectedDeliveryOption == 1) {
-      // For delivery, always use location index = 0
       return 0;
     } else {
       return _selectedLocation;
     }
   }
 
-  /// Returns all available time strings for the currently _selectedDay
-  /// and the chosen location.
   List<String> get _availableTimes {
     if (_selectedDay != null &&
         _locationTimeSlots.isNotEmpty &&
@@ -355,7 +326,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         SetOptions(merge: true),
       );
 
-      // Navigate to confirmation
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => CollectionConfirmationPage(
@@ -379,8 +349,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     }
   }
 
+  /// Updated _saveDeliveryDetails now performs geocoding to retrieve coordinates,
+  /// writes to Firestore and then sets state to display a delivery confirmation view.
   Future<void> _saveDeliveryDetails() async {
-    // Validate required address fields
     if (_deliveryAddressLine1Controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter Address Line 1.')),
@@ -405,16 +376,12 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       );
       return;
     }
-
-    // Validate date/time
     if (_selectedDay == null || _availableTimes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a date and time.')),
       );
       return;
     }
-
-    setState(() => _isLoading = true);
 
     final fullDeliveryAddress = [
       _deliveryAddressLine1Controller.text,
@@ -425,7 +392,20 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       _deliveryPostalCodeController.text
     ].join(', ');
 
+    setState(() => _isLoading = true);
+
     try {
+      LatLng deliveryCoordinates = const LatLng(0, 0);
+      try {
+        final locations = await locationFromAddress(fullDeliveryAddress);
+        if (locations.isNotEmpty) {
+          deliveryCoordinates =
+              LatLng(locations.first.latitude, locations.first.longitude);
+        }
+      } catch (e) {
+        deliveryCoordinates = const LatLng(0, 0);
+      }
+
       final offerRef =
           FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
 
@@ -439,20 +419,11 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         SetOptions(merge: true),
       );
 
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => CollectionConfirmationPage(
-            offerId: widget.offerId,
-            location: fullDeliveryAddress,
-            address: fullDeliveryAddress,
-            date: _selectedDay!,
-            time: _availableTimes[_selectedTimeSlot],
-            latLng: null,
-          ),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
-      );
+      setState(() {
+        _fullDeliveryAddress = fullDeliveryAddress;
+        _deliveryLatLng = deliveryCoordinates;
+        _deliveryConfirmed = true;
+      });
     } catch (err) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to save delivery details: $err')),
@@ -462,9 +433,108 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     }
   }
 
+  Widget _buildDeliveryMap(LatLng location) {
+    return SizedBox(
+      height: 300,
+      child: GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: location,
+          zoom: 14,
+        ),
+        markers: {
+          Marker(
+            markerId: const MarkerId("deliveryAddress"),
+            position: location,
+          ),
+        },
+      ),
+    );
+  }
+
+  /// This view is shown when delivery details have been confirmed.
+  /// It displays different messages depending on whether the current user is a dealer or transporter.
+  Widget _buildDeliveryConfirmationView() {
+    final userProvider = Provider.of<UserProvider>(context);
+    final userRole = userProvider.getUserRole;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 80, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Logo
+                  SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: Image.asset('lib/assets/CTPLogo.png'),
+                  ),
+                  const SizedBox(height: 16),
+                  if (userRole == 'dealer') ...[
+                    const Text(
+                      "The transporter will deliver the vehicle to your address:",
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ] else if (userRole == 'transporter') ...[
+                    const Text(
+                      "Dealer's delivery address:",
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Text(
+                    _fullDeliveryAddress,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  if (_deliveryLatLng != null)
+                    _buildDeliveryMap(_deliveryLatLng!),
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    text: 'BACK',
+                    borderColor: Colors.blue,
+                    onPressed: () {
+                      setState(() {
+                        _deliveryConfirmed = false;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 120,
+            left: 16,
+            child: CustomBackButton(
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCollectionPage(List<String> monthNames) {
     if (_locations.isEmpty) {
-      // Means no valid locations
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Stack(
@@ -522,15 +592,12 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Logo
                         SizedBox(
                           width: 100,
                           height: 100,
                           child: Image.asset('lib/assets/CTPLogo.png'),
                         ),
                         const SizedBox(height: 16),
-
-                        // Title
                         const Text(
                           'CONFIRM YOUR COLLECTION DETAILS',
                           style: TextStyle(
@@ -541,8 +608,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 32),
-
-                        // Intro
                         const Text(
                           'Great news! You have a potential buyer.',
                           style: TextStyle(
@@ -564,8 +629,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 40),
-
-                        // Locations
                         const Text(
                           'SELECT LOCATION',
                           style: TextStyle(
@@ -576,7 +639,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 32),
-
                         Column(
                           children: _locations.asMap().entries.map((entry) {
                             final idx = entry.key;
@@ -600,8 +662,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           }).toList(),
                         ),
                         const SizedBox(height: 16),
-
-                        // Calendar
                         const Text(
                           'SELECT FROM AVAILABLE DATES AND TIMES FOR YOUR SELECTED LOCATION',
                           style: TextStyle(
@@ -612,7 +672,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
-
                         Container(
                           margin: const EdgeInsets.only(top: 20.0),
                           decoration: BoxDecoration(
@@ -633,7 +692,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                               });
                             },
                             enabledDayPredicate: (day) {
-                              // Only enable days that are after today and in the location's list
                               return day.isAfter(
                                     DateTime.now().subtract(
                                       const Duration(days: 2),
@@ -715,8 +773,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // Selected date
                         if (_selectedDay != null)
                           Text(
                             'Selected Date: ${_selectedDay!.day} '
@@ -728,8 +784,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             ),
                           ),
                         const SizedBox(height: 16),
-
-                        // Times
                         if (_selectedDay != null && _availableTimes.isNotEmpty)
                           Column(
                             children: [
@@ -769,8 +823,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                             ],
                           ),
                         const SizedBox(height: 16),
-
-                        // Confirm button
                         CustomButton(
                           text: 'CONFIRM PICKUP',
                           borderColor: Colors.blue,
@@ -786,7 +838,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
               ),
             ],
           ),
-          // Loading overlay
           if (_isLoading)
             Container(
               color: Colors.black54,
@@ -796,7 +847,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                 ),
               ),
             ),
-          // Back button
           Positioned(
             top: 120,
             left: 16,
@@ -1052,7 +1102,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   child: Image.asset('lib/assets/CTPLogo.png'),
                 ),
                 const SizedBox(height: 16),
-
                 // Title
                 const Text(
                   'HOW WOULD YOU LIKE TO PROCEED?',
@@ -1064,7 +1113,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-
                 // Explanation
                 const Text(
                   'You can choose to collect the vehicle or have it delivered to your preferred location.',
@@ -1076,7 +1124,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-
                 // Radio for collect
                 RadioListTile<int>(
                   title: const Text(
@@ -1090,7 +1137,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                     setState(() => _selectedDeliveryOption = value!);
                   },
                 ),
-
                 // Radio for delivery
                 RadioListTile<int>(
                   title: const Text(
@@ -1105,7 +1151,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                   },
                 ),
                 const SizedBox(height: 24),
-
                 // If delivery is chosen => show address form & date/time
                 if (_selectedDeliveryOption == 1) ...[
                   _buildDeliveryAddressForm(),
@@ -1117,7 +1162,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                     onPressed: _saveDeliveryDetails,
                   ),
                 ],
-
                 // If collecting => show a "Continue" button to show the standard "collection" UI
                 if (_selectedDeliveryOption == 0)
                   CustomButton(
@@ -1133,7 +1177,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             ),
           ),
         ),
-
         // Back button
         Positioned(
           top: 120,
@@ -1163,11 +1206,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       'December'
     ];
 
-    // Get user role for navigation items
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
-    // Define navigation items based on user role
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
             NavigationItem(title: 'Home', route: '/home'),
@@ -1185,7 +1226,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
     return GradientBackground(
       child: Scaffold(
         key: _scaffoldKey,
-        // Add web navigation bar
         appBar: kIsWeb
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(70),
@@ -1196,7 +1236,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                 ),
               )
             : null,
-        // Add drawer for compact web navigation
         drawer: _isCompactNavigation(context) && kIsWeb
             ? Drawer(
                 child: Container(
@@ -1248,7 +1287,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                               selected: isActive,
                               selectedTileColor: Colors.black12,
                               onTap: () {
-                                Navigator.pop(context); // Close drawer
+                                Navigator.pop(context);
                                 if (!isActive) {
                                   Navigator.pushNamed(context, item.route);
                                 }
@@ -1265,11 +1304,9 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
         backgroundColor: Colors.transparent,
         body: Builder(
           builder: (context) {
-            // If we're still loading from Firestore
             if (_isLoading) {
               return Stack(
                 children: [
-                  // If we haven't decided on location logic, show the radio or collection page in the background
                   _offerDeliveryService &&
                           !_showCollectionDetails &&
                           _selectedDeliveryOption == 0
@@ -1279,7 +1316,6 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           : (_showCollectionDetails
                               ? _buildCollectionPage(monthNames)
                               : _buildDeliveryOrCollectionChoice(monthNames))),
-                  // Overlay loading indicator
                   Container(
                     color: Colors.black54,
                     child: const Center(
@@ -1293,29 +1329,25 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                 ],
               );
             } else {
-              // Fully loaded
+              if (_deliveryConfirmed && _selectedDeliveryOption == 1) {
+                return _buildDeliveryConfirmationView();
+              }
               if (!_offerDeliveryService) {
-                // No delivery option => show collection directly
                 return _buildCollectionPage(monthNames);
               }
-              // Delivery is offered => check user selection
               if (_offerDeliveryService &&
                   !_showCollectionDetails &&
                   _selectedDeliveryOption == 1) {
-                // They want it delivered => show the address form + date/time
                 return _buildDeliveryOrCollectionChoice(monthNames);
               }
               if (_offerDeliveryService &&
                   !_showCollectionDetails &&
                   _selectedDeliveryOption == 0) {
-                // They chose to collect => show the radio choice again
                 return _buildDeliveryOrCollectionChoice(monthNames);
               }
               if (_showCollectionDetails) {
-                // Show normal collection page with location/time
                 return _buildCollectionPage(monthNames);
               }
-              // Fallback
               return _buildDeliveryOrCollectionChoice(monthNames);
             }
           },

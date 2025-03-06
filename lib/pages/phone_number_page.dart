@@ -221,206 +221,204 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
     var orange = const Color(0xFFFF4E00);
     var blue = const Color(0xFF2F7FFF);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GradientBackground(
-            child: Column(
-              children: [
-                const BlurryAppBar(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: screenSize.width,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 8.0),
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 20),
-                              Image.asset('lib/assets/CTPLogo.png',
-                                  height: 200), // Adjust the height as needed
-                              const SizedBox(height: 100),
-                              Text(
-                                'MY NUMBER IS',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 0),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  SizedBox(
-                                    width:
-                                        90, // Adjust width to make it smaller
-                                    child: Column(
-                                      children: [
-                                        Center(
-                                          child:
-                                              DropdownButtonFormField<String>(
-                                            value: _selectedCountryCode,
-                                            icon: const Icon(
-                                                Icons.arrow_drop_down,
-                                                color: Colors.white),
-                                            iconSize: 18, // Smaller icon size
-                                            elevation: 16,
-                                            style: GoogleFonts.montserrat(
-                                                fontSize: screenSize.height *
-                                                    0.02, // Change font size here
-                                                color: Colors.white),
-                                            dropdownColor: Colors.black,
-                                            decoration: InputDecoration(
-                                              enabledBorder:
-                                                  UnderlineInputBorder(
-                                                borderSide:
-                                                    BorderSide(color: blue),
-                                              ),
-                                              focusedBorder:
-                                                  UnderlineInputBorder(
-                                                borderSide:
-                                                    BorderSide(color: blue),
-                                              ),
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                vertical:
-                                                    16.0, // Adjust padding to match the TextField
-                                              ),
-                                            ),
-                                            alignment: Alignment
-                                                .center, // Center the text and icon
-                                            onChanged: (String? newValue) {
-                                              setState(() {
-                                                _selectedCountryCode =
-                                                    newValue!;
-                                              });
-                                            },
-                                            items: _countryCodes.map<
-                                                    DropdownMenuItem<String>>(
-                                                (Map<String, dynamic> value) {
-                                              return DropdownMenuItem<String>(
-                                                value:
-                                                    '${value['code']} ${value['dial_code']}',
-                                                child: Center(
-                                                  child: Text(
-                                                      '${value['code']} ${value['dial_code']}',
-                                                      style: GoogleFonts
-                                                          .montserrat(
-                                                              fontSize:
-                                                                  14, // Adjust dropdown text font size here
-                                                              color: Colors
-                                                                  .white)),
-                                                ),
-                                              );
-                                            }).toList(),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: screenSize.width *
-                                        0.45, // Adjust the width of the phone number input
-                                    child: TextField(
-                                      cursorColor: orange,
-                                      controller: _phoneController,
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly
-                                      ],
-                                      decoration: InputDecoration(
-                                        hintText: '00 000 0000',
-                                        hintStyle: GoogleFonts.montserrat(
-                                            color:
-                                                Colors.white.withOpacity(0.7)),
-                                        filled: true,
-                                        fillColor: Colors.transparent,
-                                        enabledBorder: UnderlineInputBorder(
-                                          borderSide: BorderSide(color: blue),
-                                        ),
-                                        focusedBorder: UnderlineInputBorder(
-                                          borderSide: BorderSide(color: blue),
-                                        ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 16.0,
-                                                horizontal: 16.0),
-                                      ),
-                                      style: GoogleFonts.montserrat(
-                                          color: Colors.white),
-                                      onChanged: (value) {
-                                        if (_errorMessage.isNotEmpty) {
-                                          setState(() {
-                                            _errorMessage = '';
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              if (_errorMessage.isNotEmpty)
+    return PopScope(
+      onPopInvokedWithResult: (route, result) async => false,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GradientBackground(
+              child: Column(
+                children: [
+                  const BlurryAppBar(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: screenSize.width,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 8.0),
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 20),
+                                Image.asset('lib/assets/CTPLogo.png',
+                                    height: 200), // Adjust the height as needed
+                                const SizedBox(height: 100),
                                 Text(
-                                  _errorMessage,
+                                  'MY NUMBER IS',
                                   style: GoogleFonts.montserrat(
-                                    fontSize: 14,
-                                    color: Colors.red,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
                                   ),
-                                  textAlign: TextAlign.center,
                                 ),
-                              const SizedBox(height: 20),
-                              SizedBox(
-                                width: 300,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0),
-                                  child: Text(
-                                    'We will send you a text with a verification code. Message and data rates may apply.',
+                                const SizedBox(height: 0),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    SizedBox(
+                                      width:
+                                          90, // Adjust width to make it smaller
+                                      child: Column(
+                                        children: [
+                                          Center(
+                                            child:
+                                                DropdownButtonFormField<String>(
+                                              value: _selectedCountryCode,
+                                              icon: const Icon(
+                                                  Icons.arrow_drop_down,
+                                                  color: Colors.white),
+                                              iconSize: 18, // Smaller icon size
+                                              elevation: 16,
+                                              style: GoogleFonts.montserrat(
+                                                  fontSize: screenSize.height *
+                                                      0.02, // Change font size here
+                                                  color: Colors.white),
+                                              dropdownColor: Colors.black,
+                                              decoration: InputDecoration(
+                                                enabledBorder:
+                                                    UnderlineInputBorder(
+                                                  borderSide:
+                                                      BorderSide(color: blue),
+                                                ),
+                                                focusedBorder:
+                                                    UnderlineInputBorder(
+                                                  borderSide:
+                                                      BorderSide(color: blue),
+                                                ),
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                  vertical:
+                                                      16.0, // Adjust padding to match the TextField
+                                                ),
+                                              ),
+                                              alignment: Alignment
+                                                  .center, // Center the text and icon
+                                              onChanged: (String? newValue) {
+                                                setState(() {
+                                                  _selectedCountryCode =
+                                                      newValue!;
+                                                });
+                                              },
+                                              items: _countryCodes.map<
+                                                      DropdownMenuItem<String>>(
+                                                  (Map<String, dynamic> value) {
+                                                return DropdownMenuItem<String>(
+                                                  value:
+                                                      '${value['code']} ${value['dial_code']}',
+                                                  child: Center(
+                                                    child: Text(
+                                                        '${value['code']} ${value['dial_code']}',
+                                                        style: GoogleFonts
+                                                            .montserrat(
+                                                                fontSize:
+                                                                    14, // Adjust dropdown text font size here
+                                                                color: Colors
+                                                                    .white)),
+                                                  ),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    SizedBox(
+                                      width: screenSize.width *
+                                          0.45, // Adjust the width of the phone number input
+                                      child: TextField(
+                                        cursorColor: orange,
+                                        controller: _phoneController,
+                                        keyboardType: TextInputType.number,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.digitsOnly
+                                        ],
+                                        decoration: InputDecoration(
+                                          hintText: '00 000 0000',
+                                          hintStyle: GoogleFonts.montserrat(
+                                              color: Colors.white
+                                                  .withOpacity(0.7)),
+                                          filled: true,
+                                          fillColor: Colors.transparent,
+                                          enabledBorder: UnderlineInputBorder(
+                                            borderSide: BorderSide(color: blue),
+                                          ),
+                                          focusedBorder: UnderlineInputBorder(
+                                            borderSide: BorderSide(color: blue),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  vertical: 16.0,
+                                                  horizontal: 16.0),
+                                        ),
+                                        style: GoogleFonts.montserrat(
+                                            color: Colors.white),
+                                        onChanged: (value) {
+                                          if (_errorMessage.isNotEmpty) {
+                                            setState(() {
+                                              _errorMessage = '';
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                if (_errorMessage.isNotEmpty)
+                                  Text(
+                                    _errorMessage,
                                     style: GoogleFonts.montserrat(
-                                        fontSize: 12,
-                                        color: Colors.white.withOpacity(0.7),
-                                        fontWeight: FontWeight.w600),
-                                    textAlign: TextAlign.justify,
+                                      fontSize: 14,
+                                      color: Colors.red,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                const SizedBox(height: 20),
+                                SizedBox(
+                                  width: 300,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8.0),
+                                    child: Text(
+                                      'We will send you a text with a verification code. Message and data rates may apply.',
+                                      style: GoogleFonts.montserrat(
+                                          fontSize: 12,
+                                          color: Colors.white.withOpacity(0.7),
+                                          fontWeight: FontWeight.w600),
+                                      textAlign: TextAlign.justify,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 150),
-                              CustomButton(
-                                text: 'CONTINUE',
-                                borderColor: blue,
-                                onPressed: _continue,
-                              ),
-                              CustomButton(
-                                text: 'SKIP',
-                                borderColor: orange,
-                                onPressed: _skip,
-                              ),
-                              const SizedBox(height: 30),
-                            ],
+                                const SizedBox(height: 150),
+                                CustomButton(
+                                  text: 'CONTINUE',
+                                  borderColor: blue,
+                                  onPressed: _continue,
+                                ),
+                                CustomButton(
+                                  text: 'SKIP',
+                                  borderColor: orange,
+                                  onPressed: _skip,
+                                ),
+                                const SizedBox(height: 30),
+                              ],
+                            ),
                           ),
-                        ),
-                        // const Positioned(
-                        //     top: 40, left: 16, child: CustomBackButton()),
-                      ],
+                          // const Positioned(
+                          //     top: 40, left: 16, child: CustomBackButton()),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Positioned(
-            top: 40,
-            left: 16,
-            child: CustomBackButton(),
-          ),
-          if (_isLoading) const LoadingScreen()
-        ],
+            if (_isLoading) const LoadingScreen()
+          ],
+        ),
       ),
     );
   }

@@ -127,7 +127,8 @@ class OffersPageState extends State<OffersPage> with RouteAware {
       User Email: ${user.email}
       ''');
 
-      await _offerProvider.fetchOffers(user.uid, userRole);
+      // Changed call: pass limit null to fetch all offers.
+      await _offerProvider.fetchOffers(user.uid, userRole, limit: null);
 
       print('''
       === FETCHED OFFERS RESULT ===

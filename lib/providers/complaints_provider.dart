@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
 
 /// Complaint Model
 class Complaint {
@@ -139,7 +140,10 @@ class ComplaintsProvider extends ChangeNotifier {
 
     _isFetching = true;
     _errorMessage = null;
-    notifyListeners();
+    // Delay state update until after current build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
 
     try {
       Query query = _firestore
@@ -167,7 +171,9 @@ class ComplaintsProvider extends ChangeNotifier {
     }
 
     _isFetching = false;
-    notifyListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   /// Fetches the next batch of complaints for pagination.

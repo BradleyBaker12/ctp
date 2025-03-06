@@ -576,7 +576,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
     const isWeb = kIsWeb;
     final screenWidth = MediaQuery.of(context).size.width;
-    final useWebLayout = true; // Previously: kIsWeb && screenWidth > 600
+    const useWebLayout = true; // Previously: kIsWeb && screenWidth > 600
 
     return WillPopScope(
       onWillPop: () {

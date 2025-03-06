@@ -80,132 +80,135 @@ class _AddProfilePhotoAdminPageState extends State<AddProfilePhotoAdminPage> {
     var screenSize = MediaQuery.of(context).size;
     var blue = const Color(0xFF2F7FFF);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          const GradientBackground(child: SizedBox.expand()),
-          SafeArea(
-            child: Stack(
-              children: [
-                Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: screenSize.width * 0.05,
-                      vertical: screenSize.height * 0.02,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(height: screenSize.height * 0.02),
-                        Image.asset(
-                          'lib/assets/CTPLogo.png',
-                          height: screenSize.height * 0.2,
-                          width: screenSize.height * 0.2,
-                          fit: BoxFit.cover,
-                        ),
-                        SizedBox(height: screenSize.height * 0.04),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: screenSize.width * 0.1,
+    return PopScope(
+      onPopInvokedWithResult: (route, result) async => false,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            const GradientBackground(child: SizedBox.expand()),
+            SafeArea(
+              child: Stack(
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenSize.width * 0.05,
+                        vertical: screenSize.height * 0.02,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(height: screenSize.height * 0.02),
+                          Image.asset(
+                            'lib/assets/CTPLogo.png',
+                            height: screenSize.height * 0.2,
+                            width: screenSize.height * 0.2,
+                            fit: BoxFit.cover,
                           ),
-                          child: const ProgressBar(progress: 1.0),
-                        ),
-                        SizedBox(height: screenSize.height * 0.04),
-                        Text(
-                          'ADD PROFILE PHOTO ADMIN PAGE',
-                          style: GoogleFonts.montserrat(
-                            fontSize: screenSize.height * 0.025,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                          SizedBox(height: screenSize.height * 0.04),
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenSize.width * 0.1,
+                            ),
+                            child: const ProgressBar(progress: 1.0),
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: screenSize.height * 0.04),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Column(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: blue, width: 2.0),
-                                    color: blue.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8.0),
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(Icons.camera_alt,
-                                        size: screenSize.height * 0.05,
-                                        color: Colors.white),
-                                    onPressed: () =>
-                                        _pickImage(ImageSource.camera),
-                                  ),
-                                ),
-                                SizedBox(height: screenSize.height * 0.02),
-                                Text(
-                                  'CAMERA',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: screenSize.height * 0.02,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(width: screenSize.width * 0.1),
-                            Column(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: blue, width: 2.0),
-                                    color: blue.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8.0),
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(Icons.photo_library,
-                                        size: screenSize.height * 0.05,
-                                        color: Colors.white),
-                                    onPressed: () =>
-                                        _pickImage(ImageSource.gallery),
-                                  ),
-                                ),
-                                SizedBox(height: screenSize.height * 0.02),
-                                Text(
-                                  'GALLERY',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: screenSize.height * 0.02,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: screenSize.height * 0.04),
-                        TextButton(
-                          onPressed: _useDefaultImage,
-                          child: Text(
-                            'UPLOAD LATER',
+                          SizedBox(height: screenSize.height * 0.04),
+                          Text(
+                            'ADD PROFILE PHOTO ADMIN PAGE',
                             style: GoogleFonts.montserrat(
-                                fontSize: screenSize.height * 0.015,
-                                color: Colors.white,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white,
-                                letterSpacing: 2.0,
-                                fontWeight: FontWeight.w600),
+                              fontSize: screenSize.height * 0.025,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                      ],
+                          SizedBox(height: screenSize.height * 0.04),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Column(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: blue, width: 2.0),
+                                      color: blue.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8.0),
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(Icons.camera_alt,
+                                          size: screenSize.height * 0.05,
+                                          color: Colors.white),
+                                      onPressed: () =>
+                                          _pickImage(ImageSource.camera),
+                                    ),
+                                  ),
+                                  SizedBox(height: screenSize.height * 0.02),
+                                  Text(
+                                    'CAMERA',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: screenSize.height * 0.02,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(width: screenSize.width * 0.1),
+                              Column(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: blue, width: 2.0),
+                                      color: blue.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8.0),
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(Icons.photo_library,
+                                          size: screenSize.height * 0.05,
+                                          color: Colors.white),
+                                      onPressed: () =>
+                                          _pickImage(ImageSource.gallery),
+                                    ),
+                                  ),
+                                  SizedBox(height: screenSize.height * 0.02),
+                                  Text(
+                                    'GALLERY',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: screenSize.height * 0.02,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: screenSize.height * 0.04),
+                          TextButton(
+                            onPressed: _useDefaultImage,
+                            child: Text(
+                              'UPLOAD LATER',
+                              style: GoogleFonts.montserrat(
+                                  fontSize: screenSize.height * 0.015,
+                                  color: Colors.white,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Colors.white,
+                                  letterSpacing: 2.0,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: screenSize.height * 0.05,
-                  left: screenSize.width * 0.05,
-                  child: const CustomBackButton(),
-                ),
-              ],
+                  Positioned(
+                    top: screenSize.height * 0.05,
+                    left: screenSize.width * 0.05,
+                    child: const CustomBackButton(),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
