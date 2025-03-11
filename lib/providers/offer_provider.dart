@@ -229,19 +229,19 @@ class OfferProvider with ChangeNotifier {
 
   /// Initialize with user data
   void initialize(String userId, String userRole) {
-    print('DEBUG: Initializing OfferProvider');
+    // print('DEBUG: Initializing OfferProvider');
     _currentUserId = userId;
     _currentUserRole = userRole;
     _isInitialized = true;
-    print(
-        'DEBUG: Initialized with userId: $_currentUserId, role: $_currentUserRole');
+    // print(
+    //     'DEBUG: Initialized with userId: $_currentUserId, role: $_currentUserRole');
     notifyListeners();
   }
 
   /// Fetches the initial batch of offers based on user ID and role.
   Future<void> fetchOffers(String userId, String userRole, {int? limit}) async {
     if (userId.isEmpty) {
-      print('User ID is empty, cannot fetch offers.');
+      // print('User ID is empty, cannot fetch offers.');
       return;
     }
     if (_isFetching) return;
@@ -261,7 +261,7 @@ class OfferProvider with ChangeNotifier {
       QuerySnapshot querySnapshot = await query.get();
 
       _offers = await Future.wait(querySnapshot.docs.map((doc) async {
-        print('DEBUG: Processing offer ${doc.id}');
+        // print('DEBUG: Processing offer ${doc.id}');
         Offer offer = Offer.fromFirestore(doc);
         await offer.fetchVehicleDetails();
         return offer;
@@ -331,7 +331,7 @@ class OfferProvider with ChangeNotifier {
 
   /// Refreshes the offers by clearing existing ones and fetching the initial batch again.
   Future<void> refreshOffers() async {
-    print('DEBUG: Starting refreshOffers');
+    // print('DEBUG: Starting refreshOffers');
     if (!_isInitialized) {
       print('ERROR: Provider not initialized');
       _errorMessage = 'Provider not initialized.';
@@ -345,12 +345,12 @@ class OfferProvider with ChangeNotifier {
     _errorMessage = null;
 
     await fetchOffers(_currentUserId!, _currentUserRole!);
-    print('DEBUG: Refresh completed, offers count: ${_offers.length}');
+    // print('DEBUG: Refresh completed, offers count: ${_offers.length}');
   }
 
   /// Builds the Firestore query based on user role.
   Query _buildQuery(String userId, String userRole) {
-    print('DEBUG: Building query for userId: $userId, role: $userRole');
+    // print('DEBUG: Building query for userId: $userId, role: $userRole');
     Query query = _firestore.collection('offers');
 
     if (userRole != 'admin') {
@@ -362,7 +362,7 @@ class OfferProvider with ChangeNotifier {
     }
 
     query = query.orderBy('createdAt', descending: true);
-    print('DEBUG: Final query path: ${query.parameters}');
+    // print('DEBUG: Final query path: ${query.parameters}');
     return query;
   }
 
@@ -556,7 +556,7 @@ Widget _buildOfferImage(Offer offer) {
     height: 50,
     fit: BoxFit.cover,
     errorBuilder: (context, error, stackTrace) {
-      print('DEBUG: Error loading image: $error');
+      // print('DEBUG: Error loading image: $error');
       return Icon(Icons.directions_car, color: Colors.blueAccent);
     },
   );

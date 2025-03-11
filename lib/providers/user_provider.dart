@@ -196,13 +196,13 @@ class UserProvider extends ChangeNotifier {
       bool isVerified = data['isVerified'] == true;
 
       // Debugging Statements
-      print('Dealer ID: $dealerId');
-      print('CIPC Certificate URL: $cipcCertificateUrl');
-      print('BRNC URL: $brncUrl');
-      print('Bank Confirmation URL: $bankConfirmationUrl');
-      print('Proxy URL: $proxyUrl');
-      print('Has All Documents: $hasAllDocuments');
-      print('Is Verified: $isVerified');
+      // print('Dealer ID: $dealerId');
+      // print('CIPC Certificate URL: $cipcCertificateUrl');
+      // print('BRNC URL: $brncUrl');
+      // print('Bank Confirmation URL: $bankConfirmationUrl');
+      // print('Proxy URL: $proxyUrl');
+      // print('Has All Documents: $hasAllDocuments');
+      // print('Is Verified: $isVerified');
 
       // Return true only if all documents are present and the account is verified
       return hasAllDocuments && isVerified;
@@ -288,15 +288,15 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> fetchUserData() async {
-    print("DEBUG: Fetching user data");
+    // print("DEBUG: Fetching user data");
     try {
       if (_user != null) {
-        print("DEBUG: Fetching for user: ${_user!.uid}");
+        // print("DEBUG: Fetching for user: ${_user!.uid}");
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(_user!.uid)
             .get();
-        print("DEBUG: User doc exists: ${userDoc.exists}");
+        // print("DEBUG: User doc exists: ${userDoc.exists}");
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
           _userRole = data['userRole'] ?? 'dealer';
@@ -905,7 +905,7 @@ class UserProvider extends ChangeNotifier {
 
   // Method to set the user
   void setUser(User? user) {
-    print("DEBUG: Setting user in provider: ${user?.uid}");
+    // print("DEBUG: Setting user in provider: ${user?.uid}");
     _user = user;
     notifyListeners();
     // Remove fetchUserData from here since it's handled by auth state listener

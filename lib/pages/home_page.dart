@@ -1280,7 +1280,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       if (userRole == 'transporter') {
                         await MyNavigator.push(
                           context,
-                          const TrailerUploadScreen(),
+                          const TrailerUploadScreen(
+                            isNewUpload: true,
+                          ),
                         );
                       } else {
                         await MyNavigator.push(

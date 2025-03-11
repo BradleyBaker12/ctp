@@ -1,4 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:ctp/models/trailer_types/superlink.dart';
+import 'package:ctp/models/trailer_types/tri_axle.dart';
+import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
 class TrailerFormProvider with ChangeNotifier {
   // Trailer common fields
@@ -16,35 +19,32 @@ class TrailerFormProvider with ChangeNotifier {
   String? _superlinkARegistration;
   String? _superlinkALength;
   Uint8List? _superlinkAFrontImage;
-  // ... add additional images if needed ...
 
   // Superlink Trailer B fields
   String? _superlinkBVin;
   String? _superlinkBRegistration;
   String? _superlinkBLength;
   Uint8List? _superlinkBFrontImage;
-  // ... add additional images if needed ...
 
   // Generic images for other trailer types
   Uint8List? _selectedMainImage;
-  Uint8List? get selectedMainImage => _selectedMainImage;
+  String? _referenceNumber; // NEW field added
 
   // Getters
   String? get trailerType => _trailerType;
   String? get axles => _axles;
   String? get length => _length;
-
   String? get triAxleVin => _triAxleVin;
   String? get triAxleRegistration => _triAxleRegistration;
   String? get triAxleLength => _triAxleLength;
-
   String? get superlinkAVin => _superlinkAVin;
   String? get superlinkARegistration => _superlinkARegistration;
   String? get superlinkALength => _superlinkALength;
-
   String? get superlinkBVin => _superlinkBVin;
   String? get superlinkBRegistration => _superlinkBRegistration;
   String? get superlinkBLength => _superlinkBLength;
+  String? get referenceNumber => _referenceNumber;
+  Uint8List? get selectedMainImage => _selectedMainImage;
 
   // Setters
   void setTrailerType(String? type) {
@@ -122,6 +122,11 @@ class TrailerFormProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setReferenceNumber(String? value) {
+    _referenceNumber = value;
+    notifyListeners();
+  }
+
   // Clear all trailer form data
   void clearAll() {
     _trailerType = null;
@@ -139,6 +144,59 @@ class TrailerFormProvider with ChangeNotifier {
     _superlinkBLength = null;
     _superlinkBFrontImage = null;
     _selectedMainImage = null;
+    _referenceNumber = null;
     notifyListeners();
+  }
+
+  // Convert the trailer form data into a map based on trailer type.
+  Map<String, dynamic> toTrailerMap() {
+    final Map<String, dynamic> map = {
+      'trailerType': _trailerType,
+      'axles': _axles,
+      'length': _length,
+    };
+    if (_trailerType == 'Tri-Axle') {
+      map.addAll({
+        'vin': _triAxleVin,
+        'registration': _triAxleRegistration,
+        'lengthTrailer': _triAxleLength,
+      });
+    } else if (_trailerType == 'Superlink') {
+      map.addAll({
+        'superlinkAVin': _superlinkAVin,
+        'superlinkARegistration': _superlinkARegistration,
+        'superlinkALength': _superlinkALength,
+        'superlinkBVin': _superlinkBVin,
+        'superlinkBRegistration': _superlinkBRegistration,
+        'superlinkBLength': _superlinkBLength,
+      });
+    }
+    return map;
+  }
+
+  // Populate the form provider from a given trailer data map.
+  void populateFromTrailer(Map<String, dynamic> data) {
+    setTrailerType(data['trailerType']);
+    setAxles(data['axles']);
+    setLength(data['length']);
+    if (data['trailerType'] == 'Superlink') {
+      final trailerA =
+          (data['trailerExtraInfo']?['trailerA'] as Map<String, dynamic>?) ??
+              {};
+      final trailerB =
+          (data['trailerExtraInfo']?['trailerB'] as Map<String, dynamic>?) ??
+              {};
+      setSuperlinkAVin(trailerA['vin']);
+      setSuperlinkARegistration(trailerA['registration']);
+      setSuperlinkALength(trailerA['length']);
+      setSuperlinkBVin(trailerB['vin']);
+      setSuperlinkBRegistration(trailerB['registration']);
+      setSuperlinkBLength(trailerB['length']);
+    } else if (data['trailerType'] == 'Tri-Axle') {
+      setTriAxleVin(data['vin']);
+      setTriAxleRegistration(data['registration']);
+      setTriAxleLength(data['lengthTrailer']);
+    }
+    setReferenceNumber(data['referenceNumber']);
   }
 }

@@ -58,9 +58,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
 }
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setPathUrlStrategy();
+
+  // Initialize Firebase only once in main()
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // For web, ensure user session persistence is local.
+  if (kIsWeb) {
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+  }
+
   runApp(const MyApp());
 }
 
@@ -96,7 +107,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
         ),
-        home: const AppInitializer(), // Updated home widget
+        home: const AppInitializer(),
         routes: {
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignUpPage(),
@@ -133,10 +144,9 @@ class MyApp extends StatelessWidget {
           '/transporterList': (context) => const VehiclesListPage(),
           '/wishlist': (context) => const WishlistPage(),
           '/adminHome': (context) => const AdminHomePage(),
-          '/error': (context) => ErrorPage(), // Create a basic error page
-          '/waitingApproval': (context) => AccountStatusPage(), // Create a b
-          '/basic_information': (context) =>
-              BasicInformationEdit(), // Create a b
+          '/error': (context) => ErrorPage(),
+          '/waitingApproval': (context) => AccountStatusPage(),
+          '/basic_information': (context) => BasicInformationEdit(),
           '/maintenance_warranty': (context) {
             final vehicleId =
                 ModalRoute.of(context)!.settings.arguments as String;
@@ -151,6 +161,7 @@ class MyApp extends StatelessWidget {
               maintenanceSelection: '',
               warrantySelection: '',
               isFromAdmin: false,
+              isFromTransporter: true,
             );
           },
           '/external_cab': (context) {
@@ -216,8 +227,7 @@ class MyApp extends StatelessWidget {
         },
         onUnknownRoute: (settings) {
           return MaterialPageRoute(
-            builder: (context) =>
-                const AuthWrapper(), // Redirect to AuthWrapper on unknown route
+            builder: (context) => const AuthWrapper(),
           );
         },
       ),
@@ -233,7 +243,6 @@ class AppInitializer extends StatefulWidget {
 
 class _AppInitializerState extends State<AppInitializer> {
   bool _initialized = false;
-  // Removed _error variable
 
   @override
   void initState() {
@@ -241,11 +250,9 @@ class _AppInitializerState extends State<AppInitializer> {
     _initializeApp();
   }
 
+  // Updated _initializeApp() without reinitializing Firebase
   Future<void> _initializeApp() async {
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
       // Setup messaging and crashlytics for mobile only
       if (!kIsWeb) {
         FirebaseMessaging.onBackgroundMessage(
@@ -259,7 +266,6 @@ class _AppInitializerState extends State<AppInitializer> {
         _initialized = true;
       });
     } catch (e) {
-      // Retry initialization after a short delay
       await Future.delayed(const Duration(seconds: 2));
       _initializeApp();
     }
@@ -283,52 +289,38 @@ class AuthWrapper extends StatelessWidget {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final complaintsProvider =
         Provider.of<ComplaintsProvider>(context, listen: false);
-    // Fetch all necessary data.
     await Future.wait([
       userProvider.fetchUserData(),
       userProvider.initializeStatusListener(),
       complaintsProvider.fetchAllComplaints(),
     ]);
-
-    // If admin or sales rep, bypass account status check.
-    if (['admin', 'sales representitive']
+    if (['admin', 'sales representative']
         .contains(userProvider.getUserRole.toLowerCase())) {
       return true;
     }
-
     return userProvider.getAccountStatus != 'not_found';
   }
 
   @override
   Widget build(BuildContext context) {
     final firebaseUser = FirebaseAuth.instance.currentUser;
-
-    // If no Firebase user, show login.
     if (firebaseUser == null || firebaseUser.isAnonymous) {
       return const LoginPage();
     }
-
     return FutureBuilder<bool>(
       future: _verifyAccount(context),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // While waiting for verification, show a loader.
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
-        // If an error occurs or account is not found, show error page.
         if (snapshot.hasError || snapshot.data == false) {
           return const ErrorPage();
         }
-
         final userProvider = Provider.of<UserProvider>(context);
-
-        // If the account is suspended or inactive, redirect to the status page.
         if (userProvider.getAccountStatus == 'suspended' ||
             userProvider.getAccountStatus == 'inactive') {
-          // Use a post frame callback to ensure navigation happens after build.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (ModalRoute.of(context)?.settings.name != '/account-status') {
               Navigator.of(context).pushReplacementNamed('/account-status');
@@ -336,8 +328,6 @@ class AuthWrapper extends StatelessWidget {
           });
           return const AccountStatusPage();
         }
-
-        // Redirect based on user role.
         if (userProvider.getUserRole.toLowerCase() == 'admin' ||
             userProvider.getUserRole.toLowerCase() == 'sales rep') {
           return const AdminHomePage();

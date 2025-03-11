@@ -1,5 +1,3 @@
-// lib/models/vehicle.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
@@ -10,9 +8,11 @@ import 'admin_data.dart';
 import 'maintenance.dart';
 import 'truck_conditions.dart';
 import 'trailer.dart';
+import 'package:flutter/foundation.dart'; // for debugPrint
 
 class Vehicle {
   final bool isAccepted;
+  final String? trailerType;
   final String? acceptedOfferId;
   final String makeModel;
   final String year;
@@ -63,9 +63,7 @@ class Vehicle {
 
   final String? assignedSalesRepId;
 
-  // ------------------------------
-  // NEW FIELDS (all optional):
-  // ------------------------------
+  // NEW FIELDS (all optional)
   final String? natisDocumentUrl;
   final String? serviceHistoryUrl;
   final String? frontImageUrl;
@@ -78,8 +76,10 @@ class Vehicle {
   final List<Map<String, dynamic>>? damages;
   final String? featuresCondition;
   final List<Map<String, dynamic>>? features;
+  final String? deckImageUrl;
 
   Vehicle({
+    this.trailerType,
     this.assignedSalesRepId,
     required this.isAccepted,
     required this.acceptedOfferId,
@@ -125,8 +125,7 @@ class Vehicle {
     this.variant,
     required this.damagesDescription,
     required this.additionalFeatures,
-    this.trailer, // Add this
-
+    this.trailer,
     // NEW FIELDS in constructor (all optional)
     this.natisDocumentUrl,
     this.serviceHistoryUrl,
@@ -140,23 +139,17 @@ class Vehicle {
     this.damages,
     this.featuresCondition,
     this.features,
+    this.deckImageUrl
   });
 
-  // ---------------------------------------------------------------------------
-  // Factory constructor to create a Vehicle instance from Firestore data
-  // (docId + Map<String, dynamic> data). Existing code preserved; we only add
-  // the new fields with getString(...) / condition checks below.
-  // ---------------------------------------------------------------------------
+  /// Factory constructor to create a Vehicle instance from Firestore data.
   factory Vehicle.fromFirestore(String docId, Map<String, dynamic> data) {
-    //   print('''
-    // === VEHICLE DEBUG ===
-    // DocID: $docId
-    // Brand: ${data['brands']}
-    // MakeModel: ${data['makeModel']}
-    // MainImage: ${data['mainImageUrl']}
-    //   ''');
+    // Helper to safely get a String value.
+    String getString(dynamic value) {
+      return value is String ? value : '';
+    }
 
-    // Handle timestamp
+    // Parse createdAt timestamp
     DateTime parsedCreatedAt = data['createdAt'] is Timestamp
         ? (data['createdAt'] as Timestamp).toDate()
         : DateTime.now();
@@ -178,29 +171,41 @@ class Vehicle {
       brands = [data['brands'] as String];
     }
 
-    // Helper function to safely get a String
-    String getString(dynamic value, [String fieldName = '']) {
-      if (value is String) {
-        return value;
-      }
-      return '';
-    }
+    // Get trailer type from either key (Firestore might use different casing)
+    String trailerTypeValue =
+        getString(data['trailerType'] ?? data['trailertype']);
+    debugPrint(
+        'DEBUG: In Vehicle.fromFirestore - extracted trailerType: $trailerTypeValue');
 
-    // ---- NEW HELPER for additionalImages (List<String>) ----
-    List<String>? parseAdditionalImages() {
-      if (data['additionalImages'] != null &&
-          data['additionalImages'] is List) {
-        return List<String>.from(data['additionalImages']);
+    // For trailer documents, if the vehicleType is "trailer", prepare the trailer data.
+    Trailer? trailerObj;
+    if (getString(data['vehicleType']).toLowerCase() == 'trailer') {
+      // Get the nested trailerExtraInfo map.
+      Map<String, dynamic> trailerExtraInfo = data['trailerExtraInfo'] ?? {};
+      // If trailerExtraInfo is empty and this is a Superlink trailer, try to fall back
+      // to top-level keys (for backward compatibility).
+      if (trailerTypeValue == 'Superlink' && trailerExtraInfo.isEmpty) {
+        debugPrint(
+            'DEBUG: trailerExtraInfo is empty. Falling back to top-level superlink keys.');
+        trailerExtraInfo = {
+          'trailerA': {
+            'length': getString(data['lengthTrailerA']),
+            'vin': getString(data['vinA']),
+            'registration': getString(data['registrationA']),
+          },
+          'trailerB': {
+            'length': getString(data['lengthTrailerB']),
+            'vin': getString(data['vinB']),
+            'registration': getString(data['registrationB']),
+          },
+        };
       }
-      return null;
-    }
-
-    // ---- NEW HELPER for damages/features arrays of maps ----
-    List<Map<String, dynamic>>? parseMapList(dynamic val) {
-      if (val != null && val is List) {
-        return List<Map<String, dynamic>>.from(val);
-      }
-      return null;
+      debugPrint(
+          'DEBUG: trailerExtraInfo to be passed to Trailer.fromFirestore: $trailerExtraInfo');
+      // Merge trailerExtraInfo into the full data map for the trailer.
+      Map<String, dynamic> trailerData = Map<String, dynamic>.from(data);
+      trailerData['trailerExtraInfo'] = trailerExtraInfo;
+      trailerObj = Trailer.fromFirestore(docId, trailerData);
     }
 
     return Vehicle(
@@ -247,8 +252,7 @@ class Vehicle {
                   settlementAmount: '0',
                   natisRc1Url: '',
                   licenseDiskUrl: '',
-                  settlementLetterUrl: '',
-                ),
+                  settlementLetterUrl: ''),
       maintenance: data['maintenance'] != null &&
               data['maintenance'] is Map<String, dynamic>
           ? Maintenance.fromMap(data['maintenance'])
@@ -262,72 +266,77 @@ class Vehicle {
               warrantySelection: '',
               lastUpdated: DateTime.now(),
             ),
-      truckConditions: TruckConditions(
-        externalCab: ExternalCab(
-          damages: [],
-          additionalFeatures: [],
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          images: {},
-        ),
-        internalCab: InternalCab(
-            condition: '',
-            damagesCondition: '',
-            additionalFeaturesCondition: '',
-            faultCodesCondition: '',
-            viewImages: {},
-            damages: [],
-            additionalFeatures: [],
-            faultCodes: []),
-        chassis: Chassis(
-            condition: '',
-            damagesCondition: '',
-            additionalFeaturesCondition: '',
-            images: {},
-            damages: [],
-            additionalFeatures: []),
-        driveTrain: DriveTrain(
-          condition: '',
-          oilLeakConditionEngine: '',
-          waterLeakConditionEngine: '',
-          blowbyCondition: '',
-          oilLeakConditionGearbox: '',
-          retarderCondition: '',
-          lastUpdated: DateTime.now(),
-          images: {
-            'Right Brake': '',
-            'Left Brake': '',
-            'Front Axel': '',
-            'Suspension': '',
-            'Fuel Tank': '',
-            'Battery': '',
-            'Cat Walk': '',
-            'Electrical Cable Black': '',
-            'Air Cable Yellow': '',
-            'Air Cable Red': '',
-            'Tail Board': '',
-            '5th Wheel': '',
-            'Left Brake Rear Axel': '',
-            'Right Brake Rear Axel': '',
-          },
-          damages: [],
-          additionalFeatures: [],
-          faultCodes: [],
-        ),
-        tyres: {
-          'tyres': Tyres(
-            positions: data['tyres'] != null
-                ? Map<String, TyrePosition>.from((data['tyres']
-                        as Map<String, dynamic>)
-                    .map((key, value) => MapEntry(key,
-                        TyrePosition.fromMap(value as Map<String, dynamic>))))
-                : {},
-            lastUpdated: DateTime.now(),
-          )
-        },
-      ),
-      referenceNumber: data['referenceNumber'] ?? '',
+      truckConditions: data['truckConditions'] != null &&
+              data['truckConditions'] is Map<String, dynamic>
+          ? TruckConditions.fromMap(data['truckConditions'])
+          : TruckConditions(
+              externalCab: ExternalCab(
+                damages: [],
+                additionalFeatures: [],
+                condition: '',
+                damagesCondition: '',
+                additionalFeaturesCondition: '',
+                images: {},
+              ),
+              internalCab: InternalCab(
+                  condition: '',
+                  damagesCondition: '',
+                  additionalFeaturesCondition: '',
+                  faultCodesCondition: '',
+                  viewImages: {},
+                  damages: [],
+                  additionalFeatures: [],
+                  faultCodes: []),
+              chassis: Chassis(
+                  condition: '',
+                  damagesCondition: '',
+                  additionalFeaturesCondition: '',
+                  images: {},
+                  damages: [],
+                  additionalFeatures: []),
+              driveTrain: DriveTrain(
+                condition: '',
+                oilLeakConditionEngine: '',
+                waterLeakConditionEngine: '',
+                blowbyCondition: '',
+                oilLeakConditionGearbox: '',
+                retarderCondition: '',
+                lastUpdated: DateTime.now(),
+                images: {
+                  'Right Brake': '',
+                  'Left Brake': '',
+                  'Front Axel': '',
+                  'Suspension': '',
+                  'Fuel Tank': '',
+                  'Battery': '',
+                  'Cat Walk': '',
+                  'Electrical Cable Black': '',
+                  'Air Cable Yellow': '',
+                  'Air Cable Red': '',
+                  'Tail Board': '',
+                  '5th Wheel': '',
+                  'Left Brake Rear Axel': '',
+                  'Right Brake Rear Axel': '',
+                },
+                damages: [],
+                additionalFeatures: [],
+                faultCodes: [],
+              ),
+              tyres: {
+                'tyres': Tyres(
+                  positions: data['tyres'] != null
+                      ? Map<String, TyrePosition>.from(
+                          (data['tyres'] as Map<String, dynamic>).map(
+                              (key, value) => MapEntry(
+                                  key,
+                                  TyrePosition.fromMap(
+                                      value as Map<String, dynamic>))))
+                      : {},
+                  lastUpdated: DateTime.now(),
+                )
+              },
+            ),
+      referenceNumber: getString(data['referenceNumber']),
       brands: brands,
       requireToSettleType: data['requireToSettleType'] as String?,
       country: getString(data['country'] ?? ''),
@@ -335,13 +344,8 @@ class Vehicle {
       variant: getString(data['variant'] ?? ''),
       damagesDescription: getString(data['damagesDescription'] ?? ''),
       additionalFeatures: getString(data['additionalFeatures'] ?? ''),
-      trailer: (data['vehicleType']?.toLowerCase() == 'trailer')
-          ? Trailer.fromFirestore(docId, data)
-          : null,
-
-      // ------------------------------
-      // ADDED NEW FIELDS
-      // ------------------------------
+      trailer: trailerObj,
+      // NEW FIELDS
       natisDocumentUrl: getString(data['natisDocumentUrl']),
       serviceHistoryUrl: getString(data['serviceHistoryUrl']),
       frontImageUrl: getString(data['frontImageUrl']),
@@ -349,21 +353,26 @@ class Vehicle {
       tyresImageUrl: getString(data['tyresImageUrl']),
       chassisImageUrl: getString(data['chassisImageUrl']),
       makersPlateImageUrl: getString(data['makersPlateImageUrl']),
-      additionalImages: parseAdditionalImages(),
+      additionalImages: data['additionalImages'] != null
+          ? List<String>.from(data['additionalImages'])
+          : null,
       damagesCondition: getString(data['damagesCondition']),
-      damages: parseMapList(data['damages']),
+      damages: data['damages'] != null
+          ? List<Map<String, dynamic>>.from(data['damages'])
+          : null,
       featuresCondition: getString(data['featuresCondition']),
-      features: parseMapList(data['features']),
+      features: data['features'] != null
+          ? List<Map<String, dynamic>>.from(data['features'])
+          : null,
+      trailerType: trailerTypeValue,
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Method to convert Vehicle instance to a Map (for Firestore updates)
-  // Original code preserved, plus we add the new fields at the bottom.
-  // ---------------------------------------------------------------------------
+  /// Converts this Vehicle instance into a Map (for Firestore updates).
   Map<String, dynamic> toMap() {
     return {
       'application': application,
+      'trailerType': trailerType, // Use consistent casing.
       'damageDescription': damageDescription,
       'damagePhotos': damagePhotos,
       'dashboardPhoto': dashboardPhoto,
@@ -404,10 +413,7 @@ class Vehicle {
       'damagesDescription': damagesDescription,
       'additionalFeatures': additionalFeatures,
       'trailer': trailer?.toMap(),
-
-      // ----------------------------------------------------------------
-      // NEW FIELDS appended at the bottom (unchanged existing code above)
-      // ----------------------------------------------------------------
+      // NEW FIELDS
       'natisDocumentUrl': natisDocumentUrl ?? '',
       'serviceHistoryUrl': serviceHistoryUrl ?? '',
       'frontImageUrl': frontImageUrl ?? '',
@@ -420,365 +426,12 @@ class Vehicle {
       'damages': damages ?? [],
       'featuresCondition': featuresCondition ?? '',
       'features': features ?? [],
-      // done
     };
   }
 
+  /// Factory constructor for convenience when you have a DocumentSnapshot.
   factory Vehicle.fromDocument(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-
-    // Parse createdAt timestamp
-    DateTime parsedCreatedAt;
-    if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
-      parsedCreatedAt = (data['createdAt'] as Timestamp).toDate();
-    } else {
-      parsedCreatedAt = DateTime.now();
-    }
-
-    // Parse application field
-    List<String> applications = [];
-    if (data['application'] is List) {
-      applications =
-          (data['application'] as List).map((e) => e.toString()).toList();
-    } else if (data['application'] is String) {
-      applications = [data['application'] as String];
-    }
-
-    // Parse brands field
-    List<String> brands = [];
-    if (data['brands'] is List) {
-      brands = (data['brands'] as List).map((e) => e.toString()).toList();
-    } else if (data['brands'] is String) {
-      brands = [data['brands'] as String];
-    }
-
-    return Vehicle(
-      id: doc.id,
-      isAccepted: data['isAccepted'] ?? false,
-      acceptedOfferId: data['acceptedOfferId'] ?? '',
-      assignedSalesRepId: data['assignedSalesRepId'] ?? '',
-      createdAt: parsedCreatedAt,
-      application: applications,
-      brands: brands,
-      damagesDescription: data['damagesDescription'] ?? '',
-      additionalFeatures: data['additionalFeatures'] ?? '',
-      warrantyDetails: data['warrantyDetails'] ?? 'N/A',
-      damageDescription: data['damageDescription'] ?? '',
-      damagePhotos: data['damagePhotos'] != null
-          ? List<String?>.from(data['damagePhotos'])
-          : [],
-      dashboardPhoto: data['dashboardPhoto'] ?? '',
-      engineNumber: data['engineNumber'] ?? 'N/A',
-      expectedSellingPrice: data['sellingPrice'] ?? 'N/A',
-      faultCodesPhoto: data['faultCodesPhoto'] ?? '',
-      hydraluicType: data['hydraulics'] ?? 'N/A',
-      licenceDiskUrl: data['licenceDiskUrl'] ?? '',
-      makeModel: data['makeModel'] ?? 'N/A',
-      mileage: data['mileage'] ?? 'N/A',
-      mileageImage: data['mileageImage'] ?? '',
-      mainImageUrl: data['mainImageUrl'],
-      photos: data['photos'] != null ? List<String?>.from(data['photos']) : [],
-      rc1NatisFile: data['rc1NatisFile'] ?? '',
-      registrationNumber: data['registrationNumber'] ?? 'N/A',
-      suspensionType: data['suspensionType'] ?? 'N/A',
-      transmissionType: data['transmissionType'] ?? 'N/A',
-      config: data['config'] ?? '',
-      userId: data['userId'] ?? 'N/A',
-      vehicleType: data['vehicleType'] ?? 'N/A',
-      vinNumber: data['vinNumber'] ?? 'N/A',
-      warrentyType: data['warranty'] ?? 'N/A',
-      year: data['year'] ?? 'N/A',
-      vehicleStatus: data['vehicleStatus'] ?? 'Live',
-      vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
-      availableDate: data['availableDate'] ?? '',
-      adminData:
-          data['adminData'] != null && data['adminData'] is Map<String, dynamic>
-              ? AdminData.fromMap(data['adminData'])
-              : AdminData(
-                  settlementAmount: '0',
-                  natisRc1Url: '',
-                  licenseDiskUrl: '',
-                  settlementLetterUrl: '',
-                ),
-      maintenance: data['maintenance'] != null &&
-              data['maintenance'] is Map<String, dynamic>
-          ? Maintenance.fromMap(data['maintenance'])
-          : Maintenance(
-              vehicleId: doc.id,
-              oemInspectionType: '',
-              oemReason: '',
-              maintenanceDocUrl: '',
-              warrantyDocUrl: '',
-              maintenanceSelection: '',
-              warrantySelection: '',
-              lastUpdated: DateTime.now(),
-            ),
-      truckConditions: data['truckConditions'] != null &&
-              data['truckConditions'] is Map<String, dynamic>
-          ? TruckConditions.fromMap(data['truckConditions'])
-          : TruckConditions(
-              externalCab: ExternalCab(
-                damages: [],
-                additionalFeatures: [],
-                condition: '',
-                damagesCondition: '',
-                additionalFeaturesCondition: '',
-                images: {},
-              ),
-              internalCab: InternalCab(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  faultCodesCondition: '',
-                  viewImages: {},
-                  damages: [],
-                  additionalFeatures: [],
-                  faultCodes: []),
-              chassis: Chassis(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  images: {},
-                  damages: [],
-                  additionalFeatures: []),
-              driveTrain: DriveTrain(
-                condition: '',
-                oilLeakConditionEngine: '',
-                waterLeakConditionEngine: '',
-                blowbyCondition: '',
-                oilLeakConditionGearbox: '',
-                retarderCondition: '',
-                lastUpdated: DateTime.now(),
-                images: {
-                  'Right Brake': '',
-                  'Left Brake': '',
-                  'Front Axel': '',
-                  'Suspension': '',
-                  'Fuel Tank': '',
-                  'Battery': '',
-                  'Cat Walk': '',
-                  'Electrical Cable Black': '',
-                  'Air Cable Yellow': '',
-                  'Air Cable Red': '',
-                  'Tail Board': '',
-                  '5th Wheel': '',
-                  'Left Brake Rear Axel': '',
-                  'Right Brake Rear Axel': '',
-                },
-                damages: [],
-                additionalFeatures: [],
-                faultCodes: [],
-              ),
-              tyres: {
-                'tyres': Tyres(
-                  positions: data['tyres'] != null
-                      ? Map<String, TyrePosition>.from(
-                          (data['tyres'] as Map<String, dynamic>).map(
-                              (key, value) => MapEntry(
-                                  key,
-                                  TyrePosition.fromMap(
-                                      value as Map<String, dynamic>))))
-                      : {},
-                  lastUpdated: DateTime.now(),
-                )
-              },
-            ),
-      referenceNumber: data['referenceNumber'] ?? '',
-      requireToSettleType: data['requireToSettleType'] as String?,
-      country: data['country'] ?? 'N/A',
-      province: data['province'] ?? 'N/A',
-      variant: data['variant'] ?? '',
-      trailer: (data['vehicleType']?.toLowerCase() == 'trailer')
-          ? Trailer.fromFirestore(doc.id, data)
-          : null,
-
-      // ------------------------------
-      // ADDED NEW FIELDS
-      // ------------------------------
-      natisDocumentUrl: data['natisDocumentUrl'],
-      serviceHistoryUrl: data['serviceHistoryUrl'],
-      frontImageUrl: data['frontImageUrl'],
-      sideImageUrl: data['sideImageUrl'],
-      tyresImageUrl: data['tyresImageUrl'],
-      chassisImageUrl: data['chassisImageUrl'],
-      makersPlateImageUrl: data['makersPlateImageUrl'],
-      additionalImages: data['additionalImages'] != null
-          ? List<String>.from(data['additionalImages'])
-          : null,
-      damagesCondition: data['damagesCondition'],
-      damages: data['damages'] != null
-          ? List<Map<String, dynamic>>.from(data['damages'])
-          : null,
-      featuresCondition: data['featuresCondition'],
-      features: data['features'] != null
-          ? List<Map<String, dynamic>>.from(data['features'])
-          : null,
-    );
-  }
-
-  factory Vehicle.fromMap(Map<String, dynamic> data) {
-    return Vehicle(
-      id: data['id'] ?? '',
-      isAccepted: data['isAccepted'] ?? false,
-      acceptedOfferId: data['acceptedOfferId'] ?? '',
-      assignedSalesRepId: data['assignedSalesRepId'] ?? '',
-      referenceNumber: data['referenceNumber'] ?? '',
-      damagesDescription: data['damagesDescription'] ?? '',
-      additionalFeatures: data['additionalFeatures'] ?? '',
-      makeModel: data['makeModel'] ?? 'N/A',
-      mainImageUrl: data['mainImageUrl'] ?? '',
-      application: data['application'] ?? 'N/A',
-      damageDescription: data['damageDescription'] ?? '',
-      damagePhotos: data['damagePhotos'] != null
-          ? List<String?>.from(data['damagePhotos'])
-          : [],
-      dashboardPhoto: data['dashboardPhoto'] ?? '',
-      engineNumber: data['engineNumber'] ?? 'N/A',
-      expectedSellingPrice: data['expectedSellingPrice'] ?? 'N/A',
-      faultCodesPhoto: data['faultCodesPhoto'] ?? '',
-      hydraluicType: data['hydraluicType'] ?? 'N/A',
-      licenceDiskUrl: data['licenceDiskUrl'] ?? '',
-      mileage: data['mileage'] ?? 'N/A',
-      mileageImage: data['mileageImage'] ?? '',
-      photos: data['photos'] != null ? List<String?>.from(data['photos']) : [],
-      rc1NatisFile: data['rc1NatisFile'] ?? '',
-      registrationNumber: data['registrationNumber'] ?? 'N/A',
-      suspensionType: data['suspensionType'] ?? 'N/A',
-      transmissionType: data['transmissionType'] ?? 'N/A',
-      config: data['config'] ?? '',
-      userId: data['userId'] ?? 'N/A',
-      vehicleType: data['vehicleType'] ?? 'N/A',
-      vinNumber: data['vinNumber'] ?? 'N/A',
-      warrentyType: data['warrentyType'] ?? 'N/A',
-      warrantyDetails: data['warrantyDetails'] ?? 'N/A',
-      year: data['year'] ?? 'N/A',
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      vehicleStatus: data['vehicleStatus'] ?? 'Live',
-      vehicleAvailableImmediately: data['vehicleAvailableImmediately'] ?? '',
-      availableDate: data['availableDate'] ?? '',
-      adminData:
-          data['adminData'] != null && data['adminData'] is Map<String, dynamic>
-              ? AdminData.fromMap(data['adminData'])
-              : AdminData(
-                  settlementAmount: '0',
-                  natisRc1Url: '',
-                  licenseDiskUrl: '',
-                  settlementLetterUrl: '',
-                ),
-      maintenance: data['maintenance'] != null &&
-              data['maintenance'] is Map<String, dynamic>
-          ? Maintenance.fromMap(data['maintenance'])
-          : Maintenance(
-              vehicleId: data['id'] ?? '',
-              oemInspectionType: data['oemInspectionType'] ?? '',
-              oemReason: data['oemReason'] ?? '',
-              maintenanceDocUrl: data['maintenanceDocUrl'] ?? '',
-              warrantyDocUrl: data['warrantyDocUrl'] ?? '',
-              maintenanceSelection: data['maintenanceSelection'] ?? '',
-              warrantySelection: data['warrantySelection'] ?? '',
-              lastUpdated: DateTime.now(),
-            ),
-      truckConditions: data['truckConditions'] != null &&
-              data['truckConditions'] is Map<String, dynamic>
-          ? TruckConditions.fromMap(data['truckConditions'])
-          : TruckConditions(
-              externalCab: ExternalCab(
-                damages: [],
-                additionalFeatures: [],
-                condition: '',
-                damagesCondition: '',
-                additionalFeaturesCondition: '',
-                images: {},
-              ),
-              internalCab: InternalCab(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  faultCodesCondition: '',
-                  viewImages: {},
-                  damages: [],
-                  additionalFeatures: [],
-                  faultCodes: []),
-              chassis: Chassis(
-                  condition: '',
-                  damagesCondition: '',
-                  additionalFeaturesCondition: '',
-                  images: {},
-                  damages: [],
-                  additionalFeatures: []),
-              driveTrain: DriveTrain(
-                condition: '',
-                oilLeakConditionEngine: '',
-                waterLeakConditionEngine: '',
-                blowbyCondition: '',
-                oilLeakConditionGearbox: '',
-                retarderCondition: '',
-                lastUpdated: DateTime.now(),
-                images: {
-                  'Right Brake': '',
-                  'Left Brake': '',
-                  'Front Axel': '',
-                  'Suspension': '',
-                  'Fuel Tank': '',
-                  'Battery': '',
-                  'Cat Walk': '',
-                  'Electrical Cable Black': '',
-                  'Air Cable Yellow': '',
-                  'Air Cable Red': '',
-                  'Tail Board': '',
-                  '5th Wheel': '',
-                  'Left Brake Rear Axel': '',
-                  'Right Brake Rear Axel': '',
-                },
-                damages: [],
-                additionalFeatures: [],
-                faultCodes: [],
-              ),
-              tyres: {
-                'tyres': Tyres(
-                  positions: data['tyres'] != null
-                      ? Map<String, TyrePosition>.from(
-                          (data['tyres'] as Map<String, dynamic>).map(
-                              (key, value) => MapEntry(
-                                  key,
-                                  TyrePosition.fromMap(
-                                      value as Map<String, dynamic>))))
-                      : {},
-                  lastUpdated: DateTime.now(),
-                )
-              },
-            ),
-      brands: data['brands'] ?? '',
-      country: data['country'] ?? 'N/A',
-      province: data['province'] ?? 'N/A',
-      variant: data['variant'] ?? '',
-      trailer: (data['vehicleType']?.toLowerCase() == 'trailer')
-          ? Trailer.fromFirestore(data['id'], data)
-          : null,
-
-      // ------------------------------
-      // ADDED NEW FIELDS
-      // ------------------------------
-      natisDocumentUrl: data['natisDocumentUrl'],
-      serviceHistoryUrl: data['serviceHistoryUrl'],
-      frontImageUrl: data['frontImageUrl'],
-      sideImageUrl: data['sideImageUrl'],
-      tyresImageUrl: data['tyresImageUrl'],
-      chassisImageUrl: data['chassisImageUrl'],
-      makersPlateImageUrl: data['makersPlateImageUrl'],
-      additionalImages: data['additionalImages'] != null
-          ? List<String>.from(data['additionalImages'])
-          : null,
-      damagesCondition: data['damagesCondition'],
-      damages: data['damages'] != null
-          ? List<Map<String, dynamic>>.from(data['damages'])
-          : null,
-      featuresCondition: data['featuresCondition'],
-      features: data['features'] != null
-          ? List<Map<String, dynamic>>.from(data['features'])
-          : null,
-    );
+    return Vehicle.fromFirestore(doc.id, data);
   }
 }

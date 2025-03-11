@@ -347,7 +347,9 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                           onTap: () async {
                             await MyNavigator.push(
                               context,
-                              VehicleDetailsPage(vehicle: vehicle),
+                              VehicleDetailsPage(
+                                vehicle: vehicle,
+                              ),
                             );
                           },
                           onDelete: () async {

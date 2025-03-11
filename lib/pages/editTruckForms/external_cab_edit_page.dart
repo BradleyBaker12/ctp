@@ -820,8 +820,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     final bool isDealer = userProvider.getUserRole == 'dealer';
 
     // Debugging statements
-    print(
-        'In _buildItemWidget for item ${item.description}, hasFile: ${item.imageData.file != null}, hasUrl: ${item.imageData.url != null && item.imageData.url!.isNotEmpty}, URL: ${item.imageData.url}');
+    // print(
+    //     'In _buildItemWidget for item ${item.description}, hasFile: ${item.imageData.file != null}, hasUrl: ${item.imageData.url != null && item.imageData.url!.isNotEmpty}, URL: ${item.imageData.url}');
 
     return Column(
       children: [

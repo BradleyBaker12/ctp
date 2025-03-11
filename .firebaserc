@@ -8,6 +8,12 @@
       "hosting": {
         "ctp-app-b": [
           "ctp-app-b"
+        ],
+        "staging": [
+          "ctp-app-c"
+        ],
+        "production": [
+          "ctp-central-database"
         ]
       }
     }

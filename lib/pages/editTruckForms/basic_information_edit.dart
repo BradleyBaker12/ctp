@@ -7,7 +7,7 @@ import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/services.dart'; // Added for loading assets
-
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -225,13 +225,17 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   Future<void> _loadYearOptions() async {
     try {
-      final String response =
-          await rootBundle.loadString('lib/assets/updated_truck_data.json');
-      final data = json.decode(response);
-      setState(() {
-        _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
-      });
-      debugPrint('Loaded Year Options: $_yearOptions');
+      final response = await http.get(Uri.parse(
+          'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _yearOptions = (data as Map<String, dynamic>).keys.toList()..sort();
+        });
+        debugPrint('Loaded Year Options: $_yearOptions');
+      } else {
+        debugPrint('Failed to load year options from GitHub');
+      }
     } catch (e) {
       debugPrint('Error loading year options: $e');
     }
@@ -240,19 +244,23 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   Future<void> _loadBrandsForYear(String year) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     try {
-      final String response =
-          await rootBundle.loadString('lib/assets/updated_truck_data.json');
-      final data = json.decode(response);
-      setState(() {
-        _brandOptions = data[year]?.keys.toList() ?? [];
-        // Clear values only for a new upload or duplication.
-        if (widget.isNewUpload || widget.isDuplicating) {
-          formData.setBrands(null);
-          formData.setMakeModel(null);
-          formData.setVariant(null);
-        }
-      });
-      debugPrint('Loaded brands for year $year: $_brandOptions');
+      final response = await http.get(Uri.parse(
+          'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _brandOptions = data[year]?.keys.toList() ?? [];
+          // Clear values for a new upload or when duplicating
+          if (widget.isNewUpload || widget.isDuplicating) {
+            formData.setBrands(null);
+            formData.setMakeModel(null);
+            formData.setVariant(null);
+          }
+        });
+        debugPrint('Loaded brands for year $year: $_brandOptions');
+      } else {
+        debugPrint('Failed to load brands for year from GitHub');
+      }
     } catch (e) {
       debugPrint('Error loading brands for year $year: $e');
     }
@@ -264,22 +272,27 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     if (year == null) return;
 
     try {
-      final String response =
-          await rootBundle.loadString('lib/assets/updated_truck_data.json');
-      final data = json.decode(response);
-      setState(() {
-        if (data[year] != null && data[year][brand] != null) {
-          final models = data[year][brand].keys.toList();
-          _makeModelOptions = {brand: models};
-          // Clear model and variant only for new upload or duplicating.
-          if (widget.isNewUpload || widget.isDuplicating) {
-            formData.setMakeModel(null);
-            formData.setVariant(null);
-            _variantController.clear();
+      final response = await http.get(Uri.parse(
+          'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          if (data[year] != null && data[year][brand] != null) {
+            final models = data[year][brand].keys.toList();
+            _makeModelOptions = {brand: models};
+            // Clear model and variant for new uploads or duplication
+            if (widget.isNewUpload || widget.isDuplicating) {
+              formData.setMakeModel(null);
+              formData.setVariant(null);
+              _variantController.clear();
+            }
           }
-        }
-      });
-      debugPrint('Loaded models for brand $brand: ${_makeModelOptions[brand]}');
+        });
+        debugPrint(
+            'Loaded models for brand $brand: ${_makeModelOptions[brand]}');
+      } else {
+        debugPrint('Failed to load models for brand from GitHub');
+      }
     } catch (e) {
       debugPrint('Error loading models for brand $brand: $e');
     }
@@ -292,21 +305,25 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     if (year == null || brand == null) return;
 
     try {
-      final String response =
-          await rootBundle.loadString('lib/assets/updated_truck_data.json');
-      final data = json.decode(response);
-      setState(() {
-        if (data[year]?[brand]?[model] != null) {
-          _variantOptions = List<String>.from(data[year][brand][model]);
-          // Clear variant only for new upload or duplicating.
-          if (widget.isNewUpload || widget.isDuplicating) {
-            formData.setVariant(null);
+      final response = await http.get(Uri.parse(
+          'https://raw.githubusercontent.com/BradleyBaker12/truckData/refs/heads/main/updated_truck_data.json'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          if (data[year]?[brand]?[model] != null) {
+            _variantOptions = List<String>.from(data[year][brand][model]);
+            // Clear variant for new uploads or when duplicating
+            if (widget.isNewUpload || widget.isDuplicating) {
+              formData.setVariant(null);
+            }
+          } else {
+            _variantOptions = [];
           }
-        } else {
-          _variantOptions = [];
-        }
-      });
-      debugPrint('Loaded variants for model $model: $_variantOptions');
+        });
+        debugPrint('Loaded variants for model $model: $_variantOptions');
+      } else {
+        debugPrint('Failed to load variants for model from GitHub');
+      }
     } catch (e) {
       debugPrint('Error loading variants for model $model: $e');
     }
@@ -1163,6 +1180,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                                       maintenanceData['maintenanceDocUrl'],
                                   warrantyDocUrl:
                                       maintenanceData['warrantyDocUrl'],
+                                  isFromTransporter: true,
                                 ),
                               ),
                             );

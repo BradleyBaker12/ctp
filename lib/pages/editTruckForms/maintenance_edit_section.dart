@@ -36,6 +36,7 @@ class MaintenanceEditSection extends StatefulWidget {
   final File? warrantyDocFile;
   final VoidCallback onProgressUpdate;
   final bool isFromAdmin;
+  final bool isFromTransporter;
 
   const MaintenanceEditSection(
       {super.key,
@@ -53,7 +54,9 @@ class MaintenanceEditSection extends StatefulWidget {
       required this.warrantySelection,
       this.maintenanceDocFile,
       this.warrantyDocFile,
-      required this.isFromAdmin});
+      required this.isFromAdmin,
+      required this.isFromTransporter
+      });
 
   @override
   MaintenanceEditSectionState createState() {
@@ -1182,7 +1185,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                       context); // Dismiss loading indicator
                                   Navigator.pop(
                                       context); // Return to previous screen
-                                  if (widget.isFromAdmin) {
+                                  if (widget.isFromAdmin || widget.isFromTransporter) {
                                     Navigator.pushReplacement(
                                         context,
                                         MaterialPageRoute(

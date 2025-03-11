@@ -47,12 +47,12 @@ class TruckConditions {
         tyresData = Map<String, dynamic>.from(map['tyres']);
       }
 
-      debugPrint('=== Parsed Data ===');
-      debugPrint('External Cab: $extData');
-      debugPrint('Internal Cab: $intData');
-      debugPrint('Chassis: $chassisData');
-      debugPrint('Drive Train: $driveTrainData');
-      debugPrint('Tyres: $tyresData');
+      // debugPrint('=== Parsed Data ===');
+      // debugPrint('External Cab: $extData');
+      // debugPrint('Internal Cab: $intData');
+      // debugPrint('Chassis: $chassisData');
+      // debugPrint('Drive Train: $driveTrainData');
+      // debugPrint('Tyres: $tyresData');
     } catch (e) {
       debugPrint('Error parsing TruckConditions data: $e');
     }

@@ -772,8 +772,8 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
                                   // Show input fields and calendar only if adding location
                                   if (_isAddingLocation) ...[
-                                    _buildSavedLocationsDropdown(),
-                                    const SizedBox(height: 16),
+                                    // _buildSavedLocationsDropdown(),
+                                    // const SizedBox(height: 16),
                                     _buildTextField(
                                       controller: _addressLine1Controller,
                                       hintText: 'Address Line 1',

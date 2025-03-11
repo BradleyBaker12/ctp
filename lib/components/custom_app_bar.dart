@@ -44,9 +44,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   final hasNotifications = userProvider
                       .hasNotifications; // Assuming you have a boolean flag for notifications
 
-                  // Debugging: Print the profileImageUrl
-                  print('AppBar Profile Image URL: $profileImageUrl');
-
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(

@@ -91,14 +91,14 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
   @override
   void initState() {
     super.initState();
-    print('DEBUG: initState called');
-    print('DEBUG: offerId: ${widget.offerId}');
-    print('DEBUG: vehicleId: ${widget.vehicleId}');
+    // print('DEBUG: initState called');
+    // print('DEBUG: offerId: ${widget.offerId}');
+    // print('DEBUG: vehicleId: ${widget.vehicleId}');
     _fetchInspectionLocations();
   }
 
   Future<void> _fetchInspectionLocations() async {
-    print('DEBUG: Starting _fetchInspectionLocations');
+    // print('DEBUG: Starting _fetchInspectionLocations');
     try {
       setState(() {
         _isLoading = true;
@@ -110,28 +110,28 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
           .doc(widget.offerId)
           .get();
 
-      print('DEBUG: Document fetch complete');
-      print('DEBUG: Document exists: ${offerSnapshot.exists}');
+      // print('DEBUG: Document fetch complete');
+      // print('DEBUG: Document exists: ${offerSnapshot.exists}');
 
       Map<String, dynamic>? data =
           offerSnapshot.data() as Map<String, dynamic>?;
-      print('DEBUG: Raw data: $data');
+      // print('DEBUG: Raw data: $data');
 
       // 2. Parse inspection locations following the correct path
       var inspectionLocations = data?['inspectionDetails']
               ?['inspectionLocations']?['locations'] ??
           [];
-      print('DEBUG: Inspection locations: $inspectionLocations');
+      // print('DEBUG: Inspection locations: $inspectionLocations');
 
       // Also check collectionDetails.locations as a fallback
       if (inspectionLocations.isEmpty) {
         inspectionLocations = data?['collectionDetails']?['locations'] ?? [];
-        print(
-            'DEBUG: Falling back to collection details locations: $inspectionLocations');
+        // print(
+        //     'DEBUG: Falling back to collection details locations: $inspectionLocations');
       }
 
       if (inspectionLocations.isEmpty) {
-        print('DEBUG: No inspection locations found in either path');
+        // print('DEBUG: No inspection locations found in either path');
         setState(() {
           _isLoading = false;
           _locations = [];
@@ -146,15 +146,15 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
       List<List<Map<String, dynamic>>> tempTimeSlots = [];
 
       for (var location in inspectionLocations) {
-        print('DEBUG: Processing location: $location');
+        // print('DEBUG: Processing location: $location');
 
         String address = location['address'] ?? '';
         var dates = location['dates'] ?? [];
         var timeSlots = location['timeSlots'] ?? [];
 
-        print('DEBUG: Address: $address');
-        print('DEBUG: Dates: $dates');
-        print('DEBUG: TimeSlots: $timeSlots');
+        // print('DEBUG: Address: $address');
+        // print('DEBUG: Dates: $dates');
+        // print('DEBUG: TimeSlots: $timeSlots');
 
         tempLocations.add(address);
         tempAddresses.add(address);
@@ -167,13 +167,13 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
             DateTime date = DateFormat('dd-M-yyyy').parse(dateStr);
             locationDates.add(date);
           } catch (e) {
-            print('DEBUG: Date parsing error: $e for date: $dateStr');
+            // print('DEBUG: Date parsing error: $e for date: $dateStr');
             try {
               // Try alternative format
               DateTime date = DateFormat('dd-MM-yyyy').parse(dateStr);
               locationDates.add(date);
             } catch (e) {
-              print('DEBUG: Alternative date parsing also failed: $e');
+              // print('DEBUG: Alternative date parsing also failed: $e');
             }
           }
         }
@@ -196,13 +196,13 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
         _locationTimeSlots = tempTimeSlots;
       });
 
-      print('DEBUG: Final state:');
-      print('Locations: $_locations');
-      print('Dates: $_locationDates');
-      print('TimeSlots: $_locationTimeSlots');
+      // print('DEBUG: Final state:');
+      // print('Locations: $_locations');
+      // print('Dates: $_locationDates');
+      // print('TimeSlots: $_locationTimeSlots');
     } catch (e, stack) {
-      print('DEBUG: Error in _fetchInspectionLocations: $e');
-      print('DEBUG: Stack trace: $stack');
+      // print('DEBUG: Error in _fetchInspectionLocations: $e');
+      // print('DEBUG: Stack trace: $stack');
       setState(() {
         _isLoading = false;
       });
@@ -314,10 +314,10 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
     final double horizontalPadding =
         isTablet ? (screenSize.width - contentWidth) / 2 : 16;
 
-    print('DEBUG: Build method called');
-    print('DEBUG: isLoading: $_isLoading');
-    print('DEBUG: locations: $_locations');
-    print('DEBUG: selectedDay: $_selectedDay');
+    // print('DEBUG: Build method called');
+    // print('DEBUG: isLoading: $_isLoading');
+    // print('DEBUG: locations: $_locations');
+    // print('DEBUG: selectedDay: $_selectedDay');
 
     if (_isLoading) {
       return GradientBackground(

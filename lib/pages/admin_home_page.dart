@@ -138,8 +138,17 @@ class _AdminHomePageState extends State<AdminHomePage>
 
   @override
   Widget build(BuildContext context) {
-    var blue = const Color(0xFF2F7FFF);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    // NEW: Check if account exists
+    if (userProvider.getAccountStatus == 'not_found') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/error');
+      });
+      return const SizedBox.shrink();
+    }
+
+    var blue = const Color(0xFF2F7FFF);
     final String currentUserRole = userProvider.getUserRole;
     final bool isAdmin = currentUserRole == 'admin';
     final bool isSalesRep = currentUserRole == 'sales representative';

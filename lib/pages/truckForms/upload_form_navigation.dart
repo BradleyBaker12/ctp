@@ -245,7 +245,7 @@ class _UploadFormNavigationState extends State<UploadFormNavigation> {
                     warrantySelection:
                         maintenanceData['warrantySelection'] ?? 'yes',
                     maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
-                    warrantyDocUrl: maintenanceData['warrantyDocUrl'], isFromAdmin: false,
+                    warrantyDocUrl: maintenanceData['warrantyDocUrl'], isFromAdmin: false, isFromTransporter: true,
                   ),
                 ),
               ),

@@ -32,7 +32,7 @@ class Trailer {
   // Main Image
   final String? mainImageUrl;
 
-  // Add these image URL fields
+  // Additional image URLs
   final String? frontImageUrl;
   final String? sideImageUrl;
   final String? tyresImageUrl;
@@ -44,6 +44,9 @@ class Trailer {
   // Type-specific data
   final SuperlinkTrailer? superlinkData;
   final TriAxleTrailer? triAxleData;
+
+  // To preserve the exact structure from Firestore.
+  final Map<String, dynamic>? rawTrailerExtraInfo;
 
   // Additional Features and Damages
   final List<Map<String, dynamic>> damages;
@@ -85,6 +88,7 @@ class Trailer {
     this.additionalImages = const [],
     this.superlinkData,
     this.triAxleData,
+    this.rawTrailerExtraInfo,
     this.damages = const [],
     this.damagesCondition = 'no',
     this.features = const [],
@@ -93,61 +97,89 @@ class Trailer {
   });
 
   factory Trailer.fromFirestore(String docId, Map<String, dynamic> data) {
-    debugPrint('Trailer.fromFirestore docId: $docId, data: $data');
-    final typeSpecificData = data['trailerExtraInfo'] as Map<String, dynamic>?;
-    debugPrint('trailerExtraInfo: $typeSpecificData');
-
+    final trailerType = data['trailerType'];
     SuperlinkTrailer? superlinkData;
     TriAxleTrailer? triAxleData;
+    // Preserve the original trailerExtraInfo from Firestore.
+    final rawExtra = data['trailerExtraInfo'] as Map<String, dynamic>?;
 
-    if (data['trailerType'] == 'Superlink') {
-      if (typeSpecificData != null &&
-          typeSpecificData.containsKey('trailerA')) {
-        // Merge data from trailerA and trailerB
-        final trailerAMap =
-            typeSpecificData['trailerA'] as Map<String, dynamic>;
-        final trailerBMap =
-            typeSpecificData['trailerB'] as Map<String, dynamic>? ?? {};
-        superlinkData = SuperlinkTrailer.fromJson({
-          'lengthA': trailerAMap['length'] ?? 'N/A',
-          'vinA': trailerAMap['vin'] ?? 'N/A',
-          'registrationA': trailerAMap['registration'] ?? 'N/A',
-          'lengthB': trailerBMap['length'] ?? 'N/A',
-          'vinB': trailerBMap['vin'] ?? 'N/A',
-          'registrationB': trailerBMap['registration'] ?? 'N/A',
-        });
-      } else if (typeSpecificData != null) {
-        superlinkData = SuperlinkTrailer.fromJson(typeSpecificData);
+    if (trailerType == 'Superlink') {
+      final fallbackTrailer = data['trailer'] as Map<String, dynamic>? ?? {};
+      final trailerAMapExtra = rawExtra != null
+          ? (rawExtra['trailerA'] as Map<String, dynamic>? ?? {})
+          : {};
+      final trailerBMapExtra = rawExtra != null
+          ? (rawExtra['trailerB'] as Map<String, dynamic>? ?? {})
+          : {};
+
+      superlinkData = SuperlinkTrailer.fromJson({
+        'lengthA': (trailerAMapExtra['length']?.toString().trim().isNotEmpty ==
+                true)
+            ? trailerAMapExtra['length']
+            : ((fallbackTrailer['length']?.toString().trim().isNotEmpty == true)
+                ? fallbackTrailer['length']
+                : 'N/A'),
+        'vinA': (trailerAMapExtra['vin']?.toString().trim().isNotEmpty == true)
+            ? trailerAMapExtra['vin']
+            : ((fallbackTrailer['vinNumber']?.toString().trim().isNotEmpty ==
+                    true)
+                ? fallbackTrailer['vinNumber']
+                : 'N/A'),
+        'registrationA':
+            (trailerAMapExtra['registration']?.toString().trim().isNotEmpty ==
+                    true)
+                ? trailerAMapExtra['registration']
+                : ((fallbackTrailer['registrationNumber']
+                            ?.toString()
+                            .trim()
+                            .isNotEmpty ==
+                        true)
+                    ? fallbackTrailer['registrationNumber']
+                    : 'N/A'),
+        'lengthB': (trailerBMapExtra['length']?.toString().trim().isNotEmpty ==
+                true)
+            ? trailerBMapExtra['length']
+            : ((data['lengthTrailerB']?.toString().trim().isNotEmpty == true)
+                ? data['lengthTrailerB']
+                : 'N/A'),
+        'vinB': (trailerBMapExtra['vin']?.toString().trim().isNotEmpty == true)
+            ? trailerBMapExtra['vin']
+            : ((data['vinB']?.toString().trim().isNotEmpty == true)
+                ? data['vinB']
+                : 'N/A'),
+        'registrationB':
+            (trailerBMapExtra['registration']?.toString().trim().isNotEmpty ==
+                    true)
+                ? trailerBMapExtra['registration']
+                : ((data['registrationB']?.toString().trim().isNotEmpty == true)
+                    ? data['registrationB']
+                    : 'N/A'),
+      });
+    } else if (trailerType == 'Tri-Axle') {
+      if (rawExtra != null) {
+        triAxleData = TriAxleTrailer.fromJson(rawExtra);
       } else {
-        debugPrint(
-            'Fallback: No trailerExtraInfo for Superlink. Using fallback fields.');
-        superlinkData = SuperlinkTrailer.fromJson({
-          'lengthA': data['lengthA'] ?? 'N/A',
-          'vinA': data['vinA'] ?? 'N/A',
-          'registrationA': data['registrationA'] ?? 'N/A',
-          'lengthB': data['lengthB'] ?? 'N/A',
-          'vinB': data['vinB'] ?? 'N/A',
-          'registrationB': data['registrationB'] ?? 'N/A',
-        });
-      }
-    } else if (data['trailerType'] == 'Tri-Axle') {
-      if (typeSpecificData != null) {
-        triAxleData = TriAxleTrailer.fromJson(typeSpecificData);
-      } else {
-        debugPrint(
-            'Fallback: No trailerExtraInfo for Tri-Axle. Using fallback fields.');
         triAxleData = TriAxleTrailer(
-          length: data['lengthTrailer'] ?? 'N/A',
-          vin: data['vin'] ?? 'N/A',
-          registration: data['registration'] ?? 'N/A',
+          length: (data['lengthTrailer'] != null &&
+                  data['lengthTrailer'].toString().trim().isNotEmpty)
+              ? data['lengthTrailer']
+              : 'N/A',
+          vin: (data['vin'] != null && data['vin'].toString().trim().isNotEmpty)
+              ? data['vin']
+              : 'N/A',
+          registration: (data['registration'] != null &&
+                  data['registration'].toString().trim().isNotEmpty)
+              ? data['registration']
+              : 'N/A',
         );
       }
     }
+
     return Trailer(
       id: docId,
       makeModel: data['makeModel'] ?? '',
       year: data['year'] ?? '',
-      trailerType: data['trailerType'] ?? '',
+      trailerType: trailerType,
       axles: data['axles'] ?? '',
       length: data['length'] ?? '',
       vinNumber: data['vinNumber'] ?? '',
@@ -182,10 +214,11 @@ class Trailer {
       features: List<Map<String, dynamic>>.from(data['features'] ?? []),
       featuresCondition: data['featuresCondition'] ?? 'no',
       brands: List<String>.from(data['brands'] ?? []),
+      // Store the raw Firestore data for later use in the edit form.
+      rawTrailerExtraInfo: data['trailerExtraInfo'] as Map<String, dynamic>?,
     );
   }
 
-  // Rename toJson to toMap for compatibility
   Map<String, dynamic> toMap() => toJson();
 
   Map<String, dynamic> toJson() {
@@ -226,8 +259,10 @@ class Trailer {
       'brands': brands,
     };
 
-    // Add type-specific data
-    if (trailerType == 'Superlink' && superlinkData != null) {
+    // Always include the raw data if available.
+    if (rawTrailerExtraInfo != null) {
+      data['trailerExtraInfo'] = rawTrailerExtraInfo;
+    } else if (trailerType == 'Superlink' && superlinkData != null) {
       data['trailerExtraInfo'] = superlinkData!.toJson();
     } else if (trailerType == 'Tri-Axle' && triAxleData != null) {
       data['trailerExtraInfo'] = triAxleData!.toJson();

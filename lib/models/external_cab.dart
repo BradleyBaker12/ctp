@@ -23,13 +23,13 @@ class ExternalCab {
   });
 
   factory ExternalCab.fromMap(Map<String, dynamic> data) {
-    debugPrint('=== ExternalCab fromMap ===');
-    debugPrint('Raw data: $data');
-    debugPrint('condition: ${data['condition']}');
-    debugPrint('damagesCondition: ${data['damagesCondition']}');
-    debugPrint(
-        'additionalFeaturesCondition: ${data['additionalFeaturesCondition']}');
-    debugPrint('images: ${data['images']}');
+    // debugPrint('=== ExternalCab fromMap ===');
+    // debugPrint('Raw data: $data');
+    // debugPrint('condition: ${data['condition']}');
+    // debugPrint('damagesCondition: ${data['damagesCondition']}');
+    // debugPrint(
+    //     'additionalFeaturesCondition: ${data['additionalFeaturesCondition']}');
+    // debugPrint('images: ${data['images']}');
 
     final result = ExternalCab(
       condition: data['condition'] ?? '',
@@ -46,9 +46,9 @@ class ExternalCab {
           [],
     );
 
-    debugPrint('=== Created ExternalCab ===');
-    debugPrint('Final condition: ${result.condition}');
-    debugPrint('Final images count: ${result.images.length}');
+    // debugPrint('=== Created ExternalCab ===');
+    // debugPrint('Final condition: ${result.condition}');
+    // debugPrint('Final images count: ${result.images.length}');
 
     return result;
   }
@@ -65,8 +65,8 @@ class ExternalCab {
   }
 
   static Map<String, PhotoData> _parseImages(Map<String, dynamic> imagesData) {
-    debugPrint('=== Parsing Images ===');
-    debugPrint('Raw images data: $imagesData');
+    // debugPrint('=== Parsing Images ===');
+    // debugPrint('Raw images data: $imagesData');
 
     Map<String, PhotoData> result = {};
     imagesData.forEach((key, value) {
@@ -88,7 +88,7 @@ class ExternalCab {
         'path': value.path,
         'url': value.imageUrl,
       };
-        });
+    });
     return result;
   }
 

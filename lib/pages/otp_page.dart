@@ -32,8 +32,6 @@ class _OTPScreenState extends State<OTPScreen> {
 
       await FirebaseAuth.instance.currentUser!.linkWithCredential(credential);
 
-      print(
-          'OTPScreen: User verified and linked with UID: $userId'); // Debugging
       Navigator.pushReplacementNamed(context, '/firstNamePage');
     } catch (e) {
       // Display a friendly message for OTP verification failure.
@@ -109,10 +107,6 @@ class _OTPScreenState extends State<OTPScreen> {
     final String verificationId = args!['verificationId'];
     final String phoneNumber = args['phoneNumber'];
     final String userId = args['userId'];
-
-    print('OTPScreen: Received verificationId: $verificationId'); // Debugging
-    print('OTPScreen: Received phoneNumber: $phoneNumber'); // Debugging
-    print('OTPScreen: Received userId: $userId'); // Debugging
 
     return PopScope(
       onPopInvokedWithResult: (route, result) async => false,

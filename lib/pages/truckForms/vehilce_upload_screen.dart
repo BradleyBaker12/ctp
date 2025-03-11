@@ -1,6 +1,5 @@
 import 'dart:convert'; // For JSON decoding
 import 'package:ctp/pages/report_vehicle_issue.dart';
-import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
 import 'package:ctp/services/vin_service.dart';
 import 'package:ctp/utils/camera_helper.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
@@ -24,6 +23,7 @@ import 'dart:io' as io;
 // import 'package:universal_html/html.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
+import '../editTruckForms/basic_information_edit.dart';
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';

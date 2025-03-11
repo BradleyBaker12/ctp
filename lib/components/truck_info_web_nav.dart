@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:flutter/foundation.dart'; // Added for kIsWeb
+// Added for kIsWeb
 
 class TruckInfoWebNavBar extends StatelessWidget {
   final VoidCallback onHomePressed;

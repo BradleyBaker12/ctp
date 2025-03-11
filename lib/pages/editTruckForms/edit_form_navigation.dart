@@ -764,7 +764,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                 maintenanceData['maintenanceSelection'] ?? 'yes',
             warrantySelection: maintenanceData['warrantySelection'] ?? 'yes',
             maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
-            warrantyDocUrl: maintenanceData['warrantyDocUrl'],
+            warrantyDocUrl: maintenanceData['warrantyDocUrl'], isFromTransporter: true,
           ),
         ),
       );
@@ -1053,7 +1053,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                       vehicle!.maintenance.warrantySelection ?? '',
                   isFromAdmin: Provider.of<UserProvider>(context, listen: false)
                           .getUserRole ==
-                      'admin',
+                      'admin', isFromTransporter: true,
                 ),
               ),
             );

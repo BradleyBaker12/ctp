@@ -5,8 +5,10 @@ import '../models/trailer.dart';
 class TrailerProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<Trailer> _trailers = [];
+  Trailer? _trailer;
 
   List<Trailer> get trailers => _trailers;
+  Trailer? get trailer => _trailer;
 
   // Fetch all trailers
   Future<void> fetchTrailers() async {
@@ -81,6 +83,32 @@ class TrailerProvider extends ChangeNotifier {
       return _trailers.firstWhere((trailer) => trailer.id == id);
     } catch (e) {
       return null;
+    }
+  }
+
+  // NEW: Fetch trailer data by id from Firestore
+  Future<void> fetchTrailerById(String trailerId) async {
+    debugPrint('Fetching trailer by id: $trailerId');
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(trailerId)
+          .get();
+      if (doc.exists) {
+        debugPrint('Document data for trailer $trailerId: ${doc.data()}');
+        _trailer =
+            Trailer.fromFirestore(doc.id, doc.data() as Map<String, dynamic>);
+        debugPrint('Parsed trailer: ${_trailer?.toMap()}');
+        notifyListeners();
+      } else {
+        debugPrint('No document found for trailer id: $trailerId');
+        _trailer = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching trailer: $e');
+      _trailer = null;
+      notifyListeners();
     }
   }
 

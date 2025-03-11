@@ -8,6 +8,7 @@ import 'package:ctp/models/drive_train.dart';
 import 'package:ctp/models/external_cab.dart';
 import 'package:ctp/models/internal_cab.dart';
 import 'package:ctp/models/maintenance.dart';
+import 'package:ctp/models/trailer.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
@@ -47,8 +48,9 @@ class PhotoItem {
 
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
+  final Trailer? trailer;
 
-  const VehicleDetailsPage({super.key, required this.vehicle});
+  const VehicleDetailsPage({super.key, required this.vehicle, this.trailer});
 
   @override
   _VehicleDetailsPageState createState() => _VehicleDetailsPageState();
@@ -62,6 +64,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       MediaQuery.of(context).size.width <= 1100;
 
   Vehicle? _vehicle;
+  Trailer? _trailer;
   Vehicle get vehicle => _vehicle ?? widget.vehicle;
   set vehicle(Vehicle value) {
     setState(() {
@@ -115,6 +118,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   void initState() {
     super.initState();
     _vehicle = widget.vehicle;
+    _trailer = widget.trailer;
     // 3. If accepted, see if that acceptedOfferId belongs to this user
     _checkIfMyOfferAccepted();
 
@@ -447,6 +451,25 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       return;
     }
 
+    // NEW: Prevent admin/sales from making duplicate offers on behalf of a dealer
+    if (isAdmin || isSalesRep) {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('offers')
+          .where('vehicleId', isEqualTo: widget.vehicle.id)
+          .where('dealerId', isEqualTo: _selectedDealer!.id)
+          .get();
+      if (querySnapshot.docs.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'An offer has already been made for this dealer on this vehicle.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
     // If dealer => ensure docs are uploaded & verified
     if (isDealer) {
       User? user = FirebaseAuth.instance.currentUser;
@@ -658,9 +681,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     if (vehicle.vehicleType.toLowerCase() == 'trailer') {
       await MyNavigator.push(
         context,
-        EditTrailerUploadScreen(
-          isDuplicating: false,
-          isAdminUpload: isAdminOrSalesRep,
+        EditTrailerScreen(
+          vehicle: widget.vehicle,
         ),
       );
     } else {
@@ -1012,9 +1034,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       onTap: () async {
         await MyNavigator.push(
           context,
-          EditTrailerUploadScreen(
-            isDuplicating: false,
-            isAdminUpload: isAdminOrSalesRep,
+          EditTrailerScreen(
+            vehicle: widget.vehicle,
           ),
         );
         setState(() {});
@@ -1100,6 +1121,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 isFromAdmin: Provider.of<UserProvider>(context, listen: false)
                         .getUserRole ==
                     'admin',
+                isFromTransporter: true,
               ),
             );
             break;
@@ -2424,26 +2446,18 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                           userProv.dealers);
                                                   sortedDealers.sort((a, b) {
                                                     // Try to use the dealer's firstName and lastName if available.
-                                                    String nameA = (a.firstName !=
-                                                                null &&
-                                                            a.lastName !=
-                                                                null &&
-                                                            a.firstName!
+                                                    String nameA = (a.firstName
                                                                 .trim()
                                                                 .isNotEmpty &&
-                                                            a.lastName!
+                                                            a.lastName
                                                                 .trim()
                                                                 .isNotEmpty)
                                                         ? '${a.firstName} ${a.lastName}'
                                                         : a.email;
-                                                    String nameB = (b.firstName !=
-                                                                null &&
-                                                            b.lastName !=
-                                                                null &&
-                                                            b.firstName!
+                                                    String nameB = (b.firstName
                                                                 .trim()
                                                                 .isNotEmpty &&
-                                                            b.lastName!
+                                                            b.lastName
                                                                 .trim()
                                                                 .isNotEmpty)
                                                         ? '${b.firstName} ${b.lastName}'
@@ -2461,16 +2475,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                     items: sortedDealers
                                                         .map((Dealer dealer) {
                                                       // Use full name if available, otherwise use email.
-                                                      String displayName = (dealer
-                                                                      .firstName !=
-                                                                  null &&
-                                                              dealer
-                                                                      .lastName !=
-                                                                  null &&
-                                                              dealer.firstName!
+                                                      String displayName = (dealer.firstName
                                                                   .trim()
                                                                   .isNotEmpty &&
-                                                              dealer.lastName!
+                                                              dealer.lastName
                                                                   .trim()
                                                                   .isNotEmpty)
                                                           ? '${dealer.firstName} ${dealer.lastName}'

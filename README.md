@@ -1,6 +1,6 @@
 # ctp
 
-A new Flutter project.
+Commerical Traders Portal.
 
 ## Getting Started
 
