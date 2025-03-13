@@ -1,14 +1,14 @@
+import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:ctp/components/gradient_background.dart';
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class MaintenanceForm extends StatefulWidget {
   final Map<String, dynamic> formData;

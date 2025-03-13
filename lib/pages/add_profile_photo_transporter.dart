@@ -1,21 +1,19 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/progress_bar.dart';
 import 'package:ctp/pages/crop_photo_page.dart';
-
 // import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/transporter_reg.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
-
 // Import the House Rules page
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 class AddProfilePhotoPageTransporter extends StatefulWidget {
   const AddProfilePhotoPageTransporter({super.key});

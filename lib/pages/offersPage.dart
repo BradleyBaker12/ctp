@@ -11,9 +11,9 @@ import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class OffersPage extends StatefulWidget {
   const OffersPage({super.key});

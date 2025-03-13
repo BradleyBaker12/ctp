@@ -1,16 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_back_button.dart'; // Import your custom back button
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'final_inspection_approval_page.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/custom_back_button.dart'; // Import your custom back button
 import 'package:intl/intl.dart'; // Import the intl package
+import 'package:provider/provider.dart';
+
+import 'final_inspection_approval_page.dart';
 
 class ConfirmationPage extends StatefulWidget {
   final String offerId;

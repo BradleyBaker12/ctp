@@ -3,6 +3,7 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/vehicle_form_provider.dart';
 
 class TyresForm extends StatefulWidget {
@@ -29,8 +30,9 @@ class _TyresFormState extends State<TyresForm> {
 
   void _saveForm() {
     // Get the form provider
-    final formProvider = Provider.of<VehicleFormProvider>(context, listen: false);
-    
+    final formProvider =
+        Provider.of<VehicleFormProvider>(context, listen: false);
+
     // Save the tyres data to the provider
     formProvider.updateTyresData({
       'overallCondition': overallCondition,
@@ -41,7 +43,8 @@ class _TyresFormState extends State<TyresForm> {
     });
 
     // Navigate to the next screen
-    Navigator.pushNamed(context, '/next-screen'); // Replace with your next route
+    Navigator.pushNamed(
+        context, '/next-screen'); // Replace with your next route
   }
 
   @override

@@ -1,24 +1,22 @@
-import 'dart:io';
-import 'package:ctp/pages/home_page.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/custom_radio_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/providers/form_data_provider.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../truckForms/custom_text_field.dart';
-import 'package:ctp/components/custom_radio_button.dart';
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -1385,8 +1383,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
 
     try {
       final formData = Provider.of<FormDataProvider>(context, listen: false);
-
-      
 
       //======================
       // 0) COMMIT TEXT FIELDS

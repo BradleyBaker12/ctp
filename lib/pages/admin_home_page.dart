@@ -2,22 +2,22 @@
 
 // ignore_for_file: unused_local_variable, unused_field
 
+import 'package:ctp/adminScreens/complaints_tab.dart';
+import 'package:ctp/adminScreens/offers_tab.dart';
 import 'package:ctp/adminScreens/user_tabs.dart';
 import 'package:ctp/adminScreens/vehicle_tab.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/utils/navigation.dart';
-import 'package:flutter/material.dart';
-import 'package:ctp/adminScreens/complaints_tab.dart';
-import 'package:ctp/adminScreens/offers_tab.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 // Remove FirebaseAuth import if you don't need logout functionality anymore
 // import 'package:firebase_auth/firebase_auth.dart';
 
 // Import the ProfilePage for navigation
 import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});

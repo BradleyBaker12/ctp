@@ -1,15 +1,16 @@
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 // import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 class PhoneNumberPage extends StatefulWidget {
@@ -25,7 +26,6 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
   List<Map<String, dynamic>> _countryCodes = [];
   String _errorMessage = '';
   bool _isLoading = false;
-
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -33,7 +33,6 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
   void initState() {
     super.initState();
     _loadCountryCodes();
-
     _phoneController.addListener(_formatPhoneNumber);
   }
 
@@ -79,7 +78,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
       if (_phoneController.text != formattedText) {
         int newCursorPosition = selection.baseOffset;
 
-        // Adjust the cursor position based on the added spaces
+        // Adjust the cursor position based on t_he added spaces
         if (newCursorPosition > 2) newCursorPosition += 1;
         if (newCursorPosition > 5) newCursorPosition += 1;
 

@@ -1,19 +1,19 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import rootBundle
-import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
-import 'package:url_launcher/url_launcher.dart';
 
 class OfferSummaryPage extends StatelessWidget {
   final String offerId;

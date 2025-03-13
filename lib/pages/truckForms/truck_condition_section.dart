@@ -1,8 +1,10 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
+
 import 'truck_conditions_tabs_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TruckConditionSection extends StatelessWidget {
   final File? mainImageFile;

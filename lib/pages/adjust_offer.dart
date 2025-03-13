@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/offer_provider.dart';
 
 class AdjustOfferPage extends StatefulWidget {
   final String offerId;
@@ -82,7 +82,8 @@ class _AdjustOfferPageState extends State<AdjustOfferPage> {
   @override
   Widget build(BuildContext context) {
     // Access the OfferProvider
-    OfferProvider offerProvider = Provider.of<OfferProvider>(context, listen: false);
+    OfferProvider offerProvider =
+        Provider.of<OfferProvider>(context, listen: false);
     Offer? offer = offerProvider.getOfferById(widget.offerId);
 
     if (offer == null) {

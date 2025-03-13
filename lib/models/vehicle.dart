@@ -6,6 +6,7 @@ import 'package:ctp/models/drive_train.dart';
 import 'package:ctp/models/external_cab.dart';
 import 'package:ctp/models/internal_cab.dart';
 import 'package:ctp/models/tyres.dart';
+
 import 'admin_data.dart';
 import 'maintenance.dart';
 import 'truck_conditions.dart';
@@ -262,9 +263,9 @@ class Vehicle {
                   licenseDiskUrl: '',
                   settlementLetterUrl: '',
                 ),
-      maintenance: data['maintenance'] != null &&
-              data['maintenance'] is Map<String, dynamic>
-          ? Maintenance.fromMap(data['maintenance'])
+      maintenance: data['maintenanceData'] != null &&
+              data['maintenanceData'] is Map<String, dynamic>
+          ? Maintenance.fromMap(data['maintenanceData'])
           : Maintenance(
               vehicleId: docId,
               oemInspectionType: '',
@@ -275,71 +276,76 @@ class Vehicle {
               warrantySelection: '',
               lastUpdated: DateTime.now(),
             ),
-      truckConditions: TruckConditions(
-        externalCab: ExternalCab(
-          damages: [],
-          additionalFeatures: [],
-          condition: '',
-          damagesCondition: '',
-          additionalFeaturesCondition: '',
-          images: {},
-        ),
-        internalCab: InternalCab(
-            condition: '',
-            damagesCondition: '',
-            additionalFeaturesCondition: '',
-            faultCodesCondition: '',
-            viewImages: {},
-            damages: [],
-            additionalFeatures: [],
-            faultCodes: []),
-        chassis: Chassis(
-            condition: '',
-            damagesCondition: '',
-            additionalFeaturesCondition: '',
-            images: {},
-            damages: [],
-            additionalFeatures: []),
-        driveTrain: DriveTrain(
-          condition: '',
-          oilLeakConditionEngine: '',
-          waterLeakConditionEngine: '',
-          blowbyCondition: '',
-          oilLeakConditionGearbox: '',
-          retarderCondition: '',
-          lastUpdated: DateTime.now(),
-          images: {
-            'Right Brake': '',
-            'Left Brake': '',
-            'Front Axel': '',
-            'Suspension': '',
-            'Fuel Tank': '',
-            'Battery': '',
-            'Cat Walk': '',
-            'Electrical Cable Black': '',
-            'Air Cable Yellow': '',
-            'Air Cable Red': '',
-            'Tail Board': '',
-            '5th Wheel': '',
-            'Left Brake Rear Axel': '',
-            'Right Brake Rear Axel': '',
-          },
-          damages: [],
-          additionalFeatures: [],
-          faultCodes: [],
-        ),
-        tyres: {
-          'tyres': Tyres(
-            positions: data['tyres'] != null
-                ? Map<String, TyrePosition>.from((data['tyres']
-                        as Map<String, dynamic>)
-                    .map((key, value) => MapEntry(key,
-                        TyrePosition.fromMap(value as Map<String, dynamic>))))
-                : {},
-            lastUpdated: DateTime.now(),
-          )
-        },
-      ),
+      truckConditions: data['truckConditions'] != null &&
+              data['truckConditions'] is Map<String, dynamic>
+          ? TruckConditions.fromMap(data['truckConditions'])
+          : TruckConditions(
+              externalCab: ExternalCab(
+                damages: [],
+                additionalFeatures: [],
+                condition: '',
+                damagesCondition: '',
+                additionalFeaturesCondition: '',
+                images: {},
+              ),
+              internalCab: InternalCab(
+                  condition: '',
+                  damagesCondition: '',
+                  additionalFeaturesCondition: '',
+                  faultCodesCondition: '',
+                  viewImages: {},
+                  damages: [],
+                  additionalFeatures: [],
+                  faultCodes: []),
+              chassis: Chassis(
+                  condition: '',
+                  damagesCondition: '',
+                  additionalFeaturesCondition: '',
+                  images: {},
+                  damages: [],
+                  additionalFeatures: []),
+              driveTrain: DriveTrain(
+                condition: '',
+                oilLeakConditionEngine: '',
+                waterLeakConditionEngine: '',
+                blowbyCondition: '',
+                oilLeakConditionGearbox: '',
+                retarderCondition: '',
+                lastUpdated: DateTime.now(),
+                images: {
+                  'Right Brake': '',
+                  'Left Brake': '',
+                  'Front Axel': '',
+                  'Suspension': '',
+                  'Fuel Tank': '',
+                  'Battery': '',
+                  'Cat Walk': '',
+                  'Electrical Cable Black': '',
+                  'Air Cable Yellow': '',
+                  'Air Cable Red': '',
+                  'Tail Board': '',
+                  '5th Wheel': '',
+                  'Left Brake Rear Axel': '',
+                  'Right Brake Rear Axel': '',
+                },
+                damages: [],
+                additionalFeatures: [],
+                faultCodes: [],
+              ),
+              tyres: {
+                'tyres': Tyres(
+                  positions: data['tyres'] != null
+                      ? Map<String, TyrePosition>.from(
+                          (data['tyres'] as Map<String, dynamic>).map(
+                              (key, value) => MapEntry(
+                                  key,
+                                  TyrePosition.fromMap(
+                                      value as Map<String, dynamic>))))
+                      : {},
+                  lastUpdated: DateTime.now(),
+                )
+              },
+            ),
       referenceNumber: data['referenceNumber'] ?? '',
       brands: brands,
       requireToSettleType: data['requireToSettleType'] as String?,

@@ -1,22 +1,23 @@
 // lib/adminScreens/offer_details_page.dart
 
-import 'dart:io';
 import 'dart:typed_data';
+
 // import 'dart:nativewrappers/_internal/vm/lib/typed_data_patch.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
-import 'package:ctp/pages/setup_collection.dart';
-import 'package:ctp/pages/setup_inspection.dart';
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:mime/mime.dart'; // Added for MIME type checks
-import '../providers/offer_provider.dart';
-import '../providers/user_provider.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/pages/setup_inspection.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:mime/mime.dart'; // Added for MIME type checks
+import 'package:provider/provider.dart';
+
+import '../providers/offer_provider.dart';
+import '../providers/user_provider.dart';
 
 /// Simple debug helper: prints with a 'DEBUG:' prefix.
 void debugText(String message) {

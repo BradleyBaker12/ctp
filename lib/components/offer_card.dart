@@ -186,6 +186,7 @@ class _OfferCardState extends State<OfferCard> {
             MaterialPageRoute(
               builder: (context) => CollectionConfirmationPage(
                 offerId: widget.offer.offerId,
+                vehicleId: widget.offer.vehicleId,
                 location: widget.offer.dealerSelectedInspectionLocation ??
                     'Unknown', // Replace with the correct location key
                 address: widget.offer.transporterDeliveryAddress ??
@@ -271,6 +272,7 @@ class _OfferCardState extends State<OfferCard> {
           MaterialPageRoute(
             builder: (context) => CollectionConfirmationPage(
               offerId: widget.offer.offerId,
+              vehicleId: widget.offer.vehicleId,
               location: widget.offer.dealerSelectedInspectionLocation ??
                   'Unknown', // Replace with the correct location key
               address: widget.offer.transporterDeliveryAddress ??

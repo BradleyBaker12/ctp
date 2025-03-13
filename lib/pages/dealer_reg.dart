@@ -1,22 +1,23 @@
 import 'dart:convert';
-import 'package:ctp/utils/navigation.dart';
-import 'package:dropdown_search/dropdown_search.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import the services package for input formatters
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as path;
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:flutter/services.dart'; // Import the services package for input formatters
 
 class DealerRegPage extends StatefulWidget {
   const DealerRegPage({super.key});

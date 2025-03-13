@@ -1,16 +1,16 @@
 // lib/adminScreens/vehicle_details_admin_page.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/editTruckForms/edit_form_navigation.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 

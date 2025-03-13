@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'package:flutter/material.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FormDataProvider with ChangeNotifier {
@@ -212,7 +212,7 @@ class FormDataProvider with ChangeNotifier {
     if (notify) notifyListeners();
   }
 
-  void setSelectedMainImage(Uint8List? image,fileName) {
+  void setSelectedMainImage(Uint8List? image, fileName) {
     _selectedMainImage = image;
     notifyListeners();
   }

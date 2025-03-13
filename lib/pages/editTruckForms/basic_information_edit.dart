@@ -1,11 +1,7 @@
 // lib/pages/editTruckForms/basic_information_edit.dart
 
-import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
-import 'package:ctp/pages/vehicles_list.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/utils/navigation.dart';
-import 'package:flutter/services.dart'; // Added for loading assets
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
@@ -16,14 +12,18 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:ctp/pages/truckForms/image_picker_widget.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/form_data_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/navigation.dart';
+import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for loading assets
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class BasicInformationEdit extends StatefulWidget {
@@ -928,7 +928,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   @override
   Widget build(BuildContext context) {
-    final formData = Provider.of<FormDataProvider>(context);
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
@@ -936,6 +936,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final bool isTransporter = userRole == 'transporter';
     // New flag for sales representatives
     final bool isSalesRep = userRole == 'sales representative';
+    print("MaintenanceValueValue2: ${formData.maintenance}");
+    print("Selling Price : ${formData.sellingPrice}");
 
     return WillPopScope(
       onWillPop: () async {
@@ -1724,6 +1726,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         natisRc1Url = await ref.getDownloadURL();
         debugPrint('NATIS/RC1 file uploaded. URL: $natisRc1Url');
       }
+      print("MaintenanceValueValue: ${formData.maintenance}");
       final vehicleData = {
         'year': formData.year,
         'brands': formData.brands ?? [],

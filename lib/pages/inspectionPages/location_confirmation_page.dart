@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/inspectionPages/confirmation_page.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LocationConfirmationPage extends StatefulWidget {
   final String offerId;
@@ -45,11 +45,45 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
 
   @override
   void initState() {
-    WidgetsBinding.instance.addPersistentFrameCallback((_) async {
+    super.initState();
+    _initializePage();
+  }
+
+  Future<void> getAddress() async {
+    DocumentSnapshot snapshot = await FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(widget.vehicleId)
+        .get();
+    if (snapshot.exists) {
+      var data = snapshot.data() as Map<String, dynamic>?;
+      if (data != null &&
+          data.containsKey('inspectionDetails') &&
+          data['inspectionDetails'] is Map &&
+          data['inspectionDetails']['inspectionLocations'] is Map &&
+          data['inspectionDetails']['inspectionLocations']['locations']
+              is List) {
+        List locations =
+            data['inspectionDetails']['inspectionLocations']['locations'];
+
+        if (locations.isNotEmpty) {
+          double lat = locations[0]['lat']?.toDouble() ?? 0.0;
+          double lng = locations[0]['lng']?.toDouble() ?? 0.0;
+
+          setState(() {
+            _latLng = LatLng(lat, lng);
+          });
+          print("Location Value: $_latLng");
+        }
+      }
+    }
+  }
+
+  Future<void> _initializePage() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await getAddress();
       await _getCoordinatesFromAddress();
       await _updateOfferStatus();
     });
-    super.initState();
   }
 
   Future<void> _updateOfferStatus() async {
@@ -62,29 +96,32 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
 
       print('Offer status updated to "confirm location"');
     } catch (e) {
-      print('Failed to update offer status: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update offer status: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update offer status: $e')),
+        );
+      }
     }
   }
 
   Future<void> _getCoordinatesFromAddress() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (_latLng != null) return;
 
     try {
+      setState(() {
+        _isLoading = true;
+      });
       print('Getting coordinates for address: ${widget.address}');
+      print("Getting coordinates .....");
       List<Location> locations = await locationFromAddress(widget.address);
       // List<Location> locations =
       //     await locationFromAddress("Gronausestraat 710, Enschede");
       print("Locations List: $locations");
       if (locations.isNotEmpty) {
         final location = locations.first;
-        print("Location: $location");
+        print("Location address: $location");
         print(
-            "Latiture: ${location.latitude} and Longiture: ${location.longitude}");
+            "Latitude: ${location.latitude} and Longiture: ${location.longitude}");
         setState(() {
           _latLng = LatLng(location.latitude, location.longitude);
           print('Coordinates found: $_latLng');
@@ -93,14 +130,18 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
         throw 'No locations found for the provided address';
       }
     } catch (e) {
-      print('Error getting coordinates: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to get coordinates: $e')),
-      );
+      print("Error: $e");
+      // if (mounted) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(content: Text('Failed to get coordinates: $e')),
+      //   );
+      // }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -152,9 +193,11 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
         SnackBar(content: Text('Failed to save inspection details: $e')),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -260,25 +303,33 @@ class _LocationConfirmationPageState extends State<LocationConfirmationPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
-                      if (_latLng != null)
+                      if (_latLng != null && _isLoading == false)
                         Container(
                           height: 300,
                           margin: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
-                            child: GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: _latLng ?? LatLng(0, 0),
-                                zoom: 14.0,
-                              ),
-                              markers: {
-                                Marker(
-                                  markerId: MarkerId(widget.location),
-                                  position: _latLng ?? LatLng(0, 0),
-                                ),
-                              },
-                            ),
-                          ),
+                              borderRadius: BorderRadius.circular(15),
+                              child: GoogleMap(
+                                initialCameraPosition: CameraPosition(
+                                    target: _latLng!, zoom: 14.0),
+                                markers: {
+                                  Marker(
+                                    markerId: MarkerId(widget.location),
+                                    position: _latLng!,
+                                  ),
+                                },
+                                onMapCreated: (GoogleMapController controller) {
+                                  if (_latLng != null) {
+                                    setState(() {
+                                      controller.animateCamera(
+                                          CameraUpdate.newCameraPosition(
+                                        CameraPosition(
+                                            target: _latLng!, zoom: 14.0),
+                                      ));
+                                    });
+                                  }
+                                },
+                              )),
                         )
                       else if (_isLoading)
                         const Center(child: CircularProgressIndicator())

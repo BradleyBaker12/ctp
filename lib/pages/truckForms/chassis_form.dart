@@ -1,9 +1,9 @@
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/services/vehicle_form_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:ctp/services/vehicle_form_service.dart';
 
 class ChassisForm extends StatefulWidget {
   final Map<String, dynamic> formData;
@@ -343,32 +343,37 @@ class _ChassisFormState extends State<ChassisForm> {
                                   children: [
                                     Text(
                                       'CONDITION OF THE CHASSIS',
-                                      style: GoogleFonts.montserrat(color: Colors.white),
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white),
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 16),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         CustomRadioButton(
                                           label: 'POOR',
                                           value: 'POOR',
                                           groupValue: chassisCondition ?? '',
-                                          onChanged: (value) => setState(() => chassisCondition = value),
+                                          onChanged: (value) => setState(
+                                              () => chassisCondition = value),
                                         ),
                                         const SizedBox(width: 32),
                                         CustomRadioButton(
                                           label: 'GOOD',
                                           value: 'GOOD',
                                           groupValue: chassisCondition ?? '',
-                                          onChanged: (value) => setState(() => chassisCondition = value),
+                                          onChanged: (value) => setState(
+                                              () => chassisCondition = value),
                                         ),
                                         const SizedBox(width: 32),
                                         CustomRadioButton(
                                           label: 'EXCELLENT',
                                           value: 'EXCELLENT',
                                           groupValue: chassisCondition ?? '',
-                                          onChanged: (value) => setState(() => chassisCondition = value),
+                                          onChanged: (value) => setState(
+                                              () => chassisCondition = value),
                                         ),
                                       ],
                                     ),

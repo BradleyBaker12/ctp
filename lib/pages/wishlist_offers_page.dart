@@ -1,3 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_app_bar.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground
+import 'package:ctp/components/wish_card.dart';
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
@@ -7,23 +12,19 @@ import 'package:ctp/models/maintenance.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/utils/navigation.dart';
-import 'package:flutter/material.dart';
-import 'package:ctp/components/custom_app_bar.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/offersPage.dart';
+import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/wish_list_page.dart'; // Import the WishlistPage
-import 'package:ctp/providers/user_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ctp/components/wish_card.dart';
-import 'vehicle_details_page.dart'; // Import the VehicleDetailsPage
-import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
-import 'package:provider/provider.dart'; // Import Provider
 import 'package:ctp/providers/offer_provider.dart'; // Import OfferProvider
-import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/providers/vehicles_provider.dart'; // Import VehicleProvider
+import 'package:ctp/utils/navigation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import Provider
+
+import 'vehicle_details_page.dart'; // Import the VehicleDetailsPage
 
 class WishlistOffersPage extends StatefulWidget {
   const WishlistOffersPage({super.key});

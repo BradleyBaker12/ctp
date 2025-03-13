@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -8,14 +10,13 @@ import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/transporter_reg.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:io';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:provider/provider.dart';
 
 class CropPhotoPage extends StatefulWidget {
   final XFile imageFile;

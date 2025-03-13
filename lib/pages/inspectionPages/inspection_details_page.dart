@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'location_confirmation_page.dart';
 import 'package:intl/intl.dart'; // Import for date parsing
+import 'package:table_calendar/table_calendar.dart';
+
+import 'location_confirmation_page.dart';
 
 class InspectionDetailsPage extends StatefulWidget {
   final String offerId;
@@ -653,34 +654,61 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                             ],
                             const SizedBox(height: 16),
                             CustomButton(
-                              text: 'CONFIRM MEETING',
-                              borderColor: Colors.blue,
-                              onPressed: (_selectedDay != null &&
-                                      _availableTimes.isNotEmpty)
-                                  ? () async {
-                                      await _saveInspectionDetails();
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              LocationConfirmationPage(
-                                            offerId: widget.offerId,
-                                            location:
-                                                _locations[_selectedLocation],
-                                            address:
-                                                _addresses[_selectedLocation],
-                                            date: _selectedDay!,
-                                            time: _availableTimes[
-                                                _selectedTimeSlot],
-                                            makeModel: widget.makeModel,
-                                            offerAmount: widget.offerAmount,
-                                            vehicleId: widget.vehicleId,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  : null,
-                            ),
+                                text: 'CONFIRM MEETING',
+                                borderColor: Colors.blue,
+                                onPressed: () async {
+                                  // FirebaseFirestore.instance
+                                  //     .collection('vehicles')
+                                  //     .doc(widget.vehicleId)
+                                  //     .update(
+                                  //   {"inspectionDetails": {}},
+                                  // );
+                                  // FirebaseFirestore.instance
+                                  //     .collection('offers')
+                                  //     .doc(widget.offerId)
+                                  //     .delete();
+                                  // return;
+                                  if (_selectedDay == null) {
+                                    print("_selectedDay null: --------");
+                                    return;
+                                  }
+                                  if (_availableTimes.isEmpty) {
+                                    print("_availableTimes is Empty: --------");
+                                    return;
+                                  }
+
+                                  await _saveInspectionDetails();
+                                  print("Confirm Meeting Details: --------");
+                                  print("OfferId: ${widget.offerId}");
+                                  print(
+                                      "Locations: ${_locations[_selectedLocation]}");
+                                  print(
+                                      "Addresses: ${_addresses[_selectedLocation]}");
+                                  print("Day: $_selectedDay}");
+                                  print(
+                                      "Time: ${_availableTimes[_selectedTimeSlot]}");
+                                  print("MakeModel: ${widget.makeModel}");
+                                  print("Offer Amount: ${widget.offerAmount}");
+                                  print("VehicleId: ${widget.vehicleId}");
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          LocationConfirmationPage(
+                                        offerId: widget.offerId,
+                                        location: _locations[_selectedLocation],
+                                        address: _addresses[_selectedLocation],
+                                        date: _selectedDay!,
+                                        time:
+                                            _availableTimes[_selectedTimeSlot],
+                                        makeModel: widget.makeModel,
+                                        offerAmount: widget.offerAmount,
+                                        vehicleId: widget.vehicleId,
+                                      ),
+                                    ),
+                                  );
+                                }),
                           ],
                         ),
                       ),

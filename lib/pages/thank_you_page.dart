@@ -1,6 +1,6 @@
 import 'package:ctp/components/custom_button.dart';
-import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:flutter/material.dart';
 
 class ThankYouPage extends StatelessWidget {
   const ThankYouPage({super.key});
@@ -64,4 +64,4 @@ class ThankYouPage extends StatelessWidget {
       ),
     );
   }
-}             
+}

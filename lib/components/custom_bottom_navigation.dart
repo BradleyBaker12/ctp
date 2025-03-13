@@ -1,12 +1,12 @@
-import 'package:ctp/pages/offersPage.dart';
-import 'package:ctp/pages/wish_list_page.dart';
-import 'package:flutter/material.dart';
 import 'package:ctp/pages/home_page.dart';
+import 'package:ctp/pages/offersPage.dart';
 import 'package:ctp/pages/profile_page.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/vehicles_list.dart'; // Import the vehicles list page
-import 'package:provider/provider.dart';
+import 'package:ctp/pages/wish_list_page.dart';
 import 'package:ctp/providers/user_provider.dart'; // Import the UserProvider
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class CustomBottomNavigation extends StatelessWidget {
   final int selectedIndex;

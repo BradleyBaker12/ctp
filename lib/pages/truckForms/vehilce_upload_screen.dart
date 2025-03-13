@@ -1,11 +1,9 @@
 // lib/pages/truckForms/vehilce_upload_screen.dart
 
-import 'dart:io';
 import 'dart:convert'; // For JSON decoding
-import 'package:ctp/adminScreens/viewer_page.dart';
-import 'package:flutter/services.dart'; // For loading assets
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -14,17 +12,19 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:ctp/pages/truckForms/maintenance_warrenty_screen.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
+import 'package:file_picker/file_picker.dart'; // For file picking
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart'; // For file picking
-import 'custom_text_field.dart';
-import 'custom_radio_button.dart';
-import 'image_picker_widget.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/services.dart'; // For loading assets
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import 'custom_radio_button.dart';
+import 'custom_text_field.dart';
+import 'image_picker_widget.dart';
 
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;

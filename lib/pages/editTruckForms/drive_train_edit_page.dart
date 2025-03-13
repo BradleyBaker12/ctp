@@ -1,14 +1,14 @@
 // lib/pages/truckForms/drive_train_page.dart
 
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore import
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class DriveTrainEditPage extends StatefulWidget {
@@ -572,7 +572,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
         );
         serializedImages[entry.key] = {
           'url': imageUrl,
-          'path': entry.value!,
+          // 'path': entry.value!,
           'isNew': true,
         };
       } else if (_imageUrls[entry.key] != null &&
@@ -632,16 +632,13 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       // Initialize images
       if (data['images'] != null) {
         Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
-        images.forEach((key, value) async {
-          if (value is Map) {
-            // Local file path
-            if (value['path'] != null) {
-              _selectedImages[key] = await File(value['path']).readAsBytes();
+        images.forEach((key, value) {
+          if (value is Map && value.containsKey('url')) {
+            final url = value['url']?.toString() ?? '';
+            if (url.isNotEmpty) {
+              _imageUrls[key] = url;
             }
-            // Existing URL
-            if (value['url'] != null && value['url'].toString().isNotEmpty) {
-              _imageUrls[key] = value['url'];
-            }
+            _selectedImages[key] = null;
           }
         });
       }

@@ -1,5 +1,5 @@
 // lib/pages/sign_in_page.dart
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
@@ -7,9 +7,10 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -254,6 +255,13 @@ class _SignInPageState extends State<SignInPage> {
                                 ),
                               ),
                               SizedBox(height: screenSize.height * 0.08),
+                              loadTest(),
+                              // PlacesSearchField(
+                              //   onSuggestionSelected: (place) {
+                              //     print('Place selected: $place');
+                              //   },
+                              //   controller: TextEditingController(),
+                              // ),
                               CustomTextField(
                                 hintText: 'EMAIL',
                                 controller: _emailController,
@@ -315,6 +323,43 @@ class _SignInPageState extends State<SignInPage> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget loadTest() {
+    if (!kDebugMode) {
+      return SizedBox.shrink();
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ElevatedButton(
+          onPressed: () {
+            _emailController.text = "admin@example.com";
+            _passwordController.text = "admin123";
+            setState(() {});
+          },
+          child: Text("Admin"),
+        ),
+        SizedBox(width: 10),
+        ElevatedButton(
+          onPressed: () {
+            _emailController.text = "abdullah_d@gmail.com";
+            _passwordController.text = "Aa123456789@";
+            setState(() {});
+          },
+          child: Text("Dealer"),
+        ),
+        SizedBox(width: 10),
+        ElevatedButton(
+          onPressed: () {
+            _emailController.text = "abdullah_transporter@gmail.com";
+            _passwordController.text = "Aa123456789@";
+            setState(() {});
+          },
+          child: Text("Transporter"),
+        ),
+      ],
     );
   }
 }

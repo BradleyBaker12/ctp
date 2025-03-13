@@ -1,9 +1,9 @@
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_back_button.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/loading_screen.dart';
+import 'package:flutter/material.dart';
 
 class TutorialPage extends StatefulWidget {
   const TutorialPage({super.key});

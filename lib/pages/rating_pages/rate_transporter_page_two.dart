@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'package:ctp/pages/home_page.dart';
-import 'package:flutter/material.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
-import 'package:provider/provider.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class RateTransporterPageTwo extends StatefulWidget {
   final String offerId;

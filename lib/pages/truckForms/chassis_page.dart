@@ -1,12 +1,14 @@
 // lib/pages/truckForms/chassis_page.dart
 
 import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ChassisPage extends StatefulWidget {
   final String vehicleId;
@@ -52,7 +54,7 @@ class ChassisPageState extends State<ChassisPage>
     'Right Brake Rear Axel': null,
   };
 
-  final Map<String, File?> _selectedImages = {
+  final Map<String, Uint8List?> _selectedImages = {
     'Right Brake': null,
     'Left Brake': null,
     'Front Axel': null,
@@ -299,7 +301,7 @@ class ChassisPageState extends State<ChassisPage>
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.file(
+                child: Image.memory(
                   imageFile,
                   fit: BoxFit.cover,
                   width: double.infinity,
@@ -452,8 +454,9 @@ class ChassisPageState extends State<ChassisPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = bytes;
                       // Optionally clear old URL
                       _imageUrls[title] = null;
                     });
@@ -470,8 +473,9 @@ class ChassisPageState extends State<ChassisPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = bytes;
                       // Optionally clear old URL
                       _imageUrls[title] = null;
                     });
@@ -864,7 +868,7 @@ class ChassisPageState extends State<ChassisPage>
         images.forEach((key, value) {
           if (value is Map) {
             if (value['path'] != null) {
-              _selectedImages[key] = File(value['path']);
+              _selectedImages[key] = value['path'];
             } else if (value['url'] != null) {
               _imageUrls[key] = value['url'];
             }
@@ -904,11 +908,12 @@ class ChassisPageState extends State<ChassisPage>
     });
   }
 
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     final fileName =
         'chassis/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final storageRef = FirebaseStorage.instance.ref().child(fileName);
-    final uploadTask = storageRef.putFile(imageFile);
+    final uploadTask = storageRef.putData(imageFile);
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }
@@ -924,7 +929,7 @@ class ChassisPageState extends State<ChassisPage>
         );
         serializedImages[entry.key] = {
           'url': imageUrl,
-          'path': entry.value!.path,
+          'path': entry.value!,
           'isNew': true,
         };
       } else if (_imageUrls[entry.key] != null) {

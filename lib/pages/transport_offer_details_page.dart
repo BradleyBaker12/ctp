@@ -1,15 +1,14 @@
 // transporter_offer_details_page.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/pages/setup_inspection.dart';
+import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/providers/offer_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/pages/setup_inspection.dart';
-import 'package:ctp/pages/setup_collection.dart';
-import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart'; // Import CustomButton
 
 class TransporterOfferDetailsPage extends StatefulWidget {

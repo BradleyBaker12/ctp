@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground widget
+import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class PendingOffersPage extends StatefulWidget {
   const PendingOffersPage({super.key});
@@ -138,7 +138,7 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
                           Offer offer = filteredOffers[index];
                           print(
                               'Displaying offer: ${offer.offerId} with status ${offer.offerStatus}');
-                          return ;
+                          return;
                         },
                       ),
               ),

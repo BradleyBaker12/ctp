@@ -1,4 +1,6 @@
+import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/rating_pages/rate_dealer_page_two.dart';
 import 'package:ctp/pages/rating_pages/rate_transporter_page_two.dart';
@@ -7,8 +9,6 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart';
 
 class CollectVehiclePage extends StatefulWidget {

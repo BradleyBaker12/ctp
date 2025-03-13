@@ -1,29 +1,23 @@
 // lib/adminScreens/payment_options_page.dart
 
-import 'dart:developer';
+import 'dart:io';
 
-import 'package:ctp/pages/payment_approved.dart';
-import 'package:ctp/pages/payment_pending_page.dart';
-import 'package:ctp/pages/offer_summary_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/pages/offer_summary_page.dart';
+import 'package:ctp/pages/payment_approved.dart';
+import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/utils/navigation.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:mime/mime.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import 'package:http/http.dart' as http;
-import 'package:universal_html/html.dart' as html;
-import 'package:path_provider/path_provider.dart';
+import 'package:mime/mime.dart';
 import 'package:open_file/open_file.dart';
-import 'dart:io';
-
-import '../adminScreens/viewer_page.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:universal_html/html.dart' as html;
 
 class PaymentOptionsPage extends StatefulWidget {
   final String offerId;

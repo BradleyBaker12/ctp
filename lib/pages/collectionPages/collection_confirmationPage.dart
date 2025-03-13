@@ -1,15 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/payment_options_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 
 class CollectionConfirmationPage extends StatefulWidget {
   final String location;
@@ -17,6 +17,7 @@ class CollectionConfirmationPage extends StatefulWidget {
   final DateTime date;
   final String time;
   final String offerId;
+  final String? vehicleId;
   final LatLng? latLng; // Add LatLng parameter
 
   const CollectionConfirmationPage({
@@ -26,6 +27,7 @@ class CollectionConfirmationPage extends StatefulWidget {
     required this.date,
     required this.time,
     required this.offerId,
+    this.vehicleId,
     this.latLng, // Add LatLng parameter
   });
 
@@ -75,6 +77,49 @@ class _CollectionConfirmationPageState
     }
   }
 
+  Future<Map<String, dynamic>> getAddress() async {
+    if (widget.vehicleId == null) {
+      return {};
+    }
+    DocumentSnapshot snapshot = await FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(widget.vehicleId)
+        .get();
+    Map<String, dynamic> addressObj = {};
+    if (snapshot.exists) {
+      var data = snapshot.data() as Map<String, dynamic>?;
+      if (data != null &&
+          data.containsKey('inspectionDetails') &&
+          data['inspectionDetails'] is Map &&
+          data['inspectionDetails']['inspectionLocations'] is Map &&
+          data['inspectionDetails']['inspectionLocations']['locations']
+              is List) {
+        List locations =
+            data['inspectionDetails']['inspectionLocations']['locations'] ?? [];
+        String address = locations[0]['address'] ?? '';
+
+        if (locations.isNotEmpty) {
+          double lat = locations[0]['lat']?.toDouble() ?? 0.0;
+          double lng = locations[0]['lng']?.toDouble() ?? 0.0;
+          addressObj['lat'] = lat;
+          addressObj['lng'] = lng;
+          addressObj['address'] = address;
+          setState(() {
+            // _latLng = LatLng(lat, lng);
+          });
+          print("Location Value: $_latLng");
+          return addressObj;
+        } else {
+          return {};
+        }
+      } else {
+        return {};
+      }
+    } else {
+      return {};
+    }
+  }
+
   Future<void> _getCoordinates() async {
     setState(() {
       _isLoading = true;
@@ -85,7 +130,8 @@ class _CollectionConfirmationPageState
           .collection('offers')
           .doc(widget.offerId)
           .get();
-
+      var addressObj = await getAddress();
+      print("My address $addressObj");
       if (offerSnapshot.exists) {
         final data = offerSnapshot.data() as Map<String, dynamic>;
         final bool dealerSelectedDelivery =
@@ -102,13 +148,16 @@ class _CollectionConfirmationPageState
             _doneButtonText = 'CONFIRM DELIVERY';
           });
 
-          addressToUse = data['transporterDeliveryAddress'] ?? 'Unknown';
-          final deliveryLatLng = data['transporterDeliveryLatLng'];
+          addressToUse = data['transporterDeliveryAddress'] ??
+              addressObj['address'] ??
+              'Unknown';
+          final deliveryLatLng = data['transporterDeliveryLatLng'] ??
+              {"latitude": addressObj['lat'], "longitude": addressObj['lng']};
 
           if (deliveryLatLng != null) {
             latLngToUse = LatLng(
-              deliveryLatLng['latitude'],
-              deliveryLatLng['longitude'],
+              data['latitude'],
+              data['longitude'],
             );
           } else {
             // Fallback to geocoding the transporter delivery address
@@ -122,7 +171,16 @@ class _CollectionConfirmationPageState
           }
         } else {
           // Use default location if dealerSelectedDelivery is not true
-          if (widget.latLng == null) {
+          if (kIsWeb) {
+            addressToUse = addressObj['address'] ?? 'Unknown';
+            final deliveryLatLng =
+                widget.latLng ?? LatLng(addressObj['lat'], addressObj['lng']);
+            latLngToUse = deliveryLatLng;
+            setState(() {
+              _latLng = latLngToUse;
+              _displayedAddress = addressToUse;
+            });
+          } else {
             List<Location> locations =
                 await locationFromAddress(widget.address);
             if (locations.isNotEmpty) {

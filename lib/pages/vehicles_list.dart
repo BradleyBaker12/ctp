@@ -1,19 +1,19 @@
 // lib/pages/vehicles_list_page.dart
 
+import 'package:ctp/components/custom_app_bar.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/offersPage.dart';
 import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/pages/vehicle_details_page.dart';
-import 'package:ctp/components/custom_app_bar.dart';
 
 // Nested models (only if still needed)
 

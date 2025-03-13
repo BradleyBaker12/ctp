@@ -1,7 +1,11 @@
 // lib/pages/truckForms/truck_conditions_tabs_page.dart
 
-import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
@@ -11,10 +15,6 @@ import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/components/gradient_background.dart';
 import 'package:provider/provider.dart';
 
 class TruckConditionsTabsEditPage extends StatefulWidget {
@@ -85,7 +85,12 @@ class _TruckConditionsTabsEditPageState
     _selectedTabIndex = widget.initialIndex;
     print('Initial tab index: $_selectedTabIndex');
     _loadSavedData();
-    _loadVehicleDetails();
+
+    WidgetsBinding.instance.addPostFrameCallback((dt) async {
+      await _loadVehicleDetails();
+      //confirm data is loaded and painted
+      Future.delayed(Duration(milliseconds: 300), () => setState(() {}));
+    });
   }
 
   // Add this new method to load vehicle details

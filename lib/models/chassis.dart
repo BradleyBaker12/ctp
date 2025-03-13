@@ -1,8 +1,7 @@
 // lib/models/chassis.dart
 
-
-import 'damage.dart';
 import 'additional_feature.dart';
+import 'damage.dart';
 
 class Chassis {
   final String condition;

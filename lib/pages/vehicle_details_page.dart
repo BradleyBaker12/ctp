@@ -4,6 +4,7 @@ import 'dart:developer';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/models/admin_data.dart';
@@ -738,24 +739,235 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // Example placeholders for progress calculations
+  bool isNotEmpty(String? value) {
+    return value != null && value != "N/A";
+  }
+
   int _calculateBasicInfoProgress() {
-    int completedSteps = 0;
-    if (vehicle.mainImageUrl != null && vehicle.mainImageUrl!.isNotEmpty) {
-      completedSteps++;
-    }
-    // Add more checks if needed...
-    completedSteps += 3; // Placeholder
+    int completedSteps = 9;
+    const totalSteps = 15; // Total number of possible fields
+
+    // Main image
+    if (isNotEmpty(vehicle?.mainImageUrl)) completedSteps++;
+    // Vehicle status
+    // if (isNotEmpty(vehicle?.vehicleStatus)) completedSteps++;
+    // Reference number
+    // if (isNotEmpty(vehicle?.referenceNumber)) completedSteps++;
+    // RC1/NATIS file
+    if (isNotEmpty(vehicle?.rc1NatisFile)) completedSteps++;
+    // Vehicle type (truck/trailer)
+    if (isNotEmpty(vehicle?.vehicleType)) completedSteps++;
+    // Year
+    if (isNotEmpty(vehicle?.year)) completedSteps++;
+    // Make/Model
+    if (isNotEmpty(vehicle?.makeModel)) completedSteps++;
+    // Variant
+    if (isNotEmpty(vehicle?.variant)) completedSteps++;
+    // Country
+    if (isNotEmpty(vehicle?.country)) completedSteps++;
+    // Mileage
+    if (isNotEmpty(vehicle?.mileage)) completedSteps++;
+    // Configuration
+    if (isNotEmpty(vehicle?.config)) completedSteps++;
+    // Application
+    if (vehicle?.application.isNotEmpty == true) completedSteps++;
+    // VIN Number
+    // if (isNotEmpty(vehicle?.vinNumber)) completedSteps++;
+    // Engine Number
+    if (isNotEmpty(vehicle?.engineNumber)) completedSteps++;
+    // Registration Number
+    if (isNotEmpty(vehicle?.registrationNumber)) completedSteps++;
     return completedSteps;
   }
 
   int _calculateMaintenanceProgress() {
     int completedSteps = 0;
-    if (vehicle.maintenance.maintenanceDocUrl != null &&
-        vehicle.maintenance.maintenanceDocUrl!.isNotEmpty) {
+    const totalSteps = 4; // Total possible fields
+
+    // Check maintenance document
+    if (vehicle?.maintenance.maintenanceDocUrl != null) completedSteps++;
+    // Check warranty document
+    if (vehicle?.maintenance.warrantyDocUrl != null) completedSteps++;
+    // Check OEM inspection type
+    if (vehicle?.maintenance.oemInspectionType != null) completedSteps++;
+    // Check OEM reason if inspection type is 'no'
+    if (vehicle?.maintenance.oemInspectionType == 'no' &&
+        vehicle?.maintenance.oemReason?.isNotEmpty == true) {
       completedSteps++;
     }
-    // Suppose 4 total steps...
+
+    return completedSteps;
+  }
+
+  int _calculateAdminProgress() {
+    int completedSteps = 0;
+    const totalSteps = 4; // Total possible fields
+
+    // NATIS/RC1 document
+    if (vehicle?.adminData.natisRc1Url != null) completedSteps++;
+    // License disk
+    if (vehicle?.adminData.licenseDiskUrl != null) completedSteps++;
+    // Settlement letter (if required)
+    if (vehicle?.requireToSettleType == 'yes') {
+      if (vehicle?.adminData.settlementLetterUrl != null) completedSteps++;
+      if (vehicle?.adminData.settlementAmount.isNotEmpty == true) {
+        completedSteps++;
+      }
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateExternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps = 6; // Base fields: condition, damages, additional features
+
+    final externalCab = vehicle?.truckConditions.externalCab;
+
+    // Check main condition
+    if (externalCab?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (externalCab?.images.isNotEmpty == true) completedSteps++;
+    completedSteps += externalCab?.images.length ?? 0;
+
+    // Check damages section
+    if (externalCab?.damagesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check additional features section
+    if (externalCab?.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateInternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        19; // Base fields: condition, damages, additional features, fault codes, view images
+
+    final internalCab = vehicle?.truckConditions.internalCab;
+
+    // Check main condition
+    if (internalCab?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check view images
+    // if (internalCab?.viewImages.isNotEmpty == true) completedSteps++;
+    completedSteps += internalCab?.viewImages.length ?? 0;
+    print("InternalCabImages: ${internalCab?.viewImages.length}");
+
+    // Check damages section
+    if (internalCab?.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (internalCab?.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check fault codes section
+    if (internalCab?.faultCodesCondition.isNotEmpty == true) completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateDriveTrainProgress() {
+    int completedSteps = 0;
+    int totalSteps = 20; // All fields from the DriveTrain model
+
+    final driveTrain = vehicle?.truckConditions.driveTrain;
+
+    // Check main condition
+    if (driveTrain?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check engine conditions
+    if (driveTrain?.oilLeakConditionEngine.isNotEmpty == true) completedSteps++;
+    if (driveTrain?.waterLeakConditionEngine.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain?.blowbyCondition.isNotEmpty == true) completedSteps++;
+
+    // Check gearbox and retarder conditions
+    if (driveTrain?.oilLeakConditionGearbox.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain?.retarderCondition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (driveTrain?.images.isNotEmpty == true) completedSteps++;
+    completedSteps += driveTrain?.images.length ?? 0;
+
+    // Check damages
+    if (driveTrain?.damages.isNotEmpty == true) completedSteps++;
+
+    // Check additional features
+    if (driveTrain?.additionalFeatures.isNotEmpty == true) completedSteps++;
+
+    // Check fault codes
+    if (driveTrain?.faultCodes.isNotEmpty == true) completedSteps++;
+    // completedSteps += driveTrain?.faultCodes.length ?? 0;
+
+    return completedSteps;
+  }
+
+  int _calculateChassisProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        16; // Base fields: condition, images, damages, additional features
+
+    final chassis = vehicle?.truckConditions.chassis;
+
+    // Check main condition
+    if (chassis?.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (chassis?.images.isNotEmpty == true) completedSteps++;
+    completedSteps += chassis?.images.length ?? 0;
+
+    // Check damages section
+    if (chassis?.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (chassis?.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateTyresProgress() {
+    int completedSteps = 0;
+    int totalSteps = 24;
+
+    final tyresMap = vehicle?.truckConditions.tyres;
+    if (tyresMap != null) {
+      tyresMap.forEach((key, tyres) {
+        // Loop through tyre positions
+        for (int pos = 1; pos <= 6; pos++) {
+          String posKey = 'Tyre_Pos_$pos';
+          final tyreData =
+              tyres.positions[posKey]; // Access `positions` from `Tyres`
+
+          if (tyreData?.chassisCondition != null &&
+              tyreData!.chassisCondition.isNotEmpty) {
+            completedSteps++;
+          }
+          if (tyreData?.virginOrRecap != null &&
+              tyreData!.virginOrRecap.isNotEmpty) {
+            completedSteps++;
+          }
+          if (tyreData?.imagePath != null && tyreData!.imagePath.isNotEmpty) {
+            completedSteps++;
+          }
+          if (tyreData?.rimType != null && tyreData!.rimType.isNotEmpty) {
+            completedSteps++;
+          }
+        }
+      });
+    }
+
     return completedSteps;
   }
 
@@ -765,41 +977,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         _calculateDriveTrainProgress() +
         _calculateChassisProgress() +
         _calculateTyresProgress();
-  }
-
-  int _calculateExternalCabProgress() {
-    int completedSteps = 0;
-    final externalCab = vehicle.truckConditions.externalCab;
-    if (externalCab.condition.isNotEmpty) completedSteps++;
-    return completedSteps;
-  }
-
-  int _calculateInternalCabProgress() {
-    int completedSteps = 0;
-    final internalCab = vehicle.truckConditions.internalCab;
-    if (internalCab.condition.isNotEmpty) completedSteps++;
-    return completedSteps;
-  }
-
-  int _calculateDriveTrainProgress() {
-    int completedSteps = 0;
-    final driveTrain = vehicle.truckConditions.driveTrain;
-    if (driveTrain.condition.isNotEmpty) completedSteps++;
-    return completedSteps;
-  }
-
-  int _calculateChassisProgress() {
-    int completedSteps = 0;
-    final chassis = vehicle.truckConditions.chassis;
-    if (chassis.condition.isNotEmpty) completedSteps++;
-    return completedSteps;
-  }
-
-  int _calculateTyresProgress() {
-    int completedSteps = 0;
-    final tyresMap = vehicle.truckConditions.tyres;
-    // Extend logic as needed...
-    return completedSteps;
   }
 
   // If the vehicle is a trailer, we show a single trailer block
@@ -849,6 +1026,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   // Generic container to display a section with a progress count
   Widget _buildSection(BuildContext context, String title, String progress) {
+    List<String> progressValues = progress.split('/');
+    double first = double.parse(progressValues[0]);
+    double second = double.parse(progressValues[1]);
+    double progressValue = first / second;
     return GestureDetector(
       onTap: () async {
         if (title.contains('MAINTENANCE')) {
@@ -917,34 +1098,126 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 10).copyWith(bottom: 20),
         decoration: BoxDecoration(
-          color: Colors.blue,
-          borderRadius: BorderRadius.circular(8),
+          color: Colors.blue.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.blue),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // Prevents infinite height issues
           children: [
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              progress,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: progressValue,
+                      minHeight: 5,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.green),
+                      backgroundColor: Colors.grey.withOpacity(0.5),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    progress,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
             ),
+            if (title.contains('TRUCK CONDITIONS')) ...[
+              subFields("EXTERNAL CAB", '${_calculateExternalCabProgress()}/7'),
+              subFields(
+                  "INTERNAL CAB", '${_calculateInternalCabProgress()}/19'),
+              subFields("CHASSIS", '${_calculateChassisProgress()}/16'),
+              subFields("DRIVE TRAIN", '${_calculateDriveTrainProgress()}/20'),
+              subFields("TYRES", '${_calculateTyresProgress()}/24'),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget subFields(String title, String progress) {
+    List<String> progressValues = progress.split('/');
+    double first = double.parse(progressValues[0]);
+    double second = double.parse(progressValues[1]);
+    double progressValue = first / second;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        Container(
+          width: MediaQuery.of(context).size.width / 1.6,
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
+          child: Row(
+            children: [
+              SizedBox(
+                width: MediaQuery.of(context).size.width / 2,
+                child: LinearProgressIndicator(
+                  value: progressValue,
+                  minHeight: 5,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
+                  backgroundColor: Colors.grey.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                progress,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1396,12 +1669,23 @@ vehicle.referenceNumber: ${vehicle.referenceNumber}
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Center(
-                          child: Text(
-                            'Make an Offer',
-                            style:
-                                _customFont(20, FontWeight.bold, Colors.white),
-                            textAlign: TextAlign.center,
+                        GestureDetector(
+                          onTap: () async {
+                            //For testing only
+
+                            // await FirebaseFirestore.instance
+                            //     .collection("vehicles")
+                            //     .doc(widget.vehicle.id)
+                            //     .update({"truckConditions": null});
+                            // log("Truck conditions removed");
+                          },
+                          child: Center(
+                            child: Text(
+                              'Make an Offer',
+                              style: _customFont(
+                                  20, FontWeight.bold, Colors.white),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -1741,21 +2025,21 @@ vehicle.referenceNumber: ${vehicle.referenceNumber}
                               _buildSection(
                                 context,
                                 'BASIC INFORMATION',
-                                '${_calculateBasicInfoProgress()} OF 11 STEPS\nCOMPLETED',
+                                '${_calculateBasicInfoProgress()}/21',
                               ),
                             // Truck Conditions block
                             if (isDealer || isAdminOrSalesRep)
                               _buildSection(
                                 context,
                                 'TRUCK CONDITIONS',
-                                '${_calculateTruckConditionsProgress()} OF 35 STEPS\nCOMPLETED',
+                                '${_calculateTruckConditionsProgress()}/86',
                               ),
                             // Maintenance & Warranty
                             if (isDealer || isAdminOrSalesRep)
                               _buildSection(
                                 context,
                                 'MAINTENANCE AND WARRANTY',
-                                '${_calculateMaintenanceProgress()} OF 4 STEPS\nCOMPLETED',
+                                '${_calculateMaintenanceProgress()}/4',
                               ),
                           ],
                         ),

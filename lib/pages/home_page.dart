@@ -1,5 +1,7 @@
+import 'package:appinio_swiper/appinio_swiper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_app_bar.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/honesty_bar.dart';
 import 'package:ctp/components/offer_card.dart';
 import 'package:ctp/models/vehicle.dart';
@@ -7,16 +9,14 @@ import 'package:ctp/pages/trailerForms/trailer_upload_screen.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:appinio_swiper/appinio_swiper.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

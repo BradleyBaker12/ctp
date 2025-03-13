@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
@@ -6,9 +6,9 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -119,11 +119,9 @@ class _SignUpPageState extends State<SignUpPage> {
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -230,13 +228,17 @@ class _SignUpPageState extends State<SignUpPage> {
                               CustomButton(
                                 text: 'Sign Up',
                                 borderColor: const Color(0xFF2F7FFF),
-                                onPressed: _signUp,
+                                onPressed: () {
+                                  _signUp();
+                                },
                               ),
                               SizedBox(height: constraints.maxHeight * 0.02),
                               CustomButton(
                                 text: 'Cancel',
                                 borderColor: const Color(0xFFFF4E00),
-                                onPressed: _signUp,
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
                               ),
                               SizedBox(height: constraints.maxHeight * 0.02),
                             ],

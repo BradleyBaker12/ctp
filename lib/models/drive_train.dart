@@ -12,7 +12,8 @@ class DriveTrain {
   final String oilLeakConditionGearbox;
   final String retarderCondition;
   final DateTime lastUpdated;
-  final Map<String, dynamic> images; // Updated to store image data with paths and URLs
+  final Map<String, dynamic>
+      images; // Updated to store image data with paths and URLs
   final List<dynamic> damages;
   final List<dynamic> additionalFeatures;
   final List<dynamic> faultCodes;

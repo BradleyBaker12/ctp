@@ -1,16 +1,16 @@
 import 'dart:convert';
 
 import 'package:ctp/adminScreens/viewer_page.dart';
+import 'package:ctp/components/custom_back_button.dart'; // Import the Custom Back Button
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/edit_profile_page.dart';
 import 'package:ctp/pages/sold_vehicles_list.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_back_button.dart'; // Import the Custom Back Button
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});

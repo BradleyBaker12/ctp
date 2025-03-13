@@ -1,13 +1,13 @@
-import 'package:ctp/providers/user_provider.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:ctp/components/progress_bar.dart';
-import 'package:provider/provider.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 class FirstNamePage extends StatefulWidget {
   const FirstNamePage({super.key});

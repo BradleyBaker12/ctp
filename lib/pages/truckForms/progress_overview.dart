@@ -1,8 +1,8 @@
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/truckForms/admin_form.dart';
 import 'package:ctp/pages/truckForms/basic_information.dart';
 import 'package:ctp/pages/truckForms/maintenance_form.dart';
 import 'package:ctp/pages/truckForms/truck_condition_form.dart';
-import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

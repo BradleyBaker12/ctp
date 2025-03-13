@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/pages/payment_approved.dart';
 import 'package:ctp/pages/report_issue.dart';
 import 'package:ctp/pages/upload_pop.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/pages/payment_approved.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
 
 class PaymentPendingPage extends StatefulWidget {
   final String offerId;

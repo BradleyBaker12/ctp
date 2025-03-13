@@ -1,16 +1,15 @@
 // lib/providers/user_provider.dart
-import 'package:uuid/uuid.dart';
-
-import 'dart:io';
 import 'dart:async'; // Add this import
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists
 import 'package:ctp/models/user_details.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;

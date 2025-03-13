@@ -29,9 +29,9 @@ import 'package:ctp/pages/waiting_for_approval.dart';
 import 'package:ctp/providers/complaints_provider.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
+import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -39,8 +39,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
+
+import 'services/auth_service.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
@@ -182,18 +183,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final userProvider = Provider.of<UserProvider>(context);
     User? firebaseUser = FirebaseAuth.instance.currentUser;
 
-    if (firebaseUser != null && !firebaseUser.isAnonymous) {
-      if (userProvider.getAccountStatus == 'suspended' ||
-          userProvider.getAccountStatus == 'inactive') {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Force navigation to status page if user is in a different route
-          if (!(ModalRoute.of(context)?.settings.name == '/account-status')) {
-            Navigator.of(context).pushReplacementNamed('/account-status');
-          }
-        });
-        return const AccountStatusPage();
-      }
-      return const HomePage();
+    if ((firebaseUser != null && !firebaseUser.isAnonymous) &&
+        (userProvider.getAccountStatus == 'suspended' ||
+            userProvider.getAccountStatus == 'inactive')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Force navigation to status page if user is in a different route
+        if (!(ModalRoute.of(context)?.settings.name == '/account-status')) {
+          Navigator.of(context).pushReplacementNamed('/account-status');
+        }
+      });
+      return const AccountStatusPage();
+      // return const HomePage();
     } else {
       return const LoginPage();
     }

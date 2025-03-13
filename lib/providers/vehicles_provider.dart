@@ -1,8 +1,12 @@
 // lib/providers/vehicle_provider.dart
 
+import 'dart:convert';
+import 'dart:developer';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'user_provider.dart';
 
 class VehicleProvider with ChangeNotifier {
@@ -325,7 +329,12 @@ class VehicleProvider with ChangeNotifier {
           .orderBy('createdAt', descending: true)
           .limit(5)
           .get();
-
+      querySnapshot.docs.forEach((doc) {
+        if (doc.id == "X4EYMzg6jS3aEtdEAtKF") {
+          log("Truck data");
+          log(jsonEncode(doc.data().toString()));
+        }
+      });
       final recentVehicles = querySnapshot.docs.map((doc) {
         return Vehicle.fromFirestore(
             doc.id, doc.data() as Map<String, dynamic>);

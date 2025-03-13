@@ -1,12 +1,14 @@
+import 'dart:io'; // Add this import
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/utils/navigation.dart';
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'thank_you_page.dart'; // Import the ThankYouPage
 import 'package:file_picker/file_picker.dart'; // Add this import
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Add this import
-import 'dart:io'; // Add this import
+import 'package:flutter/material.dart';
+
+import 'thank_you_page.dart'; // Import the ThankYouPage
 
 class ReportIssuePage extends StatefulWidget {
   final String offerId; // Add offerId as a required parameter

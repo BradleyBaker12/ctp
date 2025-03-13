@@ -1,14 +1,14 @@
 // lib/adminScreens/trading_interests_page.dart
 
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 import 'package:ctp/components/loading_screen.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 class TradingInterestsPage extends StatefulWidget {
   const TradingInterestsPage({super.key});
@@ -133,7 +133,8 @@ class _TradingInterestsPageState extends State<TradingInterestsPage> {
                                   _updateTradingInterest(context, 'both'),
                             ),
                             SizedBox(height: constraints.maxHeight * 0.03),
-                          ],                        ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

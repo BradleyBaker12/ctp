@@ -1,13 +1,13 @@
 // If you're not using this model, you can remove this import
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/collect_vehcile.dart';
 import 'package:ctp/pages/report_issue.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
 
 class PaymentApprovedPage extends StatefulWidget {
   final String offerId;

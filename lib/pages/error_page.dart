@@ -6,6 +6,7 @@ import 'package:ctp/pages/login.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'signup_page.dart'; // Import the SignUp page
 
 class ErrorPage extends StatelessWidget {

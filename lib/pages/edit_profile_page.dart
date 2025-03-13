@@ -2,21 +2,22 @@
 
 import 'dart:developer';
 import 'dart:io';
+
+import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/components/custom_back_button.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/profile_page.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/custom_button.dart';
-import 'package:ctp/components/custom_back_button.dart';
-import 'package:path/path.dart' as path;
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path/path.dart' as path;
+import 'package:provider/provider.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});

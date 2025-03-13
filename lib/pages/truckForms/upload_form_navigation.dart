@@ -1,12 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
-import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
-import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
-import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
-import 'package:flutter/material.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
+import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
+import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
+import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
+import 'package:flutter/material.dart';
 
 class UploadFormNavigation extends StatefulWidget {
   final Vehicle vehicle;
@@ -298,13 +298,13 @@ class _UploadFormNavigationState extends State<UploadFormNavigation> {
                 vehicle: vehicle!,
                 isUploading: false,
                 isEditing: true,
-                onAdminDoc1Selected: (file,fileName) {
+                onAdminDoc1Selected: (file, fileName) {
                   // Handle admin doc 1 selection
                 },
-                onAdminDoc2Selected: (file,fileName) {
+                onAdminDoc2Selected: (file, fileName) {
                   // Handle admin doc 2 selection
                 },
-                onAdminDoc3Selected: (file,fileName) {
+                onAdminDoc3Selected: (file, fileName) {
                   // Handle admin doc 3 selection
                 },
                 requireToSettleType: vehicle!.requireToSettleType ?? 'no',

@@ -1,11 +1,13 @@
 // lib/pages/truckForms/external_cab_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:ctp/components/constants.dart';
+import 'package:ctp/components/custom_radio_button.dart'; // Ensure this import path is correct
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Image picker for uploading images
-import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_radio_button.dart'; // Ensure this import path is correct
 
 class ExternalCabPage extends StatefulWidget {
   final String vehicleId;
@@ -36,7 +38,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
   final ScrollController _scrollController = ScrollController();
 
   // Map to store selected images for each view
-  final Map<String, File?> _selectedImages = {
+  final Map<String, Uint8List?> _selectedImages = {
     'FRONT VIEW': null,
     'RIGHT SIDE VIEW': null,
     'REAR VIEW': null,
@@ -179,7 +181,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
         Map<String, dynamic> images = Map<String, dynamic>.from(data['images']);
         images.forEach((key, value) {
           if (value is Map && value['path'] != null) {
-            _selectedImages[key] = File(value['path']);
+            _selectedImages[key] = value['path'];
           }
         });
       }
@@ -230,11 +232,12 @@ class ExternalCabPageState extends State<ExternalCabPage>
     return true;
   }
 
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     String fileName =
         'external_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(imageFile);
+    UploadTask uploadTask = storageRef.putData(imageFile);
     TaskSnapshot snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }
@@ -249,7 +252,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
             entry.value!, entry.key.replaceAll(' ', '_').toLowerCase());
         serializedImages[entry.key] = {
           'url': imageUrl,
-          'path': entry.value!.path,
+          'path': entry.value!,
           'isNew': true
         };
       }
@@ -354,7 +357,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
                   // The image itself
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
+                    child: Image.memory(
                       imageFile,
                       fit: BoxFit.cover,
                       width: double.infinity,
@@ -415,8 +418,9 @@ class ExternalCabPageState extends State<ExternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = bytes;
                     });
                   }
                   widget.onProgressUpdate();
@@ -431,8 +435,9 @@ class ExternalCabPageState extends State<ExternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = bytes;
                     });
                   }
                   widget.onProgressUpdate();
@@ -807,7 +812,7 @@ class ExternalCabPageState extends State<ExternalCabPage>
     }
   }
 
-  Future<void> _updateImage(String title, File imageFile) async {
+  Future<void> _updateImage(String title, Uint8List imageFile) async {
     _updateAndNotify(() {
       _selectedImages[title] = imageFile;
     });

@@ -1,7 +1,7 @@
 // lib/models/external_cab.dart
 
-import 'damage.dart';
 import 'additional_feature.dart';
+import 'damage.dart';
 
 class ExternalCab {
   final String condition;

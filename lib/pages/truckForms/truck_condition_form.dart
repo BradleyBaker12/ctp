@@ -1,3 +1,4 @@
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/truckForms/chassis_form.dart';
 import 'package:ctp/pages/truckForms/drive_train_form.dart';
 import 'package:ctp/pages/truckForms/external_cab_form.dart';
@@ -6,7 +7,6 @@ import 'package:ctp/pages/truckForms/tyres_form.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:ctp/components/gradient_background.dart';
 
 class TruckConditionForm extends StatelessWidget {
   final Map<String, dynamic> formData;

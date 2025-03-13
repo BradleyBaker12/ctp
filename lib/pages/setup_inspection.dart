@@ -1,14 +1,22 @@
-import 'package:ctp/providers/user_provider.dart';
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
+import 'package:ctp/components/custom_back_button.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/services/places_services.dart';
+import 'package:ctp/services/places_widget.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:ctp/components/custom_back_button.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // For Firebase Auth
+
+import '../services/places_data_model.dart'; // For Firebase Auth
 
 class SetupInspectionPage extends StatefulWidget {
   final String vehicleId;
@@ -24,6 +32,8 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
   List<DateTime> _selectedDays = [];
   DateTime? _selectedDay;
   final CalendarFormat _calendarFormat = CalendarFormat.month;
+  LatLng? latLng;
+  bool isAddressSelected = false;
 
   // Availability date and range
   final DateTime _availabilityDate =
@@ -264,9 +274,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       // Prepare the data to save under 'inspectionDetails' -> 'inspectionLocations' -> 'locations'
       Map<String, dynamic> inspectionDetails = {
         'inspectionDetails': {
-          'inspectionLocations': {
-            'locations': _locations,
-          },
+          'inspectionLocations': {'locations': _locations},
         },
       };
 
@@ -344,17 +352,17 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       return;
     }
 
-    if (_postalCodeController.text.isEmpty) {
-      _showErrorDialog('Please enter Postal Code.');
-      return;
-    }
+    // if (_postalCodeController.text.isEmpty) {
+    //   _showErrorDialog('Please enter Postal Code.');
+    //   return;
+    // }
 
     // Save the location
-    String fullAddress = '${_addressLine1Controller.text}, '
-        '${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}'
-        '${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
+    String fullAddress = _addressLine1Controller.text;
 
     Map<String, dynamic> locationData = {
+      'lat': latLng?.latitude,
+      'lng': latLng?.longitude,
       'address': fullAddress,
       'dates': _selectedDays.map((date) => date.toShortString()).toList(),
       'timeSlots': _selectedDays
@@ -446,10 +454,35 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     );
   }
 
+  List<String> predictions = [];
+
+  void fetchPlacesAutocomplete(String input) async {
+    final functionUrl = Uri.parse(
+      'https://europe-west3-ctp-central-database.cloudfunctions.net/placesAutocomplete?input=$input',
+    );
+
+    try {
+      final response = await http.get(functionUrl);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['predictions'] != null) {
+          predictions = data['predictions']
+              .map<String>((prediction) => prediction['description'])
+              .toList();
+          print('Predictions: $predictions');
+        }
+      }
+    } catch (e) {
+      print('Exception: $e');
+    }
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
     bool isOptional = false,
+    bool isEnabled = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -458,6 +491,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
+        enabled: isEnabled,
         fillColor: Colors.white.withOpacity(0.2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -534,6 +568,21 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     });
   }
 
+  Future<List<String>> fetchPlacesAutocompleteWithProxyUrl(String input) async {
+    final String proxyUrl =
+        "https://europe-west3-ctp-central-database.cloudfunctions.net/placesAutocomplete";
+
+    final response = await http.get(Uri.parse("$proxyUrl?input=$input"));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      List<dynamic> predictions = data["predictions"] ?? [];
+      return predictions.map((p) => p.toString()).toList();
+    } else {
+      throw Exception("Failed to fetch autocomplete results");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Add UserProvider at the top
@@ -543,6 +592,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
     final bool isTransporter =
         userRole == 'transporter'; // Check if the user is a dealer
+    print("VehicleID: ${widget.vehicleId}");
     return GradientBackground(
       child: Stack(
         children: [
@@ -626,35 +676,73 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                 ),
                                 const SizedBox(height: 16),
 
+                                // AsyncAutocomplete<String>(
+                                //   asyncSuggestions: (String input) async {
+                                //     return await fetchPlacesAutocompleteWithProxyUrl(
+                                //         input);
+                                //   },
+                                //   decoration: InputDecoration(
+                                //     labelText: 'Enter a place',
+                                //     border: OutlineInputBorder(),
+                                //   ),
+                                //   suggestionBuilder: (data) {
+                                //     return ListTile(
+                                //       title: Text(data),
+                                //     );
+                                //   },
+                                // ),
                                 // Show input fields and calendar only if adding location
                                 if (_isAddingLocation) ...[
                                   _buildSavedLocationsDropdown(),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
+                                  PlacesSearchField(
                                     controller: _addressLine1Controller,
-                                    hintText: 'Address Line 1',
+                                    onSuggestionSelected: (PlacesData p) async {
+                                      log("Suggestion Selected: ${p.description}");
+                                      setState(() {
+                                        isAddressSelected = true;
+                                        _addressLine1Controller.text =
+                                            p.description ?? '';
+                                        print(
+                                            "Address1controller: ${_addressLine1Controller.text}");
+                                      });
+                                      print(
+                                          "Address1Controller: ${_addressLine1Controller.text}");
+                                      Map<String, dynamic> latLngData =
+                                          await PlacesService.getPlaceLatLng(
+                                              p.placeId!);
+                                      print("LatLngData: $latLngData");
+                                      latLng = LatLng(
+                                        latLngData['lat'],
+                                        latLngData['lng'],
+                                      );
+                                      _cityController.text = latLngData['city'];
+                                      _stateController.text =
+                                          latLngData['state'];
+                                      _postalCodeController.text =
+                                          latLngData["postalCode"];
+                                    },
                                   ),
                                   const SizedBox(height: 16),
                                   _buildTextField(
-                                    controller: _addressLine2Controller,
-                                    hintText: 'Suburb (Optional)',
-                                    isOptional: true,
-                                  ),
+                                      controller: _addressLine2Controller,
+                                      hintText: 'Suburb (Optional)',
+                                      isOptional: true,
+                                      isEnabled: !isAddressSelected),
                                   const SizedBox(height: 16),
                                   _buildTextField(
-                                    controller: _cityController,
-                                    hintText: 'City',
-                                  ),
+                                      controller: _cityController,
+                                      hintText: 'City',
+                                      isEnabled: !isAddressSelected),
                                   const SizedBox(height: 16),
                                   _buildTextField(
                                     controller: _stateController,
                                     hintText: 'State/Province/Region',
                                   ),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
-                                    controller: _postalCodeController,
-                                    hintText: 'Postal Code',
-                                  ),
+                                  // const SizedBox(height: 16),
+                                  // _buildTextField(
+                                  //   controller: _postalCodeController,
+                                  //   hintText: 'Postal Code',
+                                  // ),
                                   const SizedBox(height: 32),
 
                                   const Text(
@@ -923,11 +1011,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                         ),
                       ),
                     ),
-                    if (!isAdmin)
-                      CustomBottomNavigation(
-                        selectedIndex: 1,
-                        onItemTapped: (int) {},
-                      ),
+                    // if (!isAdmin)
+                    //   CustomBottomNavigation(
+                    //     selectedIndex: 1,
+                    //     onItemTapped: (int) {},
+                    //   ),
                   ],
                 ),
               ],
@@ -944,6 +1032,9 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                 ),
               ),
             ),
+          // Center(
+          //     child: FloatingActionButton(
+          //         onPressed: () => fetchPlacesAutocomplete("lahore"))),
         ],
       ),
     );

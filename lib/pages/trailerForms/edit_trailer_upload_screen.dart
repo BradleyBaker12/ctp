@@ -1,6 +1,7 @@
 // lib/screens/edit_trailer_upload_screen.dart
 
 import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -14,14 +15,14 @@ import 'package:ctp/pages/truckForms/custom_text_field.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/user_provider.dart'; // <--- for user role
 import 'package:ctp/utils/navigation.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {

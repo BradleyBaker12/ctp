@@ -1,11 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
+import 'package:provider/provider.dart';
 
 class TradingCategoryPage extends StatelessWidget {
   const TradingCategoryPage({super.key});
@@ -15,16 +15,16 @@ class TradingCategoryPage extends StatelessWidget {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final String? userId = userProvider.userId;
-      
+
       if (userId == null) {
         throw Exception('User ID not found');
       }
 
       // Update Firestore
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'userRole': role,
-        'isFirstLogin': false
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'userRole': role, 'isFirstLogin': false});
 
       // Update local UserProvider state
       userProvider.updateUserRole(role);
@@ -38,12 +38,11 @@ class TradingCategoryPage extends StatelessWidget {
     } catch (e) {
       print('Error updating user role: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update user role. Please try again.')),
+        const SnackBar(
+            content: Text('Failed to update user role. Please try again.')),
       );
     }
   }
-
-  
 
   @override
   Widget build(BuildContext context) {

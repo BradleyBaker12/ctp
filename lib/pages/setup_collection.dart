@@ -1,13 +1,20 @@
-import 'package:ctp/providers/user_provider.dart';
-import 'package:flutter/material.dart';
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
+import 'package:ctp/components/custom_back_button.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/services/places_data_model.dart';
+import 'package:ctp/services/places_services.dart';
+import 'package:ctp/services/places_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:intl/intl.dart'; // For date/time formatting
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:ctp/components/custom_back_button.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/components/custom_button.dart';
 
 class SetupCollectionPage extends StatefulWidget {
   final String vehicleId;
@@ -23,6 +30,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   List<DateTime> _selectedDays = [];
   DateTime? _selectedDay;
   final CalendarFormat _calendarFormat = CalendarFormat.month;
+  LatLng? latLng;
+  bool isAddressSelected = false;
 
   // Map to store times for each selected date
   final Map<DateTime, List<TimeOfDay>> _dateTimeSlots = {};
@@ -54,6 +63,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     TimeOfDay(hour: 17, minute: 0),
     TimeOfDay(hour: 17, minute: 30),
   ];
+
   // Store information for multiple collection locations
   final List<Map<String, dynamic>> _locations = [];
   int? _editIndex;
@@ -289,6 +299,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
             .collection('vehicles')
             .doc(widget.vehicleId)
             .update(collectionDetails);
+        print("VehicleID: ${widget.vehicleId}");
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -351,16 +362,18 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       return;
     }
 
-    if (_postalCodeController.text.isEmpty) {
-      _showErrorDialog('Please enter Postal Code.');
-      return;
-    }
+    // if (_postalCodeController.text.isEmpty) {
+    //   _showErrorDialog('Please enter Postal Code.');
+    //   return;
+    // }
 
     String fullAddress = '${_addressLine1Controller.text}, '
         '${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}'
         '${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
 
     Map<String, dynamic> locationData = {
+      'lat': latLng?.latitude,
+      'lng': latLng?.longitude,
       'address': fullAddress,
       'dates': _selectedDays.map((date) => date.toShortString()).toList(),
       'timeSlots': _selectedDays
@@ -650,9 +663,94 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                               ),
                               const SizedBox(height: 16),
                               if (_isAddingLocation) ...[
-                                _buildTextField(
+                                // GooglePlacesAutoCompleteTextFormField(
+                                //   textEditingController:
+                                //       _addressLine1Controller,
+                                //   proxyURL: Constants.placesAutocomplete,
+                                //   googleAPIKey:
+                                //       "AIzaSyB3-PXBvW4UuH10ZRBY7kd20EFcxDZksQU",
+                                //   style: TextStyle(
+                                //     color: Colors.white,
+                                //   ),
+                                //   decoration: InputDecoration(
+                                //     hintText: "Address",
+                                //     hintStyle:
+                                //         const TextStyle(color: Colors.white70),
+                                //     filled: true,
+                                //     fillColor: Colors.white.withOpacity(0.2),
+                                //     border: OutlineInputBorder(
+                                //       borderRadius: BorderRadius.circular(10.0),
+                                //       borderSide: BorderSide(
+                                //           color: Colors.white.withOpacity(0.5)),
+                                //     ),
+                                //     focusedBorder: const OutlineInputBorder(
+                                //       borderRadius: BorderRadius.all(
+                                //           Radius.circular(10.0)),
+                                //       borderSide: BorderSide(
+                                //         color: Color(0xFFFF4E00),
+                                //         width: 2.0,
+                                //       ),
+                                //     ),
+                                //   ),
+                                //   debounceTime: 800,
+                                //   onPlaceDetailsWithCoordinatesReceived:
+                                //       (Prediction prediction) {
+                                //     print("placeDetails" +
+                                //         prediction.lng.toString());
+                                //   },
+                                //   onSuggestionClicked: (Prediction prediction) {
+                                //     print(
+                                //         "Prediction Data: ${prediction.toString()}");
+                                //     _addressLine1Controller.text =
+                                //         prediction.description.toString();
+                                //   },
+                                // itemBuilder:
+                                //     (context, index, Prediction prediction) {
+                                //   return Container(
+                                //     padding: EdgeInsets.all(10),
+                                //     child: Row(
+                                //       children: [
+                                //         Icon(Icons.location_on),
+                                //         SizedBox(
+                                //           width: 7,
+                                //         ),
+                                //         Expanded(
+                                //             child: Text(
+                                //                 "${prediction.description ?? ""}"))
+                                //       ],
+                                //     ),
+                                //   );
+                                // },
+                                // seperatedBuilder: SizedBox(),
+                                // isCrossBtnShown: true,
+                                // placeType: PlaceType.geocode,
+                                // ),
+                                PlacesSearchField(
                                   controller: _addressLine1Controller,
-                                  hintText: 'Address Line 1',
+                                  onSuggestionSelected: (PlacesData p) async {
+                                    log("Suggestion Selected: ${p.description}");
+                                    setState(() {
+                                      isAddressSelected = true;
+                                      _addressLine1Controller.text =
+                                          p.description ?? '';
+                                      print(
+                                          "Address1controller: ${_addressLine1Controller.text}");
+                                    });
+                                    print(
+                                        "Address1Controller: ${_addressLine1Controller.text}");
+                                    Map<String, dynamic> latLngData =
+                                        await PlacesService.getPlaceLatLng(
+                                            p.placeId!);
+                                    print("LatLngData: $latLngData");
+                                    latLng = LatLng(
+                                      latLngData['lat'],
+                                      latLngData['lng'],
+                                    );
+                                    _cityController.text = latLngData['city'];
+                                    _stateController.text = latLngData['state'];
+                                    _postalCodeController.text =
+                                        latLngData["postalCode"];
+                                  },
                                 ),
                                 const SizedBox(height: 16),
                                 _buildTextField(
@@ -662,19 +760,20 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                 ),
                                 const SizedBox(height: 16),
                                 _buildTextField(
-                                  controller: _cityController,
-                                  hintText: 'City',
-                                ),
+                                    controller: _cityController,
+                                    hintText: 'City',
+                                    isEnabled: !isAddressSelected),
                                 const SizedBox(height: 16),
                                 _buildTextField(
                                   controller: _stateController,
                                   hintText: 'State/Province/Region',
+                                  isEnabled: !isAddressSelected,
                                 ),
-                                const SizedBox(height: 16),
-                                _buildTextField(
-                                  controller: _postalCodeController,
-                                  hintText: 'Postal Code',
-                                ),
+                                // const SizedBox(height: 16),
+                                // _buildTextField(
+                                //   controller: _postalCodeController,
+                                //   hintText: 'Postal Code',
+                                // ),
                                 const SizedBox(height: 32),
                                 const Text(
                                   'SELECT AVAILABLE DATES AND TIMES FOR COLLECTION',
@@ -958,6 +1057,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     required TextEditingController controller,
     required String hintText,
     bool isOptional = false,
+    bool isEnabled = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -966,6 +1066,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
+        enabled: isEnabled,
         fillColor: Colors.white.withOpacity(0.2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),

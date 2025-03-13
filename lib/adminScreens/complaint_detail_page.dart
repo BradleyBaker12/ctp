@@ -2,12 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/user_details.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart'; // Import for date formatting
-import '../providers/complaints_provider.dart';
-import '../providers/user_provider.dart';
+import 'package:provider/provider.dart';
+
 import '../components/custom_button.dart'; // Import your CustomButton component
 import '../components/gradient_background.dart'; // Import your GradientBackground component
+import '../providers/complaints_provider.dart';
+import '../providers/user_provider.dart';
 
 class ComplaintDetailPage extends StatelessWidget {
   final Complaint complaint; // Using the Complaint model

@@ -1,12 +1,14 @@
 // lib/pages/truckForms/internal_cab_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
+import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Added for Firebase Storage
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_radio_button.dart';
 
 class InternalCabPage extends StatefulWidget {
   final String vehicleId;
@@ -36,7 +38,7 @@ class InternalCabPageState extends State<InternalCabPage>
   String _faultCodesCondition = 'no';
 
   // Map to store selected images for different sections
-  final Map<String, File?> _selectedImages = {
+  final Map<String, Uint8List?> _selectedImages = {
     'Center Dash': null,
     'Left Dash': null,
     'Right Dash (Vehicle On)': null,
@@ -344,7 +346,7 @@ class InternalCabPageState extends State<InternalCabPage>
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.file(
+                    child: Image.memory(
                       _selectedImages[title]!,
                       fit: BoxFit.cover,
                       width: double.infinity,
@@ -402,8 +404,9 @@ class InternalCabPageState extends State<InternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = bytes;
                     });
                   }
                   widget.onProgressUpdate();
@@ -418,8 +421,9 @@ class InternalCabPageState extends State<InternalCabPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _selectedImages[title] = File(pickedFile.path);
+                      _selectedImages[title] = bytes;
                     });
                   }
                   widget.onProgressUpdate();
@@ -742,11 +746,12 @@ class InternalCabPageState extends State<InternalCabPage>
   }
 
   // Method to upload an image to Firebase Storage
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     String fileName =
         'internal_cab/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     Reference storageRef = _storage.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(imageFile);
+    UploadTask uploadTask = storageRef.putData(imageFile);
     TaskSnapshot snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }
@@ -761,7 +766,7 @@ class InternalCabPageState extends State<InternalCabPage>
         String imageUrl = await _uploadImageToFirebase(entry.value!, section);
         serializedImages[entry.key] = {
           'url': imageUrl,
-          'path': entry.value!.path,
+          'path': entry.value!,
           'isNew': true
         };
       }
@@ -878,7 +883,7 @@ class InternalCabPageState extends State<InternalCabPage>
             Map<String, dynamic>.from(data['viewImages']);
         viewImages.forEach((key, value) {
           if (value is Map && value['path'] != null) {
-            _selectedImages[key] = File(value['path']);
+            _selectedImages[key] = value['path'];
           }
         });
       }

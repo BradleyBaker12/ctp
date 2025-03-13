@@ -1,17 +1,18 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
-import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:ctp/services/vehicle_form_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:ctp/services/vehicle_form_service.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 class BasicInformationForm extends StatefulWidget {
   final Map<String, dynamic>? formData;

@@ -1,12 +1,13 @@
 // lib/pages/truckForms/tyres_page.dart
 
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
+import 'package:ctp/components/custom_radio_button.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_radio_button.dart';
 
 class TyresPage extends StatefulWidget {
   final String vehicleId;
@@ -39,7 +40,7 @@ class TyresPageState extends State<TyresPage>
   final Map<int, String> _rimTypes = {};
 
   // Map to store selected images for different tyre positions
-  final Map<String, File?> _selectedImages = {};
+  final Map<String, Uint8List?> _selectedImages = {};
 
   // Map to store image URLs
   final Map<String, String> _imageUrls = {};
@@ -387,7 +388,7 @@ class TyresPageState extends State<TyresPage>
     if (_selectedImages[key] != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
-        child: Image.file(
+        child: Image.memory(
           _selectedImages[key]!,
           fit: BoxFit.cover,
           width: double.infinity,
@@ -465,8 +466,9 @@ class TyresPageState extends State<TyresPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[key] = File(pickedFile.path);
+                      _selectedImages[key] = bytes;
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
@@ -482,8 +484,9 @@ class TyresPageState extends State<TyresPage>
                   final pickedFile =
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
                     _updateAndNotify(() {
-                      _selectedImages[key] = File(pickedFile.path);
+                      _selectedImages[key] = bytes;
                       _imageUrls.remove(key); // Remove existing URL if any
                     });
                   }
@@ -574,11 +577,12 @@ class TyresPageState extends State<TyresPage>
   }
 
   /// Uploads an image file to Firebase Storage and returns the download URL
-  Future<String> _uploadImageToFirebase(File imageFile, String section) async {
+  Future<String> _uploadImageToFirebase(
+      Uint8List imageFile, String section) async {
     String fileName =
         'tyres/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-    UploadTask uploadTask = storageRef.putFile(imageFile);
+    UploadTask uploadTask = storageRef.putData(imageFile);
 
     // Optionally, you can monitor upload progress here
 
@@ -664,7 +668,7 @@ class TyresPageState extends State<TyresPage>
             _imageUrls[photoKey] = value['imageUrl'];
           }
           if (value['imagePath'] != null) {
-            _selectedImages[photoKey] = File(value['imagePath']);
+            _selectedImages[photoKey] = value['imagePath'];
           }
         }
       });

@@ -1,14 +1,14 @@
 // lib/pages/truckForms/internal_cab_edit_page.dart
 
-import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
+import 'package:ctp/components/custom_radio_button.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:ctp/components/constants.dart';
-import 'package:ctp/components/custom_radio_button.dart';
 import 'package:provider/provider.dart';
 
 /// Class to handle both local files and network URLs for images
@@ -84,6 +84,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     super.build(context);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
+    // print("InternalCabImages: ${}");
 
     return SingleChildScrollView(
       child: Padding(

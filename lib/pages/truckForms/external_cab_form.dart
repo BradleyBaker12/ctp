@@ -1,13 +1,12 @@
-import 'package:ctp/components/gradient_background.dart';
+import 'dart:io';
 
+import 'package:ctp/components/gradient_background.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../components/custom_radio_button.dart';
 import '../../components/custom_text_field.dart';
-
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 class ExternalCabForm extends StatefulWidget {
   final Map<String, dynamic> formData;

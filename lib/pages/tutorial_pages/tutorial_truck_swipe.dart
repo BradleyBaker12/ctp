@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
+import 'package:flutter/material.dart';
 
 class TutorialTruckSwipePage extends StatefulWidget {
   const TutorialTruckSwipePage({super.key});

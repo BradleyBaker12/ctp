@@ -1,3 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/custom_app_bar.dart';
+import 'package:ctp/components/custom_bottom_navigation.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/components/wish_card.dart';
 import 'package:ctp/models/admin_data.dart';
 import 'package:ctp/models/chassis.dart';
 import 'package:ctp/models/drive_train.dart';
@@ -7,19 +12,15 @@ import 'package:ctp/models/maintenance.dart';
 import 'package:ctp/models/truck_conditions.dart';
 import 'package:ctp/models/tyres.dart';
 import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/utils/navigation.dart';
-import 'package:flutter/material.dart';
-import 'package:ctp/components/custom_app_bar.dart';
-import 'package:ctp/components/custom_bottom_navigation.dart';
-import 'package:ctp/providers/user_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ctp/components/wish_card.dart';
-import 'vehicle_details_page.dart';
-import 'package:ctp/providers/vehicles_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
-import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/providers/vehicles_provider.dart';
+import 'package:ctp/utils/navigation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'vehicle_details_page.dart';
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});

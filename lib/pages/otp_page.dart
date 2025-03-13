@@ -1,11 +1,11 @@
-import 'package:ctp/components/loading_screen.dart';
-import 'package:flutter/material.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
-import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/gradient_background.dart';
+import 'package:ctp/components/loading_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pinput/pinput.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class OTPScreen extends StatefulWidget {
   const OTPScreen({super.key});

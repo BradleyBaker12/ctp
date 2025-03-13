@@ -1,28 +1,22 @@
 // maintenance_section.dart
-import 'package:ctp/adminScreens/viewer_page.dart';
-import 'package:ctp/pages/truck_page.dart';
-import 'package:ctp/pages/vehicles_list.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as path;
-
 // import 'dart:html' as html; // For web
 import 'dart:developer';
 import 'dart:io';
-import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/truckForms/custom_radio_button.dart';
 import 'package:ctp/pages/truckForms/custom_text_field.dart';
+import 'package:ctp/pages/truck_page.dart';
+import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:http/http.dart' as http;
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:image/image.dart' as img;
-import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 
 class MaintenanceEditSection extends StatefulWidget {
@@ -314,8 +308,16 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
   bool _isImageFile(String path) {
     final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    String extension = path.split('.').last.toLowerCase();
+    String extension = getFileExtension(path);
+    print("File Extnnsion: $extension");
     return imageExtensions.contains(extension);
+  }
+
+  String getFileExtension(String url) {
+    Uri uri = Uri.parse(url);
+    String decodedPath = Uri.decodeFull(uri.path);
+    String fileName = decodedPath.split('/').last;
+    return fileName.contains('.') ? fileName.split('.').last : '';
   }
 
   String getFileNameFromUrl(String url) {
@@ -325,7 +327,11 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     //   return 'Warranty Doc';
     // }
     // Fallback to original filename if pattern doesn't match
-    return url.split('/').last.split('?').first;
+    Uri uri = Uri.parse(url);
+    String decodedPath = Uri.decodeFull(uri.path);
+    String fileName = decodedPath.split('/').last;
+
+    return fileName;
   }
 
   void updateMaintenanceFile(Uint8List? file) {

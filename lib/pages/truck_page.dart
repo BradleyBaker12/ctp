@@ -4,13 +4,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:ctp/pages/vehicle_details_page.dart';
-import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
 // Define the FilterOperation enum to handle various filter operations
