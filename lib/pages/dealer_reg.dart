@@ -827,11 +827,7 @@ class _DealerRegPageState extends State<DealerRegPage> {
         }
         return null;
       },
-      inputFormatters: inputFormatters ??
-          [
-            // Allow spaces but trim multiple spaces to single
-            FilteringTextInputFormatter.deny(RegExp(r'\s\s+')),
-          ],
+      inputFormatters: inputFormatters ?? [SingleSpaceInputFormatter()],
     );
   }
 
@@ -1017,6 +1013,15 @@ class RegistrationNumberInputFormatter extends TextInputFormatter {
         selection: TextSelection.collapsed(offset: newValue.selection.end),
       );
     }
+  }
+}
+
+class SingleSpaceInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final newText = newValue.text.replaceAll(RegExp(r'\s\s+'), ' ');
+    return newValue.copyWith(text: newText);
   }
 }
 

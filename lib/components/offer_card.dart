@@ -91,16 +91,24 @@ class _OfferCardState extends State<OfferCard> {
           mileage = data?['mileage'];
           vehicleYear = data?['year']?.toString();
 
-          // Update both the brand and variant
-          if (data?['brands'] != null) {
-            if (data?['brands'] is List) {
-              widget.offer.vehicleBrand =
-                  (data?['brands'] as List).first.toString();
-            } else {
-              widget.offer.vehicleBrand = data?['brands'].toString();
+          final vehicleType = data?['vehicleType']?.toString().toLowerCase();
+
+          if (vehicleType == 'trailer') {
+            // For trailer offers, show make (from makeModel) and year.
+            widget.offer.vehicleBrand = data?['makeModel']?.toString();
+            widget.offer.variant = '';
+          } else {
+            // Existing logic for trucks
+            if (data?['brands'] != null) {
+              if (data?['brands'] is List) {
+                widget.offer.vehicleBrand =
+                    (data?['brands'] as List).first.toString();
+              } else {
+                widget.offer.vehicleBrand = data?['brands'].toString();
+              }
             }
+            widget.offer.variant = data?['variant']?.toString();
           }
-          widget.offer.variant = data?['variant']?.toString();
 
           debugPrint('Updated brand: ${widget.offer.vehicleBrand}');
           debugPrint('Updated variant: ${widget.offer.variant}');
@@ -121,11 +129,11 @@ class _OfferCardState extends State<OfferCard> {
 
   Color getStatusColor(String? status) {
     final normalizedStatus = (status ?? '').toLowerCase().trim();
-    print('Getting status color for normalized status: $normalizedStatus');
+    debugPrint('Getting status color for normalized status: $normalizedStatus');
 
     switch (normalizedStatus) {
       case 'sold':
-        return Colors.red; // Make sold status stand out
+        return Colors.red;
       // Success states - Green
       case 'accepted':
       case 'done':
@@ -134,22 +142,17 @@ class _OfferCardState extends State<OfferCard> {
       case 'completed':
       case 'inspection done':
       case 'payment approved':
-      case 'sold': // Add explicit case for 'sold'
         return Colors.green;
-
       // Failed states - Red
       case 'rejected':
         return Colors.red;
-
       // Warning states - Orange
       case 'issue reported':
         return Colors.orange;
-
       // Payment states - Purple
       case 'payment pending':
       case 'payment options':
         return Colors.purple;
-
       // Location states - Blue
       case 'set location and time':
       case 'confirm location':
@@ -157,11 +160,9 @@ class _OfferCardState extends State<OfferCard> {
       case 'collection details':
       case 'confirm collection':
         return Colors.blue;
-
       // In-progress state - Gray
       case 'in-progress':
         return Colors.grey;
-
       // Default state - Light Blue
       case 'inspection pending':
       default:
@@ -181,11 +182,11 @@ class _OfferCardState extends State<OfferCard> {
 
   IconData getStatusIcon(String? status) {
     final normalizedStatus = (status ?? '').toLowerCase().trim();
-    print('Getting status icon for normalized status: $normalizedStatus');
+    debugPrint('Getting status icon for normalized status: $normalizedStatus');
 
     switch (normalizedStatus) {
       case 'sold':
-        return Icons.sell; // Use distinct icon for sold status
+        return Icons.sell;
       // Completed/Success states
       case 'accepted':
       case 'done':
@@ -193,27 +194,22 @@ class _OfferCardState extends State<OfferCard> {
       case 'successful':
       case 'completed':
       case 'payment approved':
-      case 'awaiting collection': // Add this case
+      case 'awaiting collection':
         return Icons.check_circle;
-
       // Rejected/Failed states
       case 'rejected':
         return Icons.cancel;
-
       // Warning/Issue states
       case 'issue reported':
         return Icons.report_problem;
-
       // Payment states
       case 'payment pending':
       case 'payment options':
         return Icons.payments;
-
       // Inspection states
       case 'inspection pending':
       case 'inspection done':
         return Icons.check_box;
-
       // Location/Collection states
       case 'set location and time':
       case 'confirm location':
@@ -221,14 +217,11 @@ class _OfferCardState extends State<OfferCard> {
       case 'collection details':
       case 'confirm collection':
         return Icons.location_on;
-
       // In-progress/Default state
       case 'in-progress':
-        return Icons.sync; // Changed from Icons.refresh to Icons.sync
-      case 'sold': // Add explicit case for 'sold'
-        return Icons.check_circle;
+        return Icons.sync;
       default:
-        return Icons.sync; // Changed default icon as well
+        return Icons.sync;
     }
   }
 
@@ -236,27 +229,23 @@ class _OfferCardState extends State<OfferCard> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? '';
 
-    // Add check for sold status
+    // Check for sold status
     if (widget.offer.offerStatus.toLowerCase() == 'sold') {
-      print('Offer status is sold, showing sold state');
-      // Optional: Add any specific navigation or UI updates for sold state
+      debugPrint('Offer status is sold, not navigating.');
       return;
     }
 
-    // Handle Payment Approved status for both roles
+    // Handle Payment Approved status
     if (widget.offer.offerStatus.toLowerCase() == 'payment approved') {
       String newStatus = 'awaiting collection';
-      // Update the offer status in Firestore
       FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId)
           .update({'offerStatus': newStatus}).then((_) {
-        // Update local state
         setState(() {
           widget.offer.offerStatus = newStatus;
         });
       });
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -328,10 +317,8 @@ class _OfferCardState extends State<OfferCard> {
                 date: widget.offer.dealerSelectedInspectionDate!,
                 time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
                 latLng: widget.offer.latLng != null
-                    ? LatLng(
-                        widget.offer.latLng!.latitude,
-                        widget.offer.latLng!.longitude,
-                      )
+                    ? LatLng(widget.offer.latLng!.latitude,
+                        widget.offer.latLng!.longitude)
                     : null,
               ),
             ),
@@ -365,7 +352,7 @@ class _OfferCardState extends State<OfferCard> {
       }
     }
 
-    // Dealer Navigation.
+    // Dealer Navigation
     switch (widget.offer.offerStatus) {
       case 'set location and time':
         Navigator.push(
@@ -414,10 +401,8 @@ class _OfferCardState extends State<OfferCard> {
               date: widget.offer.dealerSelectedInspectionDate!,
               time: widget.offer.dealerSelectedInspectionTime ?? 'Unknown',
               latLng: widget.offer.latLng != null
-                  ? LatLng(
-                      widget.offer.latLng!.latitude,
-                      widget.offer.latLng!.longitude,
-                    )
+                  ? LatLng(widget.offer.latLng!.latitude,
+                      widget.offer.latLng!.longitude)
                   : null,
             ),
           ),
@@ -570,15 +555,13 @@ class _OfferCardState extends State<OfferCard> {
         break;
       default:
         debugPrint(
-          "Dealer - unhandled status in _navigateToRespectivePage: ${widget.offer.offerStatus}",
-        );
+            "Dealer - unhandled status in _navigateToRespectivePage: ${widget.offer.offerStatus}");
         break;
     }
   }
 
-  /// Updated helper that only builds a spec box when data is available.
+  /// Helper that builds a spec box if the value is valid.
   Widget _buildSpecBox(String value) {
-    // If the value is empty (or equals "N/A"), return an empty widget.
     if (value.trim().isEmpty || value.toUpperCase() == 'N/A') {
       return const SizedBox.shrink();
     }
@@ -587,10 +570,7 @@ class _OfferCardState extends State<OfferCard> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
       ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
@@ -607,38 +587,31 @@ class _OfferCardState extends State<OfferCard> {
     );
   }
 
-  /// The main Offer Card layout with fixed dimensions like TruckCard
+  /// Main Offer Card layout with debugging prints and borders.
   Widget _buildWebCard(Color statusColor, BoxConstraints constraints) {
-    print(
-        'Offer status in web card: ${widget.offer.offerStatus}'); // Add debug log
-    // Determine if we're on web
+    debugPrint('Offer status in web card: ${widget.offer.offerStatus}');
+
     const bool isWeb = kIsWeb;
-
-    // Use different dimensions for web vs mobile
     final double cardWidth = isWeb ? 400 : constraints.maxWidth;
-    final double cardHeight =
-        isWeb ? 500 : cardWidth * 1.2; // Keep aspect ratio on mobile
+    // Increase cardHeight to allow for a larger gap without overflow.
+    final double cardHeight = isWeb ? 600 : cardWidth * 1.4;
+    debugPrint('Card dimensions - Width: $cardWidth, Height: $cardHeight');
 
-    // Get brand/model and year
     final String brandModel = [
       widget.offer.vehicleBrand,
       widget.offer.variant,
     ].where((element) => element != null && element.isNotEmpty).join(' ');
     final String year = vehicleYear ?? 'N/A';
 
-    // Update brand and variant combination logic with debug checks
     String brandVariant = '';
     debugPrint('Building card with brand: ${widget.offer.vehicleBrand}');
     debugPrint('Building card with variant: ${widget.offer.variant}');
-
     if (widget.offer.vehicleBrand?.isNotEmpty == true ||
         widget.offer.variant?.isNotEmpty == true) {
       List<String> parts = [
         widget.offer.vehicleBrand ?? '',
         widget.offer.variant ?? '',
       ].where((element) => element.isNotEmpty).toList();
-
-      debugPrint('Parts to combine: $parts');
       brandVariant = parts.join(' ');
       debugPrint('Final brandVariant: $brandVariant');
     }
@@ -647,38 +620,35 @@ class _OfferCardState extends State<OfferCard> {
       child: Container(
         width: cardWidth,
         height: cardHeight,
-        margin: EdgeInsets.all(isWeb ? 8 : 4), // Smaller margin on mobile
+        margin: EdgeInsets.all(isWeb ? 8 : 4),
         decoration: BoxDecoration(
           color: const Color(0xFF2F7FFF).withOpacity(0.2),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFF2F7FFF),
-            width: 2,
-          ),
+          border: Border.all(color: const Color(0xFF2F7FFF), width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4)),
           ],
         ),
         child: LayoutBuilder(
           builder: (context, cardConstraints) {
-            // Calculate relative sizes based on container width
             double cardW = cardConstraints.maxWidth;
             double cardH = cardConstraints.maxHeight;
+            debugPrint(
+                'Inner card constraints - Width: $cardW, Height: $cardH');
 
-            // Adjust font sizes for mobile
             double titleFontSize = isWeb ? cardW * 0.045 : cardW * 0.04;
             double subtitleFontSize = isWeb ? cardW * 0.04 : cardW * 0.035;
             double paddingVal = isWeb ? cardW * 0.04 : cardW * 0.03;
             double specFontSize = isWeb ? cardW * 0.03 : cardW * 0.025;
+            debugPrint(
+                'Calculated font sizes & padding - title: $titleFontSize, subtitle: $subtitleFontSize, padding: $paddingVal, specFontSize: $specFontSize');
 
-            // ...rest of your existing layout code...
             return Column(
               children: [
-                // Image section with status badge
+                // Image section with a debug border.
                 SizedBox(
                   height: cardH * 0.55,
                   child: Stack(
@@ -709,93 +679,97 @@ class _OfferCardState extends State<OfferCard> {
                     ],
                   ),
                 ),
-
-                // Details section
+                // Details section with debug border to show its boundaries.
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.all(paddingVal),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Vehicle details
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Brand/model
-                              Text(
-                                brandModel.isEmpty
-                                    ? 'LOADING...'
-                                    : brandModel.toUpperCase(),
-                                style: GoogleFonts.montserrat(
-                                  fontSize: titleFontSize,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: Colors.redAccent.withOpacity(0.5), width: 1),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Vehicle details sub-section.
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  brandModel.isEmpty
+                                      ? 'LOADING...'
+                                      : brandModel.toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: paddingVal * 0.25),
-
-                              // Year
-                              Text(
-                                year,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: subtitleFontSize,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.white70,
+                                SizedBox(height: paddingVal * 0.25),
+                                Text(
+                                  year,
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: subtitleFontSize,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                SizedBox(height: paddingVal * 0.5),
+                                Text(
+                                  'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                if (_buildSpecBoxes(cardW).isNotEmpty) ...[
+                                  SizedBox(height: paddingVal * 0.5),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: _buildSpecBoxes(cardW),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          // Fixed gap of 50 units (debug adjustable)
+                          // const SizedBox(height: 25),
+                          // View Details Button with a debug border.
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                  color: Colors.greenAccent.withOpacity(0.5),
+                                  width: 1),
+                            ),
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => navigateBasedOnStatus(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2F7FFF),
+                                padding: EdgeInsets.symmetric(
+                                    vertical: paddingVal * 0.75),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(paddingVal * 0.5),
                                 ),
                               ),
-                              SizedBox(height: paddingVal * 0.5),
-
-                              // Offer amount
-                              Text(
-                                'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
+                              child: Text(
+                                'VIEW MORE DETAILS',
                                 style: GoogleFonts.montserrat(
-                                  fontSize: titleFontSize,
+                                  fontSize: specFontSize + 2,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
                               ),
-
-                              // Specs row
-                              if (_buildSpecBoxes(cardW).isNotEmpty) ...[
-                                SizedBox(height: paddingVal * 0.5),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: _buildSpecBoxes(cardW),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        // View Details Button
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => navigateBasedOnStatus(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2F7FFF),
-                              padding: EdgeInsets.symmetric(
-                                  vertical: paddingVal * 0.75),
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(paddingVal * 0.5),
-                              ),
-                            ),
-                            child: Text(
-                              'VIEW MORE DETAILS',
-                              style: GoogleFonts.montserrat(
-                                fontSize: specFontSize + 2,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -807,7 +781,7 @@ class _OfferCardState extends State<OfferCard> {
     );
   }
 
-  // Helper method to build spec boxes
+  // Helper method to build spec boxes.
   List<Widget> _buildSpecBoxes(double cardWidth) {
     List<Widget> specBoxes = [];
     double spacing = cardWidth * 0.015;
@@ -835,7 +809,8 @@ class _OfferCardState extends State<OfferCard> {
 
   Widget _buildStatusBadge(String status) {
     final normalizedStatus = status.toLowerCase().trim();
-    print('Building status badge for normalized status: $normalizedStatus');
+    debugPrint(
+        'Building status badge for normalized status: $normalizedStatus');
 
     final String displayText =
         status.isEmpty ? 'UNKNOWN' : status.toUpperCase();
@@ -870,15 +845,12 @@ class _OfferCardState extends State<OfferCard> {
   @override
   Widget build(BuildContext context) {
     final statusColor = getStatusColor(widget.offer.offerStatus);
-
     return LayoutBuilder(
       builder: (context, constraints) {
         return Center(
-          child: _buildWebCard(
-            statusColor,
-            constraints,
-          ),
-        );
+            child: InkWell(
+                onTap: () => navigateBasedOnStatus(context),
+                child: _buildWebCard(statusColor, constraints)));
       },
     );
   }

@@ -408,14 +408,29 @@ class OffersPageState extends State<OffersPage> with RouteAware {
       );
     }
 
+    // Calculate the cross axis count.
+    int crossAxisCount = _calculateCrossAxisCount(context);
+    // Assuming the SliverPadding uses 16 units on each side.
+    double horizontalPadding = 16 * 2;
+    // Total spacing between grid items.
+    double totalSpacing = 16 * (crossAxisCount - 1);
+    // Available width for the grid.
+    double availableWidth =
+        MediaQuery.of(context).size.width - horizontalPadding - totalSpacing;
+    // Compute the width of each card.
+    double cardWidth = availableWidth / crossAxisCount;
+    // Calculate the childAspectRatio such that card height is 600.
+    double aspectRatio = cardWidth / 600;
+
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _calculateCrossAxisCount(context),
+          crossAxisCount: crossAxisCount,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
-          childAspectRatio: 0.85, // Adjust this value to control card height
+          // Use the computed aspect ratio.
+          childAspectRatio: aspectRatio,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {

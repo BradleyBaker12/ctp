@@ -224,6 +224,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       todayVehicles = await vehicleProvider.fetchVehiclesForToday();
       yesterdayVehicles = await vehicleProvider.fetchVehiclesForYesterday();
 
+      todayVehicles = todayVehicles
+          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'Sold')
+          .toList();
+      yesterdayVehicles = yesterdayVehicles
+          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'Sold')
+          .toList();
+
       // Combine them into the displayed list
       displayedVehiclesNotifier.value = [...todayVehicles, ...yesterdayVehicles]
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -236,8 +243,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // Update recentOffers with the 5 most recent offers
       setState(() {
-        recentOffers = List<Offer>.from(_offerProvider.offers);
-        // recentOffers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        recentOffers = List<Offer>.from(_offerProvider.offers
+            .where((offer) => offer.offerStatus.toLowerCase() != 'Sold')
+            .toList());
         if (recentOffers.length > 5) {
           recentOffers = recentOffers.sublist(0, 5);
         }

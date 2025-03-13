@@ -21,6 +21,7 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:universal_html/html.dart' as html;
 import '../truckForms/custom_text_field.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -164,6 +165,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   String? _existingNatisRc1Name;
   String? _selectedMainImageFileName;
 
+  // NEW: Transporter assignment state for admin uploads
+  String? _selectedTransporter;
+
   // Form validations
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
@@ -173,6 +177,26 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   final List<String> _brandOptions = [];
   List<String> _countryOptions = [];
   List<String> _provinceOptions = [];
+
+  // Missing image URL fields for Superlink Trailer A
+  String? _frontImageAUrl;
+  String? _sideImageAUrl;
+  String? _tyresImageAUrl;
+  String? _chassisImageAUrl;
+  String? _deckImageAUrl;
+  String? _makersPlateImageAUrl;
+
+  // Missing image URL fields for Superlink Trailer B
+  String? _frontImageBUrl;
+  String? _sideImageBUrl;
+  String? _tyresImageBUrl;
+  String? _chassisImageBUrl;
+  String? _deckImageBUrl;
+  String? _makersPlateImageBUrl;
+
+  // Missing additional features variables
+  String _additionalFeaturesType = 'no';
+  List<Map<String, dynamic>> _additionalFeaturesList = [];
 
   @override
   void initState() {
@@ -319,6 +343,50 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             ),
           ),
         ])));
+  }
+
+  void _populateDuplicatedData(FormDataProvider formData) {
+    if (widget.vehicle != null) {
+      debugPrint('=== Populating Duplicated Trailer Data ===');
+      // Copy common vehicle fields.
+      formData.setYear(widget.vehicle!.year);
+      formData.setMake(widget.vehicle!.makeModel);
+      formData.setCountry(widget.vehicle!.country);
+      formData.setProvince(widget.vehicle!.province);
+      _updateProvinceOptions(widget.vehicle!.country);
+
+      // Duplicate trailer-specific fields.
+      // We assume that your Vehicle model has a field 'trailerType' and a field 'trailer'
+      // of type Trailer? where trailer-specific data is stored.
+      _selectedTrailerType = widget.vehicle!.trailerType;
+      if (_selectedTrailerType == 'Superlink') {
+        if (widget.vehicle!.trailer != null &&
+            widget.vehicle!.trailer!.superlinkData != null) {
+          _lengthTrailerAController.text =
+              widget.vehicle!.trailer!.superlinkData!.lengthA ?? '';
+          _vinAController.text =
+              widget.vehicle!.trailer!.superlinkData!.vinA ?? '';
+          _registrationAController.text =
+              widget.vehicle!.trailer!.superlinkData!.registrationA ?? '';
+          _lengthTrailerBController.text =
+              widget.vehicle!.trailer!.superlinkData!.lengthB ?? '';
+          _vinBController.text =
+              widget.vehicle!.trailer!.superlinkData!.vinB ?? '';
+          _registrationBController.text =
+              widget.vehicle!.trailer!.superlinkData!.registrationB ?? '';
+        }
+      } else if (_selectedTrailerType == 'Tri-Axle') {
+        if (widget.vehicle!.trailer != null &&
+            widget.vehicle!.trailer!.triAxleData != null) {
+          _lengthTrailerController.text =
+              widget.vehicle!.trailer!.triAxleData!.length ?? '';
+          _vinController.text = widget.vehicle!.trailer!.triAxleData!.vin ?? '';
+          _registrationController.text =
+              widget.vehicle!.trailer!.triAxleData!.registration ?? '';
+        }
+      }
+      debugPrint('=== Duplicated Trailer Data Population Complete ===');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -557,6 +625,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               hintText: 'Reference Number',
               inputFormatter: [UpperCaseTextFormatter()],
             ),
+            // NEW: Insert transporter field for admin uploads.
+            _buildSalesRepField(),
             const SizedBox(height: 15),
 
             CustomDropdown(
@@ -1093,7 +1163,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   ],
                 ),
                 const SizedBox(height: 15),
-                if (_featuresCondition == 'yes') _buildFeaturesSection(),
+                if (_featuresCondition == 'yes')
+                  _buildAdditionalFeaturesSection(),
                 const SizedBox(height: 30),
                 _buildDoneButton(),
                 const SizedBox(height: 30),
@@ -1330,11 +1401,18 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       Map<String, dynamic> item,
       List<Map<String, dynamic>> itemList,
       void Function(Map<String, dynamic>) showImageSourceDialog) {
+    // Initialize a persistent TextEditingController if not exists
+    if (item['controller'] == null) {
+      item['controller'] =
+          TextEditingController(text: item['description'] ?? '');
+    }
+    final TextEditingController descController = item['controller'];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CustomTextField(
-          controller: TextEditingController(text: item['description'] ?? ''),
+          controller: descController,
           hintText: 'Describe the item',
           onChanged: (val) {
             setState(() {
@@ -1742,9 +1820,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // SAVE METHOD (Uploads All Images and Saves Firestore Data)
-  // ---------------------------------------------------------------------------
   Future<void> _saveDataAndFinish() async {
     if (widget.isAdminUpload &&
         (_selectedSalesRep == null || _selectedSalesRep!.isEmpty)) {
@@ -1758,7 +1833,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       final formData = Provider.of<FormDataProvider>(context, listen: false);
       final currentUser = FirebaseAuth.instance.currentUser;
 
-      // Get assigned sales rep ID
+      // NEW: Get assigned transporter ID.
+      String? assignedTransporterId = widget.transporterId ?? currentUser?.uid;
+
+      // Existing Sales Rep assignment.
       String? assignedSalesRepId;
       if (widget.isAdminUpload) {
         assignedSalesRepId = _selectedSalesRep;
@@ -1776,7 +1854,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       formData.setVinNumber(_vinNumberController.text);
       formData.setSellingPrice(
           _registrationNumberController.text); // This is the selling price
-      // Only set axles and length for non-Tri-Axle trailers
+
+      // Only set axles and length for non-Tri-Axle trailers.
       if (_selectedTrailerType != 'Tri-Axle') {
         formData.setAxles(_axlesController.text);
         formData.setLength(_lengthController.text);
@@ -1784,15 +1863,17 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       if (_selectedMainImage != null) {
         formData.setSelectedMainImage(_selectedMainImage, "MainImage");
       }
+
       // Validate required fields.
       if (!_validateRequiredFields(formData)) {
         setState(() => _isLoading = false);
         return;
       }
-      // Upload images.
+
+      // Upload common images/documents.
       Map<String, String?> commonUrls = await _uploadCommonFiles();
 
-      // Upload type-specific images and build trailer data
+      // Upload type-specific images and build trailer data.
       Map<String, dynamic> trailerTypeData = await _buildTrailerTypeData();
 
       // Build Firestore data.
@@ -1812,14 +1893,20 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'natisDocumentUrl': commonUrls['natisUrl'] ?? '',
         'serviceHistoryUrl': commonUrls['serviceHistoryUrl'] ?? '',
         'trailerExtraInfo': trailerTypeData,
-        'damagesCondition': _damagesCondition,
-        'damages': await _uploadListItems(_damageList),
+        // Updated keys for additional images:
+        'additionalImagesCondition': _damagesCondition,
+        'additionalImages': await _uploadListItems(_damageList),
         'featuresCondition': _featuresCondition,
         'features': await _uploadListItems(_featureList),
 
-        // Add required system fields
+        // NEW: Add transporter and sales rep assignments.
+        'transporterId': assignedTransporterId,
+        'assignedSalesRepId': assignedSalesRepId,
+
+        // Add required system fields.
         'userId': currentUser?.uid,
         'assignedSalesRepId': assignedSalesRepId,
+        'registrationNumber': formData.registrationNumber,
         'vehicleStatus': 'Draft',
         'listingStatus': 'Active',
         'isApproved': false,
@@ -1830,7 +1917,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'savedCount': 0,
         'inquiryCount': 0,
 
-        // Timestamps and metadata
+        // Timestamps and metadata.
         'country': formData.country,
         'province': formData.province,
         'referenceNumber': formData.referenceNumber,
@@ -1838,7 +1925,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
         'lastModifiedBy': currentUser?.uid,
 
-        // Admin data
+        // Admin data.
         'adminData': {
           'settlementAmount': formData.sellingPrice,
           'requireSettlement': false,
@@ -1889,40 +1976,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     return urls;
   }
 
+  // NEW: Build trailer type data including fixed additional images saving for Superlink.
   Future<Map<String, dynamic>> _buildTrailerTypeData() async {
     switch (_selectedTrailerType) {
-      case 'Tri-Axle':
-        return {
-          'lengthTrailer': _lengthTrailerController.text,
-          'vin': _vinController.text,
-          'registration': _registrationController.text,
-          'frontImageUrl': _frontImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _frontImage!, 'vehicle_images')
-              : '',
-          'sideImageUrl': _sideImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _sideImage!, 'vehicle_images')
-              : '',
-          'tyresImageUrl': _tyresImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _tyresImage!, 'vehicle_images')
-              : '',
-          'chassisImageUrl': _chassisImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _chassisImage!, 'vehicle_images')
-              : '',
-          'deckImageUrl': _deckImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _deckImage!, 'vehicle_images')
-              : '',
-          'makersPlateImageUrl': _makersPlateImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _makersPlateImage!, 'vehicle_images')
-              : '',
-          'additionalImages': await _uploadListItems(_additionalImagesList),
-        };
-
       case 'Superlink':
         return {
           'trailerA': {
@@ -1932,29 +1988,31 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             'frontImageUrl': _frontImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _frontImageA!, 'vehicle_images')
-                : '',
+                : _frontImageAUrl ?? '',
             'sideImageUrl': _sideImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageA!, 'vehicle_images')
-                : '',
+                : _sideImageAUrl ?? '',
             'tyresImageUrl': _tyresImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _tyresImageA!, 'vehicle_images')
-                : '',
+                : _tyresImageAUrl ?? '',
             'chassisImageUrl': _chassisImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageA!, 'vehicle_images')
-                : '',
+                : _chassisImageAUrl ?? '',
             'deckImageUrl': _deckImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _deckImageA!, 'vehicle_images')
-                : '',
+                : _deckImageAUrl ?? '',
             'makersPlateImageUrl': _makersPlateImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _makersPlateImageA!, 'vehicle_images')
-                : '',
-            'additionalImages':
-                await _uploadListItems(_additionalImagesListTrailerA),
+                : _makersPlateImageAUrl ?? '',
+            // NEW: Save additional images for Trailer A.
+            'damages': _additionalImagesListTrailerA.isNotEmpty
+                ? await _uploadListItems(_additionalImagesListTrailerA)
+                : [],
           },
           'trailerB': {
             'length': _lengthTrailerBController.text,
@@ -1963,30 +2021,106 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             'frontImageUrl': _frontImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _frontImageB!, 'vehicle_images')
-                : '',
+                : _frontImageBUrl ?? '',
             'sideImageUrl': _sideImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageB!, 'vehicle_images')
-                : '',
+                : _sideImageBUrl ?? '',
             'tyresImageUrl': _tyresImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _tyresImageB!, 'vehicle_images')
-                : '',
+                : _tyresImageBUrl ?? '',
             'chassisImageUrl': _chassisImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageB!, 'vehicle_images')
-                : '',
+                : _chassisImageBUrl ?? '',
             'deckImageUrl': _deckImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _deckImageB!, 'vehicle_images')
-                : '',
+                : _deckImageBUrl ?? '',
             'makersPlateImageUrl': _makersPlateImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _makersPlateImageB!, 'vehicle_images')
-                : '',
-            'additionalImages':
-                await _uploadListItems(_additionalImagesListTrailerB),
+                : _makersPlateImageBUrl ?? '',
+            // NEW: Save additional images for Trailer B.
+            'damages': _additionalImagesListTrailerB.isNotEmpty
+                ? await _uploadListItems(_additionalImagesListTrailerB)
+                : [],
           },
+          if (_additionalFeaturesType == 'yes')
+            'features': await _uploadListItems(_additionalFeaturesList),
+        };
+      case 'Tri-Axle':
+        return {
+          'lengthTrailer': _lengthTrailerController.text,
+          'vin': _vinController.text,
+          'registration': _registrationController.text,
+          'frontImageUrl': _frontImage != null
+              ? await _uploadFileToFirebaseStorage(
+                  _frontImage!, 'vehicle_images')
+              : (widget.vehicle != null
+                  ? (widget.vehicle!.trailer?.rawTrailerExtraInfo != null
+                      ? widget.vehicle!.trailer!
+                              .rawTrailerExtraInfo!['frontImageUrl'] ??
+                          ''
+                      : '')
+                  : ''),
+          'sideImageUrl': _sideImage != null
+              ? await _uploadFileToFirebaseStorage(
+                  _sideImage!, 'vehicle_images')
+              : (widget.vehicle != null
+                  ? (widget.vehicle!.trailer?.rawTrailerExtraInfo != null
+                      ? widget.vehicle!.trailer!
+                              .rawTrailerExtraInfo!['sideImageUrl'] ??
+                          ''
+                      : '')
+                  : ''),
+          'tyresImageUrl': _tyresImage != null
+              ? await _uploadFileToFirebaseStorage(
+                  _tyresImage!, 'vehicle_images')
+              : (widget.vehicle != null
+                  ? (widget.vehicle!.trailer?.rawTrailerExtraInfo != null
+                      ? widget.vehicle!.trailer!
+                              .rawTrailerExtraInfo!['tyresImageUrl'] ??
+                          ''
+                      : '')
+                  : ''),
+          'chassisImageUrl': _chassisImage != null
+              ? await _uploadFileToFirebaseStorage(
+                  _chassisImage!, 'vehicle_images')
+              : (widget.vehicle != null
+                  ? (widget.vehicle!.trailer?.rawTrailerExtraInfo != null
+                      ? widget.vehicle!.trailer!
+                              .rawTrailerExtraInfo!['chassisImageUrl'] ??
+                          ''
+                      : '')
+                  : ''),
+          'deckImageUrl': _deckImage != null
+              ? await _uploadFileToFirebaseStorage(
+                  _deckImage!, 'vehicle_images')
+              : (widget.vehicle != null
+                  ? (widget.vehicle!.trailer?.rawTrailerExtraInfo != null
+                      ? widget.vehicle!.trailer!
+                              .rawTrailerExtraInfo!['deckImageUrl'] ??
+                          ''
+                      : '')
+                  : ''),
+          'makersPlateImageUrl': _makersPlateImage != null
+              ? await _uploadFileToFirebaseStorage(
+                  _makersPlateImage!, 'vehicle_images')
+              : (widget.vehicle != null
+                  ? (widget.vehicle!.trailer?.rawTrailerExtraInfo != null
+                      ? widget.vehicle!.trailer!
+                              .rawTrailerExtraInfo!['makersPlateImageUrl'] ??
+                          ''
+                      : '')
+                  : ''),
+          'features': [
+            ...await _uploadListItems(_additionalImagesList),
+            ...(_additionalFeaturesType == 'yes'
+                ? await _uploadListItems(_additionalFeaturesList)
+                : [])
+          ],
         };
 
       default:
@@ -2174,6 +2308,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
 
   Widget _buildSalesRepField() {
     if (!widget.isAdminUpload) return const SizedBox.shrink();
+
     return FutureBuilder<List<Map<String, String>>>(
       future: _getSalesReps(),
       builder: (context, snapshot) {
@@ -2181,18 +2316,36 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         final salesReps = snapshot.data!;
+
+        // Convert the stored ID (_selectedSalesRep) to a display name
+        String? selectedSalesRepDisplay;
+        if (_selectedSalesRep != null) {
+          final match = salesReps.firstWhere(
+            (rep) => rep['id'] == _selectedSalesRep,
+            orElse: () => {},
+          );
+          selectedSalesRepDisplay = match['display'];
+        }
+
         return Column(
           children: [
+            SizedBox(
+              height: 20,
+            ),
             CustomDropdown(
               hintText: 'Select Sales Rep',
-              value: _selectedSalesRep,
+              // IMPORTANT: Pass the display name to the dropdown's value
+              value: selectedSalesRepDisplay,
+              // The items are display names
               items: salesReps.map((rep) => rep['display']!).toList(),
               onChanged: (value) {
+                // Convert the chosen display name back to an ID
                 final match = salesReps.firstWhere(
-                    (rep) => rep['display'] == value,
-                    orElse: () => {});
+                  (rep) => rep['display'] == value,
+                  orElse: () => {},
+                );
                 setState(() {
-                  _selectedSalesRep = match['id'];
+                  _selectedSalesRep = match['id']; // store the ID internally
                 });
               },
               validator: (value) {
@@ -2227,6 +2380,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     formData.setNatisRc1Url(null);
     formData.setYear(null);
     formData.setMakeModel(null);
+    formData.setMake(null);
     formData.setVinNumber(null);
     formData.setMileage(null);
     formData.setEngineNumber(null);
@@ -2309,6 +2463,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       // Clear admin fields
       _selectedSalesRep = null;
 
+      // NEW: Clear transporter assignment.
+      _selectedTransporter = null;
+
       // Clear system fields
       _vehicleId = null;
       _isLoading = false;
@@ -2325,18 +2482,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     _referenceNumberController.clear();
     _makeController.clear();
     _yearController.clear();
-  }
-
-  void _populateDuplicatedData(FormDataProvider formData) {
-    if (widget.vehicle != null) {
-      debugPrint('=== Populating Duplicated Data ===');
-      formData.setYear(widget.vehicle!.year);
-      formData.setMake(widget.vehicle!.makeModel);
-      formData.setCountry(widget.vehicle!.country);
-      formData.setProvince(widget.vehicle!.province);
-      _updateProvinceOptions(widget.vehicle!.country);
-      debugPrint('=== Duplication Data Population Complete ===');
-    }
   }
 
   void _populateVehicleData() {
@@ -2406,6 +2551,16 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     });
   }
 
+  void _clearTriAxleData() {
+    _lengthTrailerController.clear();
+    _vinController.clear();
+    _registrationController.clear();
+    // If you want to clear common fields like 'make', you can also do that:
+    _makeController.clear();
+    // Optionally, clear related provider data:
+    Provider.of<FormDataProvider>(context, listen: false).setMake('');
+  }
+
   String? _getFileNameFromUrl(String? url) {
     if (url == null) return null;
     try {
@@ -2428,5 +2583,62 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       }
     }
     return null;
+  }
+
+  Widget _buildAdditionalFeaturesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _featureList.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                childAspectRatio: 0.8,
+              ),
+              itemBuilder: (context, index) {
+                return _buildItemWidget(
+                  index,
+                  _featureList[index],
+                  _featureList,
+                  _showFeatureImageSourceDialog,
+                );
+              },
+            );
+          },
+        ),
+        // Modified spacing to match the damages section
+        const SizedBox(height: 10.0),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _featureList.add({'description': '', 'image': null});
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text(
+                  'Add Additional Item',
+                  style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

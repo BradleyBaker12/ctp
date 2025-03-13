@@ -72,11 +72,11 @@ class ExternalCab {
     imagesData.forEach((key, value) {
       if (value is Map<String, dynamic>) {
         result[key] = PhotoData.fromMap(value);
-        debugPrint(
-            'Parsed image for $key: {path: ${result[key]?.path}, imageUrl: ${result[key]?.imageUrl}}');
+        // debugPrint(
+        //     'Parsed image for $key: {path: ${result[key]?.path}, imageUrl: ${result[key]?.imageUrl}}');
       }
     });
-    debugPrint('Finished parsing images. Count: ${result.length}');
+    // debugPrint('Finished parsing images. Count: ${result.length}');
     return result;
   }
 
@@ -116,14 +116,14 @@ class PhotoData {
   });
 
   factory PhotoData.fromMap(Map<String, dynamic> data) {
-    debugPrint('PhotoData.fromMap input: $data');
+    // debugPrint('PhotoData.fromMap input: $data');
     final result = PhotoData(
       isNew: data['isNew'] ?? false,
       path: data['path'] ?? '',
       imageUrl: data['url'] ?? '', // Try 'url' first for back-compat
     );
-    debugPrint(
-        'PhotoData.fromMap result: {path: ${result.path}, imageUrl: ${result.imageUrl}}');
+    // debugPrint(
+    //     'PhotoData.fromMap result: {path: ${result.path}, imageUrl: ${result.imageUrl}}');
     return result;
   }
 

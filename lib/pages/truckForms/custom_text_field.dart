@@ -79,19 +79,18 @@ class CustomTextField extends StatelessWidget {
           validator: validator,
           onChanged: isCurrency
               ? (value) {
-                  if (value.isNotEmpty) {
-                    try {
-                      final formattedValue = numberFormat
-                          .format(int.parse(value.replaceAll(" ", "")))
-                          .replaceAll(",", " ");
-                      controller.value = TextEditingValue(
-                        text: formattedValue,
-                        selection: TextSelection.collapsed(
-                            offset: formattedValue.length),
-                      );
-                    } catch (e) {
-                      print("Error formatting amount: $e");
-                    }
+                  if (value.trim().isEmpty) return;
+                  try {
+                    final formattedValue = numberFormat
+                        .format(int.parse(value.replaceAll(" ", "")))
+                        .replaceAll(",", " ");
+                    controller.value = TextEditingValue(
+                      text: formattedValue,
+                      selection: TextSelection.collapsed(
+                          offset: formattedValue.length),
+                    );
+                  } catch (e) {
+                    print("Error formatting amount: $e");
                   }
                 }
               : null,

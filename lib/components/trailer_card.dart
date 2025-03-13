@@ -38,17 +38,14 @@ class TrailerCard extends StatelessWidget {
         final data = trailer.superlinkData;
         debugPrint('Superlink data: $data');
         if (data != null) {
-          return 'Superlink Details:\n'
-              'Trailer A: Length: ${data.lengthA}, VIN: ${data.vinA}, Reg: ${data.registrationA}\n'
-              'Trailer B: Length: ${data.lengthB}, VIN: ${data.vinB}, Reg: ${data.registrationB}';
+          return 'Superlink';
         }
         return 'Superlink';
       case 'Tri-Axle':
         final data = trailer.triAxleData;
         debugPrint('Tri-Axle data: $data');
         if (data != null) {
-          return 'Tri-Axle Details:\n'
-              'Length: ${data.length}, VIN: ${data.vin}, Reg: ${data.registration}';
+          return 'Tri-Axle';
         }
         return 'Tri-Axle';
       default:

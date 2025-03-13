@@ -20,6 +20,7 @@ import 'package:ctp/pages/editTruckForms/internal_cab_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/tyres_edit_page.dart';
 import 'package:ctp/pages/trailerForms/edit_trailer_upload_screen.dart';
+import 'package:ctp/pages/trailerForms/trailer_upload_screen.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -131,9 +132,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     // 6. Prepare photos
     WidgetsBinding.instance.addPostFrameCallback((_) => _preparePhotos());
     _pageController = PageController();
+  }
 
-    // Remove the _checkIfLiked() call since we'll use UserProvider instead
-    // _checkIfLiked();
+  // ---------------------------------------------------------------------------
+  //  Helper: Get verification status from dealer document.
+  // ---------------------------------------------------------------------------
+  bool getIsVerified(DocumentSnapshot dealerDoc) {
+    return dealerDoc.get('isVerified') ?? false;
   }
 
   // ---------------------------------------------------------------------------
@@ -155,7 +160,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // (1) If the vehicle doc has isAccepted == true => _canMakeOffer = false
   Future<void> _checkOfferAvailability() async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -173,7 +177,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // (2) Check if the current user (dealer) already made an offer
   Future<void> _checkIfOfferMade() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -202,11 +205,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // (3) If the vehicle is accepted => check if that acceptedOfferId belongs
-  //     to the currently logged-in user (dealer).
   Future<void> _checkIfMyOfferAccepted() async {
     try {
-      if (!widget.vehicle.isAccepted) return; // skip if not accepted
+      if (!widget.vehicle.isAccepted) return;
 
       final acceptedOfferId = widget.vehicle.acceptedOfferId;
       if (acceptedOfferId == null || acceptedOfferId.isEmpty) return;
@@ -214,7 +215,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Fetch the acceptedOffer doc
       final doc = await FirebaseFirestore.instance
           .collection('offers')
           .doc(acceptedOfferId)
@@ -224,7 +224,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         final data = doc.data();
         if (data != null) {
           final offerDealerId = data['dealerId'] ?? '';
-          // If that dealerId matches me => the accepted offer is mine
           if (offerDealerId == user.uid) {
             setState(() => _isAcceptedOfferMine = true);
           }
@@ -235,7 +234,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // (4) If admin/sales => fetch dealers
   Future<void> _fetchAllDealers() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     setState(() => _isDealersLoading = true);
@@ -260,7 +258,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // (5) Check inspection/collection flags
   Future<void> _checkSetupStatus() async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -278,25 +275,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // (6) Prepare photos (main + damage + single shots)
   void _preparePhotos() {
     try {
       allPhotos = [];
-      // Main
       if (widget.vehicle.mainImageUrl != null &&
           widget.vehicle.mainImageUrl!.isNotEmpty) {
         allPhotos.add(
           PhotoItem(url: widget.vehicle.mainImageUrl!, label: 'Main Image'),
         );
       }
-      // Damages
       for (int i = 0; i < widget.vehicle.damagePhotos.length; i++) {
         _addPhotoIfExists(
           widget.vehicle.damagePhotos[i],
           'Damage Photo ${i + 1}',
         );
       }
-      // Singles
       _addPhotoIfExists(widget.vehicle.dashboardPhoto, 'Dashboard Photo');
       _addPhotoIfExists(widget.vehicle.faultCodesPhoto, 'Fault Codes Photo');
       _addPhotoIfExists(widget.vehicle.licenceDiskUrl, 'Licence Disk Photo');
@@ -319,7 +312,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // Add method to check if vehicle is liked
   Future<void> _checkIfLiked() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
@@ -338,9 +330,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  //  ADMIN-ONLY: Update vehicle status
-  // ---------------------------------------------------------------------------
   Future<void> _updateVehicleStatus(String newStatus) async {
     try {
       await FirebaseFirestore.instance
@@ -367,9 +356,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  //  TRANSPORTER-ONLY: Simple Toggle
-  // ---------------------------------------------------------------------------
   Future<void> _toggleVehicleStatus() async {
     try {
       final currentStatus = vehicle.vehicleStatus.toLowerCase() ?? 'draft';
@@ -380,7 +366,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       } else if (currentStatus == 'live') {
         newStatus = 'Draft';
       }
-      // If 'pending', do nothing special or define your logic
 
       if (newStatus != currentStatus) {
         await FirebaseFirestore.instance
@@ -408,11 +393,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  //  MAKE AN OFFER
-  // ---------------------------------------------------------------------------
   Future<void> _makeOffer() async {
-    // If isAccepted => no new offers
     if (!_canMakeOffer || vehicle.isAccepted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -429,7 +410,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final bool isSalesRep = (role == 'sales representative');
     final bool isDealer = (role == 'dealer');
 
-    // Validate offer
     if (_offerAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -440,7 +420,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       return;
     }
 
-    // If admin/sales => must pick dealer
     if ((isAdmin || isSalesRep) && _selectedDealer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -451,7 +430,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       return;
     }
 
-    // NEW: Prevent admin/sales from making duplicate offers on behalf of a dealer
     if (isAdmin || isSalesRep) {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('offers')
@@ -470,7 +448,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       }
     }
 
-    // If dealer => ensure docs are uploaded & verified
     if (isDealer) {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -534,7 +511,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         'transporterInspectionComplete': false,
       });
 
-      // Reset
       _controller.clear();
       setState(() {
         _hasMadeOffer = true;
@@ -562,9 +538,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  //  OFFERS, FORMATTING, ETC.
-  // ---------------------------------------------------------------------------
   double _calculateTotalCost(double basePrice) {
     const double vatRate = 0.15;
     const double flatRateFee = 12500.0;
@@ -611,7 +584,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         }
 
         List<Offer> offers = snapshot.data!;
-        // Sort offers by createdAt descending
         offers.sort((a, b) {
           if (a.createdAt == null && b.createdAt == null) return 0;
           if (a.createdAt == null) return 1;
@@ -668,16 +640,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  //  NAVIGATIONS
-  // ---------------------------------------------------------------------------
   Future<void> _navigateToEditPage() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isAdmin = (userProvider.getUserRole == 'admin');
-    final bool isSalesRep =
-        (userProvider.getUserRole == 'sales representative');
-    final bool isAdminOrSalesRep = isAdmin || isSalesRep;
-
     if (vehicle.vehicleType.toLowerCase() == 'trailer') {
       await MyNavigator.push(
         context,
@@ -697,124 +661,130 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       debugPrint('=== Starting Vehicle Duplication ===');
       debugPrint('Source Vehicle ID: ${vehicle.id}');
 
-      // Create duplicate vehicle with only the specified fields
-      Vehicle dup = Vehicle(
-        // Required empty/new fields
-        id: '',
-        isAccepted: false,
-        acceptedOfferId: '',
-        mileage: '',
-        vinNumber: '',
-        engineNumber: '',
-        registrationNumber: '',
-        mainImageUrl: '',
-        damagePhotos: [],
-        damageDescription: '',
-        expectedSellingPrice: '',
-        userId: FirebaseAuth.instance.currentUser?.uid ?? '',
-        referenceNumber: '',
-        dashboardPhoto: '',
-        faultCodesPhoto: '',
-        licenceDiskUrl: '',
-        mileageImage: '',
-        photos: [],
-        rc1NatisFile: '',
-        vehicleType: '',
-        warrantyDetails: '',
-        createdAt: DateTime.now(),
-        vehicleStatus: '',
-        vehicleAvailableImmediately: 'false',
-        availableDate: DateTime.now().toIso8601String(),
-        warrentyType: '',
-        maintenance: Maintenance(
-          maintenanceSelection: '',
-          warrantySelection: '',
-          oemInspectionType: '',
-          oemReason: '',
-          maintenanceDocUrl: '',
-          warrantyDocUrl: '',
-          vehicleId: '',
-        ),
-        damagesDescription: '',
-        additionalFeatures: '',
-
-        // Fields to copy for duplication
-        application: vehicle.application,
-        brands: vehicle.brands,
-        config: vehicle.config,
-        country: vehicle.country,
-        hydraluicType: vehicle.hydraluicType,
-        makeModel: vehicle.makeModel,
-        province: vehicle.province,
-        suspensionType: vehicle.suspensionType,
-        transmissionType: vehicle.transmissionType,
-        year: vehicle.year,
-
-        // Required model objects
-        adminData: AdminData(
-          settlementAmount: '',
-          natisRc1Url: '',
-          licenseDiskUrl: '',
-          settlementLetterUrl: '',
-        ),
-        truckConditions: TruckConditions(
-          externalCab: ExternalCab(
-            condition: '',
-            damagesCondition: '',
-            additionalFeaturesCondition: '',
-            images: {},
-            damages: [],
-            additionalFeatures: [],
+      if (vehicle.vehicleType.toLowerCase() == 'trailer') {
+        // For trailers, navigate to the TrailerUploadScreen.
+        await MyNavigator.push(
+          context,
+          TrailerUploadScreen(
+            vehicle: widget.vehicle,
+            isDuplicating: true,
+            // You can pass other parameters if needed (e.g. isNewUpload, isAdminUpload)
           ),
-          internalCab: InternalCab(
-            condition: '',
-            damagesCondition: '',
-            additionalFeaturesCondition: '',
-            faultCodesCondition: '',
-            viewImages: {},
-            damages: [],
-            additionalFeatures: [],
-            faultCodes: [],
+        );
+      } else {
+        // For trucks, duplicate using the existing logic.
+        Vehicle dup = Vehicle(
+          // Required empty/new fields
+          id: '',
+          isAccepted: false,
+          acceptedOfferId: '',
+          mileage: '',
+          vinNumber: '',
+          engineNumber: '',
+          registrationNumber: '',
+          mainImageUrl: '',
+          damagePhotos: [],
+          damageDescription: '',
+          expectedSellingPrice: '',
+          userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+          referenceNumber: '',
+          dashboardPhoto: '',
+          faultCodesPhoto: '',
+          licenceDiskUrl: '',
+          mileageImage: '',
+          photos: [],
+          rc1NatisFile: '',
+          vehicleType: '',
+          warrantyDetails: '',
+          createdAt: DateTime.now(),
+          vehicleStatus: '',
+          vehicleAvailableImmediately: 'false',
+          availableDate: DateTime.now().toIso8601String(),
+          warrentyType: '',
+          maintenance: Maintenance(
+            maintenanceSelection: '',
+            warrantySelection: '',
+            oemInspectionType: '',
+            oemReason: '',
+            maintenanceDocUrl: '',
+            warrantyDocUrl: '',
+            vehicleId: '',
           ),
-          chassis: Chassis(
-            condition: '',
-            damagesCondition: '',
-            additionalFeaturesCondition: '',
-            images: {},
-            damages: [],
-            additionalFeatures: [],
+          damagesDescription: '',
+          additionalFeatures: '',
+          application: vehicle.application,
+          brands: vehicle.brands,
+          config: vehicle.config,
+          country: vehicle.country,
+          hydraluicType: vehicle.hydraluicType,
+          makeModel: vehicle.makeModel,
+          province: vehicle.province,
+          suspensionType: vehicle.suspensionType,
+          transmissionType: vehicle.transmissionType,
+          year: vehicle.year,
+          adminData: AdminData(
+            settlementAmount: '',
+            natisRc1Url: '',
+            licenseDiskUrl: '',
+            settlementLetterUrl: '',
           ),
-          driveTrain: DriveTrain(
-            condition: '',
-            oilLeakConditionEngine: '',
-            waterLeakConditionEngine: '',
-            blowbyCondition: '',
-            oilLeakConditionGearbox: '',
-            retarderCondition: '',
-            lastUpdated: DateTime.now(),
-            images: {},
-            damages: [],
-            additionalFeatures: [],
-            faultCodes: [],
+          truckConditions: TruckConditions(
+            externalCab: ExternalCab(
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              images: {},
+              damages: [],
+              additionalFeatures: [],
+            ),
+            internalCab: InternalCab(
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              faultCodesCondition: '',
+              viewImages: {},
+              damages: [],
+              additionalFeatures: [],
+              faultCodes: [],
+            ),
+            chassis: Chassis(
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              images: {},
+              damages: [],
+              additionalFeatures: [],
+            ),
+            driveTrain: DriveTrain(
+              condition: '',
+              oilLeakConditionEngine: '',
+              waterLeakConditionEngine: '',
+              blowbyCondition: '',
+              oilLeakConditionGearbox: '',
+              retarderCondition: '',
+              lastUpdated: DateTime.now(),
+              images: {},
+              damages: [],
+              additionalFeatures: [],
+              faultCodes: [],
+            ),
+            tyres: {},
           ),
-          tyres: {},
-        ),
-      );
+        );
 
-      await MyNavigator.push(
-        context,
-        VehicleUploadScreen(
-          vehicle: dup,
-          isDuplicating: true,
-        ),
-      );
-
+        await MyNavigator.push(
+          context,
+          VehicleUploadScreen(
+            vehicle: dup,
+            isDuplicating: true,
+          ),
+        );
+      }
       debugPrint('=== Duplication Complete ===');
     } catch (e, stackTrace) {
       debugPrint('=== Error During Duplication ===');
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error duplicating vehicle'),
@@ -824,9 +794,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  //  FULLSCREEN IMAGES
-  // ---------------------------------------------------------------------------
   void _showFullScreenImage(BuildContext context, int initialIndex) {
     _pageController = PageController(initialPage: initialIndex);
     showDialog(
@@ -932,9 +899,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  //  IMAGE INDICATORS
-  // ---------------------------------------------------------------------------
   Widget _buildImageIndicators(int count) {
     var screenSize = MediaQuery.of(context).size;
     double availableWidth =
@@ -962,9 +926,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  //  SPECS CONTAINER
-  // ---------------------------------------------------------------------------
   Widget _buildInfoContainer(String title, String? value) {
     var screenSize = MediaQuery.of(context).size;
     String normalized = (value ?? '').trim().toLowerCase();
@@ -1019,16 +980,29 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // Example placeholders for progress
-  int _calculateBasicInfoProgress() => 3;
-  int _calculateTruckConditionsProgress() => 10;
-  int _calculateMaintenanceProgress() => 2;
+  // Trailer section: Only shown when vehicle is a trailer.
+  Widget _buildTrailerInfoSection() {
+    String trailerInfoText = 'TRAILER INFORMATION';
+    if (widget.trailer != null &&
+        widget.trailer!.trailerType.trim().isNotEmpty) {
+      trailerInfoText =
+          '${widget.trailer!.trailerType.toUpperCase()} TRAILER INFORMATION';
+    }
 
-  // For trailer
-  Widget _buildTrailerSection() {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final bool isAdminOrSalesRep = (userProvider.getUserRole == 'admin' ||
-        userProvider.getUserRole == 'sales representative');
+    final size = MediaQuery.of(context).size;
+    final isLargeScreen = size.width > 600;
+    final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
+    final containerPadding = isLargeScreen ? 37.31 : 20.0;
+    const borderSideWidth = 0.93;
+    const borderRadius = 20.0;
+    const borderColor = Color(0xFF2F7FFF);
+    final titleBoxHeight = isLargeScreen ? 76.48 : 45.0;
+    final titleBoxPadding = isLargeScreen
+        ? const EdgeInsets.symmetric(horizontal: 48.50, vertical: 18.65)
+        : const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0);
+    const titleBoxRadius = 6.0;
+    final titleFontSize = isLargeScreen ? 20.0 : 16.0;
+    final titleLetterSpace = isLargeScreen ? 1.87 : 1.0;
 
     return GestureDetector(
       onTap: () async {
@@ -1041,22 +1015,45 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         setState(() {});
       },
       child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.blue,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Center(
-          child: Text(
-            'TRAILER INFORMATION',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+        width: containerWidth,
+        padding: EdgeInsets.all(containerPadding),
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        decoration: ShapeDecoration(
+          color: const Color(0x332F7FFF),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(width: borderSideWidth, color: borderColor),
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              height: titleBoxHeight,
+              padding: titleBoxPadding,
+              decoration: ShapeDecoration(
+                color: borderColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(titleBoxRadius),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  trailerInfoText,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: titleFontSize,
+                    fontFamily: 'Montserrat',
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: titleLetterSpace,
+                  ),
+                ),
+              ),
+            ),
+            // (Optional) You can add a progress row here if needed.
+          ],
         ),
       ),
     );
@@ -1093,7 +1090,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     return GestureDetector(
       onTap: () {
-        // Navigation logic based on the title
         switch (title) {
           case 'BASIC INFORMATION':
             MyNavigator.push(
@@ -1151,10 +1147,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 vehicleId: widget.vehicle.id,
                 onProgressUpdate: () {
                   setState(() {
-                    // Refresh the UI after progress is updated
                     _refreshVehicleData();
                   });
                 },
+                isEditing: true,
               ),
             );
             break;
@@ -1175,7 +1171,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title Box
             Container(
               width: double.infinity,
               height: titleBoxHeight,
@@ -1200,9 +1195,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               ),
             ),
             SizedBox(height: gapHeight),
-            // Progress Row using Expanded/Flexible to prevent overflow
             LayoutBuilder(builder: (context, constraints) {
-              // Let’s split the available width proportionally.
               final progressBarWidth = constraints.maxWidth * 0.7;
               final textWidth = constraints.maxWidth * 0.3;
 
@@ -1256,12 +1249,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // Helper method to get verification status from dealer document
-  bool getIsVerified(DocumentSnapshot dealerDoc) {
-    return dealerDoc.get('isVerified') ?? false;
-  }
-
-  // === COLUMN for TRANSPORTER
   Widget _buildTransporterActionButtonsColumn() {
     const Color orangeColor = Color(0xFFFF4E00);
     final String vehicleStatus = vehicle.vehicleStatus.toLowerCase();
@@ -1273,13 +1260,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         children: [
-          // Edit (disable if pending)
           CustomButton(
             text: 'Edit Vehicle',
             borderColor: orangeColor,
             onPressed: isPending ? null : _navigateToEditPage,
           ),
-          // Delete (disable if pending)
           CustomButton(
             text: 'Delete Vehicle',
             borderColor: orangeColor,
@@ -1326,17 +1311,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                     );
                   },
           ),
-
-          // Duplicate (always)
           CustomButton(
             text: 'Duplicate Vehicle',
             borderColor: orangeColor,
             onPressed: _navigateToDuplicatePage,
           ),
-
-          // If draft => "Submit for Approval"
-          // If pending => "Submitted"
-          // If live => "Move to Draft"
           if (isDraft)
             CustomButton(
               text: 'Submit for Approval',
@@ -1347,7 +1326,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             CustomButton(
               text: 'Submitted',
               borderColor: Colors.blueAccent,
-              onPressed: null, // disabled
+              onPressed: null,
             )
           else if (isLive)
             CustomButton(
@@ -1360,11 +1339,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // === COLUMN for ADMIN (or SALES) Action Buttons
-  // Admin sees edit, delete, duplicate at all times
-  // If pending => Approve for Live
-  // If live => push to draft
-  // If draft => no extra button
   Widget _buildAdminActionButtonsColumn() {
     final String vehicleStatus = vehicle.vehicleStatus.toLowerCase();
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -1380,13 +1354,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         children: [
-          // Edit (always)
           CustomButton(
             text: 'Edit Vehicle',
             borderColor: orangeColor,
             onPressed: _navigateToEditPage,
           ),
-          // Delete (always)
           CustomButton(
             text: 'Delete Vehicle',
             borderColor: orangeColor,
@@ -1429,30 +1401,23 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               );
             },
           ),
-
-          // Duplicate (always)
           CustomButton(
             text: 'Duplicate Vehicle',
             borderColor: orangeColor,
             onPressed: _navigateToDuplicatePage,
           ),
-
           if (isAdmin && isDraft)
             CustomButton(
               text: 'Push to Live',
               borderColor: Colors.green,
               onPressed: () => _updateVehicleStatus('Live'),
             ),
-
-          // If admin & pending => Approve for live
           if (isAdmin && isPending)
             CustomButton(
               text: 'Approve for Live',
               borderColor: Colors.green,
               onPressed: () => _updateVehicleStatus('Live'),
             ),
-
-          // If admin & live => push to draft
           if (isAdmin && isLive)
             CustomButton(
               text: 'Move to Draft',
@@ -1464,9 +1429,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  //  Action Button for close/favorite
-  // ---------------------------------------------------------------------------
   Widget _buildActionButton(IconData icon, Color backgroundColor) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isAdmin = (userProvider.getUserRole == 'admin');
@@ -1477,7 +1439,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     bool isLiked = userProvider.getLikedVehicles.contains(vehicle.id);
 
-    // Only show close button if liked
     if (icon == Icons.close && !isLiked) {
       return const SizedBox.shrink();
     }
@@ -1489,28 +1450,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           if (userId == null) return;
 
           if (icon == Icons.close) {
-            // Remove from favorites
             try {
               await userProvider.unlikeVehicle(vehicle.id);
-              // ScaffoldMessenger.of(context).showSnackBar(
-              //   const SnackBar(
-              //     content: Text('Removed from favorites'),
-              //     backgroundColor: Color(0xFFFF4E00),
-              //   ),
-              // );
             } catch (e) {
               debugPrint('Error removing from favorites: $e');
             }
           } else if (icon == Icons.favorite && !isLiked) {
-            // Add to favorites if not already liked
             try {
               await userProvider.likeVehicle(vehicle.id);
-              // ScaffoldMessenger.of(context).showSnackBar(
-              //   const SnackBar(
-              //     content: Text('Added to favorites'),
-              //     backgroundColor: Color(0xFFFF4E00),
-              //   ),
-              // );
             } catch (e) {
               debugPrint('Error adding to favorites: $e');
             }
@@ -1532,15 +1479,36 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  // Add this new method before the build method:
-  // Builds the entire truck conditions block that mimics the VehicleDetailsPage design.
+  int _calculateTruckConditionsProgress() {
+    try {
+      int externalCompleted =
+          int.tryParse(_calculateExternalCabProgressString().split('/')[0]) ??
+              0;
+      int internalCompleted =
+          int.tryParse(_calculateInternalCabProgressString().split('/')[0]) ??
+              0;
+      int chassisCompleted =
+          int.tryParse(_calculateChassisProgressString().split('/')[0]) ?? 0;
+      int driveTrainCompleted =
+          int.tryParse(_calculateDriveTrainProgressString().split('/')[0]) ?? 0;
+      int tyresCompleted =
+          int.tryParse(_calculateTyresProgressString().split('/')[0]) ?? 0;
+      return externalCompleted +
+          internalCompleted +
+          chassisCompleted +
+          driveTrainCompleted +
+          tyresCompleted;
+    } catch (e) {
+      debugPrint("Error calculating overall truck conditions progress: $e");
+      return 0;
+    }
+  }
+
   Widget _buildTruckConditionsSection(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isLargeScreen = size.width > 600;
-
-    // Adjusted styling variables to prevent overflow
     final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
-    final containerPadding = isLargeScreen ? 37.31 : 16.0;
+    final containerPadding = isLargeScreen ? 37.31 : 20.0;
     const borderSideWidth = 0.93;
     const borderRadius = 20.0;
     const borderColor = Color(0xFF2F7FFF);
@@ -1557,14 +1525,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     const progressBarHeight = 5.0;
     final progressSpacing = isLargeScreen ? 26.11 : 12.0;
 
-    // The top-level "truck conditions" bar - you might decide how it's computed.
-    // For example, a simple approach might sum all sub-sections or set a static "x of 35".
-    double bigBarWidth = isLargeScreen
-        ? 762.93
-        : (containerWidth - (2 * containerPadding) - progressSpacing - 50);
-
-    // Suppose you combine the sub-sections into a single "complete/total" count
-    // or keep the "35" as you had. For demonstration, I'll just keep "35" as before.
     int subSectionTotal = 35;
     int subSectionCompleted = _calculateTruckConditionsProgress();
     double topRatio =
@@ -1583,7 +1543,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       ),
       child: Column(
         children: [
-          // Main truck conditions header (clickable)
           GestureDetector(
             onTap: () {
               setState(() {
@@ -1624,7 +1583,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Progress bar
                     Expanded(
                       child: SizedBox(
                         height: progressBarHeight,
@@ -1638,7 +1596,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               ),
                             ),
                             FractionallySizedBox(
-                              widthFactor: topRatio, // top-level ratio
+                              widthFactor: topRatio,
                               child: Container(
                                 height: progressBarHeight,
                                 decoration: const BoxDecoration(
@@ -1668,12 +1626,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               ],
             ),
           ),
-
-          // If expanded, show sub-sections
           if (_isTruckConditionsExpanded) ...[
             const SizedBox(height: 20),
-
-            // External Cab Sub-Section
             _buildSubSectionItem(
               context: context,
               containerWidth: containerWidth,
@@ -1684,7 +1638,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   vehicleId: widget.vehicle.id,
                   onProgressUpdate: () {
                     setState(() {
-                      // Refresh the UI after progress is updated
                       _refreshVehicleData();
                     });
                   },
@@ -1705,8 +1658,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               progressLetterSp: progressLetterSp,
               titleBoxRadius: titleBoxRadius,
             ),
-
-            // Internal Cab
             _buildSubSectionItem(
               context: context,
               containerWidth: containerWidth,
@@ -1733,8 +1684,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               progressLetterSp: progressLetterSp,
               titleBoxRadius: titleBoxRadius,
             ),
-
-            // Chassis
             _buildSubSectionItem(
               context: context,
               containerWidth: containerWidth,
@@ -1761,8 +1710,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               progressLetterSp: progressLetterSp,
               titleBoxRadius: titleBoxRadius,
             ),
-
-            // Drive Train
             _buildSubSectionItem(
               context: context,
               containerWidth: containerWidth,
@@ -1789,8 +1736,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               progressLetterSp: progressLetterSp,
               titleBoxRadius: titleBoxRadius,
             ),
-
-            // Tyres
             _buildSubSectionItem(
               context: context,
               containerWidth: containerWidth,
@@ -1830,7 +1775,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     required VoidCallback onTap,
     required String progressString,
     required double progressRatio,
-    // repeated styling parameters:
     required double titleBoxHeight,
     required EdgeInsets titleBoxPadding,
     required Color borderColor,
@@ -1880,7 +1824,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         fontSize: titleFontSize,
                         fontFamily: 'Montserrat',
                         fontWeight: FontWeight.w800,
-                        height: 1.10,
                         letterSpacing: titleLetterSpace,
                       ),
                     ),
@@ -1893,8 +1836,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               width: progressBarWidth,
               constraints: BoxConstraints(maxWidth: 600),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: LayoutBuilder(
@@ -1925,7 +1866,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   ),
                   SizedBox(width: progressSpacing),
                   SizedBox(
-                    width: 60, // Fixed width for progress text
+                    width: 60,
                     child: Text(
                       progressString,
                       textAlign: TextAlign.left,
@@ -1955,8 +1896,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final String userRole = userProvider.getUserRole.toLowerCase() ?? '';
-    // ...existing user role definitions...
-
     final size = MediaQuery.of(context).size;
     final bool isTrailer = (vehicle.vehicleType.toLowerCase() == 'trailer');
     const bool isWeb = kIsWeb;
@@ -1984,6 +1923,307 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         NavigationItem(title: 'Your Offers', route: '/offers'),
         NavigationItem(title: 'In-Progress', route: '/in-progress'),
       ];
+    }
+
+    // Build offer–related widgets into a separate list
+    List<Widget> offerWidgets = [];
+    if (vehicle.isAccepted) {
+      if (_isAcceptedOfferMine) {
+        offerWidgets.add(
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Offer Status: ',
+                  style: _customFont(20, FontWeight.bold, Colors.white),
+                ),
+                Text(
+                  'Accepted',
+                  style:
+                      _customFont(20, FontWeight.bold, const Color(0xFFFF4E00)),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        offerWidgets.add(
+          Center(
+            child: Text(
+              'Another dealer’s offer has already been accepted.\nNo new offers can be made.',
+              style: _customFont(18, FontWeight.normal, Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+      }
+    } else if (_hasMadeOffer && _offerStatus != 'rejected') {
+      offerWidgets.add(
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Offer Status: ',
+                style: _customFont(20, FontWeight.bold, Colors.white),
+              ),
+              Text(
+                getDisplayStatus(_offerStatus),
+                style:
+                    _customFont(20, FontWeight.bold, const Color(0xFFFF4E00)),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      // Only dealers should see the make offer section.
+      if (userProvider.getUserRole == 'dealer') {
+        // For dealers who can make a new offer
+        List<Widget> makeOfferWidgets = [];
+        if (!(userProvider.getUserRole == 'admin' ||
+            userProvider.getUserRole == 'sales representative')) {
+          makeOfferWidgets.add(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildActionButton(Icons.close, const Color(0xFF2F7FFF)),
+                const SizedBox(width: 16),
+                _buildActionButton(Icons.favorite, const Color(0xFFFF4E00)),
+              ],
+            ),
+          );
+        }
+        makeOfferWidgets.add(const SizedBox(height: 16));
+        makeOfferWidgets.add(
+          Center(
+            child: Text(
+              'Make an Offer',
+              style: _customFont(20, FontWeight.bold, Colors.white),
+            ),
+          ),
+        );
+        makeOfferWidgets.add(const SizedBox(height: 8));
+        if (userProvider.getUserRole == 'admin' ||
+            userProvider.getUserRole == 'sales representative') {
+          makeOfferWidgets.add(
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Select Dealer',
+                style: _customFont(16, FontWeight.bold, Colors.white),
+              ),
+            ),
+          );
+          makeOfferWidgets.add(const SizedBox(height: 8));
+          makeOfferWidgets.add(
+            Consumer<UserProvider>(
+              builder: (ctx, userProv, child) {
+                if (userProv.dealers.isEmpty) {
+                  return const Text(
+                    'No dealers available.',
+                    style: TextStyle(color: Colors.red, fontSize: 16),
+                  );
+                }
+                List<Dealer> sortedDealers = List.from(userProv.dealers);
+                sortedDealers.sort((a, b) {
+                  String nameA = (a.firstName.trim().isNotEmpty &&
+                          a.lastName.trim().isNotEmpty)
+                      ? '${a.firstName} ${a.lastName}'
+                      : a.email;
+                  String nameB = (b.firstName.trim().isNotEmpty &&
+                          b.lastName.trim().isNotEmpty)
+                      ? '${b.firstName} ${b.lastName}'
+                      : b.email;
+                  return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+                });
+                return DropdownButtonFormField<Dealer>(
+                  value: _selectedDealer,
+                  isExpanded: true,
+                  items: sortedDealers.map((Dealer dealer) {
+                    String displayName = (dealer.firstName.trim().isNotEmpty &&
+                            dealer.lastName.trim().isNotEmpty)
+                        ? '${dealer.firstName} ${dealer.lastName}'
+                        : dealer.email;
+                    return DropdownMenuItem<Dealer>(
+                      value: dealer,
+                      child: Text(displayName),
+                    );
+                  }).toList(),
+                  onChanged: (Dealer? newDealer) {
+                    setState(() => _selectedDealer = newDealer);
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey[800],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    hintText: 'Choose a dealer',
+                    hintStyle: _customFont(16, FontWeight.normal, Colors.grey),
+                  ),
+                  dropdownColor: Colors.grey[800],
+                  style: _customFont(16, FontWeight.normal, Colors.white),
+                );
+              },
+            ),
+          );
+          makeOfferWidgets.add(const SizedBox(height: 16));
+        }
+        makeOfferWidgets.add(
+          TextField(
+            controller: _controller,
+            cursorColor: const Color(0xFFFF4E00),
+            decoration: InputDecoration(
+              hintText: 'R 102 000 000',
+              hintStyle: _customFont(24, FontWeight.normal, Colors.grey),
+              enabledBorder: const OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.white),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFFFF4E00)),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 15.0),
+            ),
+            textAlign: TextAlign.center,
+            style: _customFont(20, FontWeight.bold, Colors.white),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (value) {
+              setState(() {
+                if (value.isNotEmpty) {
+                  try {
+                    String numericValue =
+                        value.replaceAll(' ', '').replaceAll('R', '');
+                    _offerAmount = double.parse(numericValue);
+                    _totalCost = _calculateTotalCost(_offerAmount);
+                    String formattedValue =
+                        'R${_formatNumberWithSpaces(numericValue)}';
+                    _controller.value = _controller.value.copyWith(
+                      text: formattedValue,
+                      selection: TextSelection.collapsed(
+                          offset: formattedValue.length),
+                    );
+                  } catch (e) {
+                    debugPrint('Error: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'Invalid Offer Amount. Please Enter a Valid Number.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } else {
+                  _offerAmount = 0.0;
+                  _totalCost = 0.0;
+                }
+              });
+            },
+          ),
+        );
+        makeOfferWidgets.add(const SizedBox(height: 8));
+        makeOfferWidgets.add(
+          Center(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'R${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}',
+                  style: _customFont(18, FontWeight.bold, Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Including Commission and VAT',
+                  style: _customFont(15, FontWeight.normal, Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Breakdown:',
+                  style: _customFont(16, FontWeight.bold, Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Base Price: R ${_formatNumberWithSpaces(_offerAmount.toStringAsFixed(0))}',
+                  style: _customFont(14, FontWeight.normal, Colors.white),
+                ),
+                Text(
+                  'Flat Rate Fee: R 12 500',
+                  style: _customFont(14, FontWeight.normal, Colors.white),
+                ),
+                Text(
+                  'Subtotal: R ${_formatNumberWithSpaces((_offerAmount + 12500.0).toStringAsFixed(0))}',
+                  style: _customFont(14, FontWeight.normal, Colors.white),
+                ),
+                Text(
+                  'VAT (15%): R ${_formatNumberWithSpaces((((_offerAmount + 12500.0) * 0.15).toStringAsFixed(0)))}',
+                  style: _customFont(14, FontWeight.normal, Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Total Cost: R ${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}',
+                  style: _customFont(14, FontWeight.bold, Colors.white),
+                ),
+              ],
+            ),
+          ),
+        );
+        makeOfferWidgets.add(const SizedBox(height: 16));
+        makeOfferWidgets.add(
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(userProvider.userId)
+                .snapshots(),
+            builder: (ctx, snapshot) {
+              if (snapshot.hasData && userProvider.getUserRole == 'dealer') {
+                Map<String, dynamic> userData =
+                    snapshot.data!.data() as Map<String, dynamic>;
+                bool hasDocuments =
+                    userData['cipcCertificateUrl']?.isNotEmpty == true &&
+                        userData['brncUrl']?.isNotEmpty == true &&
+                        userData['bankConfirmationUrl']?.isNotEmpty == true &&
+                        userData['proxyUrl']?.isNotEmpty == true;
+                bool isVerified = userData['isVerified'] ?? false;
+                bool isApproved = isVerified;
+                if (!hasDocuments || !isApproved) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Please upload all required documents (CIPC, BRNC, Bank Confirmation, Proxy) and wait for account approval before making offers.',
+                      style: _customFont(16, FontWeight.normal, Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+              }
+              return Container();
+            },
+          ),
+        );
+        makeOfferWidgets.add(
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _makeOffer,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF4E00),
+                padding: const EdgeInsets.symmetric(vertical: 10.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'MAKE AN OFFER',
+                style: _customFont(20, FontWeight.bold, Colors.white),
+              ),
+            ),
+          ),
+        );
+        offerWidgets.addAll(makeOfferWidgets);
+      }
     }
 
     return Scaffold(
@@ -2030,7 +2270,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   elevation: 0,
                   title: Row(
                     children: [
-                      // Admin-specific title or widgets
                       Expanded(
                         child: Text(
                           '${vehicle.brands.join(', ')} ${vehicle.makeModel.toUpperCase()} ${vehicle.year}',
@@ -2043,7 +2282,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           maxLines: 1,
                         ),
                       ),
-                      // You might add admin-specific actions here
                     ],
                   ),
                   leading: IconButton(
@@ -2080,7 +2318,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                     ],
                   ),
                 ),
-      // Use a drawer style identical to home_page.
       drawer: (_isCompactNavigation(context) && isWeb)
           ? Drawer(
               child: Container(
@@ -2099,35 +2336,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                           bottom: BorderSide(color: Colors.white24, width: 1),
                         ),
                       ),
-                      child: Center(
-                          // child: CachedNetworkImage(
-                          //   imageUrl:
-                          //       'https://raw.githubusercontent.com/BradleyBaker12/truckData/main/CTPLOGO3.png',
-                          //   fit: BoxFit.cover,
-                          //   width: double.infinity,
-                          //   height: size.height * 0.45,
-                          //   placeholder: (context, url) => SizedBox(
-                          //     height: 30,
-                          //     width: 30,
-                          //     child: Center(
-                          //       child: CircularProgressIndicator(
-                          //         valueColor:
-                          //             AlwaysStoppedAnimation(Colors.white),
-                          //       ),
-                          //     ),
-                          //   ),
-                          //   errorWidget: (context, url, error) => Container(
-                          //     color: Colors.grey[300],
-                          //     child: const Center(
-                          //       child: Icon(
-                          //         Icons.broken_image,
-                          //         color: Colors.grey,
-                          //         size: 22,
-                          //       ),
-                          //     ),
-                          //   ),
-                          // ),
-                          ),
+                      child: Center(),
                     ),
                     Expanded(
                       child: ListView(
@@ -2199,7 +2408,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                   fit: BoxFit.cover,
                                                   width: double.infinity,
                                                   height: size.height * 0.32,
-                                                  // Add cacheWidth to optimize memory usage
                                                   cacheWidth: kIsWeb
                                                       ? null
                                                       : (MediaQuery.of(context)
@@ -2207,8 +2415,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                                   .width *
                                                               2)
                                                           .toInt(),
-
-                                                  // Add key to force rebuild when URL changes
                                                   key: ValueKey(
                                                       '${allPhotos[index].url}-${MediaQuery.of(context).size.width}'),
                                                   errorBuilder:
@@ -2258,7 +2464,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                     ),
                                   ],
                                 ),
-
                                 // === Details and Offer Info
                                 Container(
                                   width: double.infinity,
@@ -2269,7 +2474,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                     child: Column(
                                       children: [
                                         const SizedBox(height: 8),
-                                        // Basic specs row
                                         Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceEvenly,
@@ -2288,614 +2492,140 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                           ],
                                         ),
                                         const SizedBox(height: 16),
-
-                                        // === TRANSPORTER Buttons (stacked) if isTransporter
-                                        if (userProvider.getUserRole ==
-                                            'transporter') ...[
-                                          _buildTransporterActionButtonsColumn(),
-                                          const SizedBox(height: 20),
-                                        ],
-
-                                        // === ADMIN/SALES => special actions
-                                        if (userProvider.getUserRole ==
-                                                'admin' ||
-                                            userProvider.getUserRole ==
-                                                'sales representative') ...[
-                                          _buildAdminActionButtonsColumn(),
-                                          const SizedBox(height: 20),
-                                        ],
-
-                                        // ========== If Admin/Sales/Dealer, handle offer logic
-                                        if (userProvider.getUserRole ==
-                                                'admin' ||
-                                            userProvider.getUserRole ==
-                                                'sales representative' ||
-                                            userProvider.getUserRole ==
-                                                'dealer') ...[
-                                          if (vehicle.isAccepted) ...[
-                                            if (_isAcceptedOfferMine) ...[
-                                              // If it's MY accepted offer => show normal Offer Status
-                                              Center(
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Text(
-                                                      'Offer Status: ',
-                                                      style: _customFont(
-                                                          20,
-                                                          FontWeight.bold,
-                                                          Colors.white),
-                                                    ),
-                                                    Text(
-                                                      'Accepted',
-                                                      style: _customFont(
-                                                          20,
-                                                          FontWeight.bold,
-                                                          Color(0xFFFF4E00)),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ] else ...[
-                                              // Another dealer's offer is accepted
-                                              Center(
-                                                child: Text(
-                                                  'Another dealer’s offer has already been accepted.\n'
-                                                  'No new offers can be made.',
-                                                  style: _customFont(
-                                                      18,
-                                                      FontWeight.normal,
-                                                      Colors.red),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ),
-                                            ],
-                                          ] else if (_hasMadeOffer &&
-                                              _offerStatus != 'rejected') ...[
-                                            Center(
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Text(
-                                                    'Offer Status: ',
-                                                    style: _customFont(
-                                                        20,
-                                                        FontWeight.bold,
-                                                        Colors.white),
-                                                  ),
-                                                  Text(
-                                                    getDisplayStatus(
-                                                        _offerStatus),
-                                                    style: _customFont(
-                                                        20,
-                                                        FontWeight.bold,
-                                                        Color(0xFFFF4E00)),
-                                                  ),
-                                                ],
-                                              ),
+                                        if (offerWidgets.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.all(16.0),
+                                            child: Column(
+                                              children: offerWidgets,
                                             ),
-                                          ] else ...[
-                                            // If not accepted + not made an offer or was rejected => Make an Offer
-                                            // Hide X and Heart if user is admin
-                                            if (!(userProvider.getUserRole ==
-                                                    'admin' ||
-                                                userProvider.getUserRole ==
-                                                        'sales representative' &&
+                                          ),
+                                        // Action Buttons Section:
+                                        userProvider.getUserRole ==
+                                                'transporter'
+                                            ? _buildTransporterActionButtonsColumn()
+                                            : (userProvider.getUserRole ==
+                                                        'admin' ||
                                                     userProvider.getUserRole ==
-                                                        'admin')) // or just isAdmin
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceEvenly,
-                                                children: [
-                                                  _buildActionButton(
-                                                      Icons.close,
-                                                      const Color(0xFF2F7FFF)),
-                                                  const SizedBox(width: 16),
-                                                  _buildActionButton(
-                                                      Icons.favorite,
-                                                      const Color(0xFFFF4E00)),
-                                                ],
+                                                        'sales representative')
+                                                ? _buildAdminActionButtonsColumn()
+                                                : Container(),
+                                        const SizedBox(height: 16),
+                                        if (isTrailer)
+                                          _buildTrailerInfoSection()
+                                        else
+                                          Column(
+                                            children: [
+                                              if (userProvider.getUserRole ==
+                                                      'admin' ||
+                                                  userProvider.getUserRole ==
+                                                      'sales representative' ||
+                                                  userProvider.getUserRole ==
+                                                      'dealer')
+                                                _buildSection(
+                                                    context,
+                                                    'BASIC INFORMATION',
+                                                    _calculateBasicInfoProgressString()),
+                                              if (userProvider.getUserRole ==
+                                                      'admin' ||
+                                                  userProvider.getUserRole ==
+                                                      'sales representative' ||
+                                                  userProvider.getUserRole ==
+                                                      'dealer')
+                                                _buildSection(
+                                                    context,
+                                                    'MAINTENANCE AND WARRANTY',
+                                                    _calculateMaintenanceProgressString()),
+                                              if (userProvider.getUserRole ==
+                                                  'admin')
+                                                _buildSection(
+                                                    context, 'ADMIN', '10/10'),
+                                              if (userProvider.getUserRole ==
+                                                      'admin' ||
+                                                  userProvider.getUserRole ==
+                                                      'sales representative' ||
+                                                  userProvider.getUserRole ==
+                                                      'dealer')
+                                                _buildTruckConditionsSection(
+                                                    context),
+                                            ],
+                                          ),
+                                        const SizedBox(height: 30),
+                                        if (userProvider.getUserRole ==
+                                            'transporter')
+                                          Column(
+                                            children: [
+                                              Container(
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 10.0),
+                                                child: vehicle.isAccepted ==
+                                                        true
+                                                    ? Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(16.0),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.red
+                                                              .withOpacity(0.1),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                                      8.0),
+                                                          border: Border.all(
+                                                              color:
+                                                                  Colors.red),
+                                                        ),
+                                                        child: Column(
+                                                          children: [
+                                                            const Icon(
+                                                                Icons
+                                                                    .warning_amber_rounded,
+                                                                color:
+                                                                    Colors.red,
+                                                                size: 40),
+                                                            const SizedBox(
+                                                                height: 8),
+                                                            Text(
+                                                              "This vehicle has an accepted offer",
+                                                              style:
+                                                                  _customFont(
+                                                                      20,
+                                                                      FontWeight
+                                                                          .bold,
+                                                                      Colors
+                                                                          .red),
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                            ),
+                                                            Text(
+                                                              "No new offers can be placed",
+                                                              style: _customFont(
+                                                                  16,
+                                                                  FontWeight
+                                                                      .normal,
+                                                                  Colors.red),
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      )
+                                                    : Container(),
                                               ),
-                                            const SizedBox(height: 16),
-                                            Center(
-                                              child: Text(
-                                                'Make an Offer',
+                                              Text(
+                                                'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
                                                 style: _customFont(
                                                     20,
                                                     FontWeight.bold,
-                                                    Colors.white),
+                                                    const Color(0xFFFF4E00)),
                                               ),
-                                            ),
-                                            const SizedBox(height: 8),
-
-                                            // If Admin/Sales => pick a dealer
-                                            if (userProvider.getUserRole ==
-                                                    'admin' ||
-                                                userProvider.getUserRole ==
-                                                    'sales representative') ...[
-                                              Align(
-                                                alignment: Alignment.centerLeft,
-                                                child: Text(
-                                                  'Select Dealer',
-                                                  style: _customFont(
-                                                      16,
-                                                      FontWeight.bold,
-                                                      Colors.white),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Consumer<UserProvider>(
-                                                builder:
-                                                    (ctx, userProv, child) {
-                                                  if (userProv
-                                                      .dealers.isEmpty) {
-                                                    return const Text(
-                                                      'No dealers available.',
-                                                      style: TextStyle(
-                                                        color: Colors.red,
-                                                        fontSize: 16,
-                                                      ),
-                                                    );
-                                                  }
-                                                  // Create a copy and sort dealers alphabetically.
-                                                  List<Dealer> sortedDealers =
-                                                      List.from(
-                                                          userProv.dealers);
-                                                  sortedDealers.sort((a, b) {
-                                                    // Try to use the dealer's firstName and lastName if available.
-                                                    String nameA = (a.firstName
-                                                                .trim()
-                                                                .isNotEmpty &&
-                                                            a.lastName
-                                                                .trim()
-                                                                .isNotEmpty)
-                                                        ? '${a.firstName} ${a.lastName}'
-                                                        : a.email;
-                                                    String nameB = (b.firstName
-                                                                .trim()
-                                                                .isNotEmpty &&
-                                                            b.lastName
-                                                                .trim()
-                                                                .isNotEmpty)
-                                                        ? '${b.firstName} ${b.lastName}'
-                                                        : b.email;
-                                                    return nameA
-                                                        .toLowerCase()
-                                                        .compareTo(nameB
-                                                            .toLowerCase());
-                                                  });
-
-                                                  return DropdownButtonFormField<
-                                                      Dealer>(
-                                                    value: _selectedDealer,
-                                                    isExpanded: true,
-                                                    items: sortedDealers
-                                                        .map((Dealer dealer) {
-                                                      // Use full name if available, otherwise use email.
-                                                      String displayName = (dealer.firstName
-                                                                  .trim()
-                                                                  .isNotEmpty &&
-                                                              dealer.lastName
-                                                                  .trim()
-                                                                  .isNotEmpty)
-                                                          ? '${dealer.firstName} ${dealer.lastName}'
-                                                          : dealer.email;
-                                                      return DropdownMenuItem<
-                                                          Dealer>(
-                                                        value: dealer,
-                                                        child:
-                                                            Text(displayName),
-                                                      );
-                                                    }).toList(),
-                                                    onChanged:
-                                                        (Dealer? newDealer) {
-                                                      setState(() =>
-                                                          _selectedDealer =
-                                                              newDealer);
-                                                    },
-                                                    decoration: InputDecoration(
-                                                      filled: true,
-                                                      fillColor:
-                                                          Colors.grey[800],
-                                                      border:
-                                                          OutlineInputBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8.0),
-                                                        borderSide:
-                                                            BorderSide.none,
-                                                      ),
-                                                      hintText:
-                                                          'Choose a dealer',
-                                                      hintStyle: _customFont(
-                                                          16,
-                                                          FontWeight.normal,
-                                                          Colors.grey),
-                                                    ),
-                                                    dropdownColor:
-                                                        Colors.grey[800],
-                                                    style: _customFont(
-                                                        16,
-                                                        FontWeight.normal,
-                                                        Colors.white),
-                                                  );
-                                                },
-                                              ),
-                                              const SizedBox(height: 16),
+                                              const SizedBox(height: 10),
+                                              _buildOffersList(),
                                             ],
-
-                                            // TextField for offer
-                                            TextField(
-                                              controller: _controller,
-                                              cursorColor:
-                                                  const Color(0xFFFF4E00),
-                                              decoration: InputDecoration(
-                                                hintText: 'R 102 000 000',
-                                                hintStyle: _customFont(
-                                                    24,
-                                                    FontWeight.normal,
-                                                    Colors.grey),
-                                                enabledBorder:
-                                                    const OutlineInputBorder(
-                                                  borderSide: BorderSide(
-                                                      color: Colors.white),
-                                                ),
-                                                focusedBorder:
-                                                    const OutlineInputBorder(
-                                                  borderSide: BorderSide(
-                                                      color: Color(0xFFFF4E00)),
-                                                ),
-                                                contentPadding:
-                                                    const EdgeInsets.symmetric(
-                                                        vertical: 15.0),
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              style: _customFont(
-                                                  20,
-                                                  FontWeight.bold,
-                                                  Colors.white),
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .digitsOnly,
-                                              ],
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  if (value.isNotEmpty) {
-                                                    try {
-                                                      String numericValue =
-                                                          value
-                                                              .replaceAll(
-                                                                  ' ', '')
-                                                              .replaceAll(
-                                                                  'R', '');
-                                                      _offerAmount =
-                                                          double.parse(
-                                                              numericValue);
-                                                      _totalCost =
-                                                          _calculateTotalCost(
-                                                              _offerAmount);
-
-                                                      String formattedValue =
-                                                          'R${_formatNumberWithSpaces(numericValue)}';
-                                                      _controller.value =
-                                                          _controller.value
-                                                              .copyWith(
-                                                        text: formattedValue,
-                                                        selection: TextSelection
-                                                            .collapsed(
-                                                          offset: formattedValue
-                                                              .length,
-                                                        ),
-                                                      );
-                                                    } catch (e) {
-                                                      debugPrint('Error: $e');
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'Invalid Offer Amount. '
-                                                            'Please Enter a Valid Number.',
-                                                          ),
-                                                          backgroundColor:
-                                                              Colors.red,
-                                                        ),
-                                                      );
-                                                    }
-                                                  } else {
-                                                    _offerAmount = 0.0;
-                                                    _totalCost = 0.0;
-                                                  }
-                                                });
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-
-                                            // Breakdown
-                                            Center(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.center,
-                                                children: [
-                                                  Text(
-                                                    'R${_formatNumberWithSpaces(_totalCost.toStringAsFixed(0))}',
-                                                    style: _customFont(
-                                                        18,
-                                                        FontWeight.bold,
-                                                        Colors.white),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'Including Commission and VAT',
-                                                    style: _customFont(
-                                                        15,
-                                                        FontWeight.normal,
-                                                        Colors.white),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    'Breakdown:',
-                                                    style: _customFont(
-                                                        16,
-                                                        FontWeight.bold,
-                                                        Colors.white),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'Base Price: R ${_formatNumberWithSpaces(_offerAmount.toStringAsFixed(0))}',
-                                                    style: _customFont(
-                                                        14,
-                                                        FontWeight.normal,
-                                                        Colors.white),
-                                                  ),
-                                                  Text(
-                                                    'Flat Rate Fee: R 12 500',
-                                                    style: _customFont(
-                                                        14,
-                                                        FontWeight.normal,
-                                                        Colors.white),
-                                                  ),
-                                                  Text(
-                                                    'Subtotal: R ${_formatNumberWithSpaces(
-                                                      (_offerAmount + 12500.0)
-                                                          .toStringAsFixed(0),
-                                                    )}',
-                                                    style: _customFont(
-                                                        14,
-                                                        FontWeight.normal,
-                                                        Colors.white),
-                                                  ),
-                                                  Text(
-                                                    'VAT (15%): R ${_formatNumberWithSpaces(
-                                                      (((_offerAmount +
-                                                                  12500.0) *
-                                                              0.15)
-                                                          .toStringAsFixed(0)),
-                                                    )}',
-                                                    style: _customFont(
-                                                        14,
-                                                        FontWeight.normal,
-                                                        Colors.white),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'Total Cost: R ${_formatNumberWithSpaces(
-                                                      _totalCost
-                                                          .toStringAsFixed(0),
-                                                    )}',
-                                                    style: _customFont(
-                                                        14,
-                                                        FontWeight.bold,
-                                                        Colors.white),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 16),
-
-                                            // If dealer => doc check
-                                            StreamBuilder<DocumentSnapshot>(
-                                              stream: FirebaseFirestore.instance
-                                                  .collection('users')
-                                                  .doc(userProvider.userId)
-                                                  .snapshots(),
-                                              builder: (ctx, snapshot) {
-                                                if (snapshot.hasData &&
-                                                    userProvider.getUserRole ==
-                                                        'dealer') {
-                                                  Map<String, dynamic>
-                                                      userData =
-                                                      snapshot.data!.data()
-                                                          as Map<String,
-                                                              dynamic>;
-                                                  bool hasDocuments = userData[
-                                                                  'cipcCertificateUrl']
-                                                              ?.isNotEmpty ==
-                                                          true &&
-                                                      userData[
-                                                                  'brncUrl']
-                                                              ?.isNotEmpty ==
-                                                          true &&
-                                                      userData['bankConfirmationUrl']
-                                                              ?.isNotEmpty ==
-                                                          true &&
-                                                      userData['proxyUrl']
-                                                              ?.isNotEmpty ==
-                                                          true;
-                                                  bool isVerified =
-                                                      userData['isVerified'] ??
-                                                          false;
-                                                  bool isApproved = isVerified;
-
-                                                  if (!hasDocuments ||
-                                                      !isApproved) {
-                                                    return Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              16.0),
-                                                      child: Text(
-                                                        'Please upload all required documents '
-                                                        '(CIPC, BRNC, Bank Confirmation, Proxy) '
-                                                        'and wait for account approval before making offers.',
-                                                        style: _customFont(
-                                                            16,
-                                                            FontWeight.normal,
-                                                            Colors.red),
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                      ),
-                                                    );
-                                                  }
-                                                }
-                                                return Container();
-                                              },
-                                            ),
-
-                                            // MAKE AN OFFER button
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: ElevatedButton(
-                                                onPressed: _makeOffer,
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      const Color(0xFFFF4E00),
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      vertical: 10.0),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  'MAKE AN OFFER',
-                                                  style: _customFont(
-                                                      20,
-                                                      FontWeight.bold,
-                                                      Colors.white),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-
-                                        // Spacing
-                                        const SizedBox(height: 40),
-
-                                        // If it's a trailer & user is a dealer => single trailer block
-                                        if (isTrailer &&
-                                            userProvider.getUserRole ==
-                                                'dealer')
-                                          _buildTrailerSection()
-                                        else ...[
-                                          if (userProvider.getUserRole ==
-                                                  'admin' ||
-                                              userProvider.getUserRole ==
-                                                  'sales representative' ||
-                                              userProvider.getUserRole ==
-                                                  'dealer') ...[
-                                            _buildSection(
-                                              context,
-                                              'BASIC INFORMATION',
-                                              _calculateBasicInfoProgressString(),
-                                            ),
-                                            _buildSection(
-                                              context,
-                                              'MAINTENANCE AND WARRANTY',
-                                              _calculateMaintenanceProgressString(),
-                                            ),
-                                            // Add admin header here if user is admin
-                                            if (userProvider.getUserRole ==
-                                                'admin')
-                                              _buildSection(
-                                                context,
-                                                'ADMIN',
-                                                '10/10', // You can adjust these numbers based on your needs
-                                              ),
-                                            _buildTruckConditionsSection(
-                                                context),
-                                          ],
-                                        ],
-
-                                        const SizedBox(height: 30),
-
-                                        // If transporter => Show the offers
-                                        if (userProvider.getUserRole ==
-                                            'transporter') ...[
-                                          Container(
-                                            margin: const EdgeInsets.symmetric(
-                                                vertical: 10.0),
-                                            child: vehicle.isAccepted == true
-                                                ? Container(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            16.0),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.red
-                                                          .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8.0),
-                                                      border: Border.all(
-                                                          color: Colors.red),
-                                                    ),
-                                                    child: Column(
-                                                      children: [
-                                                        const Icon(
-                                                            Icons
-                                                                .warning_amber_rounded,
-                                                            color: Colors.red,
-                                                            size: 40),
-                                                        const SizedBox(
-                                                            height: 8),
-                                                        Text(
-                                                          "This vehicle has an accepted offer",
-                                                          style: _customFont(
-                                                              18,
-                                                              FontWeight.bold,
-                                                              Colors.red),
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                        ),
-                                                        Text(
-                                                          "No new offers can be placed",
-                                                          style: _customFont(
-                                                              16,
-                                                              FontWeight.normal,
-                                                              Colors.red),
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  )
-                                                : Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: const [
-                                                      // ... existing offer section code ...
-                                                    ],
-                                                  ),
                                           ),
-                                          Text(
-                                            'Offers Made on This Vehicle (${vehicle.referenceNumber}):',
-                                            style: _customFont(
-                                              20,
-                                              FontWeight.bold,
-                                              const Color(0xFFFF4E00),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          _buildOffersList(),
-                                        ],
-
                                         const SizedBox(height: 24),
                                       ],
                                     ),
@@ -2904,7 +2634,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                               ],
                             ),
                           ),
-                          // Loading overlay
                           if (_isLoading)
                             Container(
                               color: Colors.black54,
@@ -2923,8 +2652,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ),
         ],
       ),
-      // Footer will now stay at bottom
-      // if (kIsWeb) const WebFooter(),
       bottomNavigationBar: (!kIsWeb &&
               !(userProvider.getUserRole == 'admin' ||
                   userProvider.getUserRole == 'sales representative') &&
@@ -3013,40 +2740,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return "$completed/$total";
   }
 
-// ...existing code...
-
-// Add helper method near the other helpers
-  bool _isNotEmpty(String? value) {
-    return value != null && value.trim().isNotEmpty;
-  }
-
   String _calculateExternalCabProgressString() {
     final ext = vehicle.truckConditions.externalCab;
-
     List<bool> completedFields = [];
-
-    // Debug condition fields
-    debugPrint("\n=== External Cab Progress Debug ===");
-    debugPrint("Condition values:");
-    debugPrint("condition: '${ext.condition}'");
-    debugPrint("damagesCondition: '${ext.damagesCondition}'");
-    debugPrint(
-        "additionalFeaturesCondition: '${ext.additionalFeaturesCondition}'");
-
-    // Check condition fields
     completedFields.add(_isNotEmpty(ext.condition));
     completedFields.add(_isNotEmpty(ext.damagesCondition));
     completedFields.add(_isNotEmpty(ext.additionalFeaturesCondition));
-
-    // Debug image fields
-    debugPrint("\nImage data details:");
-    ext.images.forEach((key, value) {
-      String imageUrl = value.imageUrl ?? '';
-      String path = value.path;
-      debugPrint("$key: {path: $path, imageUrl: $imageUrl}");
-    });
-
-    // Check required images
     final requiredImageKeys = [
       "FRONT VIEW",
       "LEFT SIDE VIEW",
@@ -3056,45 +2755,24 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     for (String key in requiredImageKeys) {
       var photoData = ext.images[key];
       bool hasImage = false;
-
       if (photoData != null) {
         bool hasPath = photoData.path.isNotEmpty;
         bool hasUrl = (photoData.imageUrl ?? '').isNotEmpty;
         hasImage = hasPath || hasUrl;
-        debugPrint(
-            "$key status: hasPath=$hasPath, hasUrl=$hasUrl, isComplete=$hasImage");
-      } else {
-        debugPrint("$key status: No PhotoData");
       }
-
       completedFields.add(hasImage);
     }
-
     int total = completedFields.length;
     int completed = completedFields.where((field) => field).length;
-
-    debugPrint("\nFinal counts:");
-    for (int i = 0; i < completedFields.length; i++) {
-      String fieldName = i < 3 ? "Condition ${i + 1}" : "Image ${i - 2}";
-      debugPrint("$fieldName: ${completedFields[i]}");
-    }
-    debugPrint("Total complete: $completed/$total");
-    debugPrint("=== End Debug ===\n");
-
     return "$completed/$total";
   }
 
   double _calculateExternalCabProgressPercentage() {
     final ext = vehicle.truckConditions.externalCab;
-
     List<bool> completedFields = [];
-
-    // Check condition fields
     completedFields.add(_isNotEmpty(ext.condition));
     completedFields.add(_isNotEmpty(ext.damagesCondition));
     completedFields.add(_isNotEmpty(ext.additionalFeaturesCondition));
-
-    // Check required images
     final requiredImageKeys = [
       "FRONT VIEW",
       "LEFT SIDE VIEW",
@@ -3104,27 +2782,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     for (String key in requiredImageKeys) {
       var photoData = ext.images[key];
       bool hasImage = false;
-
       if (photoData != null) {
         hasImage =
             photoData.path.isNotEmpty || (photoData.imageUrl ?? '').isNotEmpty;
       }
-
       completedFields.add(hasImage);
     }
-
     int total = completedFields.length;
     int completed = completedFields.where((field) => field).length;
     return total == 0 ? 0.0 : completed / total;
   }
 
-// ...existing code...
-
-// --------------------------------------------------------
-
   String _calculateInternalCabProgressString() {
     final intern = widget.vehicle.truckConditions.internalCab;
-
     final fields = [
       intern.condition,
       intern.damagesCondition,
@@ -3134,7 +2804,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     int total = fields.length;
     int completed =
         fields.where((field) => field.toString().trim().isNotEmpty).length;
-
     return "$completed/$total";
   }
 
@@ -3149,15 +2818,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     int total = fields.length;
     int completed =
         fields.where((field) => field.toString().trim().isNotEmpty).length;
-
     return total == 0 ? 0 : (completed / total);
   }
 
-// --------------------------------------------------------
-
   String _calculateChassisProgressString() {
     final chass = widget.vehicle.truckConditions.chassis;
-
     final fields = [
       chass.condition,
       chass.damagesCondition,
@@ -3166,7 +2831,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     int total = fields.length;
     int completed =
         fields.where((field) => field.toString().trim().isNotEmpty).length;
-
     return "$completed/$total";
   }
 
@@ -3180,17 +2844,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     int total = fields.length;
     int completed =
         fields.where((field) => field.toString().trim().isNotEmpty).length;
-
     return total == 0 ? 0 : (completed / total);
   }
 
-// --------------------------------------------------------
-
   String _calculateDriveTrainProgressString() {
     try {
-      debugPrint("\n=== DriveTrain Progress Debug ===");
       final drive = widget.vehicle.truckConditions.driveTrain;
-
       List<String?> fields = [
         drive.condition,
         drive.oilLeakConditionEngine,
@@ -3199,16 +2858,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         drive.oilLeakConditionGearbox,
         drive.retarderCondition,
       ];
-
       int completed = fields
           .where((field) => field != null && field.trim().isNotEmpty)
           .length;
-
-      fields.asMap().forEach((index, value) {
-        debugPrint("Field ${index + 1}: ${value?.isNotEmpty ?? false}");
-      });
-
-      debugPrint("Completed: $completed/${fields.length}");
       return "$completed/${fields.length}";
     } catch (e) {
       debugPrint("Error calculating drive train progress: $e");
@@ -3225,45 +2877,25 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       drive.blowbyCondition,
       drive.oilLeakConditionGearbox,
       drive.retarderCondition,
-      // Possibly also faultCodes if you want
     ];
     int total = fields.length;
     int completed =
         fields.where((field) => field.toString().trim().isNotEmpty).length;
-
     return total == 0 ? 0 : (completed / total);
   }
 
-// --------------------------------------------------------
-
   String _calculateTyresProgressString() {
     try {
-      debugPrint("\n=== Tyres Progress Debug ===");
       final tyresMap = widget.vehicle.truckConditions.tyres;
-      if (tyresMap.isEmpty) {
-        debugPrint("No tyres data found");
-        return "0/1";
-      }
-
+      if (tyresMap.isEmpty) return "0/1";
       final tyres = tyresMap['tyres'];
-      if (tyres == null) {
-        debugPrint("No tyres submap found");
-        return "0/1";
-      }
-
+      if (tyres == null) return "0/1";
       final positions = tyres.positions;
-      if (positions.isEmpty) {
-        debugPrint("No tyre positions found");
-        return "0/1";
-      }
-
+      if (positions.isEmpty) return "0/1";
       int filledPositions = 0;
       positions.forEach((key, value) {
         filledPositions++;
-        debugPrint("Position $key: ${value != null}");
       });
-
-      debugPrint("Filled positions: $filledPositions/${positions.length}");
       return "$filledPositions/${positions.length}";
     } catch (e) {
       debugPrint("Error calculating tyres progress: $e");
@@ -3275,13 +2907,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     try {
       final tyresMap = widget.vehicle.truckConditions.tyres;
       if (tyresMap.isEmpty) return 0.0;
-
       final tyres = tyresMap['tyres'];
       if (tyres == null) return 0.0;
-
       final positions = tyres.positions;
       if (positions.isEmpty) return 0.0;
-
       int filledPositions = positions.values.where((v) => v != null).length;
       return filledPositions / positions.length;
     } catch (e) {
@@ -3290,66 +2919,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
-  // Add this helper method to check if a map has any non-empty string values
-  bool _hasAnyNonEmptyValues(Map<String, dynamic>? map) {
-    if (map == null) return false;
-    return map.values.any((value) {
-      if (value is String) {
-        return value.trim().isNotEmpty;
-      }
-      return false;
-    });
+  bool _isNotEmpty(String? value) {
+    return value != null && value.trim().isNotEmpty;
   }
 
-  // Add this helper method to check if a list has any valid items
-  bool _hasValidItems(List? items) {
-    if (items == null || items.isEmpty) return false;
-    return items.any((item) {
-      if (item is Map<String, dynamic>) {
-        return _hasAnyNonEmptyValues(item);
-      }
-      return false;
-    });
-  }
-
-  // Add new admin progress tracking methods
   String _calculateAdminProgressString() {
     int completed = 0;
-    int total = 3; // NATIS/RC1, License Disk, and Settlement if required
-
-    // Check NATIS/RC1
+    int total = 3;
     if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) {
       completed++;
     }
-
-    // Check License Disk
     if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
       completed++;
     }
-
-    // Check Settlement Letter if required
-    if (widget.vehicle.requireToSettleType == 'yes') {
-      total++; // Add settlement amount to total
-      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
-        completed++;
-      }
-      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
-        completed++;
-      }
-    }
-
-    return "$completed/$total";
-  }
-
-  double _calculateAdminProgressPercentage() {
-    int completed = 0;
-    int total = 3;
-
-    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) completed++;
-    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
-      completed++;
-    }
-
     if (widget.vehicle.requireToSettleType == 'yes') {
       total++;
       if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
@@ -3359,7 +2941,25 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         completed++;
       }
     }
+    return "$completed/$total";
+  }
 
+  double _calculateAdminProgressPercentage() {
+    int completed = 0;
+    int total = 3;
+    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) completed++;
+    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
+      completed++;
+    }
+    if (widget.vehicle.requireToSettleType == 'yes') {
+      total++;
+      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
+        completed++;
+      }
+      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
+        completed++;
+      }
+    }
     return total == 0 ? 0.0 : completed / total;
   }
 
@@ -3412,7 +3012,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                       child: ListView(
                         padding: EdgeInsets.zero,
                         children: items.map((item) {
-                          bool isActive = currentRoute == item.route;
+                          bool isActive =
+                              ModalRoute.of(context)?.settings.name ==
+                                  item.route;
                           return ListTile(
                             title: Text(
                               item.title,

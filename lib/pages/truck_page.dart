@@ -211,7 +211,7 @@ class _TruckPageState extends State<TruckPage> {
         _brandOptions.addAll(sortedBrands);
       });
     } catch (e) {
-      debugPrint('Error loading brands from JSON: $e');
+      // debugPrint('Error loading brands from JSON: $e');
     }
   }
 
@@ -411,12 +411,18 @@ class _TruckPageState extends State<TruckPage> {
   // Helper method to apply all selected filters.
   Iterable<Vehicle> _applySelectedFilters(Iterable<Vehicle> vehicles) {
     return vehicles.where((vehicle) {
-      // First apply vehicle type filter if specified in widget
-      if (widget.vehicleType != null &&
-          widget.vehicleType!.toLowerCase() != 'all' &&
-          vehicle.vehicleType.toLowerCase() !=
-              widget.vehicleType!.toLowerCase()) {
-        return false;
+      // Apply vehicle type filter based on user selection
+      if (_selectedVehicleType.isNotEmpty &&
+          !_selectedVehicleType.contains('All')) {
+        if (!_selectedVehicleType.contains(vehicle.vehicleType.toLowerCase())) {
+          return false;
+        }
+      } else if (widget.vehicleType != null &&
+          widget.vehicleType!.toLowerCase() != 'all') {
+        if (vehicle.vehicleType.toLowerCase() !=
+            widget.vehicleType!.toLowerCase()) {
+          return false;
+        }
       }
 
       // Then apply other filters

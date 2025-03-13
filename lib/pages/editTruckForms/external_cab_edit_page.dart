@@ -832,7 +832,13 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
               child: TextFormField(
                 enabled: !isDealer,
                 initialValue: item.description,
-                onChanged: (value) => _updateDamageDescription(index, value),
+                // Updated onChanged callback to update the item's description
+                onChanged: (value) {
+                  setState(() {
+                    item.description = value;
+                  });
+                  widget.onProgressUpdate();
+                },
                 readOnly: isDealer,
                 textDirection: TextDirection.ltr,
                 textAlign: TextAlign.left,

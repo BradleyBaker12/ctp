@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
+import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/truckForms/vehilce_upload_screen.dart';
@@ -14,6 +15,7 @@ import 'dart:convert';
 // Import Provider packages if you use them to access the current user data:
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart'; // Adjust this path if needed
+import 'package:ctp/pages/trailerForms/trailer_upload_screen.dart';
 
 class VehiclesTab extends StatefulWidget {
   const VehiclesTab({super.key});
@@ -23,7 +25,7 @@ class VehiclesTab extends StatefulWidget {
 }
 
 class _VehiclesTabState extends State<VehiclesTab>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   // --------------------------------------------------------------------
   // 1) Filter State
   // --------------------------------------------------------------------
@@ -39,17 +41,6 @@ class _VehiclesTabState extends State<VehiclesTab>
 
   final List<String> _selectedApplicationOfUse = [];
   final List<String> _selectedConfigs = [];
-
-  // NEW: For vehicle type with only 2 real options ("Truck" or "Trailer")
-  final List<String> _selectedVehicleType = [];
-
-  // Additional sort options
-  final List<Map<String, String>> _sortOptions = [
-    {'field': 'createdAt', 'label': 'Date'},
-    {'field': 'year', 'label': 'Year'},
-    {'field': 'vehicleStatus', 'label': 'Status'},
-    {'field': 'makeModel', 'label': 'Model'}
-  ];
 
   // For search and pagination:
   final TextEditingController _searchController = TextEditingController();
@@ -128,9 +119,6 @@ class _VehiclesTabState extends State<VehiclesTab>
     '10x4'
   ];
 
-  // NEW: Only 2 real options: "Truck" or "Trailer" (plus "All")
-  final List<String> _vehicleTypeOptions = ['All', 'truck', 'trailer'];
-
   // --------------------------------------------------------------------
   // 3) Dynamic brand & model loading from JSON
   // --------------------------------------------------------------------
@@ -141,24 +129,66 @@ class _VehiclesTabState extends State<VehiclesTab>
   List<dynamic> _countriesData = [];
 
   // --------------------------------------------------------------------
-  // NEW: Tab Controller and Current Tab Status
+  // NEW: Top-level Tab Controller (Statuses) and second-level Tab Controller (Truck/Trailer)
   // --------------------------------------------------------------------
-  late TabController _tabController;
-  String _currentTabStatus = 'Draft'; // Default selected tab
+  late TabController _tabController; // For Draft / Pending / Live
+  late TabController _innerTabController; // For Truck / Trailer
 
-  // Add these new variables at the start of the class
+  // Current selected status from the top-level tabs:
+  String _currentTabStatus = 'Draft'; // default
+
+  // Current selected vehicle type from the second-level tabs:
+  String _currentInnerVehicleType = 'truck'; // default
+
+  // Streams for top-level tab counts:
   late Stream<int> _draftCountStream;
   late Stream<int> _pendingCountStream;
   late Stream<int> _liveCountStream;
 
+  // Add a helper method to get the count stream for a given status and type:
+  Stream<int> _getCountStream(String status, String type) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    Query baseQuery = FirebaseFirestore.instance.collection('vehicles');
+    if (userProvider.userRole == 'sales representative') {
+      baseQuery =
+          baseQuery.where('assignedSalesRepId', isEqualTo: userProvider.userId);
+    }
+    return baseQuery
+        .where('vehicleStatus', isEqualTo: status)
+        .where('vehicleType', isEqualTo: type)
+        .snapshots()
+        .map((snap) => snap.size);
+  }
+
   @override
   void initState() {
     super.initState();
+
+    // 1) Set up top-level tab controller (3 tabs)
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_handleTabSelection);
 
+    // 2) Set up second-level tab controller (2 tabs)
+    _innerTabController = TabController(length: 2, vsync: this);
+    _innerTabController.addListener(() {
+      // Only trigger if we have a "final" index (not mid-swipe)
+      if (_innerTabController.indexIsChanging) return;
+      setState(() {
+        _currentInnerVehicleType =
+            _innerTabController.index == 0 ? 'truck' : 'trailer';
+        // Clear and reload vehicles for the new type
+        _vehicles.clear();
+        _lastDocument = null;
+        _hasMore = true;
+      });
+      _fetchVehicles();
+    });
+
+    // Load JSON data for brand/countries
     _loadBrandsFromJson();
-    _loadCountriesFromJson(); // load countries & provinces
+    _loadCountriesFromJson();
+
+    // Fetch initial vehicles
     _fetchVehicles();
 
     // Listen for scroll events for pagination
@@ -171,7 +201,7 @@ class _VehiclesTabState extends State<VehiclesTab>
       }
     });
 
-    // Initialize the count streams
+    // Initialize the count streams for top-level tabs
     _initializeCountStreams();
   }
 
@@ -187,6 +217,8 @@ class _VehiclesTabState extends State<VehiclesTab>
           baseQuery.where('assignedSalesRepId', isEqualTo: currentUserId);
     }
 
+    // We'll just count total Draft, Pending, Live (all vehicle types) for the top tabs
+    // (But we do sub-totals with _getCountStream(...) in the sub tab bar)
     _draftCountStream = baseQuery
         .where('vehicleStatus', isEqualTo: 'Draft')
         .snapshots()
@@ -203,27 +235,28 @@ class _VehiclesTabState extends State<VehiclesTab>
         .map((snap) => snap.size);
   }
 
-  /// NEW: Handle Tab Selection
+  /// Handle the top-level tab selection for statuses
   void _handleTabSelection() {
-    if (_tabController.indexIsChanging) return; // Prevent intermediate states
+    if (_tabController.indexIsChanging) return; // prevent mid-swipe calls
     setState(() {
+      // Decide which status is selected
       _currentTabStatus = _tabController.index == 0
           ? 'Draft'
           : _tabController.index == 1
               ? 'pending'
               : 'Live';
+
+      // Reset pagination
       _vehicles.clear();
       _lastDocument = null;
       _hasMore = true;
     });
-    // debugPrint('--- DEBUG: Selected Tab: $_currentTabStatus ---');
     _fetchVehicles();
   }
 
   /// Loads distinct brand names from updated_truck_data.json.
   Future<void> _loadBrandsFromJson() async {
     try {
-      // debugPrint('--- DEBUG: Loading brands from JSON ---');
       final String response =
           await rootBundle.loadString('lib/assets/updated_truck_data.json');
       final Map<String, dynamic> jsonData = json.decode(response);
@@ -259,7 +292,6 @@ class _VehiclesTabState extends State<VehiclesTab>
   /// Loads countries.json to populate _countryOptions.
   Future<void> _loadCountriesFromJson() async {
     try {
-      // debugPrint('--- DEBUG: Loading countries from JSON ---');
       final String response =
           await rootBundle.loadString('lib/assets/countries.json');
       final data = json.decode(response);
@@ -279,16 +311,14 @@ class _VehiclesTabState extends State<VehiclesTab>
           }
         });
       }
-      // debugPrint('--- DEBUG: Finished loading countries => $_countryOptions');
     } catch (e, stackTrace) {
-      // debugPrint('Error loading countries from JSON: $e');
+      debugPrint('Error loading countries from JSON: $e');
       debugPrint(stackTrace.toString());
     }
   }
 
   /// Updates the list of provinces based on a selected country.
   void _updateProvincesForCountry(String countryName) {
-    // debugPrint('--- DEBUG: Updating provinces for country: $countryName ---');
     if (countryName == 'All') {
       setState(() {
         _provinceOptions = ['All'];
@@ -321,15 +351,12 @@ class _VehiclesTabState extends State<VehiclesTab>
       setState(() {
         _provinceOptions = ['All', ...provinceNames];
       });
-      // debugPrint('--- DEBUG: Updated provinceOptions => $_provinceOptions');
     }
   }
 
   /// Updates the model list based on the selected brand.
   void _updateModelsForBrand(String brand) async {
     try {
-      // debugPrint('--- DEBUG: Updating models for brand: $brand ---');
-
       if (brand == 'All') {
         setState(() {
           _makeModelOptions = ['All'];
@@ -375,6 +402,7 @@ class _VehiclesTabState extends State<VehiclesTab>
   @override
   void dispose() {
     _tabController.dispose();
+    _innerTabController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -386,6 +414,7 @@ class _VehiclesTabState extends State<VehiclesTab>
   bool _matchesSearch(Map<String, dynamic> vehicleData) {
     if (_searchQuery.isEmpty) return true;
     final query = _searchQuery.toLowerCase();
+
     String reference = (vehicleData['referenceNumber'] ?? '').toLowerCase();
     List<dynamic> brandList = vehicleData['brands'] ?? [];
     String brandConcat = brandList.join(' ').toLowerCase();
@@ -397,7 +426,8 @@ class _VehiclesTabState extends State<VehiclesTab>
         (vehicleData['transmissionType'] ?? '').toLowerCase();
     String countryStr = (vehicleData['country'] ?? '').toLowerCase();
     String provinceStr = (vehicleData['province'] ?? '').toLowerCase();
-    String applicationStr = (vehicleData['vehicleType'] ?? '').toLowerCase();
+    String applicationStr =
+        (vehicleData['applicationOfUse'] ?? '').toLowerCase();
     String configStr = (vehicleData['config'] ?? '').toLowerCase();
     String vehicleTypeStr = (vehicleData['vehicleType'] ?? '').toLowerCase();
 
@@ -429,8 +459,11 @@ class _VehiclesTabState extends State<VehiclesTab>
       // Base query
       Query query = FirebaseFirestore.instance.collection('vehicles');
 
-      // First apply status filter (this must be first for query optimization)
+      // 1) Filter by current tab status:
       query = query.where('vehicleStatus', isEqualTo: _currentTabStatus);
+
+      // 2) Filter by current sub tab vehicle type:
+      query = query.where('vehicleType', isEqualTo: _currentInnerVehicleType);
 
       // User role filtering
       final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -439,63 +472,55 @@ class _VehiclesTabState extends State<VehiclesTab>
             query.where('assignedSalesRepId', isEqualTo: userProvider.userId);
       }
 
-      // Build filter conditions map
+      // Build additional filter conditions map
       Map<String, dynamic> filterConditions = {};
 
-      // Add year filter
+      // Year
       if (_selectedYears.isNotEmpty && !_selectedYears.contains('All')) {
         filterConditions['year'] = _selectedYears;
       }
 
-      // Add brand filter (needs special handling for array contains)
+      // Brand (arrayContainsAny)
       if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
-        // We can only use one arrayContainsAny per query
-        // So we'll handle additional brand filtering in memory
         query = query.where('brands', arrayContainsAny: _selectedBrands);
       }
 
-      // Add model filter
+      // Model
       if (_selectedMakeModels.isNotEmpty &&
           !_selectedMakeModels.contains('All')) {
         filterConditions['makeModel'] = _selectedMakeModels;
       }
 
-      // Add transmission filter (fix field name)
+      // Transmission
       if (_selectedTransmissions.isNotEmpty &&
           !_selectedTransmissions.contains('All')) {
         filterConditions['transmissionType'] = _selectedTransmissions;
       }
 
-      // Add location filters
+      // Country
       if (_selectedCountries.isNotEmpty &&
           !_selectedCountries.contains('All')) {
         filterConditions['country'] = _selectedCountries;
       }
 
+      // Province
       if (_selectedProvinces.isNotEmpty &&
           !_selectedProvinces.contains('All')) {
         filterConditions['province'] = _selectedProvinces;
       }
 
-      // FIX: Application of Use filter - use the correct field name 'applicationOfUse'
+      // Application of Use
       if (_selectedApplicationOfUse.isNotEmpty &&
           !_selectedApplicationOfUse.contains('All')) {
-        filterConditions['applicationOfUse'] =
-            _selectedApplicationOfUse; // Changed from bodyType
+        filterConditions['applicationOfUse'] = _selectedApplicationOfUse;
       }
 
-      // FIX: Config filter - use the correct field name 'configuration'
+      // Config
       if (_selectedConfigs.isNotEmpty && !_selectedConfigs.contains('All')) {
-        filterConditions['config'] = _selectedConfigs; // Changed from config
+        filterConditions['config'] = _selectedConfigs;
       }
 
-      // Add vehicle type filter
-      if (_selectedVehicleType.isNotEmpty &&
-          !_selectedVehicleType.contains('All')) {
-        filterConditions['vehicleType'] = _selectedVehicleType;
-      }
-
-      // Apply all whereIn filters
+      // Apply whereIn filters
       filterConditions.forEach((field, values) {
         query = query.where(field, whereIn: values);
       });
@@ -509,19 +534,19 @@ class _VehiclesTabState extends State<VehiclesTab>
         query = query.startAfterDocument(_lastDocument!);
       }
 
-      debugPrint('Executing query with filters: $filterConditions');
+      debugPrint('Executing query with status=$_currentTabStatus, '
+          'type=$_currentInnerVehicleType, extra filters: $filterConditions');
 
       final QuerySnapshot querySnapshot = await query.get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        // Additional in-memory filtering for complex conditions
+        // Additional in-memory filtering for brand array, if needed
         final filteredDocs = querySnapshot.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
 
-          // Apply additional brand filtering if needed
           if (_selectedBrands.isNotEmpty && !_selectedBrands.contains('All')) {
             final docBrands = List<String>.from(data['brands'] ?? []);
-            if (!_selectedBrands.any((brand) => docBrands.contains(brand))) {
+            if (!_selectedBrands.any((b) => docBrands.contains(b))) {
               return false;
             }
           }
@@ -551,57 +576,33 @@ class _VehiclesTabState extends State<VehiclesTab>
     }
   }
 
-  // Update filter clear method
-  void _clearFilters() {
-    setState(() {
-      _selectedYears.clear();
-      _selectedBrands.clear();
-      _selectedMakeModels.clear();
-      _selectedVehicleStatuses.clear();
-      _selectedTransmissions.clear();
-      _selectedCountries.clear();
-      _selectedProvinces.clear();
-      _selectedApplicationOfUse.clear();
-      _selectedConfigs.clear();
-      _selectedVehicleType.clear();
-      _vehicles.clear();
-      _lastDocument = null;
-      _hasMore = true;
-      _searchQuery = '';
-      _searchController.clear();
-    });
-    _fetchVehicles();
-  }
-
   // --------------------------------------------------------------------
   // 6) Build UI
   // --------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    // Apply client-side search filter to the _vehicles list.
+    // Apply client-side search filter
     List<DocumentSnapshot> filteredVehicles = _vehicles.where((doc) {
       var data = doc.data() as Map<String, dynamic>;
-      bool matches = _matchesSearch(data);
-      debugPrint(
-          '--- DEBUG: Vehicle ID ${doc.id} matches search: $matches ---');
-      return matches;
+      return _matchesSearch(data);
     }).toList();
-
-    debugPrint(
-        '--- DEBUG: build() called. Total fetched vehicles: ${_vehicles.length}, Filtered vehicles: ${filteredVehicles.length}, Search query: "$_searchQuery" ---');
 
     return Scaffold(
       body: GradientBackground(
         child: Column(
           children: [
-            // --- TAB BAR ---
+            // --- TOP-LEVEL TAB BAR (Draft, Pending, Live) ---
             _buildTabBarWithCounts(),
-            // --- SEARCH, SORT, and FILTER controls:
+
+            // --- SECOND-LEVEL TAB BAR (Truck, Trailer) ---
+            _buildInnerTabBarWithCounts(),
+
+            // --- SEARCH, SORT, and FILTER controls ---
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
                 children: [
-                  // --- SEARCH BAR ---
+                  // SEARCH BAR
                   Expanded(
                     child: Container(
                       height: 40,
@@ -628,20 +629,20 @@ class _VehiclesTabState extends State<VehiclesTab>
                           setState(() {
                             _searchQuery = value.toLowerCase();
                           });
-                          debugPrint(
-                              '--- DEBUG: Search query updated: $_searchQuery ---');
                         },
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // --- SORT BUTTON ---
+
+                  // SORT BUTTON
                   IconButton(
                     icon: const Icon(Icons.sort, color: Colors.white),
                     onPressed: _showSortMenu,
                     tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
                   ),
-                  // --- SORT DIRECTION BUTTON ---
+
+                  // SORT DIRECTION BUTTON
                   IconButton(
                     icon: Icon(
                       _sortAscending
@@ -656,14 +657,13 @@ class _VehiclesTabState extends State<VehiclesTab>
                         _lastDocument = null;
                         _hasMore = true;
                       });
-                      debugPrint(
-                          '--- DEBUG: Sort direction toggled, _fetchVehicles() called ---');
                       _fetchVehicles();
                     },
                     tooltip:
                         _sortAscending ? 'Sort Ascending' : 'Sort Descending',
                   ),
-                  // --- FILTER BUTTON ---
+
+                  // FILTER BUTTON
                   IconButton(
                     icon: const Icon(Icons.filter_list, color: Colors.white),
                     onPressed: _showFilterDialog,
@@ -672,7 +672,8 @@ class _VehiclesTabState extends State<VehiclesTab>
                 ],
               ),
             ),
-            // VEHICLE LIST:
+
+            // --- VEHICLE LIST ---
             Expanded(
               child: filteredVehicles.isEmpty
                   ? _isLoading
@@ -729,16 +730,22 @@ class _VehiclesTabState extends State<VehiclesTab>
                                             errorBuilder:
                                                 (context, error, stackTrace) {
                                               return const Icon(
-                                                  Icons.directions_car,
-                                                  color: Colors.blueAccent);
+                                                Icons.directions_car,
+                                                color: Colors.blueAccent,
+                                              );
                                             },
                                           )
-                                        : const Icon(Icons.directions_car,
-                                            color: Colors.blueAccent, size: 50),
+                                        : const Icon(
+                                            Icons.directions_car,
+                                            color: Colors.blueAccent,
+                                            size: 50,
+                                          ),
                               ),
                             ),
                             title: Text(
-                              '$brand ${vehicle.makeModel} $variant',
+                              vehicle.vehicleType.toLowerCase() == 'trailer'
+                                  ? '${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ' + vehicle.variant! : ''}'
+                                  : '${(vehicle.brands.isNotEmpty ? vehicle.brands[0] : 'Unknown Brand')} ${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ' + vehicle.variant! : ''}',
                               style: GoogleFonts.montserrat(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -784,9 +791,10 @@ class _VehiclesTabState extends State<VehiclesTab>
           ],
         ),
       ),
-      // Floating Action Button for Adding a Vehicle:
+      // --- Floating Action Button for Adding a Vehicle ---
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showTransporterSelectionDialog(context),
+        onPressed: () =>
+            _showVehicleTypeSelectionDialog(), // NEW: Call vehicle type selection
         label: Text(
           'Add Vehicle',
           style: GoogleFonts.montserrat(color: Colors.white),
@@ -800,7 +808,42 @@ class _VehiclesTabState extends State<VehiclesTab>
   // --------------------------------------------------------------------
   // 7) Transporter Selection Dialog
   // --------------------------------------------------------------------
-  void _showTransporterSelectionDialog(BuildContext context) {
+  void _showVehicleTypeSelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          'Select Vehicle Type',
+          style: GoogleFonts.montserrat(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CustomButton(
+              text: 'Truck',
+              borderColor: AppColors.blue,
+              onPressed: () {
+                Navigator.pop(context);
+                _showTransporterSelectionDialog('truck');
+              },
+            ),
+            const SizedBox(height: 16),
+            CustomButton(
+              text: 'Trailer',
+              borderColor: AppColors.orange,
+              onPressed: () {
+                Navigator.pop(context);
+                _showTransporterSelectionDialog('trailer');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTransporterSelectionDialog(String vehicleType) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -813,13 +856,9 @@ class _VehiclesTabState extends State<VehiclesTab>
               .where('userRole', whereIn: ['transporter', 'admin']).snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              debugPrint(
-                  '--- DEBUG: No data received in transporter stream ---');
               return const CircularProgressIndicator(color: Color(0xFFFF4E00));
             }
             final docs = snapshot.data!.docs;
-            debugPrint(
-                '--- DEBUG: Number of transporters fetched: ${docs.length} ---');
             return SizedBox(
               width: double.maxFinite,
               height: MediaQuery.of(context).size.height * 0.4,
@@ -850,38 +889,48 @@ class _VehiclesTabState extends State<VehiclesTab>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            displayName,
-                            style: GoogleFonts.montserrat(color: Colors.white),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          Text(
-                            userData['email'] ?? '',
-                            style: GoogleFonts.montserrat(
-                                color: Colors.grey, fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
+                          Text(displayName,
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1),
+                          Text(userData['email'] ?? '',
+                              style: GoogleFonts.montserrat(
+                                  color: Colors.grey, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1),
                         ],
                       ),
                     ),
                   );
                 }).toList(),
                 onChanged: (transporterId) {
-                  debugPrint(
-                      '--- DEBUG: Selected transporterId: $transporterId ---');
                   if (transporterId != null) {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => VehicleUploadScreen(
-                          isNewUpload: true,
-                          isAdminUpload: true,
-                        ),
-                      ),
-                    );
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      Navigator.pop(context);
+                      if (vehicleType == 'truck') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const VehicleUploadScreen(
+                              isNewUpload: true,
+                              isAdminUpload: true,
+                            ),
+                          ),
+                        );
+                      } else if (vehicleType == 'trailer') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TrailerUploadScreen(
+                              isNewUpload: true,
+                              isAdminUpload: true,
+                              transporterId: transporterId,
+                            ),
+                          ),
+                        );
+                      }
+                    });
                   }
                 },
               ),
@@ -912,22 +961,12 @@ class _VehiclesTabState extends State<VehiclesTab>
       context: context,
       position: position,
       color: Colors.grey[900],
-      items: _sortOptions.map((option) {
-        return PopupMenuItem<String>(
-          value: option['field'],
-          child: Row(
-            children: [
-              Text(
-                option['label']!,
-                style: GoogleFonts.montserrat(color: Colors.white),
-              ),
-              if (_sortField == option['field']) const SizedBox(width: 8),
-              if (_sortField == option['field'])
-                const Icon(Icons.check, size: 18, color: Colors.white),
-            ],
-          ),
-        );
-      }).toList(),
+      items: [
+        _popupSortOption('createdAt', 'Date'),
+        _popupSortOption('year', 'Year'),
+        _popupSortOption('vehicleStatus', 'Status'),
+        _popupSortOption('makeModel', 'Model'),
+      ],
     ).then((value) {
       if (value != null) {
         setState(() {
@@ -936,11 +975,26 @@ class _VehiclesTabState extends State<VehiclesTab>
           _lastDocument = null;
           _hasMore = true;
         });
-        debugPrint(
-            '--- DEBUG: sortField changed to: $value, _fetchVehicles() called ---');
         _fetchVehicles();
       }
     });
+  }
+
+  PopupMenuItem<String> _popupSortOption(String field, String label) {
+    return PopupMenuItem<String>(
+      value: field,
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.montserrat(color: Colors.white),
+          ),
+          if (_sortField == field) const SizedBox(width: 8),
+          if (_sortField == field)
+            const Icon(Icons.check, size: 18, color: Colors.white),
+        ],
+      ),
+    );
   }
 
   // --------------------------------------------------------------------
@@ -984,8 +1038,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 _selectedYears.remove(year);
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Year changed: $_selectedYears');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
@@ -1022,8 +1074,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 }
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Brand changed: $_selectedBrands');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
@@ -1054,15 +1104,14 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 _selectedMakeModels.remove(model);
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Model changed: $_selectedMakeModels');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
                         );
                       }).toList(),
                     ),
-                    // VEHICLE STATUS
+                    // VEHICLE STATUS (Note: We typically handle status with top-level tabs,
+                    // but leaving here in case you want "Sold" or others)
                     ExpansionTile(
                       title: Text('By Status',
                           style: GoogleFonts.montserrat(color: Colors.white)),
@@ -1091,8 +1140,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 _selectedVehicleStatuses.remove(status);
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Vehicle status changed: $_selectedVehicleStatuses');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
@@ -1123,8 +1170,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 _selectedTransmissions.remove(trans);
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Transmission changed: $_selectedTransmissions');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
@@ -1169,8 +1214,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 }
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Countries changed: $_selectedCountries');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
@@ -1201,8 +1244,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 _selectedProvinces.remove(prov);
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Provinces changed: $_selectedProvinces');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
@@ -1233,8 +1274,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 _selectedApplicationOfUse.remove(vtype);
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Application Of Use changed: $_selectedApplicationOfUse');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
@@ -1265,46 +1304,13 @@ class _VehiclesTabState extends State<VehiclesTab>
                                 _selectedConfigs.remove(cfg);
                               }
                             });
-                            debugPrint(
-                                '--- DEBUG: Config changed: $_selectedConfigs');
                           },
                           checkColor: Colors.black,
                           activeColor: const Color(0xFFFF4E00),
                         );
                       }).toList(),
                     ),
-                    // VEHICLE TYPE
-                    ExpansionTile(
-                      title: Text('By Vehicle Type',
-                          style: GoogleFonts.montserrat(color: Colors.white)),
-                      children: _vehicleTypeOptions.map((type) {
-                        return CheckboxListTile(
-                          title: Text(type,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white)),
-                          value: _selectedVehicleType.contains(type),
-                          onChanged: (bool? value) {
-                            setDialogState(() {
-                              if (value == true) {
-                                if (type == 'All') {
-                                  _selectedVehicleType.clear();
-                                }
-                                if (_selectedVehicleType.contains('All')) {
-                                  _selectedVehicleType.remove('All');
-                                }
-                                _selectedVehicleType.add(type);
-                              } else {
-                                _selectedVehicleType.remove(type);
-                              }
-                            });
-                            debugPrint(
-                                '--- DEBUG: Vehicle Type changed: $_selectedVehicleType');
-                          },
-                          checkColor: Colors.black,
-                          activeColor: const Color(0xFFFF4E00),
-                        );
-                      }).toList(),
-                    ),
+                    // (Removed "By Vehicle Type" here, since we have a second-level tab bar)
                   ],
                 );
               },
@@ -1325,13 +1331,15 @@ class _VehiclesTabState extends State<VehiclesTab>
                   _selectedProvinces.clear();
                   _selectedApplicationOfUse.clear();
                   _selectedConfigs.clear();
-                  _selectedVehicleType.clear();
-                  _provinceOptions = ['All'];
+
+                  // Reset pagination, search, etc.
                   _vehicles.clear();
                   _lastDocument = null;
                   _hasMore = true;
+                  _searchQuery = '';
+                  _searchController.clear();
+                  _provinceOptions = ['All'];
                 });
-                debugPrint('--- DEBUG: Filters cleared ---');
                 Navigator.pop(context);
                 _fetchVehicles();
               },
@@ -1345,8 +1353,6 @@ class _VehiclesTabState extends State<VehiclesTab>
                   _lastDocument = null;
                   _hasMore = true;
                 });
-                debugPrint(
-                    '--- DEBUG: Filters applied, re-fetching vehicles ---');
                 Navigator.pop(context);
                 _fetchVehicles();
               },
@@ -1357,7 +1363,9 @@ class _VehiclesTabState extends State<VehiclesTab>
     );
   }
 
-  // Replace the existing TabBar in the build method with this:
+  // --------------------------------------------------------------------
+  // BUILD TOP-LEVEL TAB BAR (Draft / Pending / Live) WITH COUNTS
+  // --------------------------------------------------------------------
   Widget _buildTabBarWithCounts() {
     return TabBar(
       controller: _tabController,
@@ -1365,6 +1373,7 @@ class _VehiclesTabState extends State<VehiclesTab>
       unselectedLabelColor: Colors.white70,
       indicatorColor: const Color(0xFFFF4E00),
       tabs: [
+        // Draft
         StreamBuilder<int>(
           stream: _draftCountStream,
           builder: (context, snapshot) {
@@ -1386,6 +1395,7 @@ class _VehiclesTabState extends State<VehiclesTab>
             );
           },
         ),
+        // Pending
         StreamBuilder<int>(
           stream: _pendingCountStream,
           builder: (context, snapshot) {
@@ -1407,6 +1417,7 @@ class _VehiclesTabState extends State<VehiclesTab>
             );
           },
         ),
+        // Live
         StreamBuilder<int>(
           stream: _liveCountStream,
           builder: (context, snapshot) {
@@ -1418,6 +1429,66 @@ class _VehiclesTabState extends State<VehiclesTab>
                   const SizedBox(width: 4),
                   Text(
                     '(${snapshot.data ?? 0})',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // --------------------------------------------------------------------
+  // BUILD SECOND-LEVEL TAB BAR (Truck / Trailer) WITH COUNTS
+  // --------------------------------------------------------------------
+  Widget _buildInnerTabBarWithCounts() {
+    return TabBar(
+      controller: _innerTabController,
+      labelColor: Colors.white,
+      unselectedLabelColor: Colors.white70,
+      indicatorColor: const Color(0xFFFF4E00),
+      tabs: [
+        // Truck
+        StreamBuilder<int>(
+          stream: _getCountStream(_currentTabStatus, 'truck'),
+          builder: (context, snapshot) {
+            final count = snapshot.data ?? 0;
+            return Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Trucks"),
+                  const SizedBox(width: 4),
+                  Text(
+                    '($count)',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        // Trailer
+        StreamBuilder<int>(
+          stream: _getCountStream(_currentTabStatus, 'trailer'),
+          builder: (context, snapshot) {
+            final count = snapshot.data ?? 0;
+            return Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Trailers"),
+                  const SizedBox(width: 4),
+                  Text(
+                    '($count)',
                     style: GoogleFonts.montserrat(
                       fontSize: 12,
                       color: Colors.white70,
