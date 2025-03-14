@@ -1,15 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:developer';
+
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/models/vehicle.dart';
-import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
-import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/editTruckForms/truck_conditions_tabs_edit_page.dart';
+import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
+import 'package:ctp/pages/editTruckForms/admin_edit_section.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:ctp/models/vehicle.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EditFormNavigation extends StatefulWidget {
   final Vehicle vehicle;
@@ -123,6 +125,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
   }
 
   bool isNotEmpty(String? value) {
+    var res = value != null && value != "N/A" && value.isNotEmpty;
+    print("Res: $res, value: $value");
     return value != null && value != "N/A" && value.isNotEmpty;
   }
 
@@ -275,43 +279,50 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     int totalSteps = 21; // All fields from the DriveTrain model
 
     final driveTrain = vehicle?.truckConditions.driveTrain;
-
+    if (driveTrain == null) {
+      return 0;
+    }
     // Check main condition
-    if (driveTrain?.condition.isNotEmpty == true) completedSteps++;
+    if (isNotEmpty(driveTrain.condition)) completedSteps++;
 
     // Check engine conditions
-    if (driveTrain?.oilLeakConditionEngine.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.waterLeakConditionEngine.isNotEmpty == true) {
+    if (isNotEmpty(driveTrain.oilLeakConditionEngine)) completedSteps++;
+    if (isNotEmpty(driveTrain.waterLeakConditionEngine)) {
       completedSteps++;
     }
-    if (driveTrain?.blowbyCondition.isNotEmpty == true) completedSteps++;
+    if (isNotEmpty(driveTrain.blowbyCondition)) completedSteps++;
 
     // Check gearbox and retarder conditions
-    if (driveTrain?.oilLeakConditionGearbox.isNotEmpty == true) {
+    if (isNotEmpty(driveTrain.oilLeakConditionGearbox)) {
       completedSteps++;
     }
-    if (driveTrain?.retarderCondition.isNotEmpty == true) completedSteps++;
+    if (isNotEmpty(driveTrain.retarderCondition)) completedSteps++;
 
-    var driveTrainKeys = driveTrain?.images.keys.toList() ?? [];
+    if (driveTrain.images.isNotEmpty) {
+      int validImageCount = driveTrain.images.entries
+          .where((entry) => entry.key.isNotEmpty && entry.value.isNotEmpty)
+          .length;
 
-    // "Engine Left" and "Engine Right" are linked to other parts of the vehicle
-    if (driveTrainKeys.contains("Engine Left")) {
-      completedSteps += 1;
+      completedSteps += validImageCount;
+
+      // "Engine Left" and "Engine Right" are linked to other parts of the vehicle
+      if (driveTrain.images.containsKey("Engine Left") &&
+          driveTrain.images["Engine Left"]!.isNotEmpty) {
+        completedSteps++;
+      }
+      if (driveTrain.images.containsKey("Engine Right") &&
+          driveTrain.images["Engine Right"]!.isNotEmpty) {
+        completedSteps++;
+      }
     }
-    if (driveTrainKeys.contains("Engine Right")) {
-      completedSteps += 1;
-    }
-    // if (driveTrain?.images.isNotEmpty == true) completedSteps++;
-    completedSteps += driveTrain?.images.length ?? 0;
-
     // Check damages
-    if (driveTrain?.damages.isNotEmpty == true) completedSteps++;
+    if (driveTrain.damages.isNotEmpty == true) completedSteps++;
 
     // Check additional features
-    if (driveTrain?.additionalFeatures.isNotEmpty == true) completedSteps++;
+    if (driveTrain.additionalFeatures.isNotEmpty == true) completedSteps++;
 
     // Check fault codes
-    if (driveTrain?.faultCodes.isNotEmpty == true) completedSteps++;
+    if (driveTrain.faultCodes.isNotEmpty == true) completedSteps++;
     // completedSteps += driveTrain?.faultCodes.length ?? 0;
 
     return completedSteps <= totalSteps ? completedSteps : totalSteps;
