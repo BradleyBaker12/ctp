@@ -123,9 +123,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   String? _existingServiceHistoryUrl;
 
   // === Damage & Additional Features (Missing in original edit form) ===
-  String _damagesCondition = 'no';
   String _featuresCondition = 'no';
-  final List<Map<String, dynamic>> _damageList = [];
   final List<Map<String, dynamic>> _featureList = [];
 
   // === UI State ===
@@ -165,6 +163,10 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   String? _selectedTransporterEmail;
   String? _selectedSalesRepId;
   String? _selectedSalesRepEmail;
+
+  // Add this near other state variables
+  String _damagesCondition = 'no';
+  final List<Map<String, dynamic>> _damageList = [];
 
   @override
   void initState() {
@@ -224,6 +226,16 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     _vinBController.dispose();
     _registrationBController.dispose();
     _scrollController.dispose();
+    for (var item in _damageList) {
+      if (item['controller'] != null) {
+        (item['controller'] as TextEditingController).dispose();
+      }
+    }
+    for (var item in _featureList) {
+      if (item['controller'] != null) {
+        (item['controller'] as TextEditingController).dispose();
+      }
+    }
     super.dispose();
   }
 
@@ -316,22 +328,57 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _deckImageBUrl = trailerB['deckImageUrl'];
         _makersPlateImageBUrl = trailerB['makersPlateImageUrl'];
       }
-      // ...rest of existing code...
-      // Handle damages and features population
-      _damageList.clear();
-      if (data['damages'] != null && data['damages'] is List) {
-        _damageList.addAll(List<Map<String, dynamic>>.from(data['damages']));
-      }
-      _damagesCondition = (_damageList.isNotEmpty) ? 'yes' : 'no';
-      debugPrint("DEBUG: Damages populated: ${_damageList.length} items");
 
       _featureList.clear();
       if (data['features'] != null && data['features'] is List) {
-        _featureList.addAll(List<Map<String, dynamic>>.from(data['features']));
+        _featureList.addAll(
+            List<Map<String, dynamic>>.from(data['features']).map((feature) {
+          return {
+            'description': feature['description'] ?? '',
+            'imageUrl': feature['imageUrl'] ?? '',
+            'image': null,
+            'controller':
+                TextEditingController(text: feature['description'] ?? ''),
+          };
+        }).toList());
       }
       _featuresCondition = (_featureList.isNotEmpty) ? 'yes' : 'no';
       debugPrint("DEBUG: Features populated: ${_featureList.length} items");
+
+      // Add damage population logic
+      _damageList.clear();
+      if (data['damages'] != null && data['damages'] is List) {
+        _damageList.addAll(
+            List<Map<String, dynamic>>.from(data['damages']).map((damage) {
+          return {
+            'description': damage['description'] ?? '',
+            'imageUrl': damage['imageUrl'] ?? '',
+            'image': null,
+            'controller':
+                TextEditingController(text: damage['description'] ?? ''),
+          };
+        }).toList());
+      }
+      _damagesCondition = (_damageList.isNotEmpty) ? 'yes' : 'no';
     });
+  }
+
+  // Add this new widget below your _buildFeaturesSection() function.
+  Widget _buildDamageSection() {
+    return _buildItemSection(
+      title: 'Damages',
+      items: _damageList,
+      onAdd: () {
+        setState(() {
+          _damageList.add({
+            'description': '',
+            'image': null,
+            'controller': TextEditingController(),
+          });
+        });
+      },
+      showImageSourceDialog: _showDamageImageSourceDialog,
+    );
   }
 
   // --- File and Image Pickers (similar to upload form) ---
@@ -493,49 +540,29 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         const SizedBox(height: 15),
         InkWell(
           onTap: () {
-            // If a new file is selected OR an existing file URL exists, show options.
-            if (_serviceHistoryFile != null ||
-                (_existingServiceHistoryUrl != null &&
-                    _existingServiceHistoryUrl!.isNotEmpty)) {
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Service History'),
-                  content:
-                      const Text('What would you like to do with the file?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _pickServiceHistoryFile();
-                      },
-                      child: const Text('Change File'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        setState(() {
-                          _serviceHistoryFile = null;
-                          _existingServiceHistoryUrl = '';
-                          _serviceHistoryFileName = null;
-                        });
-                      },
-                      child: const Text('Remove File',
-                          style: TextStyle(color: Colors.red)),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                ),
-              );
+            final bool isDealer =
+                Provider.of<UserProvider>(context, listen: false).getUserRole ==
+                    'dealer';
+            if (isDealer) {
+              _viewServiceHistory();
             } else {
-              _pickServiceHistoryFile();
+              if (_existingServiceHistoryUrl != null ||
+                  _serviceHistoryFile != null) {
+                _showServiceHistoryOptions();
+              } else {
+                _pickServiceHistoryFile();
+              }
             }
           },
           borderRadius: BorderRadius.circular(10.0),
-          child: _buildStyledContainer(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E4CAF).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
+            ),
             child: _serviceHistoryFile != null
                 ? _buildFileDisplay(
                     _serviceHistoryFileName?.split('/').last, false)
@@ -550,18 +577,79 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     );
   }
 
-  // --- Damages & Additional Features Sections ---
-  Widget _buildDamageSection() {
-    return _buildItemSection(
-      title: 'List Current Damages',
-      items: _damageList,
-      onAdd: () {
-        setState(() {
-          _damageList.add({'description': '', 'image': null});
-        });
+  void _showServiceHistoryOptions() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Document Options'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.remove_red_eye),
+                title: const Text('View Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _viewServiceHistory();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Replace Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickServiceHistoryFile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Document',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _serviceHistoryFile = null;
+                    _existingServiceHistoryUrl = null;
+                    _serviceHistoryFileName = null;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel')),
+          ],
+        );
       },
-      showImageSourceDialog: _showDamageImageSourceDialog,
     );
+  }
+
+  Future<void> _viewServiceHistory() async {
+    final String? url =
+        _serviceHistoryFileName == null ? _existingServiceHistoryUrl : null;
+    if (url != null && url.isNotEmpty) {
+      try {
+        final Uri uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open document')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening document: $e')),
+        );
+      }
+    } else if (_serviceHistoryFile != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Local document viewing not implemented')),
+      );
+    }
   }
 
   Widget _buildFeaturesSection() {
@@ -570,7 +658,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       items: _featureList,
       onAdd: () {
         setState(() {
-          _featureList.add({'description': '', 'image': null});
+          _featureList.add({
+            'description': '',
+            'image': null,
+            'controller': TextEditingController(),
+          });
         });
       },
       showImageSourceDialog: _showFeatureImageSourceDialog,
@@ -1259,7 +1351,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           const SizedBox(height: 15),
           // NEW: Service History Section
           _buildServiceHistorySection(),
-          const SizedBox(height: 15),
+          const SizedBox(height: 20),
+
           // NEW: Damages Section
           const Text(
             'Are there any damages?',
@@ -1295,8 +1388,6 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                     _damagesCondition = val ?? 'no';
                     if (_damagesCondition == 'no') {
                       _damageList.clear();
-                    } else if (_damageList.isEmpty) {
-                      _damageList.add({'description': '', 'image': null});
                     }
                   });
                 },
@@ -1306,6 +1397,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           const SizedBox(height: 15),
           if (_damagesCondition == 'yes') _buildDamageSection(),
           const SizedBox(height: 20),
+
           // NEW: Additional Features Section
           const Text(
             'Are there any additional features?',
@@ -1444,18 +1536,26 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       Map<String, dynamic> item,
       List<Map<String, dynamic>> itemList,
       void Function(Map<String, dynamic>) showImageSourceDialog) {
+    // Ensure controller is initialized
     if (item['controller'] == null) {
       item['controller'] =
           TextEditingController(text: item['description'] ?? '');
     }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CustomTextField(
-          controller: item['controller'],
+          controller: item['controller'] as TextEditingController,
           hintText: 'Describe Item',
           onChanged: (val) {
-            item['description'] = val;
+            setState(() {
+              item['description'] = val;
+              // Ensure the controller text is also updated
+              if (item['controller'].text != val) {
+                item['controller'].text = val;
+              }
+            });
           },
         ),
         const SizedBox(height: 10),
@@ -1756,10 +1856,14 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         };
       }
 
-      // Add damages & features to updated data.
+      // Add features to updated data.
       updatedData['trailerExtraInfo'] = trailerExtraInfo;
       updatedData['featuresCondition'] = _featuresCondition;
       updatedData['features'] = await _uploadListItems(_featureList);
+
+      // Add damages to updated data
+      updatedData['damagesCondition'] = _damagesCondition;
+      updatedData['damages'] = await _uploadListItems(_damageList);
 
       // Update admin assignments.
       if (Provider.of<UserProvider>(context, listen: false).getUserRole ==
@@ -1799,28 +1903,26 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       List<Map<String, dynamic>> items) async {
     List<Map<String, dynamic>> uploadedItems = [];
     for (var item in items) {
+      // Get description from controller first, fallback to description field
       String description = item['controller'] != null
           ? (item['controller'] as TextEditingController).text
           : (item['description'] ?? '');
+
+      Map<String, dynamic> uploadedItem = {
+        'description': description,
+        'imageUrl': '',
+      };
+
       if (item['image'] != null) {
         String? imageUrl =
             await _uploadFileToFirebaseStorage(item['image'], 'vehicle_images');
-        uploadedItems.add({
-          'description': description,
-          'imageUrl': imageUrl ?? '',
-        });
+        uploadedItem['imageUrl'] = imageUrl ?? '';
       } else if (item['imageUrl'] != null &&
           (item['imageUrl'] as String).isNotEmpty) {
-        uploadedItems.add({
-          'description': description,
-          'imageUrl': item['imageUrl'],
-        });
-      } else {
-        uploadedItems.add({
-          'description': description,
-          'imageUrl': '',
-        });
+        uploadedItem['imageUrl'] = item['imageUrl'];
       }
+
+      uploadedItems.add(uploadedItem);
     }
     return uploadedItems;
   }

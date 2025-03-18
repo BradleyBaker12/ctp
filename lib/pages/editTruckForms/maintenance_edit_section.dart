@@ -55,8 +55,7 @@ class MaintenanceEditSection extends StatefulWidget {
       this.maintenanceDocFile,
       this.warrantyDocFile,
       required this.isFromAdmin,
-      required this.isFromTransporter
-      });
+      required this.isFromTransporter});
 
   @override
   MaintenanceEditSectionState createState() {
@@ -400,7 +399,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
   bool _isImageFile(String path) {
     final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-     String extension = getFileExtension(path);
+    String extension = getFileExtension(path);
     print("File Extnnsion: $extension");
     return imageExtensions.contains(extension);
   }
@@ -412,7 +411,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     return fileName.contains('.') ? fileName.split('.').last : '';
   }
 
-   String getFileNameFromUrl(String url) {
+  String getFileNameFromUrl(String url) {
     // if (url.contains('maintenance_doc')) {
     //   return 'Maintenance Doc';
     // } else if (url.contains('warranty_doc')) {
@@ -481,28 +480,21 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
   Future<void> _viewPdf(String url, String title) async {
     try {
-      debugPrint('DEBUG: _viewPdf called with URL: "$url" and title: "$title"');
-      debugPrint('DEBUG: maintenanceDocUrl: "${widget.maintenanceDocUrl}"');
-      debugPrint('DEBUG: warrantyDocUrl: "${widget.warrantyDocUrl}"');
-
       if (url.isEmpty) {
-        debugPrint('ERROR: Empty URL detected');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error: Document URL is empty')),
         );
         return;
       }
 
-      debugPrint('DEBUG: Opening document URL: $url');
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ViewerPage(url: url),
         ),
       );
-    } catch (e, stackTrace) {
-      debugPrint('ERROR: Error viewing document: $e');
-      debugPrint('STACK TRACE: $stackTrace');
+    } catch (e) {
+      debugPrint('Error viewing document: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error viewing document: $e')),
       );
@@ -1131,12 +1123,25 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                 );
 
                                 try {
-                                  String? maintenanceDocUrl =
-                                      widget.maintenanceDocUrl;
-                                  String? warrantyDocUrl =
-                                      widget.warrantyDocUrl;
+                                  // Initialize empty update data
+                                  Map<String, dynamic> maintenanceData = {};
 
-                                  // Upload maintenance file if new one is selected
+                                  // Only add fields that have changed
+                                  if (_oemInspectionType !=
+                                      widget.oemInspectionType) {
+                                    maintenanceData['oemInspectionType'] =
+                                        _oemInspectionType;
+                                  }
+
+                                  // Only add OEM reason if it has changed and is needed
+                                  if (_oemInspectionType == 'no' &&
+                                      _oemReasonController.text.trim() !=
+                                          widget.oemInspectionExplanation) {
+                                    maintenanceData['oemReason'] =
+                                        _oemReasonController.text.trim();
+                                  }
+
+                                  // Handle maintenance document
                                   if (_maintenanceDocFile != null) {
                                     final storageRef = FirebaseStorage.instance
                                         .ref()
@@ -1147,63 +1152,74 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
                                     await storageRef
                                         .putData(_maintenanceDocFile!);
-                                    maintenanceDocUrl =
+                                    String newMaintenanceDocUrl =
                                         await storageRef.getDownloadURL();
+                                    maintenanceData['maintenanceDocUrl'] =
+                                        newMaintenanceDocUrl;
                                   }
 
-                                  // Upload warranty file if new one is selected
+                                  // Handle warranty document
                                   if (_warrantyDocFile != null) {
-                                    debugPrint(
-                                        'DEBUG: Warranty file detected with name: $_warrantyDocFileName');
                                     final storageRef = FirebaseStorage.instance
                                         .ref()
                                         .child(
                                             'vehicles/${widget.vehicleId}/maintenance')
                                         .child(
                                             'warranty_doc_${DateTime.now().millisecondsSinceEpoch}$_warrantyDocFileName');
+
                                     await storageRef.putData(_warrantyDocFile!);
-                                    warrantyDocUrl =
+                                    String newWarrantyDocUrl =
                                         await storageRef.getDownloadURL();
-                                    debugPrint(
-                                        'DEBUG: Uploaded warranty URL: $warrantyDocUrl');
+                                    maintenanceData['warrantyDocUrl'] =
+                                        newWarrantyDocUrl;
                                   }
 
-                                  Map<String, dynamic> maintenanceData = {
-                                    'vehicleId': widget.vehicleId,
-                                    'oemInspectionType': _oemInspectionType,
-                                    'oemReason': _oemInspectionType == 'no'
-                                        ? _oemReasonController.text.trim()
-                                        : null,
-                                    'maintenanceDocUrl': maintenanceDocUrl,
-                                    'warrantyDocUrl': warrantyDocUrl,
-                                    'maintenanceSelection':
-                                        widget.maintenanceSelection,
-                                    'warrantySelection':
-                                        widget.warrantySelection,
-                                    'lastUpdated': FieldValue.serverTimestamp(),
-                                  };
+                                  // Only add selection fields if they've been provided
+                                  if (widget.maintenanceSelection != '') {
+                                    maintenanceData['maintenanceSelection'] =
+                                        widget.maintenanceSelection;
+                                  }
+                                  if (widget.warrantySelection != '') {
+                                    maintenanceData['warrantySelection'] =
+                                        widget.warrantySelection;
+                                  }
 
-                                  log("Maintenance data before save $maintenanceData");
-                                  await FirebaseFirestore.instance
-                                      .collection('vehicles')
-                                      .doc(widget.vehicleId)
-                                      .set(
+                                  // Only update if there are changes
+                                  if (maintenanceData.isNotEmpty) {
+                                    maintenanceData['lastUpdated'] =
+                                        FieldValue.serverTimestamp();
+                                    maintenanceData['vehicleId'] =
+                                        widget.vehicleId;
+
+                                    await FirebaseFirestore.instance
+                                        .collection('vehicles')
+                                        .doc(widget.vehicleId)
+                                        .set(
                                           widget.isFromAdmin
                                               ? {
                                                   "maintenanceData":
                                                       maintenanceData
                                                 }
                                               : {
-                                                  'maintenance':
-                                                      maintenanceData,
+                                                  'maintenance': maintenanceData
                                                 },
-                                          SetOptions(merge: true));
+                                          SetOptions(merge: true),
+                                        );
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Maintenance data updated successfully')),
+                                    );
+                                  }
 
                                   Navigator.pop(
                                       context); // Dismiss loading indicator
                                   Navigator.pop(
                                       context); // Return to previous screen
-                                  if (widget.isFromAdmin || widget.isFromTransporter) {
+
+                                  if (widget.isFromAdmin ||
+                                      widget.isFromTransporter) {
                                     Navigator.pushReplacement(
                                         context,
                                         MaterialPageRoute(
@@ -1216,19 +1232,12 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                             builder: (context) =>
                                                 const TruckPage()));
                                   }
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Maintenance data saved successfully')),
-                                  );
                                 } catch (error) {
                                   Navigator.pop(context);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(
-                                          'Error saving maintenance data: $error'),
-                                    ),
+                                        content: Text(
+                                            'Error updating maintenance data: $error')),
                                   );
                                 }
                               },

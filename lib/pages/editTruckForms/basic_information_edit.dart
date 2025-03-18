@@ -78,7 +78,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   List<String> _provinceOptions = []; // New province options list
 
   // Define application options
-  final List<String> _applicationOptions = [
+  final List<String> _rigidTruckApplications = [
     'Bowser Body Trucks',
     'Cage Body Trucks',
     'Cattle Body Trucks',
@@ -105,6 +105,27 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     'Tipper Body Trucks',
     'Volume Body Trucks',
     'Low Bed Trucks',
+  ];
+
+  final List<String> _tractorTruckApplications = [
+    'Side Tipper Trailers',
+    'Flat Deck Trailers',
+    'Tautliner Trailers',
+    'Coil Carrier Trailers',
+    'Vehicle transport Trailers',
+    'Low bed Trailers',
+    'Grain Trailers',
+    'Fuel Tanker Trailers',
+    'Suger Cain Trailers',
+    'Refrigerator Trailers',
+    'Pantech Trailers',
+    'Sloper Trailers',
+    'Animal Carrier Trailers',
+    'Drop side Trailers',
+    'Brick Trailers',
+    'Bowser Trailers',
+    'Logging Trailers',
+    'Skeletal Trailers',
   ];
 
   // Define configuration options
@@ -156,6 +177,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // Add new properties for web navigation
   final bool _isDrawerOpen = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Add truck type options and application lists
+  String? _selectedTruckType;
+
+  final List<String> _truckTypeOptions = [
+    'Rigid Trucks',
+    'Tractor Trucks',
+  ];
+
+  // Replace the old _applicationOptions with a getter
+  List<String> get _applicationOptions {
+    if (_selectedTruckType == 'Rigid Trucks') {
+      return _rigidTruckApplications;
+    } else if (_selectedTruckType == 'Tractor Trucks') {
+      return _tractorTruckApplications;
+    }
+    return [];
+  }
 
   @override
   void initState() {
@@ -639,14 +678,10 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
       // *** NEW: Prepopulate Configuration, Application, and Province ***
       if (widget.vehicle?.config != null && widget.vehicle!.config.isNotEmpty) {
+        debugPrint("Setting config: ${widget.vehicle!.config}");
         formData.setConfig(widget.vehicle!.config);
         _configController.text = widget.vehicle!.config;
-      }
-      if (widget.vehicle?.application != null &&
-          widget.vehicle!.application.isNotEmpty) {
-        String applicationText = widget.vehicle!.application.join(', ');
-        formData.setApplication(applicationText);
-        _applicationController.text = applicationText;
+        await Future.delayed(Duration.zero); // Allow state to update
       }
 
       debugPrint("Vehicle config: ${widget.vehicle!.config}");
@@ -655,6 +690,28 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       if (widget.vehicle?.province != null &&
           widget.vehicle!.province.isNotEmpty) {
         formData.setProvince(widget.vehicle!.province);
+      }
+
+      // Set truck type based on vehicle data
+      setState(() {
+        _selectedTruckType = widget.vehicle?.truckType ?? 'Rigid Trucks';
+        debugPrint("Set truck type to: $_selectedTruckType");
+      });
+
+      // Then handle the application
+      if (widget.vehicle?.application != null) {
+        String applicationValue = '';
+        if (widget.vehicle!.application is List &&
+            widget.vehicle!.application.isNotEmpty) {
+          applicationValue = widget.vehicle!.application.first;
+        } else if (widget.vehicle!.application is String) {
+          applicationValue = widget.vehicle!.application as String;
+        }
+
+        if (applicationValue.isNotEmpty) {
+          debugPrint("Setting application to: $applicationValue");
+          formData.setApplication(applicationValue);
+        }
       }
 
       // ... continue with your remaining prepopulation logic ...
@@ -1614,26 +1671,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                   const Text('Application of Use',
                       style: TextStyle(fontSize: 16, color: Colors.white)),
                 if (isDealer) const SizedBox(height: 15),
-                CustomDropdown(
-                  hintText: 'Application of Use',
-                  enabled: !isDealer,
-                  value: (formData.application?.isNotEmpty == true
-                      ? formData.application
-                      : null),
-                  items: _applicationOptions,
-                  onChanged: (value) {
-                    debugPrint('Application of Use selected: $value');
-                    formData.setApplication(value);
-                    formData.saveFormState();
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select the application of use';
-                    }
-                    return null;
-                  },
-                  isTransporter: isTransporter || isAdmin || isSalesRep,
-                ),
+                _buildApplicationSection(),
                 const SizedBox(height: 15),
                 if (isTransporter || isAdmin || isSalesRep)
                   CustomTextField(
@@ -2016,6 +2054,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           'model': formData.makeModel,
           'variant': formData.variant,
         },
+        'truckType': _selectedTruckType,
       };
       debugPrint('Vehicle Data to Save: $vehicleData');
       if (_vehicleId != null && !widget.isDuplicating) {
@@ -2319,6 +2358,71 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildApplicationSection() {
+    final formData = Provider.of<FormDataProvider>(context);
+    final userProvider = Provider.of<UserProvider>(context);
+    final bool isDealer = userProvider.getUserRole == 'dealer';
+
+    void handleTruckTypeChange(String? value) {
+      setState(() {
+        _selectedTruckType = value;
+        formData.setApplication(null);
+      });
+    }
+
+    void handleApplicationChange(String? value) {
+      formData.setApplication(value);
+    }
+
+    return Column(
+      children: [
+        const SizedBox(height: 15),
+        Center(
+          child: Text(
+            'Vehicle Type',
+            style: const TextStyle(fontSize: 14, color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 15),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Rigid Trucks',
+              value: 'Rigid Trucks',
+              groupValue: _selectedTruckType ?? '',
+              onChanged: isDealer ? (value) {} : handleTruckTypeChange,
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'Tractor Trucks',
+              value: 'Tractor Trucks',
+              groupValue: _selectedTruckType ?? '',
+              onChanged: isDealer ? (value) {} : handleTruckTypeChange,
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        if (_selectedTruckType != null)
+          CustomDropdown(
+            hintText: 'Application of Use',
+            value: formData.application?.isNotEmpty == true
+                ? formData.application
+                : null,
+            items: _applicationOptions,
+            onChanged: isDealer ? (value) {} : handleApplicationChange,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please select the application of use';
+              }
+              return null;
+            },
+          ),
+      ],
     );
   }
 }

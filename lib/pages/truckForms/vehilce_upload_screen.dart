@@ -70,36 +70,6 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   String? _vehicleId;
   DateTime? _availableDate;
 
-  // Define application options
-  final List<String> _applicationOptions = [
-    'Bowser Body Trucks',
-    'Cage Body Trucks',
-    'Cattle Body Trucks',
-    'Chassis Cab Trucks',
-    'Cherry Picker Trucks',
-    'Compactor Body Trucks',
-    'Concrete Mixer Body Trucks',
-    'Crane Body Trucks',
-    'Curtain Body Trucks',
-    'Fuel Tanker Body Trucks',
-    'Dropside Body Trucks',
-    'Fire Fighting Body Trucks',
-    'Flatbed Body Trucks',
-    'Honey Sucker Body Trucks',
-    'Hooklift Body Trucks',
-    'Insulated Body Trucks',
-    'Mass Side Body Trucks',
-    'Pantechnicon Body Trucks',
-    'Refrigerated Body Trucks',
-    'Roll Back Body Trucks',
-    'Side Tipper Body Trucks',
-    'Skip Loader Body Trucks',
-    'Tanker Body Trucks',
-    'Tipper Body Trucks',
-    'Volume Body Trucks',
-    'Low Bed Trucks',
-  ];
-
   // Define configuration options
   final List<String> _configurationOptions = [
     '6X4',
@@ -142,6 +112,75 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   Uint8List? _selectedMainImage;
   String? _selectedMainImageFileName;
+
+  // Define truck type options
+  String? _selectedTruckType;
+  final List<String> _truckTypeOptions = [
+    'Rigid Trucks',
+    'Tractor Trucks',
+  ];
+
+  // Define application options for Rigid Trucks
+  final List<String> _rigidTruckApplications = [
+    'Bowser Body Trucks',
+    'Cage Body Trucks',
+    'Cattle Body Trucks',
+    'Chassis Cab Trucks',
+    'Cherry Picker Trucks',
+    'Compactor Body Trucks',
+    'Concrete Mixer Body Trucks',
+    'Crane Body Trucks',
+    'Curtain Body Trucks',
+    'Fuel Tanker Body Trucks',
+    'Dropside Body Trucks',
+    'Fire Fighting Body Trucks',
+    'Flatbed Body Trucks',
+    'Honey Sucker Body Trucks',
+    'Hooklift Body Trucks',
+    'Insulated Body Trucks',
+    'Mass Side Body Trucks',
+    'Pantechnicon Body Trucks',
+    'Refrigerated Body Trucks',
+    'Roll Back Body Trucks',
+    'Side Tipper Body Trucks',
+    'Skip Loader Body Trucks',
+    'Tanker Body Trucks',
+    'Tipper Body Trucks',
+    'Volume Body Trucks',
+    'Low Bed Trucks',
+  ];
+
+  // Define application options for Tractor Trucks
+  final List<String> _tractorTruckApplications = [
+    'Side Tipper Trailers',
+    'Flat Deck Trailers',
+    'Tautliner Trailers',
+    'Coil Carrier Trailers',
+    'Vehicle transport Trailers',
+    'Low bed Trailers',
+    'Grain Trailers',
+    'Fuel Tanker Trailers',
+    'Suger Cain Trailers',
+    'Refrigerator Trailers',
+    'Pantech Trailers',
+    'Sloper Trailers',
+    'Animal Carrier Trailers',
+    'Drop side Trailers',
+    'Brick Trailers',
+    'Bowser Trailers',
+    'Logging Trailers',
+    'Skeletal Trailers',
+  ];
+
+  // Remove the old _applicationOptions list and replace with a getter
+  List<String> get _applicationOptions {
+    if (_selectedTruckType == 'Rigid Trucks') {
+      return _rigidTruckApplications;
+    } else if (_selectedTruckType == 'Tractor Trucks') {
+      return _tractorTruckApplications;
+    }
+    return [];
+  }
 
   @override
   void initState() {
@@ -283,6 +322,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _vehicleId = null;
     _isLoading = false;
     _currentStep = 0;
+    _selectedTruckType = null;
   }
 
   void _initializeTextControllers(FormDataProvider formData) {
@@ -327,6 +367,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _variantController.addListener(() {
       formData.setVariant(_variantController.text);
     });
+    _configController.addListener(() {
+      debugPrint('Config updated via controller: ${_configController.text}');
+      formData.setConfig(_configController.text);
+      formData.saveFormState();
+    });
   }
 
   void _populateVehicleData() {
@@ -358,6 +403,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
     formData.setVariant(widget.vehicle!.variant, notify: false);
     _variantController.text = widget.vehicle!.variant ?? '';
+    _selectedTruckType = widget.vehicle?.vehicleType == 'truck'
+        ? 'Rigid Trucks'
+        : 'Tractor Trucks';
     if (widget.isDuplicating) {
       _vehicleId = null;
     } else {
@@ -1124,22 +1172,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                       },
                     ),
                     const SizedBox(height: 15),
-                    CustomDropdown(
-                      hintText: 'Application of Use',
-                      value: formData.application?.isNotEmpty == true
-                          ? formData.application
-                          : null,
-                      items: _applicationOptions,
-                      onChanged: (value) {
-                        formData.setApplication(value);
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select the application of use';
-                        }
-                        return null;
-                      },
-                    ),
+                    _buildApplicationSection(),
                     const SizedBox(height: 15),
                     CustomTextField(
                       controller: _vinNumberController,
@@ -1467,6 +1500,69 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     );
   }
 
+  Widget _buildApplicationSection() {
+    final formData = Provider.of<FormDataProvider>(context);
+    return Column(
+      children: [
+        const SizedBox(height: 15),
+        Center(
+          child: Text(
+            'Vehicle Type',
+            style: const TextStyle(fontSize: 14, color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 15),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Rigid Trucks',
+              value: 'Rigid Trucks',
+              groupValue: _selectedTruckType ?? '',
+              onChanged: (value) {
+                setState(() {
+                  _selectedTruckType = value;
+                  formData.setApplication(null);
+                });
+              },
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'Tractor Trucks',
+              value: 'Tractor Trucks',
+              groupValue: _selectedTruckType ?? '',
+              onChanged: (value) {
+                setState(() {
+                  _selectedTruckType = value;
+                  formData.setApplication(null);
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        if (_selectedTruckType != null)
+          CustomDropdown(
+            hintText: 'Application of Use',
+            value: formData.application?.isNotEmpty == true
+                ? formData.application
+                : null,
+            items: _applicationOptions,
+            onChanged: (value) {
+              formData.setApplication(value);
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please select the application of use';
+              }
+              return null;
+            },
+          ),
+      ],
+    );
+  }
+
   /// HELPER: Finds existing vehicle's ID by VIN
   Future<String?> _findVehicleIdByVin(String vin) async {
     final query = await FirebaseFirestore.instance
@@ -1603,7 +1699,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           'variant': formData.variant,
         },
         'vinNumber': formData.vinNumber,
-        'config': formData.config,
+        'config': formData.config ??
+            _configController.text, // Updated to handle both sources
         'mileage': formData.mileage,
         'application': formData.application,
         'engineNumber': formData.engineNumber,
@@ -1627,6 +1724,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         'userId': currentUser?.uid,
         'assignedSalesRepId': assignedSalesRepId,
         'vehicleStatus': 'Draft',
+        'truckType': _selectedTruckType,
       };
 
       debugPrint("Vehicle data being saved to Firestore: $vehicleData");
