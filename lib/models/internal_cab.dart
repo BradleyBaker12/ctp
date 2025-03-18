@@ -31,7 +31,7 @@ class InternalCab {
       additionalFeaturesCondition: data['additionalFeaturesCondition'] ?? '',
       faultCodesCondition: data['faultCodesCondition'] ?? '',
       viewImages:
-          _parseViewImages(data['viewImages'] as Map<String, dynamic>? ?? {}),
+          _parseViewImages(data['images'] as Map<String, dynamic>? ?? {}),
       damages: (data['damages'] as List<dynamic>?)
               ?.map((d) => Damage.fromMap(d as Map<String, dynamic>))
               .toList() ??
@@ -52,6 +52,7 @@ class InternalCab {
         result[key] = PhotoData.fromMap(value);
       }
     });
+    // print("InternalCabImagesData: $imagesData");
     return result;
   }
 

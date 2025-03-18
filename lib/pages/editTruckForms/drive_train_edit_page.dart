@@ -767,17 +767,16 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
 
       if (data['images'] != null) {
         final images = Map<String, dynamic>.from(data['images']);
-        images.forEach((key, value) {
-          print('DriveTrain: Processing image for $key: $value');
+       images.forEach((key, value) {
           if (value is Map && value.containsKey('url')) {
-            final url = value['url']?.toString();
-            if (url != null && url.isNotEmpty) {
-              print('DriveTrain: Setting URL for $key: $url');
+            final url = value['url']?.toString() ?? '';
+            if (url.isNotEmpty) {
               _imageUrls[key] = url;
-              _selectedImages[key] = null;
             }
+            _selectedImages[key] = null;
           }
-        });
+          }
+        );
       }
     });
     print('DriveTrain: Initialization complete');

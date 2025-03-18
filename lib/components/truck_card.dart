@@ -140,7 +140,6 @@ class TruckCard extends StatelessWidget {
       trailer.additionalImages,
       trailer.damages,
       trailer.features,
-      trailer.brands,
     ];
 
     final filledFields = fieldsToCheck.where(_isFieldFilled).length;

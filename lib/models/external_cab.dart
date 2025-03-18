@@ -1,6 +1,5 @@
 // lib/models/external_cab.dart
 
-import 'package:flutter/material.dart';
 
 import 'damage.dart';
 import 'additional_feature.dart';

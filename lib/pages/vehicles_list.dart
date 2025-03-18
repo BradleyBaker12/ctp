@@ -308,7 +308,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                       await MyNavigator.pushReplacement(
                           context, const HomePage());
                     } else if (index == 1) {
-                       await MyNavigator.pushReplacement(
+                      await MyNavigator.pushReplacement(
                           context, const VehiclesListPage());
                     } else if (index == 2) {
                       await MyNavigator.pushReplacement(
@@ -319,18 +319,18 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                   else if (userRole == 'transporter') {
                     // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
                     if (index == 0) {
-                       await MyNavigator.pushReplacement(
+                      await MyNavigator.pushReplacement(
                           context, const HomePage());
                     } else if (index == 1) {
                       await MyNavigator.pushReplacement(
-                    context, const VehiclesListPage(),
+                        context,
+                        const VehiclesListPage(),
                       );
                     } else if (index == 2) {
                       await MyNavigator.pushReplacement(
                           context, const OffersPage());
                     } else if (index == 3) {
-                      await MyNavigator.pushReplacement(
-                          context, ProfilePage());
+                      await MyNavigator.pushReplacement(context, ProfilePage());
                     }
                   } else {
                     // Handle other roles if needed

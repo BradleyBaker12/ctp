@@ -78,7 +78,6 @@ class TrailerCard extends StatelessWidget {
       trailer.serviceHistoryUrl,
       if (trailer.damages.isNotEmpty) trailer.damages,
       if (trailer.features.isNotEmpty) trailer.features,
-      if (trailer.brands.isNotEmpty) trailer.brands,
     ];
 
     final filledFields =
@@ -145,7 +144,6 @@ class TrailerCard extends StatelessWidget {
 
     // Brand + Model text
     final brandModel = [
-      trailer.brands.join(" "),
       trailer.makeModel,
     ].where((e) => e.isNotEmpty).join(" ");
 
@@ -153,7 +151,6 @@ class TrailerCard extends StatelessWidget {
     Vehicle trailerToVehicle(Trailer trailer) {
       return Vehicle(
         id: trailer.id,
-        brands: trailer.brands,
         makeModel: trailer.makeModel,
         year: trailer.year,
         mainImageUrl: trailer.mainImageUrl,
@@ -236,7 +233,7 @@ class TrailerCard extends StatelessWidget {
         country: '',
         province: '',
         damagesDescription: '',
-        additionalFeatures: '',
+        additionalFeatures: '', brands: [],
       );
     }
 

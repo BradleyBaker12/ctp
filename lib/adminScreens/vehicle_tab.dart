@@ -744,8 +744,8 @@ class _VehiclesTabState extends State<VehiclesTab>
                             ),
                             title: Text(
                               vehicle.vehicleType.toLowerCase() == 'trailer'
-                                  ? '${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ' + vehicle.variant! : ''}'
-                                  : '${(vehicle.brands.isNotEmpty ? vehicle.brands[0] : 'Unknown Brand')} ${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ' + vehicle.variant! : ''}',
+                                  ? '${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ${vehicle.variant!}' : ''}'
+                                  : '${(vehicle.brands.isNotEmpty ? vehicle.brands[0] : 'Unknown Brand')} ${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ${vehicle.variant!}' : ''}',
                               style: GoogleFonts.montserrat(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,

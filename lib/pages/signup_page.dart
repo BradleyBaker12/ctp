@@ -153,9 +153,9 @@ class _SignUpPageState extends State<SignUpPage> {
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -371,13 +371,17 @@ class _SignUpPageState extends State<SignUpPage> {
                               CustomButton(
                                 text: 'Sign Up',
                                 borderColor: const Color(0xFF2F7FFF),
-                                onPressed: _signUp,
+                                onPressed: () {
+                                  _signUp();
+                                },
                               ),
                               SizedBox(height: constraints.maxHeight * 0.02),
                               CustomButton(
                                 text: 'Cancel',
                                 borderColor: const Color(0xFFFF4E00),
-                                onPressed: _signUp,
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
                               ),
                               SizedBox(height: constraints.maxHeight * 0.02),
                             ],

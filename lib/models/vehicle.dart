@@ -78,75 +78,98 @@ class Vehicle {
   final List<Map<String, dynamic>>? features;
   final String? deckImageUrl;
 
-  Vehicle({
-    this.trailerType,
-    this.assignedSalesRepId,
-    required this.isAccepted,
-    required this.acceptedOfferId,
-    required this.id,
-    required this.application,
-    required this.damageDescription,
-    required this.damagePhotos,
-    required this.dashboardPhoto,
-    required this.engineNumber,
-    required this.expectedSellingPrice,
-    required this.faultCodesPhoto,
-    required this.hydraluicType,
-    required this.licenceDiskUrl,
-    required this.makeModel,
-    required this.mileage,
-    required this.mileageImage,
-    this.mainImageUrl,
-    required this.photos,
-    required this.rc1NatisFile,
-    required this.registrationNumber,
-    required this.suspensionType,
-    required this.transmissionType,
-    required this.config,
-    required this.userId,
-    required this.vehicleType,
-    required this.vinNumber,
-    required this.warrentyType,
-    required this.warrantyDetails,
-    required this.year,
-    required this.createdAt,
-    required this.vehicleStatus,
-    required this.vehicleAvailableImmediately,
-    required this.availableDate,
-    required this.adminData,
-    required this.maintenance,
-    required this.truckConditions,
-    this.natisRc1Url,
-    required this.referenceNumber,
-    required this.brands,
-    this.requireToSettleType,
-    required this.country,
-    required this.province,
-    this.variant,
-    required this.damagesDescription,
-    required this.additionalFeatures,
-    this.trailer,
-    // NEW FIELDS in constructor (all optional)
-    this.natisDocumentUrl,
-    this.serviceHistoryUrl,
-    this.frontImageUrl,
-    this.sideImageUrl,
-    this.tyresImageUrl,
-    this.chassisImageUrl,
-    this.makersPlateImageUrl,
-    this.additionalImages,
-    this.damagesCondition,
-    this.damages,
-    this.featuresCondition,
-    this.features,
-    this.deckImageUrl
-  });
+  Vehicle(
+      {this.trailerType,
+      this.assignedSalesRepId,
+      required this.isAccepted,
+      required this.acceptedOfferId,
+      required this.id,
+      required this.application,
+      required this.damageDescription,
+      required this.damagePhotos,
+      required this.dashboardPhoto,
+      required this.engineNumber,
+      required this.expectedSellingPrice,
+      required this.faultCodesPhoto,
+      required this.hydraluicType,
+      required this.licenceDiskUrl,
+      required this.makeModel,
+      required this.mileage,
+      required this.mileageImage,
+      this.mainImageUrl,
+      required this.photos,
+      required this.rc1NatisFile,
+      required this.registrationNumber,
+      required this.suspensionType,
+      required this.transmissionType,
+      required this.config,
+      required this.userId,
+      required this.vehicleType,
+      required this.vinNumber,
+      required this.warrentyType,
+      required this.warrantyDetails,
+      required this.year,
+      required this.createdAt,
+      required this.vehicleStatus,
+      required this.vehicleAvailableImmediately,
+      required this.availableDate,
+      required this.adminData,
+      required this.maintenance,
+      required this.truckConditions,
+      this.natisRc1Url,
+      required this.referenceNumber,
+      required this.brands,
+      this.requireToSettleType,
+      required this.country,
+      required this.province,
+      this.variant,
+      required this.damagesDescription,
+      required this.additionalFeatures,
+      this.trailer,
+      // NEW FIELDS in constructor (all optional)
+      this.natisDocumentUrl,
+      this.serviceHistoryUrl,
+      this.frontImageUrl,
+      this.sideImageUrl,
+      this.tyresImageUrl,
+      this.chassisImageUrl,
+      this.makersPlateImageUrl,
+      this.additionalImages,
+      this.damagesCondition,
+      this.damages,
+      this.featuresCondition,
+      this.features,
+      this.deckImageUrl});
 
   /// Factory constructor to create a Vehicle instance from Firestore data.
   factory Vehicle.fromFirestore(String docId, Map<String, dynamic> data) {
-    // Helper to safely get a String value.
+    // Helper to safely convert maps
+    Map<String, dynamic> safeMap(dynamic value) {
+      if (value == null) return {};
+      if (value is Map<String, dynamic>) return value;
+      if (value is Map) {
+        return value.map((key, value) => MapEntry(key.toString(), value));
+      }
+      return {};
+    }
+
+    // Helper to safely get a String value from any non-null input
     String getString(dynamic value) {
-      return value is String ? value : '';
+      if (value == null) return '';
+      if (value is String) return value;
+      if (value is Map) {
+        return ''; // Return empty string for maps instead of converting them
+      }
+      return value.toString();
+    }
+
+    // Helper to safely convert list to List<String?>
+    List<String?> getStringList(dynamic value) {
+      if (value == null) return [];
+      if (value is List) {
+        return value.map((item) => getString(item)).toList();
+      }
+      return [];
     }
 
     // Parse createdAt timestamp
@@ -154,56 +177,55 @@ class Vehicle {
         ? (data['createdAt'] as Timestamp).toDate()
         : DateTime.now();
 
-    // Handle application list
+    // Handle application list with more robust type checking
     List<String> applications = [];
-    if (data['application'] is List) {
-      applications =
-          (data['application'] as List).map((e) => e.toString()).toList();
-    } else if (data['application'] is String) {
-      applications = [data['application'] as String];
+    final appData = data['application'];
+    if (appData is List) {
+      applications = appData.map((e) => getString(e)).toList();
+    } else if (appData != null) {
+      applications = [getString(appData)];
     }
 
-    // Handle brands list
+    // Handle brands list with more robust type checking
     List<String> brands = [];
-    if (data['brands'] is List) {
-      brands = (data['brands'] as List).map((e) => e.toString()).toList();
-    } else if (data['brands'] is String) {
-      brands = [data['brands'] as String];
+    final brandsData = data['brands'];
+    if (brandsData is List) {
+      brands = brandsData.map((e) => getString(e)).toList();
+    } else if (brandsData != null) {
+      brands = [getString(brandsData)];
     }
 
-    // Get trailer type from either key (Firestore might use different casing)
+    // Get trailer type with more robust type checking
     String trailerTypeValue =
         getString(data['trailerType'] ?? data['trailertype']);
-    debugPrint(
-        'DEBUG: In Vehicle.fromFirestore - extracted trailerType: $trailerTypeValue');
 
     // For trailer documents, if the vehicleType is "trailer", prepare the trailer data.
     Trailer? trailerObj;
     if (getString(data['vehicleType']).toLowerCase() == 'trailer') {
       // Get the nested trailerExtraInfo map.
-      Map<String, dynamic> trailerExtraInfo = data['trailerExtraInfo'] ?? {};
+      Map<String, dynamic> trailerExtraInfo = safeMap(data['trailerExtraInfo']);
       // If trailerExtraInfo is empty and this is a Superlink trailer, try to fall back
       // to top-level keys (for backward compatibility).
       if (trailerTypeValue == 'Superlink' && trailerExtraInfo.isEmpty) {
         debugPrint(
             'DEBUG: trailerExtraInfo is empty. Falling back to top-level superlink keys.');
         trailerExtraInfo = {
-          'trailerA': {
+          'trailerA': safeMap({
             'length': getString(data['lengthTrailerA']),
             'vin': getString(data['vinA']),
             'registration': getString(data['registrationA']),
-          },
-          'trailerB': {
+          }),
+          'trailerB': safeMap({
             'length': getString(data['lengthTrailerB']),
             'vin': getString(data['vinB']),
             'registration': getString(data['registrationB']),
-          },
+          }),
         };
       }
-      debugPrint(
-          'DEBUG: trailerExtraInfo to be passed to Trailer.fromFirestore: $trailerExtraInfo');
+      // debugPrint(
+      //     'DEBUG: trailerExtraInfo to be passed to Trailer.fromFirestore: $trailerExtraInfo');
       // Merge trailerExtraInfo into the full data map for the trailer.
-      Map<String, dynamic> trailerData = Map<String, dynamic>.from(data);
+      Map<String, dynamic> trailerData = safeMap(data);
       trailerData['trailerExtraInfo'] = trailerExtraInfo;
       trailerObj = Trailer.fromFirestore(docId, trailerData);
     }
@@ -211,13 +233,11 @@ class Vehicle {
     return Vehicle(
       id: docId,
       isAccepted: data['isAccepted'] ?? false,
-      acceptedOfferId: data['acceptedOfferId'] ?? '',
+      acceptedOfferId: getString(data['acceptedOfferId']),
       assignedSalesRepId: getString(data['assignedSalesRepId']),
       application: applications,
       damageDescription: getString(data['damageDescription']),
-      damagePhotos: data['damagePhotos'] != null
-          ? List<String?>.from(data['damagePhotos'])
-          : [],
+      damagePhotos: getStringList(data['damagePhotos']),
       dashboardPhoto: getString(data['dashboardPhoto']),
       engineNumber: getString(data['engineNumber']),
       expectedSellingPrice: getString(data['sellingPrice']),
@@ -228,7 +248,7 @@ class Vehicle {
       mileage: getString(data['mileage']),
       mileageImage: getString(data['mileageImage']),
       mainImageUrl: getString(data['mainImageUrl']),
-      photos: data['photos'] != null ? List<String?>.from(data['photos']) : [],
+      photos: getStringList(data['photos']),
       rc1NatisFile: getString(data['rc1NatisFile']),
       registrationNumber: getString(data['registrationNumber']),
       suspensionType: getString(data['suspensionType']),
@@ -253,9 +273,9 @@ class Vehicle {
                   natisRc1Url: '',
                   licenseDiskUrl: '',
                   settlementLetterUrl: ''),
-      maintenance: data['maintenance'] != null &&
-              data['maintenance'] is Map<String, dynamic>
-          ? Maintenance.fromMap(data['maintenance'])
+      maintenance: data['maintenanceData'] != null &&
+              data['maintenanceData'] is Map<String, dynamic>
+          ? Maintenance.fromMap(data['maintenanceData'])
           : Maintenance(
               vehicleId: docId,
               oemInspectionType: '',

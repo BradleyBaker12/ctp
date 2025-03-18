@@ -200,7 +200,7 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
       // print('Locations: $_locations');
       // print('Dates: $_locationDates');
       // print('TimeSlots: $_locationTimeSlots');
-    } catch (e, stack) {
+    } catch (e) {
       // print('DEBUG: Error in _fetchInspectionLocations: $e');
       // print('DEBUG: Stack trace: $stack');
       setState(() {
@@ -842,36 +842,66 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 16),
                                   child: CustomButton(
-                                    text: 'CONFIRM MEETING',
-                                    borderColor: Colors.blue,
-                                    onPressed: (_selectedDay != null &&
-                                            _availableTimes.isNotEmpty)
-                                        ? () async {
-                                            await _saveInspectionDetails();
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    LocationConfirmationPage(
-                                                  offerId: widget.offerId,
-                                                  location: _locations[
-                                                      _selectedLocation],
-                                                  address: _addresses[
-                                                      _selectedLocation],
-                                                  date: _selectedDay!,
-                                                  time: _availableTimes[
-                                                      _selectedTimeSlot],
-                                                  offerAmount:
-                                                      widget.offerAmount,
-                                                  vehicleId: widget.vehicleId,
-                                                  brand: widget.brand,
-                                                  variant: widget.variant,
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        : null,
-                                  ),
+                                      text: 'CONFIRM MEETING',
+                                      borderColor: Colors.blue,
+                                      onPressed: () async {
+                                        // FirebaseFirestore.instance
+                                        //     .collection('vehicles')
+                                        //     .doc(widget.vehicleId)
+                                        //     .update(
+                                        //   {"inspectionDetails": {}},
+                                        // );
+                                        // FirebaseFirestore.instance
+                                        //     .collection('offers')
+                                        //     .doc(widget.offerId)
+                                        //     .delete();
+                                        // return;
+                                        if (_selectedDay == null) {
+                                          print("_selectedDay null: --------");
+                                          return;
+                                        }
+                                        if (_availableTimes.isEmpty) {
+                                          print(
+                                              "_availableTimes is Empty: --------");
+                                          return;
+                                        }
+
+                                        await _saveInspectionDetails();
+                                        print(
+                                            "Confirm Meeting Details: --------");
+                                        print("OfferId: ${widget.offerId}");
+                                        print(
+                                            "Locations: ${_locations[_selectedLocation]}");
+                                        print(
+                                            "Addresses: ${_addresses[_selectedLocation]}");
+                                        print("Day: $_selectedDay}");
+                                        print(
+                                            "Time: ${_availableTimes[_selectedTimeSlot]}");
+                                        print(
+                                            "Offer Amount: ${widget.offerAmount}");
+                                        print("VehicleId: ${widget.vehicleId}");
+
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                LocationConfirmationPage(
+                                              offerId: widget.offerId,
+                                              location:
+                                                  _locations[_selectedLocation],
+                                              address:
+                                                  _addresses[_selectedLocation],
+                                              date: _selectedDay!,
+                                              time: _availableTimes[
+                                                  _selectedTimeSlot],
+                                              offerAmount: widget.offerAmount,
+                                              vehicleId: widget.vehicleId,
+                                              brand: widget.brand,
+                                              variant: widget.variant,
+                                            ),
+                                          ),
+                                        );
+                                      }),
                                 ),
                               ],
                             ),

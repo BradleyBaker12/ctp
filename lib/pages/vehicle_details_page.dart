@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/offer_card.dart';
@@ -120,6 +121,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     super.initState();
     _vehicle = widget.vehicle;
     _trailer = widget.trailer;
+    if (widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
+      debugPrint("DEBUG: Trailer data: ${widget.trailer.toString()}");
+    }
     // 3. If accepted, see if that acceptedOfferId belongs to this user
     _checkIfMyOfferAccepted();
 
@@ -658,8 +662,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   void _navigateToDuplicatePage() async {
     try {
-      debugPrint('=== Starting Vehicle Duplication ===');
-      debugPrint('Source Vehicle ID: ${vehicle.id}');
+      // debugPrint('=== Starting Vehicle Duplication ===');
+      // debugPrint('Source Vehicle ID: ${vehicle.id}');
 
       if (vehicle.vehicleType.toLowerCase() == 'trailer') {
         // For trailers, navigate to the TrailerUploadScreen.
@@ -982,6 +986,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   // Trailer section: Only shown when vehicle is a trailer.
   Widget _buildTrailerInfoSection() {
+    // Debug print trailer details when building the section.
+    if (widget.trailer != null) {
+      debugPrint(
+          "DEBUG: Building Trailer Info Section - Type: ${widget.trailer!.trailerType}, Axles: ${widget.trailer!.axles}, Length: ${widget.trailer!.length}");
+    }
     String trailerInfoText = 'TRAILER INFORMATION';
     if (widget.trailer != null &&
         widget.trailer!.trailerType.trim().isNotEmpty) {
@@ -1059,13 +1068,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  Widget _buildSection(BuildContext ctx, String title, String progress) {
-    final size = MediaQuery.of(ctx).size;
+  Widget _buildSection(BuildContext context, String title, String progress) {
+    final size = MediaQuery.of(context).size;
     final parts = progress.split('/');
     final current = int.tryParse(parts[0]) ?? 0;
     final total = int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1;
     final progressRatio = total == 0 ? 0.0 : (current / total);
-
     final isLargeScreen = size.width > 600;
     final containerWidth = isLargeScreen ? 942.0 : size.width * 0.9;
     final containerPadding = isLargeScreen ? 37.31 : 20.0;
@@ -1079,173 +1087,219 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     const titleBoxRadius = 6.0;
     final titleFontSize = isLargeScreen ? 20.0 : 16.0;
     final titleLetterSpace = isLargeScreen ? 1.87 : 1.0;
-    final progressFontSize = isLargeScreen ? 14.00 : 12.0;
+    final progressFontSize = isLargeScreen ? 14.0 : 12.0;
     final progressLetterSp = isLargeScreen ? 2.24 : 1.0;
     final gapHeight = isLargeScreen ? 20.98 : 20.0;
     const progressBarHeight = 5.0;
     final progressSpacing = isLargeScreen ? 0.0 : 20.0;
-
     final displayProgress =
-        title == 'ADMIN' ? _calculateAdminProgressString() : progress;
+        title.contains('ADMIN') ? _calculateAdminProgressString() : progress;
+
+    List<String> progressValues = progress.split('/');
+    double first = double.parse(progressValues[0]);
+    double second = double.parse(progressValues[1]);
+    double progressValue = first / second;
 
     return GestureDetector(
       onTap: () {
-        switch (title) {
+        switch (title.replaceAll('\n', ' ').trim()) {
           case 'BASIC INFORMATION':
-            MyNavigator.push(
+            Navigator.push(
               context,
-              BasicInformationEdit(vehicle: widget.vehicle),
+              MaterialPageRoute(
+                builder: (context) => BasicInformationEdit(vehicle: vehicle),
+              ),
             );
             break;
           case 'MAINTENANCE AND WARRANTY':
-            MyNavigator.push(
+            Navigator.push(
               context,
-              MaintenanceEditSection(
-                vehicleId: widget.vehicle.id,
-                isUploading: false,
-                onMaintenanceFileSelected: (file) {},
-                onWarrantyFileSelected: (file) {},
-                oemInspectionType:
-                    widget.vehicle.maintenance.oemInspectionType ?? '',
-                oemInspectionExplanation:
-                    widget.vehicle.maintenance.oemReason ?? '',
-                onProgressUpdate: () {},
-                maintenanceSelection:
-                    widget.vehicle.maintenance.maintenanceSelection ?? '',
-                warrantySelection:
-                    widget.vehicle.maintenance.warrantySelection ?? '',
-                isFromAdmin: Provider.of<UserProvider>(context, listen: false)
-                        .getUserRole ==
-                    'admin',
-                isFromTransporter: true,
+              MaterialPageRoute(
+                builder: (context) => MaintenanceEditSection(
+                  vehicleId: vehicle.id,
+                  isUploading: false,
+                  onMaintenanceFileSelected: (file) {},
+                  onWarrantyFileSelected: (file) {},
+                  oemInspectionType:
+                      vehicle.maintenance.oemInspectionType ?? '',
+                  oemInspectionExplanation: vehicle.maintenance.oemReason ?? '',
+                  onProgressUpdate: () {},
+                  maintenanceSelection:
+                      vehicle.maintenance.maintenanceSelection ?? '',
+                  warrantySelection:
+                      vehicle.maintenance.warrantySelection ?? '',
+                  isFromAdmin: Provider.of<UserProvider>(context, listen: false)
+                          .getUserRole ==
+                      'admin',
+                  isFromTransporter: true,
+                ),
               ),
             );
             break;
           case 'ADMIN':
-            MyNavigator.push(
+            Navigator.push(
               context,
-              AdminEditSection(
-                vehicle: widget.vehicle,
-                isUploading: false,
-                isEditing: true,
-                onAdminDoc1Selected: (file, name) {},
-                onAdminDoc2Selected: (file, name) {},
-                onAdminDoc3Selected: (file, name) {},
-                requireToSettleType: widget.vehicle.requireToSettleType ?? 'no',
-                settlementAmount: widget.vehicle.adminData.settlementAmount,
-                natisRc1Url: widget.vehicle.adminData.natisRc1Url,
-                licenseDiskUrl: widget.vehicle.adminData.licenseDiskUrl,
-                settlementLetterUrl:
-                    widget.vehicle.adminData.settlementLetterUrl,
+              MaterialPageRoute(
+                builder: (context) => AdminEditSection(
+                  vehicle: vehicle,
+                  isUploading: false,
+                  isEditing: true,
+                  onAdminDoc1Selected: (file, name) {},
+                  onAdminDoc2Selected: (file, name) {},
+                  onAdminDoc3Selected: (file, name) {},
+                  requireToSettleType: vehicle.requireToSettleType ?? 'no',
+                  settlementAmount: vehicle.adminData.settlementAmount,
+                  natisRc1Url: vehicle.adminData.natisRc1Url,
+                  licenseDiskUrl: vehicle.adminData.licenseDiskUrl,
+                  settlementLetterUrl: vehicle.adminData.settlementLetterUrl,
+                ),
               ),
             );
             break;
-          case 'TRUCK CONDITIONS':
-            MyNavigator.push(
-              context,
-              ExternalCabEditPage(
-                vehicleId: widget.vehicle.id,
-                onProgressUpdate: () {
-                  setState(() {
-                    _refreshVehicleData();
-                  });
-                },
-                isEditing: true,
-              ),
-            );
+          default:
+            if (title.contains('TRUCK')) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExternalCabEditPage(
+                    vehicleId: vehicle.id,
+                    onProgressUpdate: () {
+                      setState(() {});
+                    },
+                  ),
+                ),
+              );
+            }
             break;
         }
       },
       child: Container(
-        width: containerWidth,
-        padding: EdgeInsets.all(containerPadding),
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        decoration: ShapeDecoration(
-          color: const Color(0x332F7FFF),
-          shape: RoundedRectangleBorder(
-            side: BorderSide(width: borderSideWidth, color: borderColor),
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 10).copyWith(bottom: 20),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.blue),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Prevents infinite height issues
           children: [
             Container(
               width: double.infinity,
-              height: titleBoxHeight,
-              padding: titleBoxPadding,
-              decoration: ShapeDecoration(
-                color: borderColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(titleBoxRadius),
-                ),
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Center(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: titleFontSize,
-                    fontFamily: 'Montserrat',
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: titleLetterSpace,
-                  ),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            SizedBox(height: gapHeight),
-            LayoutBuilder(builder: (context, constraints) {
-              final progressBarWidth = constraints.maxWidth * 0.7;
-              final textWidth = constraints.maxWidth * 0.3;
-
-              return Row(
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: Row(
                 children: [
-                  SizedBox(
-                    width: progressBarWidth,
-                    height: progressBarHeight,
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: progressBarWidth,
-                          height: progressBarHeight,
-                          decoration: const BoxDecoration(
-                            color: Color(0x7F526584),
-                          ),
-                        ),
-                        Container(
-                          width:
-                              progressBarWidth * progressRatio.clamp(0.0, 1.0),
-                          height: progressBarHeight,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF39BB36),
-                          ),
-                        ),
-                      ],
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: progressValue,
+                      minHeight: 5,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.green),
+                      backgroundColor: Colors.grey.withOpacity(0.5),
                     ),
                   ),
-                  SizedBox(width: progressSpacing),
-                  SizedBox(
-                    width: textWidth,
-                    child: Text(
-                      displayProgress,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: progressFontSize,
-                        fontFamily: 'Montserrat',
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: progressLetterSp,
-                      ),
+                  const SizedBox(width: 10),
+                  Text(
+                    progress,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
                     ),
                   ),
                 ],
-              );
-            }),
+              ),
+            ),
+            if (title.contains('TRUCK CONDITION')) ...[
+              subFields("EXTERNAL CAB", '${_calculateExternalCabProgress()}/7'),
+              subFields(
+                  "INTERNAL CAB", '${_calculateInternalCabProgress()}/20'),
+              subFields("CHASSIS", '${_calculateChassisProgress()}/17'),
+              subFields("DRIVE TRAIN", '${_calculateDriveTrainProgress()}/21'),
+              subFields("TYRES", '${_calculateTyresProgress()}/24'),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget subFields(String title, String progress) {
+    List<String> progressValues = progress.split('/');
+    double first = double.parse(progressValues[0]);
+    double second = double.parse(progressValues[1]);
+    // Clamp the value to be between 0.0 and 1.0
+    double progressValue = (first / second).clamp(0.0, 1.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        Container(
+          width: MediaQuery.of(context).size.width / 1.6,
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
+          child: Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progressValue,
+                    minHeight: 5,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
+                    backgroundColor: Colors.grey.withOpacity(0.5),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                progress,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1480,28 +1534,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   }
 
   int _calculateTruckConditionsProgress() {
-    try {
-      int externalCompleted =
-          int.tryParse(_calculateExternalCabProgressString().split('/')[0]) ??
-              0;
-      int internalCompleted =
-          int.tryParse(_calculateInternalCabProgressString().split('/')[0]) ??
-              0;
-      int chassisCompleted =
-          int.tryParse(_calculateChassisProgressString().split('/')[0]) ?? 0;
-      int driveTrainCompleted =
-          int.tryParse(_calculateDriveTrainProgressString().split('/')[0]) ?? 0;
-      int tyresCompleted =
-          int.tryParse(_calculateTyresProgressString().split('/')[0]) ?? 0;
-      return externalCompleted +
-          internalCompleted +
-          chassisCompleted +
-          driveTrainCompleted +
-          tyresCompleted;
-    } catch (e) {
-      debugPrint("Error calculating overall truck conditions progress: $e");
-      return 0;
-    }
+    return _calculateExternalCabProgress() +
+        _calculateInternalCabProgress() +
+        _calculateDriveTrainProgress() +
+        _calculateChassisProgress() +
+        _calculateTyresProgress();
   }
 
   Widget _buildTruckConditionsSection(BuildContext context) {
@@ -1628,140 +1665,138 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ),
           if (_isTruckConditionsExpanded) ...[
             const SizedBox(height: 20),
-            _buildSubSectionItem(
-              context: context,
-              containerWidth: containerWidth,
-              title: 'EXTERNAL CAB',
-              onTap: () => MyNavigator.push(
-                context,
-                ExternalCabEditPage(
-                  vehicleId: widget.vehicle.id,
-                  onProgressUpdate: () {
-                    setState(() {
-                      _refreshVehicleData();
-                    });
-                  },
-                  isEditing: true,
-                ),
-              ),
-              progressString: _calculateExternalCabProgressString(),
-              progressRatio: _calculateExternalCabProgressPercentage(),
-              titleBoxHeight: titleBoxHeight,
-              titleBoxPadding: titleBoxPadding,
-              borderColor: borderColor,
-              gapHeight: gapHeight,
-              progressBarHeight: progressBarHeight,
-              progressSpacing: progressSpacing,
-              titleFontSize: titleFontSize,
-              titleLetterSpace: titleLetterSpace,
-              progressFontSize: progressFontSize,
-              progressLetterSp: progressLetterSp,
-              titleBoxRadius: titleBoxRadius,
-            ),
-            _buildSubSectionItem(
-              context: context,
-              containerWidth: containerWidth,
-              title: 'INTERNAL CAB',
-              onTap: () => MyNavigator.push(
-                context,
-                InternalCabEditPage(
-                  vehicleId: widget.vehicle.id,
-                  onProgressUpdate: () {},
-                  isEditing: true,
-                ),
-              ),
-              progressString: _calculateInternalCabProgressString(),
-              progressRatio: _calculateInternalCabProgressPercentage(),
-              titleBoxHeight: titleBoxHeight,
-              titleBoxPadding: titleBoxPadding,
-              borderColor: borderColor,
-              gapHeight: gapHeight,
-              progressBarHeight: progressBarHeight,
-              progressSpacing: progressSpacing,
-              titleFontSize: titleFontSize,
-              titleLetterSpace: titleLetterSpace,
-              progressFontSize: progressFontSize,
-              progressLetterSp: progressLetterSp,
-              titleBoxRadius: titleBoxRadius,
-            ),
-            _buildSubSectionItem(
-              context: context,
-              containerWidth: containerWidth,
-              title: 'CHASSIS',
-              onTap: () => MyNavigator.push(
-                context,
-                ChassisEditPage(
-                  vehicleId: widget.vehicle.id,
-                  onProgressUpdate: () {},
-                  isEditing: true,
-                ),
-              ),
-              progressString: _calculateChassisProgressString(),
-              progressRatio: _calculateChassisProgressPercentage(),
-              titleBoxHeight: titleBoxHeight,
-              titleBoxPadding: titleBoxPadding,
-              borderColor: borderColor,
-              gapHeight: gapHeight,
-              progressBarHeight: progressBarHeight,
-              progressSpacing: progressSpacing,
-              titleFontSize: titleFontSize,
-              titleLetterSpace: titleLetterSpace,
-              progressFontSize: progressFontSize,
-              progressLetterSp: progressLetterSp,
-              titleBoxRadius: titleBoxRadius,
-            ),
-            _buildSubSectionItem(
-              context: context,
-              containerWidth: containerWidth,
-              title: 'DRIVE TRAIN',
-              onTap: () => MyNavigator.push(
-                context,
-                DriveTrainEditPage(
-                  vehicleId: widget.vehicle.id,
-                  onProgressUpdate: () {},
-                  isEditing: true,
-                ),
-              ),
-              progressString: _calculateDriveTrainProgressString(),
-              progressRatio: _calculateDriveTrainProgressPercentage(),
-              titleBoxHeight: titleBoxHeight,
-              titleBoxPadding: titleBoxPadding,
-              borderColor: borderColor,
-              gapHeight: gapHeight,
-              progressBarHeight: progressBarHeight,
-              progressSpacing: progressSpacing,
-              titleFontSize: titleFontSize,
-              titleLetterSpace: titleLetterSpace,
-              progressFontSize: progressFontSize,
-              progressLetterSp: progressLetterSp,
-              titleBoxRadius: titleBoxRadius,
-            ),
-            _buildSubSectionItem(
-              context: context,
-              containerWidth: containerWidth,
-              title: 'TYRES',
-              onTap: () => MyNavigator.push(
-                context,
-                TyresEditPage(
-                  vehicleId: widget.vehicle.id,
-                  onProgressUpdate: () {},
-                  isEditing: true,
-                ),
-              ),
-              progressString: _calculateTyresProgressString(),
-              progressRatio: _calculateTyresProgressPercentage(),
-              titleBoxHeight: titleBoxHeight,
-              titleBoxPadding: titleBoxPadding,
-              borderColor: borderColor,
-              gapHeight: gapHeight,
-              progressBarHeight: progressBarHeight,
-              progressSpacing: progressSpacing,
-              titleFontSize: titleFontSize,
-              titleLetterSpace: titleLetterSpace,
-              progressFontSize: progressFontSize,
-              progressLetterSp: progressLetterSp,
-              titleBoxRadius: titleBoxRadius,
-            ),
+            // _buildSubSectionItem(
+            //   context: context,
+            //   containerWidth: containerWidth,
+            //   title: 'EXTERNAL CAB',
+            //   onTap: () => MyNavigator.push(
+            //     context,
+            //     ExternalCabEditPage(
+            //       vehicleId: widget.vehicle.id,
+            //       onProgressUpdate: () {
+            //         setState(() {
+            //           _refreshVehicleData();
+            //         });
+            //       },
+            //       isEditing: true,
+            //     ),
+            //   ),
+            //   progressString: _calculateExternalCabProgressString(),
+            //   progressRatio: _calculateExternalCabProgressPercentage(),
+            //   titleBoxHeight: titleBoxHeight,
+            //   titleBoxPadding: titleBoxPadding,
+            //   borderColor: borderColor,
+            //   gapHeight: gapHeight,
+            //   progressBarHeight: progressBarHeight,
+            //   progressSpacing: progressSpacing,
+            //   titleFontSize: titleFontSize,
+            //   titleLetterSpace: titleLetterSpace,
+            //   progressFontSize: progressFontSize,
+            //   progressLetterSp: progressLetterSp,
+            //   titleBoxRadius: titleBoxRadius,
+            // ),
+            // _buildSubSectionItem(
+            //   context: context,
+            //   containerWidth: containerWidth,
+            //   title: 'INTERNAL CAB',
+            //   onTap: () => MyNavigator.push(
+            //     context,
+            //     InternalCabEditPage(
+            //       vehicleId: widget.vehicle.id,
+            //       onProgressUpdate: () {},
+            //       isEditing: true,
+            //     ),
+            //   ),
+            //   titleBoxHeight: titleBoxHeight,
+            //   titleBoxPadding: titleBoxPadding,
+            //   borderColor: borderColor,
+            //   gapHeight: gapHeight,
+            //   progressBarHeight: progressBarHeight,
+            //   progressSpacing: progressSpacing,
+            //   titleFontSize: titleFontSize,
+            //   titleLetterSpace: titleLetterSpace,
+            //   progressFontSize: progressFontSize,
+            //   progressLetterSp: progressLetterSp,
+            //   titleBoxRadius: titleBoxRadius,
+            // ),
+            // _buildSubSectionItem(
+            //   context: context,
+            //   containerWidth: containerWidth,
+            //   title: 'CHASSIS',
+            //   onTap: () => MyNavigator.push(
+            //     context,
+            //     ChassisEditPage(
+            //       vehicleId: widget.vehicle.id,
+            //       onProgressUpdate: () {},
+            //       isEditing: true,
+            //     ),
+            //   ),
+            //   progressString: _calculateChassisProgressString(),
+            //   progressRatio: _calculateChassisProgressPercentage(),
+            //   titleBoxHeight: titleBoxHeight,
+            //   titleBoxPadding: titleBoxPadding,
+            //   borderColor: borderColor,
+            //   gapHeight: gapHeight,
+            //   progressBarHeight: progressBarHeight,
+            //   progressSpacing: progressSpacing,
+            //   titleFontSize: titleFontSize,
+            //   titleLetterSpace: titleLetterSpace,
+            //   progressFontSize: progressFontSize,
+            //   progressLetterSp: progressLetterSp,
+            //   titleBoxRadius: titleBoxRadius,
+            // ),
+            // _buildSubSectionItem(
+            //   context: context,
+            //   containerWidth: containerWidth,
+            //   title: 'DRIVE TRAIN',
+            //   onTap: () => MyNavigator.push(
+            //     context,
+            //     DriveTrainEditPage(
+            //       vehicleId: widget.vehicle.id,
+            //       onProgressUpdate: () {},
+            //       isEditing: true,
+            //     ),
+            //   ),
+            //   progressString: _calculateDriveTrainProgressString(),
+            //   progressRatio: _calculateDriveTrainProgressPercentage(),
+            //   titleBoxHeight: titleBoxHeight,
+            //   titleBoxPadding: titleBoxPadding,
+            //   borderColor: borderColor,
+            //   gapHeight: gapHeight,
+            //   progressBarHeight: progressBarHeight,
+            //   progressSpacing: progressSpacing,
+            //   titleFontSize: titleFontSize,
+            //   titleLetterSpace: titleLetterSpace,
+            //   progressFontSize: progressFontSize,
+            //   progressLetterSp: progressLetterSp,
+            //   titleBoxRadius: titleBoxRadius,
+            // ),
+            // _buildSubSectionItem(
+            //   context: context,
+            //   containerWidth: containerWidth,
+            //   title: 'TYRES',
+            //   onTap: () => MyNavigator.push(
+            //     context,
+            //     TyresEditPage(
+            //       vehicleId: widget.vehicle.id,
+            //       onProgressUpdate: () {},
+            //       isEditing: true,
+            //     ),
+            //   ),
+            //   progressString: _calculateTyresProgressString(),
+            //   progressRatio: _calculateTyresProgressPercentage(),
+            //   titleBoxHeight: titleBoxHeight,
+            //   titleBoxPadding: titleBoxPadding,
+            //   borderColor: borderColor,
+            //   gapHeight: gapHeight,
+            //   progressBarHeight: progressBarHeight,
+            //   progressSpacing: progressSpacing,
+            //   titleFontSize: titleFontSize,
+            //   titleLetterSpace: titleLetterSpace,
+            //   progressFontSize: progressFontSize,
+            //   progressLetterSp: progressLetterSp,
+            //   titleBoxRadius: titleBoxRadius,
+            // ),
           ],
         ],
       ),
@@ -1889,6 +1924,15 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
+  // NEW: Helper to wrap an existing section widget inside a tap handler.
+  Widget _buildEditableSection(
+      BuildContext context, String title, String route) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, route),
+      child: _buildSection(context, title, '...progress...'),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   //  BUILD
   // ---------------------------------------------------------------------------
@@ -1899,6 +1943,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final size = MediaQuery.of(context).size;
     final bool isTrailer = (vehicle.vehicleType.toLowerCase() == 'trailer');
     const bool isWeb = kIsWeb;
+    // Define the roles
+    final bool isAdmin = userRole.toLowerCase() == 'admin';
+    final bool isSalesRep = userRole.toLowerCase() == 'sales representative';
+    final bool isDealer = userRole.toLowerCase() == 'dealer';
+    final bool isTransporter = userRole.toLowerCase() == 'transporter';
 
     List<NavigationItem> navigationItems;
     if (userProvider.getUserRole == 'dealer') {
@@ -2477,19 +2526,41 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                         Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceEvenly,
-                                          children: [
-                                            _buildInfoContainer(
-                                                'Year', vehicle.year),
-                                            const SizedBox(width: 5),
-                                            _buildInfoContainer(
-                                                'Mileage', vehicle.mileage),
-                                            const SizedBox(width: 5),
-                                            _buildInfoContainer('Gearbox',
-                                                vehicle.transmissionType),
-                                            const SizedBox(width: 5),
-                                            _buildInfoContainer(
-                                                'Config', vehicle.config),
-                                          ],
+                                          children: widget.vehicle.vehicleType
+                                                      .toLowerCase() ==
+                                                  'trailer'
+                                              ? [
+                                                  _buildInfoContainer(
+                                                      'Trailer Type',
+                                                      widget.vehicle
+                                                              .trailerType ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Length',
+                                                      widget.vehicle.trailer
+                                                              ?.length ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Axles',
+                                                      widget.vehicle.trailer
+                                                              ?.axles ??
+                                                          'N/A'),
+                                                ]
+                                              : [
+                                                  _buildInfoContainer(
+                                                      'Year', vehicle.year),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer('Mileage',
+                                                      vehicle.mileage),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer('Gearbox',
+                                                      vehicle.transmissionType),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Config', vehicle.config),
+                                                ],
                                         ),
                                         const SizedBox(height: 16),
                                         if (offerWidgets.isNotEmpty)
@@ -2515,38 +2586,29 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                         else
                                           Column(
                                             children: [
-                                              if (userProvider.getUserRole ==
-                                                      'admin' ||
-                                                  userProvider.getUserRole ==
-                                                      'sales representative' ||
-                                                  userProvider.getUserRole ==
-                                                      'dealer')
+                                              _buildSection(
+                                                context,
+                                                'BASIC INFORMATION',
+                                                '${_calculateBasicInfoProgress()}/21',
+                                              ),
+                                              // Truck Conditions block
+                                              if (isDealer ||
+                                                  isAdmin ||
+                                                  isSalesRep)
                                                 _buildSection(
-                                                    context,
-                                                    'BASIC INFORMATION',
-                                                    _calculateBasicInfoProgressString()),
-                                              if (userProvider.getUserRole ==
-                                                      'admin' ||
-                                                  userProvider.getUserRole ==
-                                                      'sales representative' ||
-                                                  userProvider.getUserRole ==
-                                                      'dealer')
+                                                  context,
+                                                  'TRUCK CONDITIONS',
+                                                  '${_calculateTruckConditionsProgress()}/86',
+                                                ),
+                                              // Maintenance & Warranty
+                                              if (isDealer ||
+                                                  isAdmin ||
+                                                  isSalesRep)
                                                 _buildSection(
-                                                    context,
-                                                    'MAINTENANCE AND WARRANTY',
-                                                    _calculateMaintenanceProgressString()),
-                                              if (userProvider.getUserRole ==
-                                                  'admin')
-                                                _buildSection(
-                                                    context, 'ADMIN', '10/10'),
-                                              if (userProvider.getUserRole ==
-                                                      'admin' ||
-                                                  userProvider.getUserRole ==
-                                                      'sales representative' ||
-                                                  userProvider.getUserRole ==
-                                                      'dealer')
-                                                _buildTruckConditionsSection(
-                                                    context),
+                                                  context,
+                                                  'MAINTENANCE AND WARRANTY',
+                                                  '${_calculateMaintenanceProgress()}/4',
+                                                ),
                                             ],
                                           ),
                                         const SizedBox(height: 30),
@@ -2666,27 +2728,45 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  double _calculateBasicInfoProgressPercentage() {
-    final basicFields = [
-      widget.vehicle.application,
-      widget.vehicle.brands,
-      widget.vehicle.config,
-      widget.vehicle.country,
-      widget.vehicle.hydraluicType,
-      widget.vehicle.makeModel,
-      widget.vehicle.suspensionType,
-      widget.vehicle.transmissionType,
-      widget.vehicle.variant,
-      widget.vehicle.mileage,
-      widget.vehicle.maintenance,
-      widget.vehicle.requireToSettleType,
-      widget.vehicle.year.toString(),
-    ];
-    int total = basicFields.length;
-    int completed = basicFields
-        .where((field) => field != null && field.toString().trim().isNotEmpty)
-        .length;
-    return total == 0 ? 0 : completed / total;
+  bool isNotEmpty(String? value) {
+    return value != null && value != "N/A";
+  }
+
+  int _calculateBasicInfoProgress() {
+    int completedSteps = 9;
+    const totalSteps = 15; // Total number of possible fields
+
+    // Main image
+    if (isNotEmpty(vehicle.mainImageUrl)) completedSteps++;
+    // Vehicle status
+    // if (isNotEmpty(vehicle?.vehicleStatus)) completedSteps++;
+    // Reference number
+    // if (isNotEmpty(vehicle?.referenceNumber)) completedSteps++;
+    // RC1/NATIS file
+    if (isNotEmpty(vehicle.rc1NatisFile)) completedSteps++;
+    // Vehicle type (truck/trailer)
+    if (isNotEmpty(vehicle.vehicleType)) completedSteps++;
+    // Year
+    if (isNotEmpty(vehicle.year)) completedSteps++;
+    // Make/Model
+    if (isNotEmpty(vehicle.makeModel)) completedSteps++;
+    // Variant
+    if (isNotEmpty(vehicle.variant)) completedSteps++;
+    // Country
+    if (isNotEmpty(vehicle.country)) completedSteps++;
+    // Mileage
+    if (isNotEmpty(vehicle.mileage)) completedSteps++;
+    // Configuration
+    if (isNotEmpty(vehicle.config)) completedSteps++;
+    // Application
+    if (vehicle.application.isNotEmpty == true) completedSteps++;
+    // VIN Number
+    // if (isNotEmpty(vehicle?.vinNumber)) completedSteps++;
+    // Engine Number
+    if (isNotEmpty(vehicle.engineNumber)) completedSteps++;
+    // Registration Number
+    if (isNotEmpty(vehicle.registrationNumber)) completedSteps++;
+    return completedSteps;
   }
 
   String _calculateBasicInfoProgressString() {
@@ -2714,17 +2794,23 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return "$completed/$total";
   }
 
-  double _calculateMaintenanceProgressPercentage() {
-    final maintenanceFields = [
-      widget.vehicle.maintenance.maintenanceDocUrl,
-      widget.vehicle.maintenance.oemInspectionType,
-      widget.vehicle.maintenance.warrantyDocUrl,
-    ];
-    int total = maintenanceFields.length;
-    int completed = maintenanceFields
-        .where((field) => field != null && field.toString().trim().isNotEmpty)
-        .length;
-    return total == 0 ? 0 : (completed / total);
+  int _calculateMaintenanceProgress() {
+    int completedSteps = 0;
+    const totalSteps = 4; // Total possible fields
+
+    // Check maintenance document
+    if (vehicle.maintenance.maintenanceDocUrl != null) completedSteps++;
+    // Check warranty document
+    if (vehicle.maintenance.warrantyDocUrl != null) completedSteps++;
+    // Check OEM inspection type
+    if (vehicle.maintenance.oemInspectionType != null) completedSteps++;
+    // Check OEM reason if inspection type is 'no'
+    if (vehicle.maintenance.oemInspectionType == 'no' &&
+        vehicle.maintenance.oemReason?.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
   }
 
   String _calculateMaintenanceProgressString() {
@@ -2767,156 +2853,155 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return "$completed/$total";
   }
 
-  double _calculateExternalCabProgressPercentage() {
-    final ext = vehicle.truckConditions.externalCab;
-    List<bool> completedFields = [];
-    completedFields.add(_isNotEmpty(ext.condition));
-    completedFields.add(_isNotEmpty(ext.damagesCondition));
-    completedFields.add(_isNotEmpty(ext.additionalFeaturesCondition));
-    final requiredImageKeys = [
-      "FRONT VIEW",
-      "LEFT SIDE VIEW",
-      "REAR VIEW",
-      "RIGHT SIDE VIEW"
-    ];
-    for (String key in requiredImageKeys) {
-      var photoData = ext.images[key];
-      bool hasImage = false;
-      if (photoData != null) {
-        hasImage =
-            photoData.path.isNotEmpty || (photoData.imageUrl ?? '').isNotEmpty;
+  int _calculateExternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps = 6; // Base fields: condition, damages, additional features
+
+    final externalCab = vehicle.truckConditions.externalCab;
+
+    // Check main condition
+    if (externalCab.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (externalCab?.images.isNotEmpty == true) completedSteps++;
+    completedSteps += externalCab.images.length ?? 0;
+
+    // Check damages section
+    if (externalCab.damagesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check additional features section
+    if (externalCab.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateInternalCabProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        19; // Base fields: condition, damages, additional features, fault codes, view images
+
+    final internalCab = vehicle.truckConditions.internalCab;
+
+    // Check main condition
+    if (internalCab.condition.isNotEmpty == true) completedSteps++;
+
+    // Check view images
+    // if (internalCab?.viewImages.isNotEmpty == true) completedSteps++;
+    completedSteps += internalCab.viewImages.length ?? 0;
+    print("InternalCabImages: ${internalCab.viewImages.length}");
+
+    // Check damages section
+    if (internalCab.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (internalCab.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check fault codes section
+    if (internalCab.faultCodesCondition.isNotEmpty == true) completedSteps++;
+
+    return completedSteps;
+  }
+
+  int _calculateDriveTrainProgress() {
+    int completedSteps = 0;
+    int totalSteps = 20; // All fields from the DriveTrain model
+
+    final driveTrain = vehicle.truckConditions.driveTrain;
+
+    // Check main condition
+    if (driveTrain.condition.isNotEmpty == true) completedSteps++;
+
+    // Check engine conditions
+    if (driveTrain.oilLeakConditionEngine.isNotEmpty == true) completedSteps++;
+    if (driveTrain.waterLeakConditionEngine.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain.blowbyCondition.isNotEmpty == true) completedSteps++;
+
+    // Check gearbox and retarder conditions
+    if (driveTrain.oilLeakConditionGearbox.isNotEmpty == true) {
+      completedSteps++;
+    }
+    if (driveTrain.retarderCondition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (driveTrain?.images.isNotEmpty == true) completedSteps++;
+    completedSteps += driveTrain.images.length ?? 0;
+
+    // Check damages
+    if (driveTrain.damages.isNotEmpty == true) completedSteps++;
+
+    // Check additional features
+    if (driveTrain.additionalFeatures.isNotEmpty == true) completedSteps++;
+
+    // Check fault codes
+    if (driveTrain.faultCodes.isNotEmpty == true) completedSteps++;
+    // completedSteps += driveTrain?.faultCodes.length ?? 0;
+
+    return completedSteps;
+  }
+
+  int _calculateChassisProgress() {
+    int completedSteps = 0;
+    int totalSteps =
+        16; // Base fields: condition, images, damages, additional features
+
+    final chassis = vehicle.truckConditions.chassis;
+
+    // Check main condition
+    if (chassis.condition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (chassis?.images.isNotEmpty == true) completedSteps++;
+    completedSteps += chassis.images.length ?? 0;
+
+    // Check damages section
+    if (chassis.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
+    if (chassis.additionalFeaturesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    return completedSteps;
+  }
+
+  int _calculateTyresProgress() {
+    int completedSteps = 0;
+    int totalSteps = 24;
+
+    final tyresMap = vehicle.truckConditions.tyres;
+    tyresMap.forEach((key, tyres) {
+      // Loop through tyre positions
+      for (int pos = 1; pos <= 6; pos++) {
+        String posKey = 'Tyre_Pos_$pos';
+        final tyreData =
+            tyres.positions[posKey]; // Access `positions` from `Tyres`
+
+        if (tyreData?.chassisCondition != null &&
+            tyreData!.chassisCondition.isNotEmpty) {
+          completedSteps++;
+        }
+        if (tyreData?.virginOrRecap != null &&
+            tyreData!.virginOrRecap.isNotEmpty) {
+          completedSteps++;
+        }
+        if (tyreData?.imagePath != null && tyreData!.imagePath.isNotEmpty) {
+          completedSteps++;
+        }
+        if (tyreData?.rimType != null && tyreData!.rimType.isNotEmpty) {
+          completedSteps++;
+        }
       }
-      completedFields.add(hasImage);
-    }
-    int total = completedFields.length;
-    int completed = completedFields.where((field) => field).length;
-    return total == 0 ? 0.0 : completed / total;
-  }
+    });
 
-  String _calculateInternalCabProgressString() {
-    final intern = widget.vehicle.truckConditions.internalCab;
-    final fields = [
-      intern.condition,
-      intern.damagesCondition,
-      intern.additionalFeaturesCondition,
-      intern.faultCodesCondition,
-    ];
-    int total = fields.length;
-    int completed =
-        fields.where((field) => field.toString().trim().isNotEmpty).length;
-    return "$completed/$total";
-  }
-
-  double _calculateInternalCabProgressPercentage() {
-    final intern = widget.vehicle.truckConditions.internalCab;
-    final fields = [
-      intern.condition,
-      intern.damagesCondition,
-      intern.additionalFeaturesCondition,
-      intern.faultCodesCondition,
-    ];
-    int total = fields.length;
-    int completed =
-        fields.where((field) => field.toString().trim().isNotEmpty).length;
-    return total == 0 ? 0 : (completed / total);
-  }
-
-  String _calculateChassisProgressString() {
-    final chass = widget.vehicle.truckConditions.chassis;
-    final fields = [
-      chass.condition,
-      chass.damagesCondition,
-      chass.additionalFeaturesCondition,
-    ];
-    int total = fields.length;
-    int completed =
-        fields.where((field) => field.toString().trim().isNotEmpty).length;
-    return "$completed/$total";
-  }
-
-  double _calculateChassisProgressPercentage() {
-    final chass = widget.vehicle.truckConditions.chassis;
-    final fields = [
-      chass.condition,
-      chass.damagesCondition,
-      chass.additionalFeaturesCondition,
-    ];
-    int total = fields.length;
-    int completed =
-        fields.where((field) => field.toString().trim().isNotEmpty).length;
-    return total == 0 ? 0 : (completed / total);
-  }
-
-  String _calculateDriveTrainProgressString() {
-    try {
-      final drive = widget.vehicle.truckConditions.driveTrain;
-      List<String?> fields = [
-        drive.condition,
-        drive.oilLeakConditionEngine,
-        drive.waterLeakConditionEngine,
-        drive.blowbyCondition,
-        drive.oilLeakConditionGearbox,
-        drive.retarderCondition,
-      ];
-      int completed = fields
-          .where((field) => field != null && field.trim().isNotEmpty)
-          .length;
-      return "$completed/${fields.length}";
-    } catch (e) {
-      debugPrint("Error calculating drive train progress: $e");
-      return "0/6";
-    }
-  }
-
-  double _calculateDriveTrainProgressPercentage() {
-    final drive = widget.vehicle.truckConditions.driveTrain;
-    final fields = [
-      drive.condition,
-      drive.oilLeakConditionEngine,
-      drive.waterLeakConditionEngine,
-      drive.blowbyCondition,
-      drive.oilLeakConditionGearbox,
-      drive.retarderCondition,
-    ];
-    int total = fields.length;
-    int completed =
-        fields.where((field) => field.toString().trim().isNotEmpty).length;
-    return total == 0 ? 0 : (completed / total);
-  }
-
-  String _calculateTyresProgressString() {
-    try {
-      final tyresMap = widget.vehicle.truckConditions.tyres;
-      if (tyresMap.isEmpty) return "0/1";
-      final tyres = tyresMap['tyres'];
-      if (tyres == null) return "0/1";
-      final positions = tyres.positions;
-      if (positions.isEmpty) return "0/1";
-      int filledPositions = 0;
-      positions.forEach((key, value) {
-        filledPositions++;
-      });
-      return "$filledPositions/${positions.length}";
-    } catch (e) {
-      debugPrint("Error calculating tyres progress: $e");
-      return "0/1";
-    }
-  }
-
-  double _calculateTyresProgressPercentage() {
-    try {
-      final tyresMap = widget.vehicle.truckConditions.tyres;
-      if (tyresMap.isEmpty) return 0.0;
-      final tyres = tyresMap['tyres'];
-      if (tyres == null) return 0.0;
-      final positions = tyres.positions;
-      if (positions.isEmpty) return 0.0;
-      int filledPositions = positions.values.where((v) => v != null).length;
-      return filledPositions / positions.length;
-    } catch (e) {
-      debugPrint("Error calculating tyres percentage: $e");
-      return 0.0;
-    }
+    return completedSteps;
   }
 
   bool _isNotEmpty(String? value) {
@@ -2944,23 +3029,23 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return "$completed/$total";
   }
 
-  double _calculateAdminProgressPercentage() {
-    int completed = 0;
-    int total = 3;
-    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) completed++;
-    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
-      completed++;
-    }
-    if (widget.vehicle.requireToSettleType == 'yes') {
-      total++;
-      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
-        completed++;
+  int _calculateAdminProgress() {
+    int completedSteps = 0;
+    const totalSteps = 4; // Total possible fields
+
+    // NATIS/RC1 document
+    completedSteps++;
+    // License disk
+    completedSteps++;
+    // Settlement letter (if required)
+    if (vehicle.requireToSettleType == 'yes') {
+      completedSteps++;
+      if (vehicle.adminData.settlementAmount.isNotEmpty == true) {
+        completedSteps++;
       }
-      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
-        completed++;
-      }
     }
-    return total == 0 ? 0.0 : completed / total;
+
+    return completedSteps;
   }
 
   void _showNavigationDrawer(List<NavigationItem> items) {

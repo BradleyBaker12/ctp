@@ -1,4 +1,4 @@
-import 'package:auto_size_text/auto_size_text.dart';
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
@@ -46,6 +46,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     _fetchVehicleData();
   }
 
+  Map<String, dynamic> maintenanceData = {};
   Future<void> _fetchVehicleData() async {
     try {
       print('Fetching vehicle data for ID: ${widget.vehicle.id}');
@@ -67,7 +68,7 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
       Map<String, dynamic> data = docData as Map<String, dynamic>;
 
       // Debug raw data
-      print('Raw Firestore data: $data');
+      // print('Raw Firestore data: $data');
 
       // Handle application field conversion if necessary
       if (data['application'] is String) {
@@ -82,6 +83,10 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         data['brands'] = [];
       }
 
+      if (doc['maintenanceData'] != null) {
+        maintenanceData = extractMaintenanceData(doc['maintenanceData']);
+      }
+
       // Create or update the vehicle property
       vehicle = Vehicle.fromDocument(doc);
       setState(() {});
@@ -91,32 +96,87 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     }
   }
 
+  Map<String, dynamic> extractMaintenanceData(
+      Map<String, dynamic> documentData) {
+    return {
+      "lastUpdated": documentData["lastUpdated"],
+      "maintenanceDocUrl": documentData["maintenanceDocUrl"],
+      "maintenanceSelection": documentData["maintenanceSelection"],
+      "oemInspectionType": documentData["oemInspectionType"],
+      "oemReason": documentData["oemReason"],
+      "vehicleId": documentData["vehicleId"],
+      "warrantyDocUrl": documentData["warrantyDocUrl"],
+      "warrantySelection": documentData["warrantySelection"],
+      "makeModel": documentData["makeModel"],
+      "mileage": documentData["mileage"],
+      "province": documentData["province"],
+      "rc1NatisFile": documentData["rc1NatisFile"],
+    };
+  }
+
+  bool isNotEmpty(String? value) {
+    var res = value != null && value != "N/A" && value.isNotEmpty;
+    print("Res: $res, value: $value");
+    return value != null && value != "N/A" && value.isNotEmpty;
+  }
+
   int _calculateBasicInfoProgress() {
-    int completedSteps = 0;
-    // Example: total 11 steps (modify as needed)
-    if (vehicle?.mainImageUrl != null) completedSteps++;
-    if (vehicle?.vehicleType != null) completedSteps++;
-    if (vehicle?.year != null) completedSteps++;
-    if (vehicle?.makeModel != null) completedSteps++;
-    if (vehicle?.variant != null) completedSteps++;
-    if (vehicle?.country != null) completedSteps++;
-    if (vehicle?.mileage != null) completedSteps++;
-    if (vehicle?.config != null) completedSteps++;
+    int completedSteps = 9;
+    const totalSteps = 15;
+    // Main image
+    if (isNotEmpty(vehicle?.mainImageUrl)) completedSteps++;
+    // Vehicle status
+    // if (isNotEmpty(vehicle?.vehicleStatus)) completedSteps++;
+    // Reference number
+    // if (isNotEmpty(vehicle?.referenceNumber)) completedSteps++;
+    // RC1/NATIS file
+    if (isNotEmpty(vehicle?.rc1NatisFile)) completedSteps++;
+    // Vehicle type (truck/trailer)
+    if (isNotEmpty(vehicle?.vehicleType)) completedSteps++;
+    // Year
+    if (isNotEmpty(vehicle?.year)) completedSteps++;
+    // Make/Model
+    if (isNotEmpty(vehicle?.makeModel)) completedSteps++;
+    // Variant
+    if (isNotEmpty(vehicle?.variant)) completedSteps++;
+    // Country
+    if (isNotEmpty(vehicle?.country)) completedSteps++;
+    // Mileage
+    if (isNotEmpty(vehicle?.mileage)) completedSteps++;
+    // Configuration
+    if (isNotEmpty(vehicle?.config)) completedSteps++;
+    // Application
     if (vehicle?.application.isNotEmpty == true) completedSteps++;
-    if (vehicle?.engineNumber != null) completedSteps++;
-    if (vehicle?.registrationNumber != null) completedSteps++;
+    // VIN Number
+    // if (isNotEmpty(vehicle?.vinNumber)) completedSteps++;
+    // Engine Number
+    if (isNotEmpty(vehicle?.engineNumber)) completedSteps++;
+    // Registration Number
+    if (isNotEmpty(vehicle?.registrationNumber)) completedSteps++;
     return completedSteps;
   }
 
   int _calculateMaintenanceProgress() {
     int completedSteps = 0;
-    if (vehicle?.maintenance.maintenanceDocUrl != null) completedSteps++;
-    if (vehicle?.maintenance.warrantyDocUrl != null) completedSteps++;
-    if (vehicle?.maintenance.oemInspectionType != null) completedSteps++;
-    if (vehicle?.maintenance.oemInspectionType == 'no' &&
-        vehicle?.maintenance.oemReason?.isNotEmpty == true) {
+    const totalSteps = 4; // Total possible fields
+
+    print("Maintenance Data: $maintenanceData");
+
+    // Check maintenance document
+    if (maintenanceData["maintenanceDocUrl"] != null) completedSteps++;
+
+    // Check warranty document
+    if (maintenanceData["warrantyDocUrl"] != null) completedSteps++;
+
+    // Check OEM inspection type
+    if (maintenanceData["oemInspectionType"] != null) completedSteps++;
+
+    // Check OEM reason if inspection type is 'no'
+    if (maintenanceData["oemInspectionType"] == 'no' &&
+        (maintenanceData["oemReason"]?.isNotEmpty ?? false)) {
       completedSteps++;
     }
+
     return completedSteps;
   }
 
@@ -134,79 +194,166 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
   }
 
   // Truck Conditions progress is the sum of all its subsections progress
-  int _calculateTruckConditionsProgress() {
-    return _calculateExternalCabProgress() +
-        _calculateInternalCabProgress() +
-        _calculateDriveTrainProgress() +
-        _calculateChassisProgress() +
-        _calculateTyresProgress();
-  }
 
   int _calculateExternalCabProgress() {
     int completedSteps = 0;
+    int totalSteps = 7;
     final externalCab = vehicle?.truckConditions.externalCab;
+    // Check main condition
     if (externalCab?.condition.isNotEmpty == true) completedSteps++;
-    if (externalCab?.images.isNotEmpty == true) completedSteps++;
-    if (externalCab?.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (externalCab?.images.isNotEmpty == true) completedSteps++;
+    print("Images: ${externalCab?.images.length ?? 0}");
+    completedSteps += externalCab?.images.length ?? 0;
+
+    // Check damages section
+    if (externalCab?.damagesCondition.isNotEmpty == true) {
+      completedSteps++;
+    }
+
+    // Check additional features section
     if (externalCab?.additionalFeaturesCondition.isNotEmpty == true) {
       completedSteps++;
     }
+
     return completedSteps;
   }
 
   int _calculateInternalCabProgress() {
     int completedSteps = 0;
+    int totalSteps =
+        20; // Base fields: condition, damages, additional features, fault codes, view images
+
     final internalCab = vehicle?.truckConditions.internalCab;
+
+    // Check main condition
     if (internalCab?.condition.isNotEmpty == true) completedSteps++;
-    if (internalCab?.viewImages.isNotEmpty == true) completedSteps++;
+
+    // Check view images
+    // if (internalCab?.viewImages.isNotEmpty == true) completedSteps++;
+    completedSteps += internalCab?.viewImages.length ?? 0;
+
+    var keysList = internalCab?.viewImages.keys.toList() ?? [];
+    // "Right Dash (Vehicle On)" and "Left Dash" are linked to other parts of the vehicle
+    if (keysList.contains("Right Dash (Vehicle On)")) {
+      completedSteps += 1;
+    }
+    if (keysList.contains("Left Dash")) {
+      completedSteps += 1;
+    }
+
+    // Check damages section
     if (internalCab?.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
     if (internalCab?.additionalFeaturesCondition.isNotEmpty == true) {
       completedSteps++;
     }
+
+    // Check fault codes section
     if (internalCab?.faultCodesCondition.isNotEmpty == true) completedSteps++;
-    return completedSteps;
+
+    return completedSteps <= totalSteps ? completedSteps : totalSteps;
   }
 
   int _calculateDriveTrainProgress() {
     int completedSteps = 0;
+    int totalSteps = 21; // All fields from the DriveTrain model
+
     final driveTrain = vehicle?.truckConditions.driveTrain;
+
+    // Check main condition
     if (driveTrain?.condition.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.oilLeakConditionEngine.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.waterLeakConditionEngine.isNotEmpty == true) {
+
+    if (driveTrain == null) {
+      return 0;
+    }
+
+    // Check main condition
+    if (isNotEmpty(driveTrain.condition)) completedSteps++;
+
+    // Check engine conditions
+    if (isNotEmpty(driveTrain.oilLeakConditionEngine)) completedSteps++;
+    if (isNotEmpty(driveTrain.waterLeakConditionEngine)) {
       completedSteps++;
     }
-    if (driveTrain?.blowbyCondition.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.oilLeakConditionGearbox.isNotEmpty == true) {
+    if (isNotEmpty(driveTrain.blowbyCondition)) completedSteps++;
+
+    // Check gearbox and retarder conditions
+    if (isNotEmpty(driveTrain.oilLeakConditionGearbox)) {
       completedSteps++;
     }
-    if (driveTrain?.retarderCondition.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.images.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.damages.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.additionalFeatures.isNotEmpty == true) completedSteps++;
-    if (driveTrain?.faultCodes.isNotEmpty == true) completedSteps++;
-    return completedSteps;
+    if (isNotEmpty(driveTrain.retarderCondition)) completedSteps++;
+
+    if (driveTrain.images.isNotEmpty) {
+      int validImageCount = driveTrain.images.entries
+          .where((entry) => entry.key.isNotEmpty && entry.value.isNotEmpty)
+          .length;
+
+      completedSteps += validImageCount;
+
+      // "Engine Left" and "Engine Right" are linked to other parts of the vehicle
+      if (driveTrain.images.containsKey("Engine Left") &&
+          driveTrain.images["Engine Left"]!.isNotEmpty) {
+        completedSteps++;
+      }
+      if (driveTrain.images.containsKey("Engine Right") &&
+          driveTrain.images["Engine Right"]!.isNotEmpty) {
+        completedSteps++;
+      }
+    }
+    // Check damages
+    if (driveTrain.damages.isNotEmpty == true) completedSteps++;
+
+    // Check additional features
+    if (driveTrain.additionalFeatures.isNotEmpty == true) completedSteps++;
+
+    // Check fault codes
+    if (driveTrain.faultCodes.isNotEmpty == true) completedSteps++;
+    // completedSteps += driveTrain?.faultCodes.length ?? 0;
+
+    return completedSteps <= totalSteps ? completedSteps : totalSteps;
   }
 
   int _calculateChassisProgress() {
     int completedSteps = 0;
+    int totalSteps =
+        17; // Base fields: condition, images, damages, additional features
+
     final chassis = vehicle?.truckConditions.chassis;
+
+    // Check main condition
     if (chassis?.condition.isNotEmpty == true) completedSteps++;
-    if (chassis?.images.isNotEmpty == true) completedSteps++;
+
+    // Check images
+    // if (chassis?.images.isNotEmpty == true) completedSteps++;
+    completedSteps += chassis?.images.length ?? 0;
+
+    // Check damages section
     if (chassis?.damagesCondition.isNotEmpty == true) completedSteps++;
+
+    // Check additional features section
     if (chassis?.additionalFeaturesCondition.isNotEmpty == true) {
       completedSteps++;
     }
-    return completedSteps;
+
+    return completedSteps <= totalSteps ? completedSteps : totalSteps;
   }
 
   int _calculateTyresProgress() {
     int completedSteps = 0;
+    int totalSteps = 24;
+
     final tyresMap = vehicle?.truckConditions.tyres;
     if (tyresMap != null) {
       tyresMap.forEach((key, tyres) {
+        // Loop through tyre positions
         for (int pos = 1; pos <= 6; pos++) {
           String posKey = 'Tyre_Pos_$pos';
-          final tyreData = tyres.positions[posKey];
+          final tyreData =
+              tyres.positions[posKey]; // Access `positions` from `Tyres`
+
           if (tyreData?.chassisCondition != null &&
               tyreData!.chassisCondition.isNotEmpty) {
             completedSteps++;
@@ -215,13 +362,25 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
               tyreData!.virginOrRecap.isNotEmpty) {
             completedSteps++;
           }
+          if (tyreData?.imagePath != null && tyreData!.imagePath.isNotEmpty) {
+            completedSteps++;
+          }
           if (tyreData?.rimType != null && tyreData!.rimType.isNotEmpty) {
             completedSteps++;
           }
         }
       });
     }
+
     return completedSteps;
+  }
+
+  int _calculateTruckConditionsProgress() {
+    return _calculateExternalCabProgress() +
+        _calculateInternalCabProgress() +
+        _calculateDriveTrainProgress() +
+        _calculateChassisProgress() +
+        _calculateTyresProgress();
   }
 
   // ---------------------------
@@ -764,7 +923,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                 maintenanceData['maintenanceSelection'] ?? 'yes',
             warrantySelection: maintenanceData['warrantySelection'] ?? 'yes',
             maintenanceDocUrl: maintenanceData['maintenanceDocUrl'],
-            warrantyDocUrl: maintenanceData['warrantyDocUrl'], isFromTransporter: true,
+            warrantyDocUrl: maintenanceData['warrantyDocUrl'],
+            isFromTransporter: true,
           ),
         ),
       );
@@ -931,17 +1091,19 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    _buildSection(context, 'BASIC INFORMATION',
-                        '${_calculateBasicInfoProgress()} OF 11'),
+                    _buildSection(context, 'BASIC\nINFORMATION',
+                        '${_calculateBasicInfoProgress()}/21'),
                     // Custom Truck Conditions Block
-                    _buildTruckConditionsSection(context),
+                    _buildSection(context, 'TRUCK CONDITION',
+                        '${_calculateTruckConditionsProgress()}/89'),
                     _buildSection(
                       context,
-                      'MAINTENANCE AND WARRANTY',
-                      '${_calculateMaintenanceProgress()} OF 4',
+                      'MAINTENANCE\nAND WARRANTY',
+                      '${_calculateMaintenanceProgress()}/${maintenanceData["oemInspectionType"] == 'no' ? 4 : 3}',
                     ),
                     _buildSection(
-                        context, 'ADMIN', '${_calculateAdminProgress()} OF 4'),
+                        context, 'ADMIN', '${_calculateAdminProgress()}/2'),
+
                     const SizedBox(height: 20),
                     _buildBottomButtons(),
                     const SizedBox(height: 20),
@@ -1022,6 +1184,11 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     final displayProgress =
         title.contains('ADMIN') ? _calculateAdminProgressString() : progress;
 
+    List<String> progressValues = progress.split('/');
+    double first = double.parse(progressValues[0]);
+    double second = double.parse(progressValues[1]);
+    double progressValue = first / second;
+
     return GestureDetector(
       onTap: () {
         switch (title.replaceAll('\n', ' ').trim()) {
@@ -1053,7 +1220,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
                       vehicle!.maintenance.warrantySelection ?? '',
                   isFromAdmin: Provider.of<UserProvider>(context, listen: false)
                           .getUserRole ==
-                      'admin', isFromTransporter: true,
+                      'admin',
+                  isFromTransporter: true,
                 ),
               ),
             );
@@ -1096,93 +1264,128 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
         }
       },
       child: Container(
-        width: containerWidth,
-        padding: EdgeInsets.all(containerPadding),
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        decoration: ShapeDecoration(
-          color: const Color(0x332F7FFF),
-          shape: RoundedRectangleBorder(
-            side: BorderSide(width: borderSideWidth, color: borderColor),
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 10).copyWith(bottom: 20),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.blue),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Prevents infinite height issues
           children: [
             Container(
               width: double.infinity,
-              height: titleBoxHeight,
-              decoration: ShapeDecoration(
-                color: borderColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(titleBoxRadius),
-                ),
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Center(
-                child: AutoSizeText(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: titleFontSize,
-                    fontFamily: 'Montserrat',
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: titleLetterSpace,
-                  ),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            SizedBox(height: gapHeight),
-            LayoutBuilder(builder: (context, constraints) {
-              return Row(
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: Row(
                 children: [
                   Expanded(
-                    flex: 7,
-                    child: SizedBox(
-                      height: progressBarHeight,
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            height: progressBarHeight,
-                            decoration: const BoxDecoration(
-                              color: Color(0x7F526584),
-                            ),
-                          ),
-                          FractionallySizedBox(
-                            widthFactor: progressRatio.clamp(0.0, 1.0),
-                            child: Container(
-                              height: progressBarHeight,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF39BB36),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: LinearProgressIndicator(
+                      value: progressValue,
+                      minHeight: 5,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.green),
+                      backgroundColor: Colors.grey.withOpacity(0.5),
                     ),
                   ),
-                  SizedBox(width: progressSpacing),
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      displayProgress,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: progressFontSize,
-                        fontFamily: 'Montserrat',
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: progressLetterSp,
-                      ),
+                  const SizedBox(width: 10),
+                  Text(
+                    progress,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
                     ),
                   ),
                 ],
-              );
-            }),
+              ),
+            ),
+            if (title.contains('TRUCK CONDITION')) ...[
+              subFields("EXTERNAL CAB", '${_calculateExternalCabProgress()}/7'),
+              subFields(
+                  "INTERNAL CAB", '${_calculateInternalCabProgress()}/20'),
+              subFields("CHASSIS", '${_calculateChassisProgress()}/17'),
+              subFields("DRIVE TRAIN", '${_calculateDriveTrainProgress()}/21'),
+              subFields("TYRES", '${_calculateTyresProgress()}/24'),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget subFields(String title, String progress) {
+    List<String> progressValues = progress.split('/');
+    double first = double.parse(progressValues[0]);
+    double second = double.parse(progressValues[1]);
+    double progressValue = first / second;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        Container(
+          width: MediaQuery.of(context).size.width / 1.6,
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
+          child: Row(
+            children: [
+              SizedBox(
+                width: MediaQuery.of(context).size.width / 2,
+                child: LinearProgressIndicator(
+                  value: progressValue,
+                  minHeight: 5,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
+                  backgroundColor: Colors.grey.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                progress,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

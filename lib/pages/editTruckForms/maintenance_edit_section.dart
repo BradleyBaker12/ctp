@@ -400,12 +400,30 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
   bool _isImageFile(String path) {
     final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    String extension = path.split('.').last.toLowerCase();
+     String extension = getFileExtension(path);
+    print("File Extnnsion: $extension");
     return imageExtensions.contains(extension);
   }
 
-  String getFileNameFromUrl(String url) {
-    return url.split('/').last.split('?').first;
+  String getFileExtension(String url) {
+    Uri uri = Uri.parse(url);
+    String decodedPath = Uri.decodeFull(uri.path);
+    String fileName = decodedPath.split('/').last;
+    return fileName.contains('.') ? fileName.split('.').last : '';
+  }
+
+   String getFileNameFromUrl(String url) {
+    // if (url.contains('maintenance_doc')) {
+    //   return 'Maintenance Doc';
+    // } else if (url.contains('warranty_doc')) {
+    //   return 'Warranty Doc';
+    // }
+    // Fallback to original filename if pattern doesn't match
+    Uri uri = Uri.parse(url);
+    String decodedPath = Uri.decodeFull(uri.path);
+    String fileName = decodedPath.split('/').last;
+
+    return fileName;
   }
 
   void updateMaintenanceFile(Uint8List? file) {

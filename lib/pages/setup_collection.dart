@@ -1,6 +1,9 @@
+import 'dart:developer';
+
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart'; // For date/time formatting
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -8,6 +11,9 @@ import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/services/places_data_model.dart';
+import 'package:ctp/services/places_services.dart';
+import 'package:ctp/services/places_widget.dart';
 
 class SetupCollectionPage extends StatefulWidget {
   final String offerId; // Change from vehicleId to offerId
@@ -29,6 +35,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
   // List of time dropdowns for the current day
   List<TimeOfDay?> _selectedTimes = [null];
+  LatLng? latLng;
+  bool isAddressSelected = false;
 
   // Made _timeSlots mutable to allow dynamic additions
   final List<TimeOfDay> _timeSlots = [
@@ -346,16 +354,18 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       return;
     }
 
-    if (_postalCodeController.text.isEmpty) {
-      _showErrorDialog('Please enter Postal Code.');
-      return;
-    }
+    // if (_postalCodeController.text.isEmpty) {
+    //   _showErrorDialog('Please enter Postal Code.');
+    //   return;
+    // }
 
     String fullAddress = '${_addressLine1Controller.text}, '
         '${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}'
         '${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
 
     Map<String, dynamic> locationData = {
+      'lat': latLng?.latitude,
+      'lng': latLng?.longitude,
       'address': fullAddress,
       'dates': _selectedDays.map((date) => date.toShortString()).toList(),
       'timeSlots': _selectedDays
@@ -616,6 +626,39 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 16),
+                              const SizedBox(height: 16),
+                              // _buildTextField(
+                              //   controller: _postalCodeController,
+                              //   hintText: 'Postal Code',
+                              // ),
+                              PlacesSearchField(
+                                controller: _addressLine1Controller,
+                                onSuggestionSelected: (PlacesData p) async {
+                                  log("Suggestion Selected: ${p.description}");
+                                  setState(() {
+                                    isAddressSelected = true;
+                                    _addressLine1Controller.text =
+                                        p.description ?? '';
+                                    print(
+                                        "Address1controller: ${_addressLine1Controller.text}");
+                                  });
+                                  print(
+                                      "Address1Controller: ${_addressLine1Controller.text}");
+                                  Map<String, dynamic> latLngData =
+                                      await PlacesService.getPlaceLatLng(
+                                          p.placeId!);
+                                  print("LatLngData: $latLngData");
+                                  latLng = LatLng(
+                                    latLngData['lat'],
+                                    latLngData['lng'],
+                                  );
+                                  _cityController.text = latLngData['city'];
+                                  _stateController.text = latLngData['state'];
+                                  _postalCodeController.text =
+                                      latLngData["postalCode"];
+                                },
+                              ),
+                              const SizedBox(height: 32),
                               if (_isAddingLocation) ...[
                                 _buildTextField(
                                   controller: _addressLine1Controller,
@@ -636,11 +679,6 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                 _buildTextField(
                                   controller: _stateController,
                                   hintText: 'State/Province/Region',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTextField(
-                                  controller: _postalCodeController,
-                                  hintText: 'Postal Code',
                                 ),
                                 const SizedBox(height: 32),
                                 const Text(
@@ -925,6 +963,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     required TextEditingController controller,
     required String hintText,
     bool isOptional = false,
+    bool isEnabled = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -933,6 +972,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
         filled: true,
+        enabled: isEnabled,
         fillColor: Colors.white.withOpacity(0.2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),

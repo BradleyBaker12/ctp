@@ -72,68 +72,111 @@ class VehicleProvider with ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
+      print('DEBUG: Fetching vehicles for userId: $userId');
+      print('DEBUG: Current user from UserProvider: ${userProvider.userId}');
+
       Query query = FirebaseFirestore.instance
           .collection('vehicles')
           .orderBy('createdAt', descending: true);
+
       if (userId != null) {
+        // print('DEBUG: Filtering by userId: $userId');
         query = query.where('userId', isEqualTo: userId);
       }
 
       QuerySnapshot querySnapshot = await query.get();
+      // print('DEBUG: Found ${querySnapshot.docs.length} vehicles in total');
 
-      _vehicles = querySnapshot.docs.map((doc) {
+      // Debug information about all vehicles
+      for (var doc in querySnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        // print('DEBUG: Vehicle ID: ${doc.id}');
+        // print('DEBUG: Vehicle userId: ${data['userId']}');
+        // print('DEBUG: Vehicle makeModel: ${data['makeModel']}');
+        // print('DEBUG: Vehicle status: ${data['vehicleStatus']}');
+        // print('-------------------');
+      }
 
-        // Handle brands field
-        if (data['brands'] is String) {
-          data['brands'] = [data['brands']];
-        } else if (data['brands'] == null) {
-          data['brands'] = [];
-        }
+      _vehicles = querySnapshot.docs
+          .map((doc) {
+            try {
+              Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-        // Handle application field
-        if (data['application'] is String) {
-          data['application'] = [data['application']];
-        } else if (data['application'] == null) {
-          data['application'] = [];
-        }
-
-        // Initialize truck conditions
-        if (data['truckConditions'] is Map) {
-          var conditions = data['truckConditions'] as Map<String, dynamic>;
-          for (var section in [
-            'chassis',
-            'externalCab',
-            'driveTrain',
-            'internalCab'
-          ]) {
-            if (conditions[section] is Map) {
-              var sectionData = conditions[section] as Map<String, dynamic>;
-              sectionData['damages'] = [];
-              sectionData['additionalFeatures'] = [];
-              if (section == 'internalCab') {
-                sectionData['faultCodes'] = [];
+              // Safely handle trailer data
+              if (data['trailerExtraInfo'] != null) {
+                // print('DEBUG: Processing trailer data for vehicle ${doc.id}');
+                // Convert any nested maps to proper format
+                Map<String, dynamic> processedData =
+                    Map<String, dynamic>.from(data);
+                processedData['trailerExtraInfo'] =
+                    _processTrailerData(data['trailerExtraInfo']);
+                return Vehicle.fromFirestore(doc.id, processedData);
               }
+
+              return Vehicle.fromFirestore(doc.id, data);
+            } catch (e) {
+              // print('Error processing vehicle ${doc.id}: $e');
+              return null;
             }
-          }
-        }
+          })
+          .whereType<Vehicle>()
+          .toList(); // Filter out null values
 
-        // Ensure createdAt is valid
-        if (data['createdAt'] == null) {
-          data['createdAt'] = Timestamp.now();
+      // print('DEBUG: Final processed vehicles count: ${_vehicles.length}');
+      if (userId != null) {
+        // print('DEBUG: Vehicles matching userId $userId:');
+        for (var vehicle in _vehicles) {
+          // print('Vehicle ID: ${vehicle.id}, Model: ${vehicle.makeModel}');
         }
-
-        return Vehicle.fromFirestore(doc.id, data);
-      }).toList();
+      }
 
       vehicleListenable.value = List<Vehicle>.from(_vehicles);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       print('Error fetching vehicles: $e');
+      print('Error stack trace: ${StackTrace.current}');
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Helper method to process trailer data
+  Map<String, dynamic> _processTrailerData(dynamic trailerData) {
+    if (trailerData == null) return {};
+
+    if (trailerData is Map) {
+      var processed = Map<String, dynamic>.fromEntries(trailerData.entries.map(
+          (e) => MapEntry(e.key.toString(),
+              e.value is Map ? _processTrailerData(e.value) : e.value)));
+
+      // Ensure additionalImages is properly formatted if it exists
+      if (processed['additionalImages'] != null) {
+        if (processed['additionalImages'] is List) {
+          processed['additionalImages'] =
+              (processed['additionalImages'] as List)
+                  .map((item) {
+                    if (item is Map) {
+                      return Map<String, dynamic>.from(item);
+                    }
+                    return <String, dynamic>{
+                      'description': '',
+                      'imageUrl': '',
+                    };
+                  })
+                  .where((item) =>
+                      item['imageUrl'] != null &&
+                      item['imageUrl'].toString().isNotEmpty)
+                  .toList();
+        } else {
+          processed['additionalImages'] = [];
+        }
+      }
+
+      return processed;
+    }
+
+    return {};
   }
 
   Future<void> fetchMoreVehicles() async {
@@ -174,17 +217,24 @@ class VehicleProvider with ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-      // print('Starting to fetch all vehicles from Firestore.');
+      // print('DEBUG: Starting fetchAllVehicles');
 
       Query query = FirebaseFirestore.instance
           .collection('vehicles')
           .orderBy('createdAt', descending: true);
 
-      // Fetch all vehicles without any filters
       QuerySnapshot querySnapshot = await query.get();
+      // print('DEBUG: Total vehicles in Firestore: ${querySnapshot.docs.length}');
 
-      // print(
-      // 'Successfully fetched ${querySnapshot.docs.length} vehicles from Firestore.');
+      // Debug print all vehicles before processing
+      for (var doc in querySnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        // print('DEBUG: Vehicle ID: ${doc.id}');
+        // print('DEBUG: Vehicle userId: ${data['userId']}');
+        // print('DEBUG: Vehicle makeModel: ${data['makeModel']}');
+        // print('DEBUG: Vehicle status: ${data['vehicleStatus']}');
+        // print('-------------------');
+      }
 
       _vehicles = querySnapshot.docs
           .map((doc) {
@@ -216,13 +266,22 @@ class VehicleProvider with ChangeNotifier {
         print('No valid vehicles found after parsing.');
       }
 
-      // print('Total vehicles after processing: ${_vehicles.length}');
+      // print('DEBUG: Final processed vehicles count: ${_vehicles.length}');
+      // print('DEBUG: Processed vehicles summary:');
+      for (var vehicle in _vehicles) {
+        // print('Vehicle ID: ${vehicle.id}');
+        // print('UserID: ${vehicle.userId}');
+        // print('Model: ${vehicle.makeModel}');
+        // print('Status: ${vehicle.vehicleStatus}');
+        // print('-------------------');
+      }
 
       vehicleListenable.value = List.from(_vehicles);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       print('Error in fetchAllVehicles: $e');
+      print('Error stack trace: ${StackTrace.current}');
       _isLoading = false;
       notifyListeners();
     }
@@ -444,35 +503,38 @@ class VehicleProvider with ChangeNotifier {
   }
 
   Future<List<Vehicle>> fetchVehiclesForToday() async {
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
-    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
     try {
-      print('Fetching today\'s vehicles from $startOfToday to $endOfToday');
+      print('Fetching today\'s live vehicles...');
 
       final QuerySnapshot vehicleSnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
-          .where('createdAt',
-              isGreaterThanOrEqualTo:
-                  startOfToday) // Changed from uploadTimestamp
-          .where('createdAt',
-              isLessThanOrEqualTo: endOfToday) // Changed from uploadTimestamp
           .where('vehicleStatus', isEqualTo: 'Live')
-          .orderBy('createdAt',
-              descending: true) // Changed from uploadTimestamp
-          .limit(5)
+          .orderBy('createdAt', descending: true)
           .get();
 
-      print('Found ${vehicleSnapshot.docs.length} vehicles for today');
+      print('Found ${vehicleSnapshot.docs.length} documents, processing...');
 
-      final vehicles = vehicleSnapshot.docs
-          .map((doc) =>
-              Vehicle.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
-          .toList();
+      List<Vehicle> vehicles = [];
+      for (var doc in vehicleSnapshot.docs) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          // Check if the document was created today
+          if (data['createdAt'] is Timestamp) {
+            DateTime createdAt = (data['createdAt'] as Timestamp).toDate();
+            DateTime now = DateTime.now();
+            if (createdAt.year == now.year &&
+                createdAt.month == now.month &&
+                createdAt.day == now.day) {
+              vehicles.add(Vehicle.fromFirestore(doc.id, data));
+            }
+          }
+        } catch (e) {
+          print('Error processing vehicle ${doc.id}: $e');
+          continue;
+        }
+      }
 
-      print(
-          'Processed vehicles: ${vehicles.map((v) => '${v.makeModel} (${v.vehicleStatus})')}');
+      print('Successfully processed ${vehicles.length} vehicles for today');
       return vehicles;
     } catch (e) {
       print('Error fetching today\'s vehicles: $e');
@@ -481,39 +543,39 @@ class VehicleProvider with ChangeNotifier {
   }
 
   Future<List<Vehicle>> fetchVehiclesForYesterday() async {
-    final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    final startOfYesterday =
-        DateTime(yesterday.year, yesterday.month, yesterday.day);
-    final endOfYesterday =
-        DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
-
     try {
-      print(
-          'Fetching yesterday\'s vehicles from $startOfYesterday to $endOfYesterday');
+      print('Fetching yesterday\'s live vehicles...');
 
       final QuerySnapshot vehicleSnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
-          .where('createdAt',
-              isGreaterThanOrEqualTo:
-                  startOfYesterday) // Changed from uploadTimestamp
-          .where('createdAt',
-              isLessThanOrEqualTo:
-                  endOfYesterday) // Changed from uploadTimestamp
           .where('vehicleStatus', isEqualTo: 'Live')
-          .orderBy('createdAt',
-              descending: true) // Changed from uploadTimestamp
-          .limit(5)
+          .orderBy('createdAt', descending: true)
           .get();
 
-      print('Found ${vehicleSnapshot.docs.length} vehicles for yesterday');
+      print('Found ${vehicleSnapshot.docs.length} documents, processing...');
 
-      final vehicles = vehicleSnapshot.docs
-          .map((doc) =>
-              Vehicle.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
-          .toList();
+      List<Vehicle> vehicles = [];
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
 
-      print(
-          'Processed vehicles: ${vehicles.map((v) => '${v.makeModel} (${v.vehicleStatus})')}');
+      for (var doc in vehicleSnapshot.docs) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          // Check if the document was created yesterday
+          if (data['createdAt'] is Timestamp) {
+            DateTime createdAt = (data['createdAt'] as Timestamp).toDate();
+            if (createdAt.year == yesterday.year &&
+                createdAt.month == yesterday.month &&
+                createdAt.day == yesterday.day) {
+              vehicles.add(Vehicle.fromFirestore(doc.id, data));
+            }
+          }
+        } catch (e) {
+          print('Error processing vehicle ${doc.id}: $e');
+          continue;
+        }
+      }
+
+      print('Successfully processed ${vehicles.length} vehicles for yesterday');
       return vehicles;
     } catch (e) {
       print('Error fetching yesterday\'s vehicles: $e');

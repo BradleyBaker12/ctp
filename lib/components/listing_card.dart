@@ -124,7 +124,6 @@ class ListingCard extends StatelessWidget {
       trailer.mainImageUrl,
       trailer.damages,
       trailer.features,
-      trailer.brands,
     ];
 
     final filledFields = fieldsToCheck.where(_isFieldFilled).length;

@@ -83,7 +83,7 @@ class _OfferCardState extends State<OfferCard> {
 
       if (vehicleDoc.exists && mounted) {
         final data = vehicleDoc.data();
-        debugPrint('Firestore data: $data');
+        // debugPrint('Firestore data: $data');
 
         setState(() {
           transmissionType = data?['transmissionType'];
@@ -636,15 +636,15 @@ class _OfferCardState extends State<OfferCard> {
           builder: (context, cardConstraints) {
             double cardW = cardConstraints.maxWidth;
             double cardH = cardConstraints.maxHeight;
-            debugPrint(
-                'Inner card constraints - Width: $cardW, Height: $cardH');
+            // debugPrint(
+            //     'Inner card constraints - Width: $cardW, Height: $cardH');
 
             double titleFontSize = isWeb ? cardW * 0.045 : cardW * 0.04;
             double subtitleFontSize = isWeb ? cardW * 0.04 : cardW * 0.035;
             double paddingVal = isWeb ? cardW * 0.04 : cardW * 0.03;
             double specFontSize = isWeb ? cardW * 0.03 : cardW * 0.025;
-            debugPrint(
-                'Calculated font sizes & padding - title: $titleFontSize, subtitle: $subtitleFontSize, padding: $paddingVal, specFontSize: $specFontSize');
+            // debugPrint(
+            //     'Calculated font sizes & padding - title: $titleFontSize, subtitle: $subtitleFontSize, padding: $paddingVal, specFontSize: $specFontSize');
 
             return Column(
               children: [
@@ -684,10 +684,6 @@ class _OfferCardState extends State<OfferCard> {
                   child: Padding(
                     padding: EdgeInsets.all(paddingVal),
                     child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: Colors.redAccent.withOpacity(0.5), width: 1),
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -741,11 +737,6 @@ class _OfferCardState extends State<OfferCard> {
                           // const SizedBox(height: 25),
                           // View Details Button with a debug border.
                           Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: Colors.greenAccent.withOpacity(0.5),
-                                  width: 1),
-                            ),
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () => navigateBasedOnStatus(context),
@@ -809,8 +800,8 @@ class _OfferCardState extends State<OfferCard> {
 
   Widget _buildStatusBadge(String status) {
     final normalizedStatus = status.toLowerCase().trim();
-    debugPrint(
-        'Building status badge for normalized status: $normalizedStatus');
+    // debugPrint(
+    //     'Building status badge for normalized status: $normalizedStatus');
 
     final String displayText =
         status.isEmpty ? 'UNKNOWN' : status.toUpperCase();

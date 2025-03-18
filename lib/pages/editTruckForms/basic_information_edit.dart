@@ -629,13 +629,33 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
       // Use expectedSellingPrice if available; otherwise, fall back to settlementAmount.
       String sellingPrice = widget.vehicle!.expectedSellingPrice;
-      if (sellingPrice == null || sellingPrice.isEmpty || sellingPrice == "0") {
+      if (sellingPrice.isEmpty || sellingPrice == "0") {
         sellingPrice =
-            widget.vehicle?.adminData.settlementAmount?.toString() ?? '';
+            widget.vehicle?.adminData.settlementAmount.toString() ?? '';
       }
       formData.setSellingPrice(sellingPrice);
       formData.setWarrantyDetails(widget.vehicle?.warrantyDetails);
       formData.setReferenceNumber(widget.vehicle?.referenceNumber);
+
+      // *** NEW: Prepopulate Configuration, Application, and Province ***
+      if (widget.vehicle?.config != null && widget.vehicle!.config.isNotEmpty) {
+        formData.setConfig(widget.vehicle!.config);
+        _configController.text = widget.vehicle!.config;
+      }
+      if (widget.vehicle?.application != null &&
+          widget.vehicle!.application.isNotEmpty) {
+        String applicationText = widget.vehicle!.application.join(', ');
+        formData.setApplication(applicationText);
+        _applicationController.text = applicationText;
+      }
+
+      debugPrint("Vehicle config: ${widget.vehicle!.config}");
+      debugPrint("Vehicle application: ${widget.vehicle!.application}");
+
+      if (widget.vehicle?.province != null &&
+          widget.vehicle!.province.isNotEmpty) {
+        formData.setProvince(widget.vehicle!.province);
+      }
 
       // ... continue with your remaining prepopulation logic ...
 
@@ -1531,8 +1551,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 // New Province/State Dropdown – exactly like on vehicle upload screen
                 CustomDropdown(
                   hintText: 'Select Province/State',
-                  value: formData
-                      .province, // Assumes formData has province field and setter
+                  value: (formData.province?.isNotEmpty == true
+                      ? formData.province
+                      : null), // Assumes formData has province field and setter
                   items: _provinceOptions,
                   onChanged: (value) {
                     debugPrint('Province selected: $value');
@@ -1977,6 +1998,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         'mainImageUrl': imageUrl,
         'rc1NatisFile': natisRc1Url,
         'country': formData.country,
+        'province': formData.province,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         // Use the selected transporter id if available; otherwise use the current user id.

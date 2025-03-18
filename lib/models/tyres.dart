@@ -1,7 +1,5 @@
 // lib/models/tyres.dart
 
-
-
 class Tyres {
   final Map<String, TyrePosition> positions;
   final DateTime lastUpdated;
@@ -13,7 +11,7 @@ class Tyres {
 
   factory Tyres.fromMap(Map<String, dynamic> map) {
     Map<String, TyrePosition> positions = {};
-    
+
     map.forEach((key, value) {
       if (key.startsWith('Tyre_Pos_') && value is Map) {
         positions[key] = TyrePosition.fromMap(value as Map<String, dynamic>);
@@ -55,7 +53,7 @@ class TyrePosition {
       chassisCondition: map['chassisCondition'] ?? '',
       rimType: map['rimType'] ?? '',
       virginOrRecap: map['virginOrRecap'] ?? '',
-      imagePath: map['imagePath'] ?? '',
+      imagePath: map['imageUrl'] ?? '',
       isNew: map['isNew'] ?? '',
     );
   }

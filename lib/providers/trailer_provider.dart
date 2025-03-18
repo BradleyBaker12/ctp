@@ -17,11 +17,52 @@ class TrailerProvider extends ChangeNotifier {
           .collection('vehicles')
           .where('vehicleType', isEqualTo: 'trailer')
           .get();
-      _trailers = snapshot.docs.map((doc) {
-        final data = doc.data();
-        debugPrint('Parsing trailer doc ${doc.id}: $data');
-        return Trailer.fromFirestore(doc.id, data);
-      }).toList();
+
+      _trailers = []; // Clear existing trailers before processing new ones
+
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          debugPrint('Processing trailer doc ${doc.id}');
+
+          // Normalize additionalImages field
+          if (data['additionalImages'] != null) {
+            if (data['additionalImages'] is List) {
+              data['additionalImages'] = (data['additionalImages'] as List)
+                  .map((item) {
+                    if (item is Map) {
+                      return Map<String, dynamic>.from(item);
+                    }
+                    return <String, dynamic>{
+                      'description': '',
+                      'imageUrl': '',
+                    };
+                  })
+                  .where((item) =>
+                      item['imageUrl'] != null &&
+                      item['imageUrl'].toString().isNotEmpty)
+                  .toList();
+            } else {
+              data['additionalImages'] = [];
+            }
+          } else {
+            data['additionalImages'] = [];
+          }
+
+          final trailer = Trailer.fromFirestore(doc.id, data);
+          _trailers.add(trailer);
+
+          // Debug log
+          debugPrint(
+              'Processed trailer ${doc.id} with ${data['additionalImages'].length} additional images');
+        } catch (e, stackTrace) {
+          debugPrint('Error processing trailer document ${doc.id}: $e');
+          debugPrint('Stack trace: $stackTrace');
+          continue;
+        }
+      }
+
+      debugPrint('Successfully loaded ${_trailers.length} trailers');
       notifyListeners();
     } catch (e) {
       debugPrint('Error fetching trailers: $e');
@@ -29,35 +70,63 @@ class TrailerProvider extends ChangeNotifier {
     }
   }
 
-  // Add new trailer
+  // Add new trailer with validation
   Future<void> addTrailer(Trailer trailer) async {
     try {
-      await _firestore
-          .collection('vehicles') // Changed from 'trailers'
-          .doc(trailer.id)
-          .set(trailer.toMap());
+      final data = trailer.toMap();
+
+      // Ensure additionalImages is properly structured
+      if (data['additionalImages'] != null) {
+        data['additionalImages'] =
+            (data['additionalImages'] as List).map((item) {
+          if (item is Map) {
+            return Map<String, dynamic>.from(item);
+          }
+          return <String, dynamic>{};
+        }).toList();
+      } else {
+        data['additionalImages'] = [];
+      }
+
+      await _firestore.collection('vehicles').doc(trailer.id).set(data);
+
       _trailers.add(trailer);
       notifyListeners();
+      debugPrint('Successfully added trailer ${trailer.id}');
     } catch (e) {
-      print('Error adding trailer: $e');
+      debugPrint('Error adding trailer: $e');
       rethrow;
     }
   }
 
-  // Update existing trailer
+  // Update existing trailer with validation
   Future<void> updateTrailer(Trailer trailer) async {
     try {
-      await _firestore
-          .collection('vehicles') // Changed from 'trailers'
-          .doc(trailer.id)
-          .update(trailer.toMap());
+      final data = trailer.toMap();
+
+      // Ensure additionalImages is properly structured
+      if (data['additionalImages'] != null) {
+        data['additionalImages'] =
+            (data['additionalImages'] as List).map((item) {
+          if (item is Map) {
+            return Map<String, dynamic>.from(item);
+          }
+          return <String, dynamic>{};
+        }).toList();
+      } else {
+        data['additionalImages'] = [];
+      }
+
+      await _firestore.collection('vehicles').doc(trailer.id).update(data);
+
       final index = _trailers.indexWhere((t) => t.id == trailer.id);
       if (index != -1) {
         _trailers[index] = trailer;
         notifyListeners();
       }
+      debugPrint('Successfully updated trailer ${trailer.id}');
     } catch (e) {
-      print('Error updating trailer: $e');
+      debugPrint('Error updating trailer: $e');
       rethrow;
     }
   }
@@ -219,5 +288,27 @@ class TrailerProvider extends ChangeNotifier {
     return info.length.isNotEmpty &&
         info.vin.isNotEmpty &&
         info.registration.isNotEmpty;
+  }
+
+  // NEW: Add data format validation method
+  bool validateTrailerDataFormat(Map<String, dynamic> data) {
+    try {
+      if (data['additionalImages'] != null &&
+          data['additionalImages'] is! List) {
+        debugPrint('Invalid additionalImages format');
+        return false;
+      }
+
+      if (data['trailerExtraInfo'] != null &&
+          data['trailerExtraInfo'] is! Map) {
+        debugPrint('Invalid trailerExtraInfo format');
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('Error validating trailer data format: $e');
+      return false;
+    }
   }
 }

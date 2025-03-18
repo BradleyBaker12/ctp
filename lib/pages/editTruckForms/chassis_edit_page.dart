@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/utils/camera_helper.dart'; // Uses the camera helper
+import 'package:ctp/utils/camera_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
@@ -37,12 +37,12 @@ class ChassisEditPageState extends State<ChassisEditPage>
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Basic condition radio buttons
+  // Condition radio buttons
   String _selectedCondition = 'good';
-  String _additionalFeaturesCondition = 'no';
   String _damagesCondition = 'no';
+  String _additionalFeaturesCondition = 'no';
 
-  // Maps to store main images (key => raw bytes). If there's an existing URL, we store it in _imageUrls.
+  // Maps to store main images (key => raw bytes or existing URL).
   final Map<String, Uint8List?> _selectedImages = {
     'Right Brake': null,
     'Left Brake': null,
@@ -60,11 +60,10 @@ class ChassisEditPageState extends State<ChassisEditPage>
     'Right Brake Rear Axel': null,
   };
 
-  // If an image was previously uploaded, store its URL here
+  // Keep track of any existing URLs for these images
   final Map<String, String> _imageUrls = {};
 
-  // Damages and additional features are stored as a list of Maps
-  // each containing {'description': '', 'image': Uint8List?, 'imageUrl': String?, 'key': String}
+  // Damages and additional features stored as a list of Maps
   List<Map<String, dynamic>> _damageList = [];
   List<Map<String, dynamic>> _additionalFeaturesList = [];
 
@@ -82,7 +81,6 @@ class ChassisEditPageState extends State<ChassisEditPage>
     }
   }
 
-  // Loads existing data from Firestore if it exists
   Future<void> _loadExistingData() async {
     try {
       final doc =
@@ -108,227 +106,221 @@ class ChassisEditPageState extends State<ChassisEditPage>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
 
+    // Main content
     Widget content = Material(
       type: MaterialType.transparency,
       child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 16.0),
-              Text(
-                'Chassis Inspection'.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 25,
-                  color: Color.fromARGB(221, 255, 255, 255),
-                  fontWeight: FontWeight.w900,
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 16.0),
+            // Main heading (mirroring ExternalCab style)
+            Text(
+              'Details for CHASSIS'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            const Text(
+              'Condition of the Chassis',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+
+            // Condition Radio Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                CustomRadioButton(
+                  label: 'Poor',
+                  value: 'poor',
+                  groupValue: _selectedCondition,
+                  onChanged: isDealer
+                      ? (_) {}
+                      : (value) => _updateAndNotify(() {
+                            _selectedCondition = value!;
+                          }),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16.0),
-              const Text(
-                'Condition of the Chassis',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color.fromARGB(221, 255, 255, 255),
-                  fontWeight: FontWeight.w500,
+                CustomRadioButton(
+                  label: 'Good',
+                  value: 'good',
+                  groupValue: _selectedCondition,
+                  onChanged: isDealer
+                      ? (_) {}
+                      : (value) => _updateAndNotify(() {
+                            _selectedCondition = value!;
+                          }),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16.0),
-
-              // Condition Radio Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  CustomRadioButton(
-                    label: 'Poor',
-                    value: 'poor',
-                    groupValue: _selectedCondition,
-                    onChanged: isDealer
-                        ? (_) {}
-                        : (value) => _updateAndNotify(() {
-                              _selectedCondition = value!;
-                            }),
-                  ),
-                  CustomRadioButton(
-                    label: 'Good',
-                    value: 'good',
-                    groupValue: _selectedCondition,
-                    onChanged: isDealer
-                        ? (_) {}
-                        : (value) => _updateAndNotify(() {
-                              _selectedCondition = value!;
-                            }),
-                  ),
-                  CustomRadioButton(
-                    label: 'Excellent',
-                    value: 'excellent',
-                    groupValue: _selectedCondition,
-                    onChanged: isDealer
-                        ? (_) {}
-                        : (value) => _updateAndNotify(() {
-                              _selectedCondition = value!;
-                            }),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16.0),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 16.0),
-
-              // Front Axel Section
-              Text(
-                'Front Axel'.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Color.fromARGB(221, 255, 255, 255),
-                  fontWeight: FontWeight.w900,
+                CustomRadioButton(
+                  label: 'Excellent',
+                  value: 'excellent',
+                  groupValue: _selectedCondition,
+                  onChanged: isDealer
+                      ? (_) {}
+                      : (value) => _updateAndNotify(() {
+                            _selectedCondition = value!;
+                          }),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16.0),
-              _buildImageGrid([
-                'Right Brake',
-                'Left Brake',
-                'Front Axel',
-                'Suspension',
-              ]),
-              const SizedBox(height: 16.0),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 16.0),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
 
-              // Center of Chassis Section
-              Text(
-                'Center of Chassis'.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Color.fromARGB(221, 255, 255, 255),
-                  fontWeight: FontWeight.w900,
-                ),
-                textAlign: TextAlign.center,
+            // --- FRONT AXLE SECTION ---
+            Text(
+              'FRONT AXLE'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
               ),
-              const SizedBox(height: 16.0),
-              _buildImageGrid([
-                'Fuel Tank',
-                'Battery',
-                'Cat Walk',
-                'Electrical Cable Black',
-                'Air Cable Yellow',
-                'Air Cable Red',
-              ]),
-              const SizedBox(height: 16.0),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 16.0),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            _buildPhotoGrid([
+              'Right Brake',
+              'Left Brake',
+              'Front Axel',
+              'Suspension',
+            ]),
+            const SizedBox(height: 70.0),
 
-              // Rear Axel Section
-              Text(
-                'Rear Axel'.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Color.fromARGB(221, 255, 255, 255),
-                  fontWeight: FontWeight.w900,
-                ),
-                textAlign: TextAlign.center,
+            // --- CENTER OF CHASSIS SECTION ---
+            Text(
+              'CENTER OF CHASSIS'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
               ),
-              const SizedBox(height: 16.0),
-              _buildImageGrid([
-                'Tail Board',
-                '5th Wheel',
-                'Left Brake Rear Axel',
-                'Right Brake Rear Axel',
-              ]),
-              const SizedBox(height: 16.0),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 16.0),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            _buildPhotoGrid([
+              'Fuel Tank',
+              'Battery',
+              'Cat Walk',
+              'Electrical Cable Black',
+              'Air Cable Yellow',
+              'Air Cable Red',
+            ]),
+            const SizedBox(height: 70.0),
 
-              // Damages Section
-              _buildAdditionalSection(
-                title: 'Are there any damages?',
-                anyItemsType: _damagesCondition,
-                onChange: isDealer
-                    ? null
-                    : (val) => _updateAndNotify(() {
-                          _damagesCondition = val!;
-                          if (_damagesCondition == 'yes' &&
-                              _damageList.isEmpty) {
-                            _damageList.add({
-                              'description': '',
-                              'image': null,
-                              'imageUrl': '',
-                              'key': UniqueKey().toString(),
-                            });
-                          } else if (_damagesCondition == 'no') {
-                            _damageList.clear();
-                          }
-                        }),
-                buildItemSection: _buildDamageSection,
+            // --- REAR AXLE SECTION ---
+            Text(
+              'REAR AXLE'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 25,
+                color: Color.fromARGB(221, 255, 255, 255),
+                fontWeight: FontWeight.w900,
               ),
-              const SizedBox(height: 16.0),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 16.0),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            _buildPhotoGrid([
+              'Tail Board',
+              '5th Wheel',
+              'Left Brake Rear Axel',
+              'Right Brake Rear Axel',
+            ]),
+            const SizedBox(height: 70.0),
 
-              // Additional Features Section
-              _buildAdditionalSection(
-                title: 'Are there any additional features?',
-                anyItemsType: _additionalFeaturesCondition,
-                onChange: isDealer
-                    ? null
-                    : (val) => _updateAndNotify(() {
-                          _additionalFeaturesCondition = val!;
-                          if (_additionalFeaturesCondition == 'yes' &&
-                              _additionalFeaturesList.isEmpty) {
-                            _additionalFeaturesList.add({
-                              'description': '',
-                              'image': null,
-                              'imageUrl': '',
-                              'key': UniqueKey().toString(),
-                            });
-                          } else if (_additionalFeaturesCondition == 'no') {
-                            _additionalFeaturesList.clear();
-                          }
-                        }),
-                buildItemSection: _buildAdditionalFeaturesSection,
+            // --- Damages Section ---
+            _buildAdditionalSection(
+              title: 'Are there any damages?',
+              anyItemsType: _damagesCondition,
+              onChange: isDealer
+                  ? null
+                  : (val) => _updateAndNotify(() {
+                        _damagesCondition = val!;
+                        if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                          _damageList.add({
+                            'description': '',
+                            'image': null,
+                            'imageUrl': '',
+                            'key': UniqueKey().toString(),
+                          });
+                        } else if (_damagesCondition == 'no') {
+                          _damageList.clear();
+                        }
+                      }),
+              buildItemSection: _buildDamageSection,
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+
+            // --- Additional Features Section ---
+            _buildAdditionalSection(
+              title: 'Are there any additional features?',
+              anyItemsType: _additionalFeaturesCondition,
+              onChange: isDealer
+                  ? null
+                  : (val) => _updateAndNotify(() {
+                        _additionalFeaturesCondition = val!;
+                        if (_additionalFeaturesCondition == 'yes' &&
+                            _additionalFeaturesList.isEmpty) {
+                          _additionalFeaturesList.add({
+                            'description': '',
+                            'image': null,
+                            'imageUrl': '',
+                            'key': UniqueKey().toString(),
+                          });
+                        } else if (_additionalFeaturesCondition == 'no') {
+                          _additionalFeaturesList.clear();
+                        }
+                      }),
+              buildItemSection: _buildAdditionalFeaturesSection,
+            ),
+            const SizedBox(height: 16.0),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 16.0),
+
+            // Save Changes Button (only if not dealer)
+            if (!isDealer)
+              CustomButton(
+                text: 'Save Changes',
+                borderColor: Colors.deepOrange,
+                isLoading: _isSaving,
+                onPressed: () async {
+                  setState(() => _isSaving = true);
+                  try {
+                    final data = await getData();
+                    await _firestore
+                        .collection('vehicles')
+                        .doc(widget.vehicleId)
+                        .update({
+                      'truckConditions.chassis': data,
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Changes saved successfully!')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving changes: $e')),
+                    );
+                  } finally {
+                    setState(() => _isSaving = false);
+                  }
+                },
               ),
-              const SizedBox(height: 16.0),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 16.0),
-
-              // Save Changes Button (only if not dealer)
-              if (!isDealer)
-                CustomButton(
-                  text: 'Save Changes',
-                  borderColor: Colors.deepOrange,
-                  isLoading: _isSaving,
-                  onPressed: () async {
-                    setState(() => _isSaving = true);
-                    try {
-                      final data = await getData();
-                      await _firestore
-                          .collection('vehicles')
-                          .doc(widget.vehicleId)
-                          .update({
-                        'truckConditions.chassis': data,
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Changes saved successfully!')),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error saving changes: $e')),
-                      );
-                    } finally {
-                      setState(() => _isSaving = false);
-                    }
-                  },
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );
 
+    // If this page is not in a tab, wrap in GradientBackground
     if (!widget.inTabsPage) {
       content = GradientBackground(child: content);
     }
@@ -336,69 +328,58 @@ class ChassisEditPageState extends State<ChassisEditPage>
     return Scaffold(
       key: _scaffoldKey,
       appBar: PreferredSize(
-              preferredSize: const Size.fromHeight(70),
-              child: TruckInfoWebNavBar(
-                scaffoldKey: _scaffoldKey,
-                selectedTab: "Chassis",
-                vehicleId: widget.vehicleId,
-                onHomePressed: () => Navigator.pushNamed(context, '/home'),
-                onBasicInfoPressed: () =>
-                    Navigator.pushNamed(context, '/basic_information'),
-                onTruckConditionsPressed: () =>
-                    Navigator.pushNamed(context, '/truck_conditions'),
-                onMaintenanceWarrantyPressed: () =>
-                    Navigator.pushNamed(context, '/maintenance_warranty'),
-                onExternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/external_cab'),
-                onInternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/internal_cab'),
-                onChassisPressed: () =>
-                    Navigator.pushNamed(context, '/chassis'),
-                onDriveTrainPressed: () =>
-                    Navigator.pushNamed(context, '/drive_train'),
-                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
-              ),
-            ),
+        preferredSize: const Size.fromHeight(70),
+        child: TruckInfoWebNavBar(
+          scaffoldKey: _scaffoldKey,
+          selectedTab: "Chassis",
+          vehicleId: widget.vehicleId,
+          onHomePressed: () => Navigator.pushNamed(context, '/home'),
+          onBasicInfoPressed: () =>
+              Navigator.pushNamed(context, '/basic_information'),
+          onTruckConditionsPressed: () =>
+              Navigator.pushNamed(context, '/truck_conditions'),
+          onMaintenanceWarrantyPressed: () =>
+              Navigator.pushNamed(context, '/maintenance_warranty'),
+          onExternalCabPressed: () =>
+              Navigator.pushNamed(context, '/external_cab'),
+          onInternalCabPressed: () =>
+              Navigator.pushNamed(context, '/internal_cab'),
+          onChassisPressed: () => Navigator.pushNamed(context, '/chassis'),
+          onDriveTrainPressed: () =>
+              Navigator.pushNamed(context, '/drive_train'),
+          onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+        ),
+      ),
       body: content,
     );
   }
 
   // =======================
-  // IMAGE GRID FOR MAIN IMAGES (Responsive & Square)
+  // IMAGE GRID FOR MAIN IMAGES (Similar to ExternalCab)
   // =======================
-  Widget _buildImageGrid(List<String> titles) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: titles.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: constraints.maxWidth < 600 ? 1 : 2,
-            crossAxisSpacing: 16.0,
-            mainAxisSpacing: 16.0,
-            childAspectRatio: 1.0, // Square blocks
-          ),
-          itemBuilder: (context, index) {
-            return _buildPhotoBlock(titles[index]);
-          },
-        );
-      },
-    );
-  }
-
-  // =======================
-  // PHOTO BLOCK (Square)
-  // =======================
-  Widget _buildPhotoBlock(String title) {
+  Widget _buildPhotoGrid(List<String> titles) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
 
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 16.0,
+      mainAxisSpacing: 16.0,
+      childAspectRatio: 1.5,
+      children:
+          titles.map((title) => _buildPhotoBlock(title, isDealer)).toList(),
+    );
+  }
+
+  Widget _buildPhotoBlock(String title, bool isDealer) {
     bool hasFile = _selectedImages[title] != null;
     bool hasUrl = _imageUrls[title] != null && _imageUrls[title]!.isNotEmpty;
 
     return GestureDetector(
       onTap: () {
+        // If there's an existing image, show full screen
         if (hasFile || hasUrl) {
           Navigator.push(
             context,
@@ -411,6 +392,15 @@ class ChassisEditPageState extends State<ChassisEditPage>
                         ? Image.memory(_selectedImages[title]!)
                         : Image.network(
                             _imageUrls[title]!,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return CircularProgressIndicator(
+                                value: progress.expectedTotalBytes != null
+                                    ? progress.cumulativeBytesLoaded /
+                                        progress.expectedTotalBytes!
+                                    : null,
+                              );
+                            },
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(Icons.error_outline,
                                   color: Colors.red);
@@ -422,91 +412,94 @@ class ChassisEditPageState extends State<ChassisEditPage>
             ),
           );
         } else if (!isDealer) {
+          // If no image yet and user is allowed to upload
           _showImageSourceDialog(title);
         }
       },
-      child: AspectRatio(
-        aspectRatio: 1.0, // Enforce square block
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.blue.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(color: AppColors.blue, width: 2.0),
-          ),
-          child: Stack(
-            children: [
-              _getImageWidget(title, isDealer),
-              if (!isDealer && (hasFile || hasUrl))
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        _selectedImages[title] = null;
-                        _imageUrls[title] = '';
-                      });
-                      widget.onProgressUpdate();
-                    },
-                  ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.blue.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8.0),
+          border: Border.all(color: AppColors.blue, width: 2.0),
+        ),
+        child: Stack(
+          children: [
+            if (hasFile || hasUrl)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: hasFile
+                    ? Image.memory(
+                        _selectedImages[title]!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+                    : Image.network(
+                        _imageUrls[title]!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.error_outline,
+                              color: Colors.red);
+                        },
+                      ),
+              )
+            else
+              // Placeholder
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!isDealer)
+                      const Icon(Icons.add_circle_outline,
+                          color: Colors.white, size: 40.0),
+                    const SizedBox(height: 8.0),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+            if (!isDealer && (hasFile || hasUrl))
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      _selectedImages[title] = null;
+                      _imageUrls[title] = '';
+                    });
+                    widget.onProgressUpdate();
+                  },
+                ),
+              ),
+          ],
         ),
       ),
     );
-  }
-
-  Widget _getImageWidget(String title, bool isDealer) {
-    final file = _selectedImages[title];
-    final url = _imageUrls[title];
-
-    if (file != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: Image.memory(
-          file,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-        ),
-      );
-    } else if (url != null && url.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(Icons.error_outline, color: Colors.red);
-          },
-        ),
-      );
-    } else {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (!isDealer)
-              const Icon(Icons.add_circle_outline,
-                  color: Colors.white, size: 40.0),
-            const SizedBox(height: 8.0),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
   }
 
   // =======================
@@ -533,6 +526,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16.0),
+        // Radio buttons "Yes" or "No"
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -559,7 +553,6 @@ class ChassisEditPageState extends State<ChassisEditPage>
     );
   }
 
-  // Damages Section
   Widget _buildDamageSection() {
     return _buildItemSection(
       items: _damageList,
@@ -577,7 +570,6 @@ class ChassisEditPageState extends State<ChassisEditPage>
     );
   }
 
-  // Additional Features Section
   Widget _buildAdditionalFeaturesSection() {
     return _buildItemSection(
       items: _additionalFeaturesList,
@@ -595,7 +587,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
     );
   }
 
-  // Generic builder for additional items using a responsive grid
+  // Generic builder for item sections
   Widget _buildItemSection({
     required List<Map<String, dynamic>> items,
     required VoidCallback addItem,
@@ -606,24 +598,17 @@ class ChassisEditPageState extends State<ChassisEditPage>
 
     return Column(
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: constraints.maxWidth < 600 ? 1 : 2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                childAspectRatio: 0.8,
-              ),
-              itemBuilder: (context, index) {
-                return _buildItemWidget(
-                    index, items[index], showImageSourceDialog, items);
-              },
-            );
-          },
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 16.0,
+          mainAxisSpacing: 16.0,
+          childAspectRatio: 0.8, // A bit taller to fit text + image
+          children: List.generate(items.length, (index) {
+            return _buildItemWidget(
+                index, items[index], showImageSourceDialog, items);
+          }),
         ),
         const SizedBox(height: 35.0),
         if (!isDealer)
@@ -706,6 +691,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
         GestureDetector(
           onTap: () {
             if (hasFile || hasUrl) {
+              // View in fullscreen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -732,7 +718,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
             }
           },
           child: AspectRatio(
-            aspectRatio: 1.0, // Enforce square block
+            aspectRatio: 1.0,
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.blue.withOpacity(0.3),
@@ -741,9 +727,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
               ),
               child: Stack(
                 children: [
-                  if (!hasFile && !hasUrl)
-                    _buildImagePlaceholder()
-                  else if (hasFile)
+                  if (hasFile)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
                       child: Image.memory(
@@ -753,7 +737,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                         height: double.infinity,
                       ),
                     )
-                  else
+                  else if (hasUrl)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
                       child: Image.network(
@@ -762,8 +746,30 @@ class ChassisEditPageState extends State<ChassisEditPage>
                         width: double.infinity,
                         height: double.infinity,
                         errorBuilder: (ctx, error, stackTrace) {
-                          return _buildImagePlaceholder();
+                          return const Icon(Icons.error_outline,
+                              color: Colors.red);
                         },
+                      ),
+                    )
+                  else
+                    // Placeholder
+                    const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_circle_outline,
+                              color: Colors.white, size: 40.0),
+                          SizedBox(height: 8.0),
+                          Text(
+                            'Add Image',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
                   if (!isDealer && (hasFile || hasUrl))
@@ -790,14 +796,52 @@ class ChassisEditPageState extends State<ChassisEditPage>
   }
 
   // =======================
-  // IMAGE SOURCE DIALOGS FOR ADDITIONAL ITEMS
+  // IMAGE SOURCE DIALOG HELPERS
   // =======================
-  void _showDamageImageSourceDialog(Map<String, dynamic> damage) {
-    _showImageSourceDialogForItem(damage);
-  }
-
-  void _showAdditionalFeatureImageSourceDialog(Map<String, dynamic> feature) {
-    _showImageSourceDialogForItem(feature);
+  void _showImageSourceDialog(String title) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Choose Image Source for $title'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    setState(() {
+                      _selectedImages[title] = imageBytes;
+                      _imageUrls[title] = '';
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  final pickedFile =
+                      await _picker.pickImage(source: ImageSource.gallery);
+                  if (pickedFile != null) {
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _selectedImages[title] = bytes;
+                      _imageUrls[title] = '';
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showImageSourceDialogForItem(Map<String, dynamic> item) {
@@ -809,7 +853,6 @@ class ChassisEditPageState extends State<ChassisEditPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Use our helper for camera capture:
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
@@ -847,18 +890,26 @@ class ChassisEditPageState extends State<ChassisEditPage>
     );
   }
 
+  void _showDamageImageSourceDialog(Map<String, dynamic> damage) {
+    _showImageSourceDialogForItem(damage);
+  }
+
+  void _showAdditionalFeatureImageSourceDialog(Map<String, dynamic> feature) {
+    _showImageSourceDialogForItem(feature);
+  }
+
   // =======================
-  // UPLOAD / GET DATA
+  // DATA SAVE/UPLOAD
   // =======================
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    // Allow transporter, admin, and salesRep to upload data
+    // Only these roles can upload
     final allowedRoles = ['transporter', 'admin', 'salesRep'];
     if (!allowedRoles.contains(userProvider.getUserRole)) {
       return {};
     }
 
-    // 1) Main images
+    // Upload main images
     final Map<String, dynamic> serializedImages = {};
     for (var entry in _selectedImages.entries) {
       final title = entry.key;
@@ -880,7 +931,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
       }
     }
 
-    // 2) Damages
+    // Upload damages
     final List<Map<String, dynamic>> serializedDamages = [];
     for (var damage in _damageList) {
       final imageBytes = damage['image'] as Uint8List?;
@@ -901,7 +952,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
       }
     }
 
-    // 3) Additional Features
+    // Upload additional features
     final List<Map<String, dynamic>> serializedFeatures = [];
     for (var feature in _additionalFeaturesList) {
       final imageBytes = feature['image'] as Uint8List?;
@@ -948,13 +999,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
     }
   }
 
-  Future<bool> saveData() async {
-    // Implement save logic if needed
-    return true;
-  }
-
   // =======================
-  // INITIALIZATION
+  // INITIALIZATION & HELPERS
   // =======================
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
@@ -1060,81 +1106,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
     return (filledFields / totalFields).clamp(0.0, 1.0);
   }
 
-  // Helper to update state and notify parent
   void _updateAndNotify(VoidCallback updateFunction) {
     setState(updateFunction);
     widget.onProgressUpdate();
-  }
-
-  // =======================
-  // IMAGE SOURCE DIALOG FOR MAIN IMAGES
-  // =======================
-  void _showImageSourceDialog(String title) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text('Choose Image Source for $title'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Use the unified camera helper
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  final imageBytes = await capturePhoto(context);
-                  if (imageBytes != null) {
-                    setState(() {
-                      _selectedImages[title] = imageBytes;
-                      _imageUrls[title] = '';
-                    });
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  final pickedFile =
-                      await _picker.pickImage(source: ImageSource.gallery);
-                  if (pickedFile != null) {
-                    final bytes = await pickedFile.readAsBytes();
-                    setState(() {
-                      _selectedImages[title] = bytes;
-                      _imageUrls[title] = '';
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Method to build a placeholder widget for images.
-  Widget _buildImagePlaceholder() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_circle_outline, color: Colors.white, size: 40.0),
-          SizedBox(height: 8.0),
-          Text(
-            'Add Image',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 }

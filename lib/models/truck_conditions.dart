@@ -24,6 +24,7 @@ class TruckConditions {
 
   factory TruckConditions.fromMap(Map<String, dynamic> map) {
     // First try to get the nested cab data
+    // print("internal cab: ${map['internalCab']}");
     Map<String, dynamic> extData = {};
     Map<String, dynamic> intData = {};
     Map<String, dynamic> chassisData = {};
@@ -59,9 +60,42 @@ class TruckConditions {
 
     return TruckConditions(
       externalCab: ExternalCab.fromMap(extData),
-      internalCab: InternalCab.fromMap(intData),
-      chassis: Chassis.fromMap(chassisData),
-      driveTrain: DriveTrain.fromMap(driveTrainData),
+      internalCab: map['internalCab'] != null &&
+              map['internalCab'] is Map<String, dynamic>
+          ? InternalCab.fromMap(map['internalCab'] as Map<String, dynamic>)
+          : InternalCab(
+              condition: '',
+              damagesCondition: '',
+              additionalFeaturesCondition: '',
+              faultCodesCondition: '',
+              viewImages: {},
+              damages: [],
+              additionalFeatures: [],
+              faultCodes: []),
+      chassis: map['chassis'] != null && map['chassis'] is Map<String, dynamic>
+          ? Chassis.fromMap(map['chassis'] as Map<String, dynamic>)
+          : Chassis(
+              condition: "",
+              damagesCondition: "",
+              additionalFeaturesCondition: "",
+              images: {},
+              damages: [],
+              additionalFeatures: []),
+      driveTrain:
+          map['driveTrain'] != null && map['driveTrain'] is Map<String, dynamic>
+              ? DriveTrain.fromMap(map['driveTrain'] as Map<String, dynamic>)
+              : DriveTrain(
+                  condition: "",
+                  oilLeakConditionEngine: "",
+                  waterLeakConditionEngine: "",
+                  blowbyCondition: "",
+                  oilLeakConditionGearbox: "",
+                  retarderCondition: "",
+                  lastUpdated: DateTime.now(),
+                  images: {},
+                  damages: [],
+                  additionalFeatures: [],
+                  faultCodes: []),
       tyres: {
         'tyres': Tyres(
           positions: _parseTyrePositions(tyresData),

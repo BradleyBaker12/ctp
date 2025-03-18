@@ -131,6 +131,34 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     }
   }
 
+  bool _isImageFile(String path) {
+    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+    String extension = getFileExtension(path);
+    print("File Extnnsion: $extension");
+    return imageExtensions.contains(extension);
+  }
+
+  String getFileExtension(String url) {
+    Uri uri = Uri.parse(url);
+    String decodedPath = Uri.decodeFull(uri.path);
+    String fileName = decodedPath.split('/').last;
+    return fileName.contains('.') ? fileName.split('.').last : '';
+  }
+
+  String getFileNameFromUrl(String url) {
+    // if (url.contains('maintenance_doc')) {
+    //   return 'Maintenance Doc';
+    // } else if (url.contains('warranty_doc')) {
+    //   return 'Warranty Doc';
+    // }
+    // Fallback to original filename if pattern doesn't match
+    Uri uri = Uri.parse(url);
+    String decodedPath = Uri.decodeFull(uri.path);
+    String fileName = decodedPath.split('/').last;
+
+    return fileName;
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
