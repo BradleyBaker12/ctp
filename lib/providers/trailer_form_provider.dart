@@ -458,10 +458,10 @@ class TrailerFormProvider with ChangeNotifier {
       setDamages(processedDamages);
       setDamagesCondition(damagesList.isNotEmpty ? 'yes' : 'no');
 
-      processedDamages.forEach((damage) {
+      for (var damage in processedDamages) {
         debugPrint(
             'DEBUG: Damage description: ${damage['description']}, Controller text: ${damage['controller'].text}');
-      });
+      }
     }
 
     // Handle features
@@ -473,10 +473,10 @@ class TrailerFormProvider with ChangeNotifier {
       setFeatures(processedFeatures);
       setFeaturesCondition(featuresList.isNotEmpty ? 'yes' : 'no');
 
-      processedFeatures.forEach((feature) {
+      for (var feature in processedFeatures) {
         debugPrint(
             'DEBUG: Feature description: ${feature['description']}, Controller text: ${feature['controller'].text}');
-      });
+      }
     }
 
     debugPrint(

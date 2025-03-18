@@ -736,7 +736,7 @@ class _OfferCardState extends State<OfferCard> {
                           // Fixed gap of 50 units (debug adjustable)
                           // const SizedBox(height: 25),
                           // View Details Button with a debug border.
-                          Container(
+                          SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () => navigateBasedOnStatus(context),

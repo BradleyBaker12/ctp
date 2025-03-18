@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/trailer_types/superlink.dart';
 import 'package:ctp/models/trailer_types/tri_axle.dart';
-import 'package:flutter/material.dart';
 
 class Trailer {
   final String id;
