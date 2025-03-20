@@ -4,6 +4,7 @@ import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_provider.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
@@ -623,6 +624,30 @@ class VehicleProvider with ChangeNotifier {
       print('Error fetching bought vehicles: $e');
       _boughtVehicles = [];
       notifyListeners();
+    }
+  }
+
+  Future<void> publishVehicle(String vehicleId) async {
+    try {
+      // Update vehicle status to live
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(vehicleId)
+          .update({
+        'status': 'live',
+        'publishedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Trigger cloud function to send notifications
+      final functions = FirebaseFunctions.instance;
+      await functions.httpsCallable('sendNewVehicleNotification').call({
+        'vehicleId': vehicleId,
+      });
+
+      notifyListeners();
+    } catch (e) {
+      print('Error publishing vehicle: $e');
+      rethrow;
     }
   }
 }

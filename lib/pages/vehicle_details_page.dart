@@ -1384,6 +1384,30 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               borderColor: Colors.redAccent,
               onPressed: _toggleVehicleStatus,
             ),
+          // FloatingActionButton(
+          //   onPressed: () async {
+          //     try {
+          //       // Call the publishVehicle function from VehicleProvider.
+          //       // This updates Firestore and triggers the cloud function for notifications.
+          //       await Provider.of<VehicleProvider>(context, listen: false)
+          //           .publishVehicle(vehicle.id);
+          //       ScaffoldMessenger.of(context).showSnackBar(
+          //         const SnackBar(
+          //           content: Text('Test notification triggered!'),
+          //         ),
+          //       );
+          //     } catch (e) {
+          //       ScaffoldMessenger.of(context).showSnackBar(
+          //         SnackBar(
+          //           content: Text('Error triggering notification: $e'),
+          //         ),
+          //       );
+          //     }
+          //   },
+          //   backgroundColor: Colors.deepOrange,
+          //   tooltip: 'Test Notification',
+          //   child: const Icon(Icons.notifications),
+          // )
         ],
       ),
     );

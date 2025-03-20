@@ -4,7 +4,6 @@ import 'package:ctp/pages/truck_page.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
-import 'dart:developer';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';

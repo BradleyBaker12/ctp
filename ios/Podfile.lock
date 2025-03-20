@@ -1165,6 +1165,10 @@ PODS:
     - Firebase/Firestore (= 11.8.0)
     - firebase_core
     - Flutter
+  - cloud_functions (5.3.4):
+    - Firebase/Functions (= 11.8.0)
+    - firebase_core
+    - Flutter
   - device_info_plus (0.0.1):
     - Flutter
   - DKImagePickerController/Core (4.3.9):
@@ -1215,6 +1219,9 @@ PODS:
   - Firebase/Firestore (11.8.0):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 11.8.0)
+  - Firebase/Functions (11.8.0):
+    - Firebase/CoreOnly
+    - FirebaseFunctions (~> 11.8.0)
   - Firebase/Messaging (11.8.0):
     - Firebase/CoreOnly
     - FirebaseMessaging (~> 11.8.0)
@@ -1317,6 +1324,14 @@ PODS:
     - gRPC-Core (~> 1.65.0)
     - leveldb-library (~> 1.22)
     - nanopb (~> 3.30910.0)
+  - FirebaseFunctions (11.8.0):
+    - FirebaseAppCheckInterop (~> 11.0)
+    - FirebaseAuthInterop (~> 11.0)
+    - FirebaseCore (~> 11.8.0)
+    - FirebaseCoreExtension (~> 11.8.0)
+    - FirebaseMessagingInterop (~> 11.0)
+    - FirebaseSharedSwift (~> 11.0)
+    - GTMSessionFetcher/Core (< 5.0, >= 3.4)
   - FirebaseInstallations (11.8.0):
     - FirebaseCore (~> 11.8.0)
     - GoogleUtilities/Environment (~> 8.0)
@@ -1331,6 +1346,7 @@ PODS:
     - GoogleUtilities/Reachability (~> 8.0)
     - GoogleUtilities/UserDefaults (~> 8.0)
     - nanopb (~> 3.30910.0)
+  - FirebaseMessagingInterop (11.10.0)
   - FirebaseRemoteConfigInterop (11.9.0)
   - FirebaseSessions (11.8.0):
     - FirebaseCore (~> 11.8.0)
@@ -1356,6 +1372,8 @@ PODS:
     - SDWebImage
     - SDWebImageWebPCoder
   - flutter_keyboard_visibility (0.0.1):
+    - Flutter
+  - flutter_local_notifications (0.0.1):
     - Flutter
   - flutter_pdfview (1.0.2):
     - Flutter
@@ -1595,6 +1613,7 @@ PODS:
 
 DEPENDENCIES:
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
+  - cloud_functions (from `.symlinks/plugins/cloud_functions/ios`)
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Firebase/Core
@@ -1608,6 +1627,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_image_compress_common (from `.symlinks/plugins/flutter_image_compress_common/ios`)
   - flutter_keyboard_visibility (from `.symlinks/plugins/flutter_keyboard_visibility/ios`)
+  - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_pdfview (from `.symlinks/plugins/flutter_pdfview/ios`)
   - geocoding_ios (from `.symlinks/plugins/geocoding_ios/ios`)
   - google_maps_flutter_ios (from `.symlinks/plugins/google_maps_flutter_ios/ios`)
@@ -1646,8 +1666,10 @@ SPEC REPOS:
     - FirebaseCrashlytics
     - FirebaseFirestore
     - FirebaseFirestoreInternal
+    - FirebaseFunctions
     - FirebaseInstallations
     - FirebaseMessaging
+    - FirebaseMessagingInterop
     - FirebaseRemoteConfigInterop
     - FirebaseSessions
     - FirebaseSharedSwift
@@ -1677,6 +1699,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   cloud_firestore:
     :path: ".symlinks/plugins/cloud_firestore/ios"
+  cloud_functions:
+    :path: ".symlinks/plugins/cloud_functions/ios"
   device_info_plus:
     :path: ".symlinks/plugins/device_info_plus/ios"
   file_picker:
@@ -1699,6 +1723,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_image_compress_common/ios"
   flutter_keyboard_visibility:
     :path: ".symlinks/plugins/flutter_keyboard_visibility/ios"
+  flutter_local_notifications:
+    :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_pdfview:
     :path: ".symlinks/plugins/flutter_pdfview/ios"
   geocoding_ios:
@@ -1740,6 +1766,7 @@ SPEC CHECKSUMS:
   AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
   BoringSSL-GRPC: ca6a8e5d04812fce8ffd6437810c2d46f925eaeb
   cloud_firestore: 56e7bb3888f09698dc061d38d02d87d4fd80e2cb
+  cloud_functions: ca4f38f0c2722036ea361a210035aa262f4ed832
   device_info_plus: 97af1d7e84681a90d0693e63169a5d50e0839a0d
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
@@ -1762,8 +1789,10 @@ SPEC CHECKSUMS:
   FirebaseCrashlytics: a1102c035f18d5dd94a5969ee439c526d0c9e313
   FirebaseFirestore: 563a4ab1a65e2858f05e150bb4c31b0f8f79248b
   FirebaseFirestoreInternal: 8c5921c360a70e447bfeefb245f450e8b50e750b
+  FirebaseFunctions: 63d23f720c9a2c537369add7e54cf7e56eb3520a
   FirebaseInstallations: 6c963bd2a86aca0481eef4f48f5a4df783ae5917
   FirebaseMessaging: 487b634ccdf6f7b7ff180fdcb2a9935490f764e8
+  FirebaseMessagingInterop: 2fb9a3ca813c3b7b495232f1fbedd365eb60da45
   FirebaseRemoteConfigInterop: 710954a00e956c5fe5144a8e46164f0361389203
   FirebaseSessions: c4d40a97f88f9eaff2834d61b4fea0a522d62123
   FirebaseSharedSwift: 574e6a5602afe4397a55c8d4f767382d620285de
@@ -1771,6 +1800,7 @@ SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_image_compress_common: ec1d45c362c9d30a3f6a0426c297f47c52007e3e
   flutter_keyboard_visibility: 0339d06371254c3eb25eeb90ba8d17dca8f9c069
+  flutter_local_notifications: ff50f8405aaa0ccdc7dcfb9022ca192e8ad9688f
   flutter_pdfview: 2e4d13ffb774858562ffbdfdb61b40744b191adc
   geocoding_ios: d7460f56e80e118d57678efe5c2cdc888739ff18
   Google-Maps-iOS-Utils: 0a484b05ed21d88c9f9ebbacb007956edd508a96

@@ -701,8 +701,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       // Then handle the application
       if (widget.vehicle?.application != null) {
         String applicationValue = '';
-        if (widget.vehicle!.application is List &&
-            widget.vehicle!.application.isNotEmpty) {
+        if (widget.vehicle!.application.isNotEmpty) {
           applicationValue = widget.vehicle!.application.first;
         } else if (widget.vehicle!.application is String) {
           applicationValue = widget.vehicle!.application as String;
@@ -2364,7 +2363,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   Widget _buildApplicationSection() {
     final formData = Provider.of<FormDataProvider>(context);
     final userProvider = Provider.of<UserProvider>(context);
-    final bool isDealer = userProvider.getUserRole == 'dealer';
+    final String userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin';
+    final bool isDealer = userRole == 'dealer';
+    final bool isTransporter = userRole == 'transporter';
+    final bool isSalesRep = userRole == 'sales representative';
 
     void handleTruckTypeChange(String? value) {
       setState(() {
@@ -2395,6 +2398,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               label: 'Rigid Trucks',
               value: 'Rigid Trucks',
               groupValue: _selectedTruckType ?? '',
+              enabled: !isDealer,
               onChanged: isDealer ? (value) {} : handleTruckTypeChange,
             ),
             const SizedBox(width: 15),
@@ -2402,6 +2406,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
               label: 'Tractor Trucks',
               value: 'Tractor Trucks',
               groupValue: _selectedTruckType ?? '',
+              enabled: !isDealer,
               onChanged: isDealer ? (value) {} : handleTruckTypeChange,
             ),
           ],
@@ -2415,6 +2420,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                 : null,
             items: _applicationOptions,
             onChanged: isDealer ? (value) {} : handleApplicationChange,
+            isTransporter: isTransporter || isAdmin || isSalesRep,
+            enabled: !isDealer,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please select the application of use';
