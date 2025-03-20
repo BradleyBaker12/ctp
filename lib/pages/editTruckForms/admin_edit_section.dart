@@ -419,57 +419,17 @@ class AdminEditSectionState extends State<AdminEditSection>
   }
 
   Future<bool> saveAdminData({bool skipValidation = false}) async {
-    String settlementAmount = _settlementAmountController.text.trim();
+    // Validation checks remain the same for required fields
+    if (!skipValidation) {
+      if (widget.requireToSettleType == 'yes' &&
+          _settlementAmountController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter the settlement amount.')),
+        );
+        return false;
+      }
 
-    // Validation checks
-    if (!skipValidation &&
-        widget.requireToSettleType == 'yes' &&
-        settlementAmount.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the settlement amount.')),
-      );
-      return false;
-    }
-
-    if (!skipValidation && _natisRc1File == null && _natisRc1Url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload the NATIS/RC1 document.')),
-      );
-      return false;
-    }
-
-    if (!skipValidation &&
-        _licenseDiskFile == null &&
-        _licenseDiskUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload the License Disk.')),
-      );
-      return false;
-    }
-
-    if (!skipValidation &&
-        widget.requireToSettleType == 'yes' &&
-        _settlementLetterFile == null &&
-        _settlementLetterUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload the Settlement Letter.')),
-      );
-      return false;
-    }
-
-    setState(() {
-      _isUploading = true;
-    });
-
-    try {
-      // Upload documents if new files are selected, otherwise use existing URLs
-      String natisRc1Url;
-      if (_natisRc1File != null) {
-        natisRc1Url = await _uploadDocument(
-            _natisRc1File!, 'NATIS_RC1', _natisRc1FileName ?? "");
-      } else if (_natisRc1Url != null) {
-        natisRc1Url = _natisRc1Url!;
-      } else {
+      if (_natisRc1File == null && _natisRc1Url == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Please upload the NATIS/RC1 document.')),
@@ -477,55 +437,77 @@ class AdminEditSectionState extends State<AdminEditSection>
         return false;
       }
 
-      String licenseDiskUrl;
-      if (_licenseDiskFile != null) {
-        licenseDiskUrl = await _uploadDocument(
-            _licenseDiskFile!, 'LicenseDisk', _licenseDiskFileName ?? "");
-      } else if (_licenseDiskUrl != null) {
-        licenseDiskUrl = _licenseDiskUrl!;
-      } else {
+      if (_licenseDiskFile == null && _licenseDiskUrl == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please upload the License Disk.')),
         );
         return false;
       }
 
-      String? settlementLetterUrl;
-      if (widget.requireToSettleType == 'yes') {
-        if (_settlementLetterFile != null) {
-          settlementLetterUrl = await _uploadDocument(_settlementLetterFile!,
-              'SettlementLetter', _settlementLetterFileName ?? "");
-        } else if (_settlementLetterUrl != null) {
-          settlementLetterUrl = _settlementLetterUrl!;
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Please upload the Settlement Letter.')),
-          );
-          return false;
-        }
+      if (widget.requireToSettleType == 'yes' &&
+          _settlementLetterFile == null &&
+          _settlementLetterUrl == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please upload the Settlement Letter.')),
+        );
+        return false;
+      }
+    }
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      // Initialize empty update data
+      Map<String, dynamic> adminData = {};
+
+      // Only update settlement amount if it's changed
+      String settlementAmount = _settlementAmountController.text.trim();
+      if (settlementAmount != widget.settlementAmount) {
+        adminData['settlementAmount'] = settlementAmount;
       }
 
-      // Prepare data to save
-      Map<String, dynamic> adminData = {
-        'natisRc1Url': natisRc1Url,
-        'licenseDiskUrl': licenseDiskUrl,
-      };
+      // Handle NATIS/RC1 document only if new file is selected
+      if (_natisRc1File != null) {
+        String natisRc1Url = await _uploadDocument(
+            _natisRc1File!, 'NATIS_RC1', _natisRc1FileName ?? "");
+        adminData['natisRc1Url'] = natisRc1Url;
+      }
 
-      if (widget.requireToSettleType == 'yes') {
-        adminData['settlementAmount'] = settlementAmount;
+      // Handle License Disk document only if new file is selected
+      if (_licenseDiskFile != null) {
+        String licenseDiskUrl = await _uploadDocument(
+            _licenseDiskFile!, 'LicenseDisk', _licenseDiskFileName ?? "");
+        adminData['licenseDiskUrl'] = licenseDiskUrl;
+      }
+
+      // Handle Settlement Letter only if new file is selected
+      if (_settlementLetterFile != null) {
+        String settlementLetterUrl = await _uploadDocument(
+            _settlementLetterFile!,
+            'SettlementLetter',
+            _settlementLetterFileName ?? "");
         adminData['settlementLetterUrl'] = settlementLetterUrl;
       }
 
-      // Save to Firestore using the vehicle's ID
-      await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicle.id)
-          .set({'adminData': adminData}, SetOptions(merge: true));
+      // Only proceed with update if there are changes
+      if (adminData.isNotEmpty) {
+        adminData['lastUpdated'] = FieldValue.serverTimestamp();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Admin data saved successfully.')),
-      );
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.vehicle.id)
+            .set({'adminData': adminData}, SetOptions(merge: true));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Admin data updated successfully.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No changes to save.')),
+        );
+      }
 
       return true;
     } catch (e) {

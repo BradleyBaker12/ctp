@@ -55,6 +55,7 @@ class Vehicle {
   final String country;
   final String province;
   final String? variant;
+  final String? truckType;
 
   // Nested Objects
   final AdminData adminData;
@@ -126,6 +127,7 @@ class Vehicle {
       required this.damagesDescription,
       required this.additionalFeatures,
       this.trailer,
+      this.truckType,
       // NEW FIELDS in constructor (all optional)
       this.natisDocumentUrl,
       this.serviceHistoryUrl,
@@ -365,6 +367,7 @@ class Vehicle {
       damagesDescription: getString(data['damagesDescription'] ?? ''),
       additionalFeatures: getString(data['additionalFeatures'] ?? ''),
       trailer: trailerObj,
+      truckType: getString(data['truckType']),
       // NEW FIELDS
       natisDocumentUrl: getString(data['natisDocumentUrl']),
       serviceHistoryUrl: getString(data['serviceHistoryUrl']),
@@ -433,6 +436,7 @@ class Vehicle {
       'damagesDescription': damagesDescription,
       'additionalFeatures': additionalFeatures,
       'trailer': trailer?.toMap(),
+      'truckType': truckType,
       // NEW FIELDS
       'natisDocumentUrl': natisDocumentUrl ?? '',
       'serviceHistoryUrl': serviceHistoryUrl ?? '',
