@@ -896,22 +896,20 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         } else {
           currentOwnerId = widget.vehicle!.userId;
         }
-        if (currentOwnerId != null) {
-          _selectedTransporterId = currentOwnerId;
-          debugPrint('Current owner ID set to: $_selectedTransporterId');
-          if (_transporterUsers.isNotEmpty) {
-            try {
-              final matching = _transporterUsers
-                  .firstWhere((user) => user['id'] == currentOwnerId);
-              _selectedTransporterEmail = matching['email'];
-              debugPrint(
-                  'Prepopulated owner email: $_selectedTransporterEmail');
-            } catch (e) {
-              debugPrint('No matching owner found for id $currentOwnerId');
-            }
+        _selectedTransporterId = currentOwnerId;
+        debugPrint('Current owner ID set to: $_selectedTransporterId');
+        if (_transporterUsers.isNotEmpty) {
+          try {
+            final matching = _transporterUsers
+                .firstWhere((user) => user['id'] == currentOwnerId);
+            _selectedTransporterEmail = matching['email'];
+            debugPrint(
+                'Prepopulated owner email: $_selectedTransporterEmail');
+          } catch (e) {
+            debugPrint('No matching owner found for id $currentOwnerId');
           }
         }
-      }
+            }
     } catch (e) {
       debugPrint('Error loading owner users: $e');
     }

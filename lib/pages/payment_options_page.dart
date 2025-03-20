@@ -144,7 +144,7 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
         html.window.open(url2, '_blank');
         html.Url.revokeObjectUrl(url2);
       } else {
-        String extension = mimeType?.split('/').last ?? 'file';
+        String extension = mimeType!.split('/').last ?? 'file';
         var dt = DateTime.now().millisecondsSinceEpoch.toString();
         final directory = await getApplicationDocumentsDirectory();
         final filePath = '${directory.path}/d_$dt.$extension';
