@@ -17,7 +17,7 @@ import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+// import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -250,13 +250,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           recentOffers = recentOffers.sublist(0, 5);
         }
       });
-    } catch (e, stackTrace) {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to initialize data. Please try again.'),
         ),
       );
-      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+      // await FirebaseCrashlytics.instance.recordError(e, stackTrace);
     }
   }
 
@@ -308,14 +308,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             );
           }
         }
-      } catch (e, stackTrace) {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content:
                 Text('Error checking payment status. Please try again later.'),
           ),
         );
-        await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+        // await FirebaseCrashlytics.instance.recordError(e, stackTrace);
       }
     }
   }
@@ -327,13 +327,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       try {
         await userProvider.likeVehicle(vehicleId);
         likedVehicles.add(vehicleId);
-      } catch (e, stackTrace) {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to like vehicle. Please try again.'),
           ),
         );
-        await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+        // await FirebaseCrashlytics.instance.recordError(e, stackTrace);
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -348,13 +348,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     try {
       await userProvider.dislikeVehicle(vehicleId);
       dislikedVehicles.add(vehicleId);
-    } catch (e, stackTrace) {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to dislike vehicle. Please try again.'),
         ),
       );
-      await FirebaseCrashlytics.instance.recordError(e, stackTrace);
+      // await FirebaseCrashlytics.instance.recordError(e, stackTrace);
     }
   }
 
@@ -655,7 +655,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           key: _scaffoldKey,
           extendBodyBehindAppBar: true,
           backgroundColor: Colors.black,
-          appBar: _isLargeScreen || kIsWeb
+          appBar: kIsWeb
               ? PreferredSize(
                   preferredSize: const Size.fromHeight(70),
                   child: WebNavigationBar(
@@ -667,7 +667,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 )
               : CustomAppBar(),
-          drawer: (kIsWeb && _isCompactNavigation)
+          drawer: (kIsWeb && _isCompactNavigation) ||
+                  (!kIsWeb &&
+                      MediaQuery.of(context).size.width >= 600 &&
+                      MediaQuery.of(context).size.width <= 1100)
               ? Drawer(
                   child: Container(
                     decoration: BoxDecoration(
@@ -790,12 +793,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ],
             ),
           ),
-          bottomNavigationBar: showBottomNav
-              ? CustomBottomNavigation(
+          bottomNavigationBar: (kIsWeb ||
+                  userRole == 'admin' ||
+                  userRole == 'sales representative')
+              ? null
+              : CustomBottomNavigation(
                   selectedIndex: _selectedIndex,
                   onItemTapped: _onItemTapped,
-                )
-              : null,
+                ),
         );
       },
     );
@@ -815,7 +820,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         // Hero section
         Column(
           children: [
-            if (!kIsWeb) SizedBox(height: screenHeight * 0.1),
             Stack(
               children: [
                 Container(
@@ -847,36 +851,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                // Add welcome text positioned at the bottom
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: screenHeight * 0.02,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.05,
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Welcome ${userProvider.getUserName.toUpperCase()}',
+                          style: _getTextStyle(
+                            fontSize: _adaptiveTextSize(context, 24, 32),
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFFFF4E00),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: screenHeight * 0.02),
+                        Text(
+                          "Ready to steer your trading journey to success?",
+                          textAlign: TextAlign.center,
+                          style: _getTextStyle(
+                            fontSize: _adaptiveTextSize(context, 14, 20),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(
-                vertical: screenHeight * 0.02,
-                horizontal: screenWidth * 0.05,
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'Welcome ${userProvider.getUserName.toUpperCase()}',
-                    style: _getTextStyle(
-                      fontSize: _adaptiveTextSize(context, 24, 32),
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFFFF4E00),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: screenHeight * 0.02),
-                  Text(
-                    "Ready to steer your trading journey to success?",
-                    textAlign: TextAlign.center,
-                    style: _getTextStyle(
-                      fontSize: _adaptiveTextSize(context, 14, 20),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Remove the previous welcome text section and adjust spacing
+            SizedBox(height: screenHeight * 0.05),
           ],
         ),
         SizedBox(height: screenHeight * 0.02),

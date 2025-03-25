@@ -471,6 +471,30 @@ class UserProvider extends ChangeNotifier {
     _clearUserData();
   }
 
+  Future<void> deleteAccount() async {
+    if (_user != null) {
+      try {
+        // Delete user's Firestore document
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .delete();
+
+        // Delete the user from FirebaseAuth
+        await _user!.delete();
+
+        // Clear local user data
+        _clearUserData();
+        notifyListeners();
+      } catch (e) {
+        print('Error deleting account: \$e');
+        rethrow;
+      }
+    } else {
+      throw Exception('No user is currently logged in.');
+    }
+  }
+
   void _clearUserData() {
     _preferredBrands = [];
     _userRole = 'dealer';

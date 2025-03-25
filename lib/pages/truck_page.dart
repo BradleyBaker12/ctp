@@ -1010,7 +1010,7 @@ class _TruckPageState extends State<TruckPage> {
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: (_isLargeScreen || kIsWeb)
+      appBar: kIsWeb
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
               child: WebNavigationBar(
@@ -1300,16 +1300,17 @@ class _TruckPageState extends State<TruckPage> {
           ),
         ],
       ),
-      bottomNavigationBar: showBottomNav
-          ? CustomBottomNavigation(
-              selectedIndex: _selectedIndex,
-              onItemTapped: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
-              },
-            )
-          : null,
+      bottomNavigationBar:
+          (kIsWeb || userRole == 'admin' || userRole == 'sales representative')
+              ? null
+              : CustomBottomNavigation(
+                  selectedIndex: _selectedIndex,
+                  onItemTapped: (index) {
+                    setState(() {
+                      _selectedIndex = index;
+                    });
+                  },
+                ),
     );
   }
 }

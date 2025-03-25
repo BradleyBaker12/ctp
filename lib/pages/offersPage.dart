@@ -463,7 +463,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: Colors.transparent,
-              appBar: _isLargeScreen || kIsWeb
+              appBar: kIsWeb
                   ? PreferredSize(
                       preferredSize: const Size.fromHeight(70),
                       child: WebNavigationBar(
@@ -486,7 +486,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: Colors.transparent,
-              appBar: _isLargeScreen || kIsWeb
+              appBar: kIsWeb
                   ? PreferredSize(
                       preferredSize: const Size.fromHeight(70),
                       child: WebNavigationBar(
@@ -519,7 +519,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: Colors.transparent,
-              appBar: _isLargeScreen || kIsWeb
+              appBar: kIsWeb
                   ? PreferredSize(
                       preferredSize: const Size.fromHeight(70),
                       child: WebNavigationBar(
@@ -530,6 +530,11 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                       ),
                     )
                   : CustomAppBar(),
+              drawer: (kIsWeb && _isCompactNavigation)
+                  ? Drawer(
+                      // ...existing drawer code...
+                      )
+                  : null,
               body: CustomScrollView(
                 slivers: [
                   // Header section with "OFFERS" title and image.
@@ -574,8 +579,11 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                   _buildOffersSliver(),
                 ],
               ),
-              bottomNavigationBar: showBottomNav
-                  ? CustomBottomNavigation(
+              bottomNavigationBar: (kIsWeb ||
+                      userRole == 'admin' ||
+                      userRole == 'sales representative')
+                  ? null
+                  : CustomBottomNavigation(
                       selectedIndex: selectedIndex,
                       onItemTapped: (index) async {
                         if (userRole == 'dealer') {
@@ -607,8 +615,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                           }
                         }
                       },
-                    )
-                  : null,
+                    ),
             );
           }
         },

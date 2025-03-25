@@ -46,7 +46,6 @@ import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:ctp/providers/trailer_form_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -264,7 +263,7 @@ class _AppInitializerState extends State<AppInitializer> {
       if (!kIsWeb) {
         FirebaseMessaging.onBackgroundMessage(
             _firebaseMessagingBackgroundHandler);
-        FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+        // FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
       }
       // Setup auth token refresh
       final authService = AuthService();

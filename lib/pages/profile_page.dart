@@ -438,6 +438,52 @@ class ProfilePage extends StatelessWidget {
                                   TextStyle(fontSize: 18, color: Colors.white),
                             ),
                           ),
+                          SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () async {
+                              bool? confirmDelete = await showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text("Delete Account"),
+                                  content: const Text(
+                                      "Are you sure you want to delete your account? This action cannot be undone."),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text("Cancel"),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text("Delete",
+                                          style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirmDelete == true) {
+                                await userProvider.deleteAccount();
+                                Navigator.of(context)
+                                    .pushReplacementNamed('/login');
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              side: const BorderSide(
+                                  color: Colors.redAccent, width: 2),
+                              backgroundColor: Colors.red,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 30, vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              'Delete Account',
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.white),
+                            ),
+                          ),
                           const SizedBox(height: 20),
                           FutureBuilder<String>(
                             future: DefaultAssetBundle.of(context)

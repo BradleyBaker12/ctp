@@ -2048,7 +2048,9 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       );
     } else {
       // Only dealers should see the make offer section.
-      if (userProvider.getUserRole == 'dealer') {
+      if (userProvider.getUserRole == 'dealer' ||
+          userProvider.getUserRole == 'admin' ||
+          userProvider.getUserRole == 'sales representative') {
         // For dealers who can make a new offer
         List<Widget> makeOfferWidgets = [];
         if (!(userProvider.getUserRole == 'admin' ||

@@ -1064,7 +1064,7 @@ class _WishlistPageState extends State<WishlistPage> {
     return GradientBackground(
       child: Scaffold(
         key: _scaffoldKey,
-        appBar: (_isLargeScreen || kIsWeb)
+        appBar: kIsWeb
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(70),
                 child: WebNavigationBar(
@@ -1074,7 +1074,7 @@ class _WishlistPageState extends State<WishlistPage> {
                 ),
               )
             : CustomAppBar(),
-        drawer: _isCompactNavigation(context)
+        drawer: (kIsWeb && _isCompactNavigation(context))
             ? Drawer(
                 child: Container(
                   decoration: BoxDecoration(
@@ -1241,14 +1241,16 @@ class _WishlistPageState extends State<WishlistPage> {
               ),
           ],
         ),
-        bottomNavigationBar: showBottomNav
-            ? CustomBottomNavigation(
+        bottomNavigationBar: (kIsWeb ||
+                userRole == 'admin' ||
+                userRole == 'sales representative')
+            ? null
+            : CustomBottomNavigation(
                 selectedIndex: 3,
                 onItemTapped: (index) {
                   // Handle bottom navigation taps.
                 },
-              )
-            : null,
+              ),
       ),
     );
   }
