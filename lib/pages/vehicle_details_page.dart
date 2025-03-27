@@ -31,6 +31,7 @@ import 'package:ctp/components/web_navigation_bar.dart';
 // Add this import
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart'; // Add this import
 // Update the admin navbar import to avoid conflict:
 import 'package:ctp/components/admin_web_navigation_bar.dart'
@@ -232,6 +233,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     } catch (e) {
       debugPrint('Error in _checkIfMyOfferAccepted: $e');
     }
+  }
+
+  void _shareVehicle() {
+    final String vehicleId = vehicle.id;
+    final String url = 'https://www.ctpapp.co.za/vehicleDetails/$vehicleId';
+    final String message = 'Check out this vehicle on CTP: $url';
+    Share.share(message);
   }
 
   Future<void> _fetchAllDealers() async {
@@ -1081,15 +1089,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         ? const EdgeInsets.symmetric(horizontal: 48.50, vertical: 18.65)
         : const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0);
     const titleBoxRadius = 6.0;
-    final titleFontSize = isLargeScreen ? 20.0 : 16.0;
-    final titleLetterSpace = isLargeScreen ? 1.87 : 1.0;
-    final progressFontSize = isLargeScreen ? 14.0 : 12.0;
-    final progressLetterSp = isLargeScreen ? 2.24 : 1.0;
-    final gapHeight = isLargeScreen ? 20.98 : 20.0;
-    const progressBarHeight = 5.0;
-    final progressSpacing = isLargeScreen ? 0.0 : 20.0;
-    final displayProgress =
-        title.contains('ADMIN') ? _calculateAdminProgressString() : progress;
+    title.contains('ADMIN') ? _calculateAdminProgressString() : progress;
 
     List<String> progressValues = progress.split('/');
     double first = double.parse(progressValues[0]);
@@ -2061,6 +2061,25 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               children: [
                 _buildActionButton(Icons.close, const Color(0xFF2F7FFF)),
                 const SizedBox(width: 16),
+                if (userProvider.getUserEmail == 'bradley@dealer.co.za')
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _shareVehicle,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12.0),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF39BB36),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.share,
+                          color: Colors.black,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 16),
                 _buildActionButton(Icons.favorite, const Color(0xFFFF4E00)),
               ],
             ),
@@ -2343,7 +2362,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          '${vehicle.brands.join(', ')} ${vehicle.makeModel.toUpperCase()} ${vehicle.year}',
+                          '${widget.vehicle.brands.join(', ')} ${widget.vehicle.makeModel.toUpperCase()} ${widget.vehicle.year}',
                           style: GoogleFonts.montserrat(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -2373,7 +2392,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          '${vehicle.brands.join(', ')} ${vehicle.makeModel.toUpperCase()} ${vehicle.year}',
+                          '${widget.vehicle.brands.join(', ')} ${widget.vehicle.makeModel.toUpperCase()} ${widget.vehicle.year}',
                           style: GoogleFonts.montserrat(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

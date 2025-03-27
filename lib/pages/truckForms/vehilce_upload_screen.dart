@@ -1255,19 +1255,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     const SizedBox(height: 15),
                     CustomTextField(
                       controller: _sellingPriceController,
-                      hintText: 'Expected Selling Price',
+                      hintText: 'Expected Selling Price (Optional)',
                       isCurrency: true,
                       keyboardType: TextInputType.number,
                       inputFormatter: [
                         FilteringTextInputFormatter.digitsOnly,
                         ThousandsSeparatorInputFormatter(),
                       ],
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the expected selling price';
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: 15),
                     Center(

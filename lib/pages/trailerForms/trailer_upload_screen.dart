@@ -720,7 +720,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               ),
               const SizedBox(height: 15),
               CustomTextField(
-                controller: _registrationNumberController,
+                controller: _sellingPriceController,
                 hintText: 'Expected Selling Price',
                 keyboardType: TextInputType.number,
                 inputFormatter: [
@@ -2182,11 +2182,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     if (formData.referenceNumber == null || formData.referenceNumber!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please enter the reference number')));
-      return false;
-    }
-    if (_registrationNumberController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter the selling price')));
       return false;
     }
     if (_selectedTrailerType != 'Tri-Axle' &&

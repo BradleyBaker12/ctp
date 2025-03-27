@@ -271,6 +271,59 @@ class Trailer {
     );
   }
 
+  factory Trailer.fromJson(Map<String, dynamic> json) {
+    return Trailer(
+      id: json['id'] as String,
+      makeModel: json['makeModel'] as String,
+      year: json['year'] as String,
+      trailerType: json['trailerType'] as String,
+      axles: json['axles'] as String,
+      length: json['length'] as String,
+      vinNumber: json['vinNumber'] as String,
+      registrationNumber: json['registrationNumber'] as String,
+      mileage: json['mileage'] as String,
+      engineNumber: json['engineNumber'] as String,
+      sellingPrice: json['sellingPrice'] as String,
+      warrantyDetails: json['warrantyDetails'] as String,
+      referenceNumber: json['referenceNumber'] as String,
+      country: json['country'] as String,
+      province: json['province'] as String,
+      vehicleStatus: json['vehicleStatus'] as String,
+      userId: json['userId'] as String,
+      assignedSalesRepId: json['assignedSalesRepId'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
+      natisDocumentUrl: json['natisDocumentUrl'] as String?,
+      serviceHistoryUrl: json['serviceHistoryUrl'] as String?,
+      mainImageUrl: json['mainImageUrl'] as String?,
+      frontImageUrl: json['frontImageUrl'] as String?,
+      sideImageUrl: json['sideImageUrl'] as String?,
+      tyresImageUrl: json['tyresImageUrl'] as String?,
+      chassisImageUrl: json['chassisImageUrl'] as String?,
+      deckImageUrl: json['deckImageUrl'] as String?,
+      makersPlateImageUrl: json['makersPlateImageUrl'] as String?,
+      additionalImages:
+          List<Map<String, dynamic>>.from(json['additionalImages'] ?? []),
+      superlinkData: json['superlinkData'] != null
+          ? SuperlinkTrailer.fromJson(
+              json['superlinkData'] as Map<String, dynamic>)
+          : null,
+      triAxleData: json['triAxleData'] != null
+          ? TriAxleTrailer.fromJson(json['triAxleData'] as Map<String, dynamic>)
+          : null,
+      rawTrailerExtraInfo: json['rawTrailerExtraInfo'] as Map<String, dynamic>?,
+      damages: List<Map<String, dynamic>>.from(json['damages'] ?? []),
+      damagesCondition: json['damagesCondition'] as String? ?? 'no',
+      features: List<Map<String, dynamic>>.from(json['features'] ?? []),
+      featuresCondition: json['featuresCondition'] as String? ?? 'no',
+      brands: List<String>.from(json['brands'] ?? []),
+    );
+  }
+
   Map<String, dynamic> toMap() => toJson();
 
   Map<String, dynamic> toJson() {

@@ -271,7 +271,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   String? _getFileNameFromUrl(String? url) {
     if (url == null) return null;
     try {
-      return url.split('/').last.split('?').first;
+      String fileName = url.split('/').last.split('?').first;
+      return Uri.decodeComponent(fileName);
     } catch (e) {
       debugPrint('Error extracting filename from URL: $e');
       return null;
@@ -308,6 +309,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       _sellingPriceController.text = data['sellingPrice']?.toString() ?? '';
       _axlesController.text = data['axles']?.toString() ?? '';
       _lengthController.text = data['length']?.toString() ?? '';
+      _sellingPriceController.text = data['sellingPrice']?.toString() ?? '';
 
       // Document URLs
       _existingNatisRc1Url = data['natisDocumentUrl'];
@@ -328,6 +330,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _vinAController.text = trailerA['vin']?.toString() ?? '';
         _registrationAController.text =
             trailerA['registration']?.toString() ?? '';
+        _axlesTrailerAController.text = trailerA['axles']?.toString() ?? '';
 
         debugPrint(
             "DEBUG: Set Trailer A - Length: ${_lengthTrailerAController.text}, VIN: ${_vinAController.text}, Reg: ${_registrationAController.text}");
@@ -339,40 +342,28 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _chassisImageAUrl = trailerA['chassisImageUrl'];
         _deckImageAUrl = trailerA['deckImageUrl'];
         _makersPlateImageAUrl = trailerA['makersPlateImageUrl'];
-        // For Trailer A:
-        _axlesTrailerAController.text = trailerA['axles']?.toString() ?? '';
         _existingNatisTrailerADocUrl = trailerA['natisDocUrl'];
 
-        setState(() {
-          String trailerANatis = (widget.vehicle.toMap()['trailerExtraInfo']
-                  ?['trailerA']?['natisDocUrl']) ??
-              '';
-          if (trailerANatis.trim().isEmpty) {
-            trailerANatis = data['natisDocumentUrl'] ?? '';
-          }
-          _existingNatisTrailerADoc1Url = trailerANatis;
-          _existingNatisTrailerADoc1Name =
-              _getFileNameFromUrl(_existingNatisTrailerADoc1Url);
-          debugPrint(
-              "NATIS Trailer A Document: '$_existingNatisTrailerADoc1Url', name: '$_existingNatisTrailerADoc1Name'");
-        });
+        _existingNatisTrailerADoc1Url =
+            trailerA['natisDocUrl']?.toString() ?? '';
+        _existingNatisTrailerADoc1Name =
+            _getFileNameFromUrl(_existingNatisTrailerADoc1Url);
+        debugPrint(
+            "NATIS Trailer A Document: '$_existingNatisTrailerADoc1Url', name: '$_existingNatisTrailerADoc1Name'");
 
-        setState(() {
-          // Retrieve the NATIS document URL from trailerExtraInfo for Trailer B
-          _existingNatisTrailerBDoc1Url = (widget.vehicle
-                  .toMap()['trailerExtraInfo']?['trailerB']?['natisDocUrl']) ??
-              '';
-          _existingNatisTrailerBDoc1Name =
-              _getFileNameFromUrl(_existingNatisTrailerBDoc1Url);
-          debugPrint(
-              "NATIS Trailer B Document: '$_existingNatisTrailerBDoc1Url', name: '$_existingNatisTrailerBDoc1Name'");
-        });
+        _existingNatisTrailerBDoc1Url =
+            trailerB['natisDocUrl']?.toString() ?? '';
+        _existingNatisTrailerBDoc1Name =
+            _getFileNameFromUrl(_existingNatisTrailerBDoc1Url);
+        debugPrint(
+            "NATIS Trailer B Document: '$_existingNatisTrailerBDoc1Url', name: '$_existingNatisTrailerBDoc1Name'");
 
         // Trailer B
         _lengthTrailerBController.text = trailerB['length']?.toString() ?? '';
         _vinBController.text = trailerB['vin']?.toString() ?? '';
         _registrationBController.text =
             trailerB['registration']?.toString() ?? '';
+        _axlesTrailerBController.text = trailerA['axles']?.toString() ?? '';
 
         debugPrint(
             "DEBUG: Set Trailer B - Length: ${_lengthTrailerBController.text}, VIN: ${_vinBController.text}, Reg: ${_registrationBController.text}");
@@ -384,6 +375,12 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _chassisImageBUrl = trailerB['chassisImageUrl'];
         _deckImageBUrl = trailerB['deckImageUrl'];
         _makersPlateImageBUrl = trailerB['makersPlateImageUrl'];
+      } else if (_selectedTrailerType == 'Tri-Axle') {
+        _lengthTrailerController.text =
+            trailerExtra['lengthTrailer']?.toString() ?? '';
+        _vinController.text = trailerExtra['vin']?.toString() ?? '';
+        _registrationController.text =
+            trailerExtra['registration']?.toString() ?? '';
       }
 
       _featureList.clear();
@@ -445,13 +442,34 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Trailer A Document Options'),
-          content: const Text('Implement view/replace/remove options here.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.remove_red_eye),
+                title: const Text('View Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _viewTrailerADocument(); // Implement _viewTrailerADocument() to open _existingNatisTrailerADoc1Url
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Replace Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickTrailerADocFile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cancel),
+                title: const Text('Cancel'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -470,16 +488,57 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Trailer B Document Options'),
-          content: const Text('Implement view/replace/remove options here.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.remove_red_eye),
+                title: const Text('View Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _viewTrailerBDocument(); // Implement _viewTrailerBDocument() to open _existingNatisTrailerBDoc1Url
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Replace Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickTrailerBDocFile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cancel),
+                title: const Text('Cancel'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
         );
       },
     );
+  }
+
+  void _viewTrailerADocument() async {
+    if (_existingNatisTrailerADoc1Url != null &&
+        _existingNatisTrailerADoc1Url!.isNotEmpty) {
+      final Uri uri = Uri.parse(_existingNatisTrailerADoc1Url!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+  }
+
+  void _viewTrailerBDocument() async {
+    if (_existingNatisTrailerBDoc1Url != null &&
+        _existingNatisTrailerBDoc1Url!.isNotEmpty) {
+      final Uri uri = Uri.parse(_existingNatisTrailerBDoc1Url!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
   }
 
   void _pickTrailerBDocFile() async {
@@ -538,12 +597,12 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
             ),
             child: _natisTrailerADoc1File != null
-                ? buildFileDisplay(
+                ? _buildFileDisplay(
                     _natisTrailerADoc1FileName?.split('/').last, false)
-                : _existingNatisTrailerADoc1Url != null &&
-                        _existingNatisTrailerADoc1Url!.isNotEmpty
-                    ? buildFileDisplay(_existingNatisTrailerADoc1Name, true)
-                    : buildFileDisplay(null, false),
+                : (_existingNatisTrailerADoc1Name != null &&
+                        _existingNatisTrailerADoc1Name!.isNotEmpty)
+                    ? _buildFileDisplay(_existingNatisTrailerADoc1Name, true)
+                    : _buildFileDisplay(null, false),
           ),
         ),
       ],
@@ -599,12 +658,12 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
             ),
             child: _natisTrailerBDoc1File != null
-                ? buildFileDisplay(
+                ? _buildFileDisplay(
                     _natisTrailerBDoc1FileName?.split('/').last, false)
-                : _existingNatisTrailerBDoc1Url != null &&
-                        _existingNatisTrailerBDoc1Url!.isNotEmpty
-                    ? buildFileDisplay(_existingNatisTrailerBDoc1Name, true)
-                    : buildFileDisplay(null, false),
+                : (_existingNatisTrailerBDoc1Name != null &&
+                        _existingNatisTrailerBDoc1Name!.isNotEmpty)
+                    ? _buildFileDisplay(_existingNatisTrailerBDoc1Name, true)
+                    : _buildFileDisplay(null, false),
           ),
         ),
       ],
@@ -1354,47 +1413,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          InkWell(
-            onTap: () {
-              _pickImageOrFile(
-                title: 'Select NATIS Document 1 for Trailer A',
-                pickImageOnly: false,
-                callback: (file, fileName) {
-                  if (file != null) {
-                    setState(() {
-                      _natisTrailerADoc1File = file;
-                      _natisTrailerADoc1FileName = fileName;
-                    });
-                  }
-                },
-              );
-            },
-            borderRadius: BorderRadius.circular(10.0),
-            child: _buildStyledContainer(
-              child: _natisTrailerADoc1File == null
-                  ? const Column(
-                      children: [
-                        Icon(Icons.upload_file,
-                            color: Colors.white, size: 50.0),
-                        SizedBox(height: 10),
-                        Text('Upload NATIS Document 1',
-                            style:
-                                TextStyle(fontSize: 14, color: Colors.white70),
-                            textAlign: TextAlign.center),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        Icon(Icons.description,
-                            color: Colors.white, size: 50.0),
-                        SizedBox(height: 10),
-                        Text(_natisTrailerADoc1FileName!.split('/').last,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 14)),
-                      ],
-                    ),
-            ),
-          ),
+         // Instead of inline code, add:
+          const SizedBox(height: 15),
+          _buildNatisTrailerADocSection(),
           const SizedBox(height: 15),
           _buildImageSectionWithTitle('Trailer A - Front Image', _frontImageA,
               (img) {
