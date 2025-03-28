@@ -1807,35 +1807,42 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               label: 'Yes',
               value: 'yes',
               groupValue: _damagesCondition,
-              onChanged: (val) {
-                setState(() {
-                  _damagesCondition = val ?? 'no';
-                  if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                    _damageList.add({'description': '', 'image': null});
-                  } else if (_damagesCondition == 'no') {
-                    _damageList.clear();
-                  }
-                });
-              },
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {} // Empty function instead of null
+                  : (val) {
+                      setState(() {
+                        _damagesCondition = val ?? 'no';
+                        if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                          _damageList.add({'description': '', 'image': null});
+                        } else if (_damagesCondition == 'no') {
+                          _damageList.clear();
+                        }
+                      });
+                    },
             ),
             const SizedBox(width: 20),
             CustomRadioButton(
               label: 'No',
               value: 'no',
               groupValue: _damagesCondition,
-              onChanged: (val) {
-                setState(() {
-                  _damagesCondition = val ?? 'no';
-                  if (_damagesCondition == 'no') {
-                    _damageList.clear();
-                  }
-                });
-              },
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {} // Empty function instead of null
+                  : (val) {
+                      setState(() {
+                        _damagesCondition = val ?? 'no';
+                        if (_damagesCondition == 'no') {
+                          _damageList.clear();
+                        }
+                      });
+                    },
             ),
           ],
         ),
         const SizedBox(height: 15),
-        if (_damagesCondition == 'yes') _buildDamageSection(),
+        if (_damagesCondition == 'yes' || (_damageList.isNotEmpty && isDealer))
+          _buildDamageSection(),
         const SizedBox(height: 20),
         // Additional Features Section
         const Text(
@@ -1851,35 +1858,44 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               label: 'Yes',
               value: 'yes',
               groupValue: _featuresCondition,
-              onChanged: (val) {
-                setState(() {
-                  _featuresCondition = val ?? 'no';
-                  if (_featuresCondition == 'yes' && _featureList.isEmpty) {
-                    _featureList.add({'description': '', 'image': null});
-                  } else if (_featuresCondition == 'no') {
-                    _featureList.clear();
-                  }
-                });
-              },
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {} // Empty function instead of null
+                  : (val) {
+                      setState(() {
+                        _featuresCondition = val ?? 'no';
+                        if (_featuresCondition == 'yes' &&
+                            _featureList.isEmpty) {
+                          _featureList.add({'description': '', 'image': null});
+                        } else if (_featuresCondition == 'no') {
+                          _featureList.clear();
+                        }
+                      });
+                    },
             ),
             const SizedBox(width: 20),
             CustomRadioButton(
               label: 'No',
               value: 'no',
               groupValue: _featuresCondition,
-              onChanged: (val) {
-                setState(() {
-                  _featuresCondition = val ?? 'no';
-                  if (_featuresCondition == 'no') {
-                    _featureList.clear();
-                  }
-                });
-              },
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {} // Empty function instead of null
+                  : (val) {
+                      setState(() {
+                        _featuresCondition = val ?? 'no';
+                        if (_featuresCondition == 'no') {
+                          _featureList.clear();
+                        }
+                      });
+                    },
             ),
           ],
         ),
         const SizedBox(height: 15),
-        if (_featuresCondition == 'yes') _buildFeaturesSection(),
+        if (_featuresCondition == 'yes' ||
+            (_featureList.isNotEmpty && isDealer))
+          _buildFeaturesSection(),
         const SizedBox(height: 30),
       ],
     ]);
