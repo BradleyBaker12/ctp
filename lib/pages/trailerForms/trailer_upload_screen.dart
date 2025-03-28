@@ -1958,6 +1958,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'natisDocumentUrl': commonUrls['natisUrl'] ?? '',
         'serviceHistoryUrl': commonUrls['serviceHistoryUrl'] ?? '',
         'trailerExtraInfo': trailerExtraInfo,
+        // Add these fields for damages
         'damagesCondition': _damagesCondition,
         'damages': await _uploadListItems(_damageList),
         'featuresCondition': _featuresCondition,
@@ -2146,19 +2147,26 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       List<Map<String, dynamic>> items) async {
     List<Map<String, dynamic>> uploadedItems = [];
     for (var item in items) {
+      // Get description from controller first, fallback to description field
+      String description = item['controller'] != null
+          ? (item['controller'] as TextEditingController).text
+          : (item['description'] ?? '');
+
+      Map<String, dynamic> uploadedItem = {
+        'description': description,
+        'imageUrl': '',
+      };
+
       if (item['image'] != null) {
         String? imageUrl =
             await _uploadFileToFirebaseStorage(item['image'], 'vehicle_images');
-        uploadedItems.add({
-          'description': item['description'],
-          'imageUrl': imageUrl ?? '',
-        });
-      } else {
-        uploadedItems.add({
-          'description': item['description'],
-          'imageUrl': '',
-        });
+        uploadedItem['imageUrl'] = imageUrl ?? '';
+      } else if (item['imageUrl'] != null &&
+          (item['imageUrl'] as String).isNotEmpty) {
+        uploadedItem['imageUrl'] = item['imageUrl'];
       }
+
+      uploadedItems.add(uploadedItem);
     }
     return uploadedItems;
   }

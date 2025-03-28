@@ -764,7 +764,7 @@ class _VehiclesTabState extends State<VehiclesTab>
                                   ),
                                   TextSpan(
                                     text:
-                                        'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}\nTransmission: ${vehicle.transmissionType}',
+                                        'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}\n${vehicle.vehicleType.toLowerCase() == 'trailer' ? 'Trailer Type' : 'Transmission'}: ${vehicle.vehicleType.toLowerCase() == 'trailer' ? vehicle.trailerType : vehicle.transmissionType}',
                                     style: GoogleFonts.montserrat(
                                       color: Colors.white70,
                                       fontSize: 14,

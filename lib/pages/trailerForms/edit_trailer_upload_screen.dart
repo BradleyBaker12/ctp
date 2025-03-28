@@ -381,6 +381,10 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _vinController.text = trailerExtra['vin']?.toString() ?? '';
         _registrationController.text =
             trailerExtra['registration']?.toString() ?? '';
+        // Add this line to populate the NATIS document URL
+        _existingNatisTriAxleDocUrl =
+            trailerExtra['natisDocUrl']?.toString() ?? '';
+        debugPrint("DEBUG: Tri-Axle NATIS URL: $_existingNatisTriAxleDocUrl");
       }
 
       _featureList.clear();
@@ -404,16 +408,29 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       if (data['damages'] != null && data['damages'] is List) {
         _damageList.addAll(
             List<Map<String, dynamic>>.from(data['damages']).map((damage) {
+          final controller =
+              TextEditingController(text: damage['description'] ?? '');
           return {
             'description': damage['description'] ?? '',
             'imageUrl': damage['imageUrl'] ?? '',
             'image': null,
-            'controller':
-                TextEditingController(text: damage['description'] ?? ''),
+            'controller': controller,
           };
         }).toList());
       }
       _damagesCondition = (_damageList.isNotEmpty) ? 'yes' : 'no';
+      debugPrint("DEBUG: Damages populated: ${_damageList.length} items");
+
+      // Add this to populate transporter and sales rep
+      if (data['userId'] != null) {
+        _selectedTransporterId = data['userId'];
+        debugPrint("Selected Transporter ID: $_selectedTransporterId");
+      }
+
+      if (data['assignedSalesRepId'] != null) {
+        _selectedSalesRepId = data['assignedSalesRepId'];
+        debugPrint("Selected Sales Rep ID: $_selectedSalesRepId");
+      }
     });
   }
 
@@ -1413,7 +1430,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-         // Instead of inline code, add:
+          // Instead of inline code, add:
           const SizedBox(height: 15),
           _buildNatisTrailerADocSection(),
           const SizedBox(height: 15),
@@ -1507,55 +1524,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           ),
           const SizedBox(height: 15),
 // NATIS document upload for Trailer B:
-          // NATIS document upload for Trailer B:
-          const Text(
-            'NATIS Document 1 for Trailer B',
-            style: TextStyle(
-                fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            onTap: () {
-              _pickImageOrFile(
-                title: 'Select NATIS Document 1 for Trailer B',
-                pickImageOnly: false,
-                callback: (file, fileName) {
-                  if (file != null) {
-                    setState(() {
-                      _natisTrailerBDoc1File = file;
-                      _natisTrailerBDoc1FileName = fileName;
-                    });
-                  }
-                },
-              );
-            },
-            borderRadius: BorderRadius.circular(10.0),
-            child: _buildStyledContainer(
-              child: _natisTrailerBDoc1File == null
-                  ? const Column(
-                      children: [
-                        Icon(Icons.upload_file,
-                            color: Colors.white, size: 50.0),
-                        SizedBox(height: 10),
-                        Text('Upload NATIS Document 1',
-                            style:
-                                TextStyle(fontSize: 14, color: Colors.white70),
-                            textAlign: TextAlign.center),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        Icon(Icons.description,
-                            color: Colors.white, size: 50.0),
-                        SizedBox(height: 10),
-                        Text(_natisTrailerBDoc1FileName!.split('/').last,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 14)),
-                      ],
-                    ),
-            ),
-          ),
-          const SizedBox(height: 15),
+          _buildNatisTrailerBDocSection(),
           _buildImageSectionWithTitle('Trailer B - Front Image', _frontImageB,
               (img) {
             if (!isDealer) {
@@ -1643,43 +1612,89 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           const SizedBox(height: 10),
           InkWell(
             onTap: () {
-              _pickImageOrFile(
-                title: 'Select NATIS Document for Tri-Axle',
-                pickImageOnly: false,
-                callback: (file, fileName) {
-                  if (file != null) {
-                    setState(() {
-                      _natisTriAxleDocFile = file;
-                      _natisTriAxleDocFileName = fileName;
-                    });
-                  }
-                },
-              );
-            },
-            borderRadius: BorderRadius.circular(10.0),
-            child: _buildStyledContainer(
-              child: _natisTriAxleDocFile == null
-                  ? const Column(
+              if (_existingNatisTriAxleDocUrl != null ||
+                  _natisTriAxleDocFile != null) {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('NATIS Document Options'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.upload_file,
-                            color: Colors.white, size: 50.0),
-                        SizedBox(height: 10),
-                        Text('Upload NATIS Document for Tri-Axle',
-                            style:
-                                TextStyle(fontSize: 14, color: Colors.white70),
-                            textAlign: TextAlign.center),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        Icon(Icons.description,
-                            color: Colors.white, size: 50.0),
-                        SizedBox(height: 10),
-                        Text(_natisTriAxleDocFileName!.split('/').last,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 14)),
+                        if (_existingNatisTriAxleDocUrl != null)
+                          ListTile(
+                            leading: const Icon(Icons.remove_red_eye),
+                            title: const Text('View Document'),
+                            onTap: () async {
+                              Navigator.pop(context);
+                              if (_existingNatisTriAxleDocUrl != null) {
+                                final Uri uri =
+                                    Uri.parse(_existingNatisTriAxleDocUrl!);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri,
+                                      mode: LaunchMode.externalApplication);
+                                }
+                              }
+                            },
+                          ),
+                        ListTile(
+                          leading: const Icon(Icons.upload_file),
+                          title: const Text('Replace Document'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _pickImageOrFile(
+                              title: 'Select NATIS Document for Tri-Axle',
+                              pickImageOnly: false,
+                              callback: (file, fileName) {
+                                if (file != null) {
+                                  setState(() {
+                                    _natisTriAxleDocFile = file;
+                                    _natisTriAxleDocFileName = fileName;
+                                  });
+                                }
+                              },
+                            );
+                          },
+                        ),
                       ],
                     ),
+                  ),
+                );
+              } else {
+                _pickImageOrFile(
+                  title: 'Select NATIS Document for Tri-Axle',
+                  pickImageOnly: false,
+                  callback: (file, fileName) {
+                    if (file != null) {
+                      setState(() {
+                        _natisTriAxleDocFile = file;
+                        _natisTriAxleDocFileName = fileName;
+                      });
+                    }
+                  },
+                );
+              }
+            },
+            child: _buildStyledContainer(
+              child: _natisTriAxleDocFile != null
+                  ? _buildFileDisplay(_natisTriAxleDocFileName, false)
+                  : (_existingNatisTriAxleDocUrl != null)
+                      ? _buildFileDisplay(
+                          _getFileNameFromUrl(_existingNatisTriAxleDocUrl),
+                          true)
+                      : const Column(
+                          children: [
+                            Icon(Icons.upload_file,
+                                color: Colors.white, size: 50.0),
+                            SizedBox(height: 10),
+                            Text(
+                              'Upload NATIS Document',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.white70),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
             ),
           ),
           const SizedBox(height: 15),
@@ -2035,31 +2050,49 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
 
   // --- Transporter & Sales Rep Fields ---
   Widget _buildTransporterField() {
-    final List<String> ownerEmails =
-        _transporterUsers.map((e) => e['email'] as String).toList();
+    if (_transporterUsers.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    String? currentTransporterEmail;
+    if (_selectedTransporterId != null) {
+      final transporter = _transporterUsers.firstWhere(
+        (user) => user['id'] == _selectedTransporterId,
+        orElse: () => {'email': null},
+      );
+      currentTransporterEmail = transporter['email'];
+    }
+
+    final List<String> transporterEmails = _transporterUsers
+        .map((e) => e['email'] as String)
+        .where((email) => email != null)
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Transporter: ${_selectedTransporterEmail ?? 'None'}",
+          "Transporter: ${currentTransporterEmail ?? 'None'}",
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         const SizedBox(height: 15),
         CustomDropdown(
           hintText: 'Select Transporter',
-          value: _selectedTransporterEmail,
-          items: ownerEmails,
+          value: currentTransporterEmail,
+          items: transporterEmails,
           onChanged: (value) {
-            setState(() {
-              _selectedTransporterEmail = value;
-              try {
-                final matching = _transporterUsers
-                    .firstWhere((user) => user['email'] == value);
-                _selectedTransporterId = matching['id'];
-              } catch (e) {
-                _selectedTransporterId = null;
-              }
-            });
+            if (value != null) {
+              final selected = _transporterUsers.firstWhere(
+                (user) => user['email'] == value,
+                orElse: () => {'id': null},
+              );
+              setState(() {
+                _selectedTransporterId = selected['id'];
+                _selectedTransporterEmail = value;
+              });
+              debugPrint(
+                  "Selected Transporter - ID: $_selectedTransporterId, Email: $value");
+            }
           },
         ),
       ],
@@ -2067,31 +2100,49 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   }
 
   Widget _buildSalesRepField() {
-    final List<String> repEmails =
-        _salesRepUsers.map((e) => e['email'] as String).toList();
+    if (_salesRepUsers.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    String? currentSalesRepEmail;
+    if (_selectedSalesRepId != null) {
+      final salesRep = _salesRepUsers.firstWhere(
+        (user) => user['id'] == _selectedSalesRepId,
+        orElse: () => {'email': null},
+      );
+      currentSalesRepEmail = salesRep['email'];
+    }
+
+    final List<String> salesRepEmails = _salesRepUsers
+        .map((e) => e['email'] as String)
+        .where((email) => email != null)
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Sales Rep: ${_selectedSalesRepEmail ?? 'None'}",
+          "Sales Rep: ${currentSalesRepEmail ?? 'None'}",
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         const SizedBox(height: 15),
         CustomDropdown(
           hintText: 'Select Sales Rep',
-          value: _selectedSalesRepEmail,
-          items: repEmails,
+          value: currentSalesRepEmail,
+          items: salesRepEmails,
           onChanged: (value) {
-            setState(() {
-              _selectedSalesRepEmail = value;
-              try {
-                final matching =
-                    _salesRepUsers.firstWhere((user) => user['email'] == value);
-                _selectedSalesRepId = matching['id'];
-              } catch (e) {
-                _selectedSalesRepId = null;
-              }
-            });
+            if (value != null) {
+              final selected = _salesRepUsers.firstWhere(
+                (user) => user['email'] == value,
+                orElse: () => {'id': null},
+              );
+              setState(() {
+                _selectedSalesRepId = selected['id'];
+                _selectedSalesRepEmail = value;
+              });
+              debugPrint(
+                  "Selected Sales Rep - ID: $_selectedSalesRepId, Email: $value");
+            }
           },
         ),
       ],
@@ -2103,12 +2154,28 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('userRole', whereIn: ['transporter', 'admin']).get();
+
       setState(() {
         _transporterUsers = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return {'id': doc.id, 'email': data['email'] ?? 'No Email'};
+          return {
+            'id': doc.id,
+            'email': data['email'] ?? 'No Email',
+          };
         }).toList();
       });
+
+      debugPrint("Loaded ${_transporterUsers.length} transporters");
+
+      // Set initial value if we have a selected ID
+      if (_selectedTransporterId != null) {
+        final transporter = _transporterUsers.firstWhere(
+          (user) => user['id'] == _selectedTransporterId,
+          orElse: () => {'email': null},
+        );
+        _selectedTransporterEmail = transporter['email'];
+        debugPrint("Set initial transporter email: $_selectedTransporterEmail");
+      }
     } catch (e) {
       debugPrint('Error loading transporter users: $e');
     }
@@ -2119,12 +2186,28 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('userRole', whereIn: ['admin', 'sales representative']).get();
+
       setState(() {
         _salesRepUsers = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return {'id': doc.id, 'email': data['email'] ?? 'No Email'};
+          return {
+            'id': doc.id,
+            'email': data['email'] ?? 'No Email',
+          };
         }).toList();
       });
+
+      debugPrint("Loaded ${_salesRepUsers.length} sales reps");
+
+      // Set initial value if we have a selected ID
+      if (_selectedSalesRepId != null) {
+        final salesRep = _salesRepUsers.firstWhere(
+          (user) => user['id'] == _selectedSalesRepId,
+          orElse: () => {'email': null},
+        );
+        _selectedSalesRepEmail = salesRep['email'];
+        debugPrint("Set initial sales rep email: $_selectedSalesRepEmail");
+      }
     } catch (e) {
       debugPrint('Error loading sales rep users: $e');
     }
