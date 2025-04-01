@@ -5,11 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:universal_html/html.dart' as html;
 
 Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
-  // Default to back (environment) camera.
   bool useFrontCamera = false;
   Uint8List? capturedImage;
 
-  // Helper to initialize the camera with the desired facing mode.
   Future<html.VideoElement> initializeCamera(bool useFront) async {
     final mediaDevices = html.window.navigator.mediaDevices;
     final constraints = {
@@ -35,6 +33,8 @@ Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
             title: const Text('Take Photo'),
             content: SingleChildScrollView(
               child: FutureBuilder<html.VideoElement>(
+                // Use a key based on the camera mode to trigger rebuild.
+                key: ValueKey(useFrontCamera),
                 future: initializeCamera(useFrontCamera),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -53,6 +53,7 @@ Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
                   final videoElement = snapshot.data!;
                   final viewID =
                       'webcam_${DateTime.now().millisecondsSinceEpoch}';
+                  // Register the video element for the HtmlElementView.
                   platformViewRegistry.registerViewFactory(
                       viewID, (int viewId) => videoElement);
                   final double feedSize =
@@ -60,7 +61,6 @@ Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Display the live camera feed inside a rounded container.
                       SizedBox(
                         width: feedSize,
                         height: feedSize,
@@ -70,7 +70,6 @@ Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // Use Wrap for buttons to avoid overflow on smaller screens.
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -96,6 +95,7 @@ Future<Uint8List?> capturePhotoImplementation(BuildContext context) async {
                           ),
                           ElevatedButton(
                             onPressed: () {
+                              // Toggle camera and force FutureBuilder rebuild.
                               setState(() {
                                 useFrontCamera = !useFrontCamera;
                               });
