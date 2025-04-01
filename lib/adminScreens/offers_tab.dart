@@ -361,7 +361,7 @@ class _OffersTabState extends State<OffersTab> {
             managedAccountIds.contains(offer.transporterId);
 
         // print('DEBUG: Offer ${offer.offerId} - Dealer: ${offer.dealerId}, '
-            // 'Transporter: ${offer.transporterId}, Is Managed: $isManaged');
+        // 'Transporter: ${offer.transporterId}, Is Managed: $isManaged');
 
         return isManaged;
       }).toList();
@@ -550,11 +550,31 @@ class _OffersTabState extends State<OffersTab> {
                                   ),
                               ],
                             ),
-                            title: Text(
-                              "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
-                              style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white),
+                            title: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (offer.vehicleRef != null)
+                                  RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: 'Ref: ${offer.vehicleRef}\n',
+                                          style: GoogleFonts.montserrat(
+                                            fontWeight: FontWeight.bold,
+                                            color: const Color(0xFFFF4E00),
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                Text(
+                                  "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
+                                  style: GoogleFonts.montserrat(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ],
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -660,10 +680,31 @@ class _OffersTabState extends State<OffersTab> {
                               ),
                           ],
                         ),
-                        title: Text(
-                          "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
-                          style: GoogleFonts.montserrat(
-                              fontWeight: FontWeight.bold, color: Colors.white),
+                        title: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              offer.vehicleMakeModel ?? 'No Title',
+                              style: GoogleFonts.montserrat(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                            Text(
+                              offer.offerAmount?.toStringAsFixed(2) ?? 'N/A',
+                              style: GoogleFonts.montserrat(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                            if (offer.vehicleRef != null)
+                              Text(
+                                'Ref: ${offer.vehicleRef}\n',
+                                style: GoogleFonts.montserrat(
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFFFF4E00),
+                                  fontSize: 16,
+                                ),
+                              ),
+                          ],
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

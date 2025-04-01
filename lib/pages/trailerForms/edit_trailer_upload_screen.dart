@@ -493,9 +493,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   }
 
   void _pickTrailerADocFile() async {
-    // TODO: implement file picker logic for Trailer A document.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Pick Trailer A document file')),
+    _pickImageOrFile(
+      title: 'Select NATIS Document for Trailer A',
+      pickImageOnly: false,
+      callback: (file, fileName) {
+        if (file != null) {
+          setState(() {
+            _natisTrailerADoc1File = file;
+            _natisTrailerADoc1FileName = fileName;
+          });
+        }
+      },
     );
   }
 
@@ -559,9 +567,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   }
 
   void _pickTrailerBDocFile() async {
-    // TODO: implement file picker logic for Trailer B document.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Pick Trailer B document file')),
+    _pickImageOrFile(
+      title: 'Select NATIS Document for Trailer B',
+      pickImageOnly: false,
+      callback: (file, fileName) {
+        if (file != null) {
+          setState(() {
+            _natisTrailerADoc1File = file;
+            _natisTrailerADoc1FileName = fileName;
+          });
+        }
+      },
     );
   }
 
@@ -2242,6 +2258,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         'year': _yearController.text,
         'sellingPrice': _sellingPriceController.text,
         'trailerType': _selectedTrailerType,
+        'userId': _selectedTransporterId,
         'updatedAt': FieldValue.serverTimestamp(),
         'lastModifiedBy': currentUser?.uid,
       };
@@ -2581,18 +2598,52 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         const SizedBox(height: 10),
         InkWell(
           onTap: () {
+            final bool isDealer =
+                Provider.of<UserProvider>(context, listen: false).getUserRole ==
+                    'dealer';
             if (hasImage) {
-              _openFullScreenImage(
-                image: image,
-                imageUrl:
-                    (hasExistingUrl && image == null) ? existingUrl : null,
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: Text(title),
+                    content: const Text(
+                        'What would you like to do with this image?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _openFullScreenImage(
+                            image: image,
+                            imageUrl: (hasExistingUrl && image == null)
+                                ? existingUrl
+                                : null,
+                          );
+                        },
+                        child: const Text('View'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _pickImageOrFile(
+                            title: 'Change $title',
+                            pickImageOnly: true,
+                            callback: (file, fileName) {
+                              if (file != null) onImagePicked(file);
+                            },
+                          );
+                        },
+                        child: const Text('Replace'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  );
+                },
               );
             } else {
-              // Only allow image picking if user is permitted (non-dealer)
-              final bool isDealer =
-                  Provider.of<UserProvider>(context, listen: false)
-                          .getUserRole ==
-                      'dealer';
               if (!isDealer) {
                 _pickImageOrFile(
                   title: title,
@@ -2645,32 +2696,57 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               );
             }
           },
-          child: _buildStyledContainer(
-            child: image != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.memory(image,
-                        fit: BoxFit.cover, height: 150, width: double.infinity),
-                  )
-                : hasExistingUrl
+          child: Stack(
+            children: [
+              _buildStyledContainer(
+                child: image != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(existingUrl,
+                        child: Image.memory(image,
                             fit: BoxFit.cover,
                             height: 150,
                             width: double.infinity),
                       )
-                    : const Column(
-                        children: [
-                          Icon(Icons.camera_alt,
-                              color: Colors.white, size: 50.0),
-                          SizedBox(height: 10),
-                          Text('Tap to upload image',
-                              style: TextStyle(
-                                  fontSize: 14, color: Colors.white70),
-                              textAlign: TextAlign.center),
-                        ],
+                    : hasExistingUrl
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(existingUrl,
+                                fit: BoxFit.cover,
+                                height: 150,
+                                width: double.infinity),
+                          )
+                        : const Column(
+                            children: [
+                              Icon(Icons.camera_alt,
+                                  color: Colors.white, size: 50.0),
+                              SizedBox(height: 10),
+                              Text('Tap to upload image',
+                                  style: TextStyle(
+                                      fontSize: 14, color: Colors.white70),
+                                  textAlign: TextAlign.center),
+                            ],
+                          ),
+              ),
+              if (hasImage)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: GestureDetector(
+                    onTap: () {
+                      onImagePicked(null);
+                    },
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
                       ),
+                      padding: const EdgeInsets.all(4),
+                      child: const Icon(Icons.close,
+                          color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],

@@ -22,6 +22,7 @@ class Offer extends ChangeNotifier {
   String? externalInvoice;
   bool? needsInvoice;
   String? variant; // Add this field
+  String? vehicleRef; // Add this field
 
   List<String> vehicleImages = [];
   Map<String, String?> additionalInfo = {};
@@ -82,6 +83,7 @@ class Offer extends ChangeNotifier {
     this.externalInvoice,
     this.needsInvoice,
     this.variant, // Add this parameter
+    this.vehicleRef, // Add this parameter
   });
 
   /// IMPORTANT: Ensure these keys match your Firestore fields.
@@ -107,6 +109,7 @@ class Offer extends ChangeNotifier {
           ? (data['brands'] as List).first.toString()
           : data['brands']?.toString(),
       variant: data['variant']?.toString(), // Add this mapping
+      vehicleRef: data['vehicleRef']?.toString(), // Add this mapping
 
       /// Add these mappings to pull fields from Firestore
       vehicleYear: data['vehicleYear'],
@@ -160,6 +163,9 @@ class Offer extends ChangeNotifier {
             data['mainImageUrl'] as String?; // Changed from mainImage
         vehicleImages =
             List<String>.from(data['photos'] ?? []); // Changed from images
+
+        // Get the reference number from the vehicle document
+        vehicleRef = data['referenceNumber'] as String?;
 
         // Additional details
         vehicleYear = data['vehicleYear']?.toString();

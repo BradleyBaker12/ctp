@@ -93,6 +93,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _axlesController = TextEditingController();
   final TextEditingController _lengthController = TextEditingController();
+  final TextEditingController _lengthDoubleAxleController =
+      TextEditingController();
 
   // Trailer Type Dropdown (Superlink, Tri-Axle, Double Axle, Other)
   String? _selectedTrailerType;
@@ -143,6 +145,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   String? _natisTrailerBDoc1FileName;
   Uint8List? _natisTriAxleDocFile;
   String? _natisTriAxleDocFileName;
+  Uint8List? _natisDoubleAxleDocFile;
+  String? _natisDoubleAxleDocFileName;
 
   // Tri-Axle
   final TextEditingController _lengthTrailerController =
@@ -288,6 +292,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     _registrationController.dispose();
     _axlesController.dispose();
     _lengthController.dispose();
+    _lengthDoubleAxleController.dispose();
     _axlesTrailerAController.dispose();
     _axlesTrailerBController.dispose();
     _scrollController.dispose();
@@ -676,8 +681,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               },
             ),
             const SizedBox(height: 15),
-            if (_selectedTrailerType == 'Double Axle' ||
-                _selectedTrailerType == 'Other') ...[
+            if (_selectedTrailerType == 'Other') ...[
               const SizedBox(height: 30),
               Container(
                 padding: const EdgeInsets.all(20),
@@ -730,7 +734,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               ),
               const SizedBox(height: 15),
               if (_selectedTrailerType != null &&
-                  _selectedTrailerType != 'Double Axle' &&
                   _selectedTrailerType != 'Other') ...[
                 if (_selectedTrailerType == 'Superlink') ...[
                   const SizedBox(height: 15),
@@ -1068,6 +1071,145 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                                 SizedBox(height: 10),
                                 Text(
                                   _natisTriAxleDocFileName!.split('/').last,
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  _buildImageSectionWithTitle('Front Trailer Image',
+                      _frontImage, (img) => setState(() => _frontImage = img)),
+                  _buildImageSectionWithTitle('Side Image', _sideImage,
+                      (img) => setState(() => _sideImage = img)),
+                  _buildImageSectionWithTitle('Tyres Image', _tyresImage,
+                      (img) => setState(() => _tyresImage = img)),
+                  _buildImageSectionWithTitle('Chassis Image', _chassisImage,
+                      (img) => setState(() => _chassisImage = img)),
+                  _buildImageSectionWithTitle('Deck Image', _deckImage,
+                      (img) => setState(() => _deckImage = img)),
+                  _buildImageSectionWithTitle(
+                      'Makers Plate Image',
+                      _makersPlateImage,
+                      (img) => setState(() => _makersPlateImage = img)),
+                  _buildAdditionalImagesSection(),
+                  const SizedBox(height: 15),
+                ] else if (_selectedTrailerType == 'Double Axle') ...[
+                  const SizedBox(height: 15),
+                  CustomTextField(
+                    controller: _lengthDoubleAxleController,
+                    hintText: 'Length Trailer',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 15),
+                  CustomTextField(
+                    controller: _vinController,
+                    hintText: 'VIN',
+                    inputFormatter: [UpperCaseTextFormatter()],
+                  ),
+                  const SizedBox(height: 15),
+                  CustomTextField(
+                    controller: _registrationController,
+                    hintText: 'Registration',
+                    inputFormatter: [UpperCaseTextFormatter()],
+                  ),
+                  const SizedBox(height: 15),
+                  const Text(
+                    'NATIS Document for Double Axle',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () {
+                      if (_natisDoubleAxleDocFile != null) {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('NATIS Document'),
+                            content: const Text(
+                                'What would you like to do with the file?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _pickImageOrFile(
+                                    title:
+                                        'Change NATIS Document for Double Axle',
+                                    pickImageOnly: false,
+                                    callback: (file, fileName) {
+                                      if (file != null) {
+                                        setState(() {
+                                          _natisDoubleAxleDocFile = file;
+                                          _natisDoubleAxleDocFileName =
+                                              fileName;
+                                        });
+                                      }
+                                    },
+                                  );
+                                },
+                                child: const Text('Change File'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  setState(() {
+                                    _natisDoubleAxleDocFile = null;
+                                    _natisDoubleAxleDocFileName = null;
+                                  });
+                                },
+                                child: const Text('Remove File',
+                                    style: TextStyle(color: Colors.red)),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        _pickImageOrFile(
+                          title: 'Select NATIS Document for Double Axle',
+                          pickImageOnly: false,
+                          callback: (file, fileName) {
+                            if (file != null) {
+                              setState(() {
+                                _natisDoubleAxleDocFile = file;
+                                _natisDoubleAxleDocFileName = fileName;
+                              });
+                            }
+                          },
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(10.0),
+                    child: _buildStyledContainer(
+                      child: _natisDoubleAxleDocFile == null
+                          ? const Column(
+                              children: [
+                                Icon(Icons.upload_file,
+                                    color: Colors.white, size: 50.0),
+                                SizedBox(height: 10),
+                                Text(
+                                  'Upload NATIS Document',
+                                  style: TextStyle(
+                                      fontSize: 14, color: Colors.white70),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                Icon(Icons.description,
+                                    color: Colors.white, size: 50.0),
+                                SizedBox(height: 10),
+                                Text(
+                                  _natisDoubleAxleDocFileName!.split('/').last,
                                   style: const TextStyle(
                                       color: Colors.white70, fontSize: 14),
                                 ),
@@ -1923,6 +2065,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         (_selectedSalesRep == null || _selectedSalesRep!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a Sales Rep')));
+      return;
+    }
+    if (_selectedTrailerType == 'Double Axle' &&
+        _lengthDoubleAxleController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter the length')));
       return;
     }
     setState(() => _isLoading = true);
