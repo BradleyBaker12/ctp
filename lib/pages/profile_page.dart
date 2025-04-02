@@ -408,6 +408,13 @@ class ProfilePage extends StatelessWidget {
                               Icons.visibility,
                               context,
                             ),
+                            if (isDealer)
+                              _buildDocumentItem(
+                                'TAX CLEARANCE',
+                                userProvider.getTaxClearanceUrl,
+                                Icons.visibility,
+                                context,
+                              ),
                             _buildDocumentItem(
                               'TERMS AND CONDITIONS',
                               'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
