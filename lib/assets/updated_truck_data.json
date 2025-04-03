@@ -6269,6 +6269,11 @@
                 "FMX (4) 480 6X4 SLEEP H/RED T/T C/C",
                 "FM (4) 400 4X2 SLEEP T/T C/C"
             ]
+        },
+        "Toyota": {
+            "DYNA": [
+                "Kokerbrak"
+            ]
         }
     },
     "2019": {
