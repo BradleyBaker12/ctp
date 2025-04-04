@@ -843,6 +843,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       _makersPlateImageA,
                       (img) => setState(() => _makersPlateImageA = img)),
                   const SizedBox(height: 15),
+                  _buildAdditionalImagesSectionForTrailerA(),
+                  const SizedBox(height: 15),
                   const Text("Trailer B Details",
                       style: TextStyle(
                           fontSize: 16,
@@ -956,6 +958,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                           color: Colors.white,
                           fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
+                  _buildAdditionalImagesSectionForTrailerB(),
                   const SizedBox(height: 15),
                 ] else if (_selectedTrailerType == 'Tri-Axle') ...[
                   const SizedBox(height: 15),
@@ -2304,7 +2307,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'description': description,
         'imageUrl': '',
       };
-
       if (item['image'] != null) {
         String? imageUrl =
             await _uploadFileToFirebaseStorage(item['image'], 'vehicle_images');
@@ -2313,8 +2315,24 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           (item['imageUrl'] as String).isNotEmpty) {
         uploadedItem['imageUrl'] = item['imageUrl'];
       }
-
       uploadedItems.add(uploadedItem);
+
+      // String imageUrl = '';
+      // // if file is present, then upload it
+      // if (item['image'] != null) {
+      //   imageUrl = await _uploadFileToFirebaseStorage(
+      //           item['image'], 'vehicle_images') ??
+      //       '';
+      //   debugPrint('Uploaded additional image URL: $imageUrl');
+      // } else if (item['imageUrl'] != null &&
+      //     (item['imageUrl'] as String).isNotEmpty) {
+      //   imageUrl = item['imageUrl'];
+      // }
+
+      // uploadedItems.add({
+      //   'description': description,
+      //   'imageUrl': imageUrl,
+      // });
     }
     return uploadedItems;
   }

@@ -94,7 +94,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _chassisImageA;
   Uint8List? _deckImageA;
   Uint8List? _makersPlateImageA;
-  // final List<Map<String, dynamic>> _additionalImagesListTrailerA = [];
+  final List<Map<String, dynamic>> _additionalImagesListTrailerA = [];
 
   // === Superlink Controllers (Trailer B) ===
   final TextEditingController _lengthTrailerBController =
@@ -108,7 +108,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _chassisImageB;
   Uint8List? _deckImageB;
   Uint8List? _makersPlateImageB;
-  // final List<Map<String, dynamic>> _additionalImagesListTrailerB = [];
+  final List<Map<String, dynamic>> _additionalImagesListTrailerB = [];
 
   // === Documents and Main Image ===
   Uint8List? _natisRc1File;
@@ -182,6 +182,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   String? _chassisImageUrl;
   String? _deckImageUrl;
   String? _makersPlateImageUrl;
+  final List<Map<String, dynamic>> _additionalImagesList = [];
 
   // === Admin selection fields ===
   List<Map<String, dynamic>> _transporterUsers = [];
@@ -334,7 +335,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
 
         debugPrint(
             "DEBUG: Set Trailer A - Length: ${_lengthTrailerAController.text}, VIN: ${_vinAController.text}, Reg: ${_registrationAController.text}");
-
+        debugPrint(
+            "DEBUG: Trailer A additionalImages: ${trailerA['trailerAAdditionalImages']}");
         // Trailer A Image URLs
         _frontImageAUrl = trailerA['frontImageUrl'];
         _sideImageAUrl = trailerA['sideImageUrl'];
@@ -342,6 +344,14 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _chassisImageAUrl = trailerA['chassisImageUrl'];
         _deckImageAUrl = trailerA['deckImageUrl'];
         _makersPlateImageAUrl = trailerA['makersPlateImageUrl'];
+        _additionalImagesListTrailerA.clear();
+        if (trailerA['trailerAAdditionalImages'] != null &&
+            (trailerA['trailerAAdditionalImages'] as List).isNotEmpty) {
+          _additionalImagesListTrailerA.addAll(
+            List<Map<String, dynamic>>.from(
+                trailerA['trailerAAdditionalImages']),
+          );
+        }
         _existingNatisTrailerADocUrl = trailerA['natisDocUrl'];
 
         _existingNatisTrailerADoc1Url =
@@ -367,7 +377,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
 
         debugPrint(
             "DEBUG: Set Trailer B - Length: ${_lengthTrailerBController.text}, VIN: ${_vinBController.text}, Reg: ${_registrationBController.text}");
-
+        debugPrint(
+            "DEBUG: Trailer B additionalImages: ${trailerB['trailerBAdditionalImages']}");
         // Trailer B Image URLs
         _frontImageBUrl = trailerB['frontImageUrl'];
         _sideImageBUrl = trailerB['sideImageUrl'];
@@ -375,6 +386,14 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _chassisImageBUrl = trailerB['chassisImageUrl'];
         _deckImageBUrl = trailerB['deckImageUrl'];
         _makersPlateImageBUrl = trailerB['makersPlateImageUrl'];
+        _additionalImagesListTrailerB.clear();
+        if (trailerB['trailerBAdditionalImages'] != null &&
+            (trailerB['trailerBAdditionalImages'] as List).isNotEmpty) {
+          _additionalImagesListTrailerB.addAll(
+            List<Map<String, dynamic>>.from(
+                trailerB['trailerBAdditionalImages']),
+          );
+        }
       } else if (_selectedTrailerType == 'Tri-Axle') {
         _lengthTrailerController.text =
             trailerExtra['lengthTrailer']?.toString() ?? '';
@@ -385,6 +404,13 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _existingNatisTriAxleDocUrl =
             trailerExtra['natisDocUrl']?.toString() ?? '';
         debugPrint("DEBUG: Tri-Axle NATIS URL: $_existingNatisTriAxleDocUrl");
+        if (trailerExtra.containsKey('additionalImages') &&
+            (trailerExtra['additionalImages'] as List).isNotEmpty) {
+          _additionalImagesList.clear();
+          _additionalImagesList.addAll(
+            List<Map<String, dynamic>>.from(trailerExtra['additionalImages']),
+          );
+        }
       }
 
       _featureList.clear();
@@ -1504,6 +1530,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             }
           }, existingUrl: _makersPlateImageAUrl),
           const SizedBox(height: 15),
+          _buildAdditionalImagesSectionForTrailerA(),
           const SizedBox(height: 15),
           const Text("Trailer B Details",
               style: TextStyle(
@@ -1595,6 +1622,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             }
           }, existingUrl: _makersPlateImageBUrl),
           const SizedBox(height: 15),
+          _buildAdditionalImagesSectionForTrailerB(),
         ]
         // Tri-Axle branch.
         else if (_selectedTrailerType == 'Tri-Axle') ...[
@@ -1804,6 +1832,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 '',
           ),
           const SizedBox(height: 15),
+          _buildAdditionalImagesSection(),
         ],
         const SizedBox(height: 15),
         // Service History Section
@@ -1997,6 +2026,125 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
       ),
       child: child,
+    );
+  }
+
+  Widget _buildAdditionalImagesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Additional Images',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        for (int i = 0; i < _additionalImagesList.length; i++)
+          _buildItemWidget(i, _additionalImagesList[i], _additionalImagesList,
+              _showAdditionalImageSourceDialog),
+        const SizedBox(height: 16.0),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _additionalImagesList.add({'description': '', 'image': null});
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add Additional Item',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdditionalImagesSectionForTrailerA() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Additional Images - Trailer A',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        for (int i = 0; i < _additionalImagesListTrailerA.length; i++)
+          _buildItemWidget(i, _additionalImagesListTrailerA[i],
+              _additionalImagesListTrailerA, _showAdditionalImageSourceDialog),
+        const SizedBox(height: 16.0),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _additionalImagesListTrailerA
+                    .add({'description': '', 'image': null});
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add Additional Image for Trailer A',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdditionalImagesSectionForTrailerB() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Additional Images - Trailer B',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        for (int i = 0; i < _additionalImagesListTrailerB.length; i++)
+          _buildItemWidget(i, _additionalImagesListTrailerB[i],
+              _additionalImagesListTrailerB, _showAdditionalImageSourceDialog),
+        const SizedBox(height: 16.0),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _additionalImagesListTrailerB
+                    .add({'description': '', 'image': null});
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add Additional Image for Trailer B',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2329,6 +2477,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _makersPlateImageA!, 'vehicle_images')
                 : _makersPlateImageAUrl ?? '',
+            'trailerAAdditionalImages':
+                await _uploadListItems(_additionalImagesListTrailerA),
           },
           'trailerB': {
             'length': _lengthTrailerBController.text,
@@ -2363,6 +2513,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _makersPlateImageB!, 'vehicle_images')
                 : _makersPlateImageBUrl ?? '',
+            'trailerBAdditionalImages':
+                await _uploadListItems(_additionalImagesListTrailerB),
           },
         };
       } else if (_selectedTrailerType == 'Tri-Axle') {
@@ -2406,6 +2558,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               : widget.vehicle.trailer
                       ?.rawTrailerExtraInfo?['makersPlateImageUrl'] ??
                   '',
+          'additionalImages': await _uploadListItems(_additionalImagesList),
         };
       }
 
