@@ -911,6 +911,7 @@ class UserProvider extends ChangeNotifier {
   bool? get getAgreedToHouseRules => _agreedToHouseRules;
   String? get getBankConfirmationUrl => _bankConfirmationUrl;
   String? get getBrncUrl => _brncUrl;
+  String? get getTaxClearanceUrl => _taxCertificateUrl;
   String? get getCipcCertificateUrl => _cipcCertificateUrl;
   String? get getProxyUrl => _proxyUrl;
   Timestamp? get getCreatedAt => _createdAt;
