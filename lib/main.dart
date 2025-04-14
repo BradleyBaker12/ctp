@@ -4,6 +4,7 @@ import 'package:ctp/pages/add_profile_photo.dart';
 import 'package:ctp/pages/add_profile_photo_admin_page.dart';
 import 'package:ctp/pages/add_profile_photo_transporter.dart';
 import 'package:ctp/pages/admin_home_page.dart';
+import 'package:ctp/adminScreens/notification_test_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
@@ -44,6 +45,7 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:ctp/providers/trailer_form_provider.dart';
+import 'package:ctp/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -68,16 +70,8 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize notifications
-  if (!kIsWeb) {
-    // Handle platform-specific setup safely
-    try {
-      FirebaseMessaging.onBackgroundMessage(
-          _firebaseMessagingBackgroundHandler);
-    } catch (e) {
-      print('Error setting up messaging: $e');
-    }
-  }
+  // Setup notifications service
+  await setupNotifications();
 
   // For web, ensure user session persistence is local.
   if (kIsWeb) {
@@ -111,6 +105,77 @@ void main() async {
       child: const MyApp(),
     ),
   );
+}
+
+// Setup notifications, handles permissions and topic subscriptions
+Future<void> setupNotifications() async {
+  if (kIsWeb) {
+    print('DEBUG: Skipping notifications setup on web platform');
+    return;
+  }
+
+  try {
+    print('DEBUG: Starting notification setup');
+
+    // Set background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    print('DEBUG: Background message handler registered');
+
+    // Request permission (iOS)
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+
+    print('DEBUG: Permission request result - ${settings.authorizationStatus}');
+
+    // Get FCM token for debugging
+    final token = await messaging.getToken();
+    print(
+        'DEBUG: FCM Token: ${token != null ? token.substring(0, 20) + '...' : 'null'}');
+
+    // Register to handle foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('DEBUG: Got a foreground message!');
+      print('DEBUG: Message data: ${message.data}');
+
+      if (message.notification != null) {
+        print(
+            'DEBUG: Message notification title: ${message.notification!.title}');
+        print(
+            'DEBUG: Message notification body: ${message.notification!.body}');
+
+        // Show local notification
+        NotificationService.showNotification(
+          title: message.notification!.title ?? 'New Notification',
+          body: message.notification!.body ?? '',
+          payload: message.data.toString(),
+        );
+        print('DEBUG: Local notification displayed');
+      }
+    });
+
+    // Listen for when the user clicks on a notification
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print(
+          'DEBUG: Notification clicked - opening app. Message: ${message.data}');
+    });
+
+    // Initialize local notification handler
+    await NotificationService.initialize();
+    print('DEBUG: NotificationService initialized');
+
+    // For Android emulators, check internal Firebase logs
+    print(
+        'DEBUG: For Android emulators, check internal Firebase logs with command:');
+    print('DEBUG: adb logcat -s FirebaseMessaging');
+  } catch (e, stackTrace) {
+    print('ERROR setting up notifications: $e');
+    print('Stack trace: $stackTrace');
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -177,6 +242,7 @@ class MyApp extends StatelessWidget {
           '/adminOffers': (context) => const AdminHomePage(initialTab: 1),
           '/adminComplaints': (context) => const AdminHomePage(initialTab: 2),
           '/adminVehicles': (context) => const AdminHomePage(initialTab: 3),
+          '/adminNotificationTest': (context) => const NotificationTestPage(),
           '/vehicleUpload': (context) => const VehicleUploadScreen(),
           '/in-progress': (context) => const AcceptedOffersPage(),
           '/transporterList': (context) => const VehiclesListPage(),

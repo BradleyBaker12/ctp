@@ -112,18 +112,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     // 1. Phone number check is most important
     final String? phoneNumber = userProvider.getPhoneNumber;
-    if (phoneNumber == null || phoneNumber.isEmpty) {
+    // Fix: Check if phone number exists in account and isn't just empty whitespace
+    if (phoneNumber == null || phoneNumber.trim().isEmpty) {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/phoneNumber');
       }
       return; // Phone number page will handle next steps
     }
-
+    
     // 2. User role check
     final userRole = userProvider.getUserRole.toLowerCase();
     if (userRole == 'pending') {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/tradingCategory');
+        Navigator.pushReplacementNamed(context, '/tradingCategory');
       }
       return; // Trading category page will handle next steps
     }
@@ -140,9 +141,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (!hasValidRegistration) {
       if (mounted) {
         if (userRole == 'dealer') {
-          Navigator.of(context).pushReplacementNamed('/dealerRegister');
+          Navigator.pushReplacementNamed(context, '/dealerRegister');
         } else if (userRole == 'transporter') {
-          Navigator.of(context).pushReplacementNamed('/transporterRegister');
+          Navigator.pushReplacementNamed(context, '/transporterRegister');
         }
       }
       return; // Registration pages will handle next steps
@@ -152,7 +153,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final accountStatus = userProvider.getAccountStatus.toLowerCase();
     if (accountStatus == 'pending') {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/waiting-for-approval');
+        Navigator.pushReplacementNamed(context, '/waiting-for-approval');
       }
       return;
     }

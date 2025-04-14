@@ -8,10 +8,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import '../models/user_model.dart';
+import '../services/notification_service.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
@@ -155,6 +157,10 @@ class UserProvider extends ChangeNotifier {
 
         // Update local state
         _userRole = role;
+
+        // Update notification subscriptions based on new role
+        await NotificationService.subscribeToTopics(role);
+
         notifyListeners();
       } catch (e) {
         print('Error updating user role: $e');
@@ -301,56 +307,36 @@ class UserProvider extends ChangeNotifier {
         // print("DEBUG: User doc exists: ${userDoc.exists}");
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+
+          _firstName = data['firstName'] ?? '';
+          _middleName = data['middleName'] ?? '';
+          _lastName = data['lastName'] ?? '';
+          _userEmail = data['email'] ?? '';
+          _phoneNumber = data['phoneNumber'] ?? '';
+          _companyName = data['companyName'] ?? '';
+          _tradingName = data['tradingName'] ?? '';
+          _addressLine1 = data['addressLine1'] ?? '';
+          _addressLine2 = data['addressLine2'] ?? '';
+          _city = data['city'] ?? '';
+          _state = data['state'] ?? '';
+          _postalCode = data['postalCode'] ?? '';
+          _vatNumber = data['vatNumber'] ?? '';
+          _registrationNumber = data['registrationNumber'] ?? '';
           _userRole = data['userRole'] ?? 'dealer';
-          _adminApproval = data['adminApproval'] ?? false;
-          _accountStatus =
-              data['accountStatus'] ?? 'active'; // Fetch account status
-
-          // Fetch profile image URL
+          _accountStatus = data['accountStatus'] ?? 'active';
           _profileImageUrl = data['profileImageUrl'];
-
-          // Fetch preferred brands
-          _preferredBrands = List<String>.from(data['preferredBrands'] ?? []);
-
-          // Fetch offers
-          _offers = List<String>.from(data['offers'] ?? []);
-          _offersMade = List<String>.from(data['offersMade'] ?? []);
-
-          // Fetch liked and disliked vehicles
-          _likedVehicles = List<String>.from(data['likedVehicles'] ?? []);
-          _dislikedVehicles = List<String>.from(data['dislikedVehicles'] ?? []);
-
-          // Fetch user basic information
-          _userName = data['firstName'] ?? 'Guest';
-          _userEmail = data['email'] ?? 'user@example.com';
-          _phoneNumber = data['phoneNumber'];
-
-          // Fetch company information
-          _companyName = data['companyName'];
-          _tradingName = data['tradingName'];
-          _registrationNumber = data['registrationNumber'];
-          _vatNumber = data['vatNumber'];
-          _addressLine1 = data['addressLine1'];
-          _addressLine2 = data['addressLine2'];
-          _city = data['city'];
-          _state = data['state'];
-          _postalCode = data['postalCode'];
-
-          // Fetch personal information
-          _firstName = data['firstName'];
-          _middleName = data['middleName'];
-          _lastName = data['lastName'];
-          _agreedToHouseRules = data['agreedToHouseRules'];
-
-          // Fetch document URLs
           _bankConfirmationUrl = data['bankConfirmationUrl'];
-          _brncUrl = data['brncUrl'];
           _cipcCertificateUrl = data['cipcCertificateUrl'];
           _proxyUrl = data['proxyUrl'];
-          _createdAt = data['createdAt'];
+          _brncUrl = data['brncUrl'];
+          _likedVehicles = List<String>.from(data['likedVehicles'] ?? []);
+          _dislikedVehicles = List<String>.from(data['dislikedVehicles'] ?? []);
+          _preferredBrands = List<String>.from(data['preferredBrands'] ?? []);
+          _fcmToken = data['fcmToken'];
 
-          // Fetch saved inspection details
-          _savedInspectionDetails = [];
+          // Fix: Update userName to use the firstName instead of remaining as 'Guest'
+          _userName = _firstName ?? 'Guest';
+
           if (data['savedInspectionDetails'] != null) {
             _savedInspectionDetails = (data['savedInspectionDetails'] as List)
                 .map((item) =>
@@ -362,6 +348,13 @@ class UserProvider extends ChangeNotifier {
           _taxCertificateUrl = data['taxCertificateUrl'];
 
           _isLoading = false;
+
+          // Subscribe to role-specific notification topics
+          await NotificationService.subscribeToTopics(_userRole);
+
+          // Make sure we have the latest FCM token saved
+          await saveFcmToken();
+
           await checkForNotifications();
           await loadTermsAcceptance();
           notifyListeners();
@@ -415,13 +408,20 @@ class UserProvider extends ChangeNotifier {
 
   Future<void> saveFcmToken() async {
     if (_user != null) {
-      String? token = await FirebaseMessaging.instance.getToken();
-      if (token != _fcmToken) {
-        _fcmToken = token;
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_user!.uid)
-            .update({'fcmToken': token});
+      // Skip FCM token operations on web
+      if (kIsWeb) return;
+
+      try {
+        String? token = await FirebaseMessaging.instance.getToken();
+        if (token != _fcmToken) {
+          _fcmToken = token;
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user!.uid)
+              .update({'fcmToken': token});
+        }
+      } catch (e) {
+        print('Error saving FCM token: $e');
       }
     }
   }

@@ -122,10 +122,21 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
 
   Future<void> _savePhoneNumber(String userId, String formattedNumber) async {
     if (userId.isNotEmpty) {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .update({'phoneNumber': formattedNumber});
+      // First, get the current user data
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
+      Map<String, dynamic> userData = {};
+
+      if (userDoc.exists) {
+        userData = userDoc.data() as Map<String, dynamic>;
+      }
+
+      // Update the phone number
+      await _firestore.collection('users').doc(userId).update({
+        'phoneNumber': formattedNumber,
+        // Make sure userRole is properly set to trigger admin notifications
+        'userRole': userData['userRole'] ?? 'dealer',
+      });
     }
   }
 

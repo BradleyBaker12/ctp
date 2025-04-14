@@ -1,57 +1,113 @@
-// import 'package:firebase_messaging/firebase_messaging.dart';
-// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
-// class NotificationService {
-//   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-//   final FlutterLocalNotificationsPlugin _localNotifications =
-//       FlutterLocalNotificationsPlugin();
+class NotificationService {
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
-//   Future<void> initialize() async {
-//     // Request permission
-//     await _messaging.requestPermission(
-//       alert: true,
-//       badge: true,
-//       sound: true,
-//     );
+  // Initialize notification channels and request permissions
+  static Future<void> initialize() async {
+    // Skip all initialization on web
+    if (kIsWeb) {
+      print('Notifications disabled on web platform');
+      return;
+    }
 
-//     // Subscribe to topic so notifications are received
-//     await _messaging.subscribeToTopic("newVehicles");
+    // Initialize local notifications for mobile only
+    const initializationSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    );
 
-//     // Initialize local notifications
-//     const initializationSettings = InitializationSettings(
-//       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-//       iOS: DarwinInitializationSettings(),
-//     );
+    await _localNotifications.initialize(initializationSettings);
+  }
 
-//     await _localNotifications.initialize(initializationSettings);
+  // Subscribe to topics based on user role
+  static Future<void> subscribeToTopics(String userRole) async {
+    // Skip on web
+    if (kIsWeb) {
+      return;
+    }
 
-//     // Handle foreground messages
-//     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-//       _showLocalNotification(message);
-//     });
-//   }
+    try {
+      final messaging = FirebaseMessaging.instance;
 
-//   Future<String?> getToken() async {
-//     return await _messaging.getToken();
-//   }
+      // Always unsubscribe from all topics first to ensure clean subscriptions
+      await messaging.unsubscribeFromTopic('newVehicles');
+      await messaging.unsubscribeFromTopic('newDealers');
+      await messaging.unsubscribeFromTopic('newTransporters');
 
-//   Future<void> _showLocalNotification(RemoteMessage message) async {
-//     final notification = message.notification;
-//     if (notification == null) return;
+      if (userRole.toLowerCase() == 'dealer') {
+        // Dealers get notifications about new trucks/vehicles
+        await messaging.subscribeToTopic('newVehicles');
+        print('Subscribed dealer to newVehicles topic');
+      } else if (userRole.toLowerCase() == 'admin' ||
+          userRole.toLowerCase() == 'sales representative') {
+        // Admins get notifications about new users
+        await messaging.subscribeToTopic('newDealers');
+        await messaging.subscribeToTopic('newTransporters');
+        print('Subscribed admin to newDealers and newTransporters topics');
+      }
+    } catch (e) {
+      print('Error managing topic subscriptions: $e');
+    }
+  }
 
-//     await _localNotifications.show(
-//       notification.hashCode,
-//       notification.title,
-//       notification.body,
-//       NotificationDetails(
-//         android: AndroidNotificationDetails(
-//           'vehicles_channel',
-//           'New Vehicles',
-//           channelDescription: 'Notifications for new vehicles',
-//           importance: Importance.high,
-//         ),
-//         iOS: const DarwinNotificationDetails(),
-//       ),
-//     );
-//   }
-// }
+  // Get FCM token for direct messaging
+  static Future<String?> getToken() async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    try {
+      return await FirebaseMessaging.instance.getToken();
+    } catch (e) {
+      print('Error getting FCM token: $e');
+      return null;
+    }
+  }
+
+  // Show a local notification
+  static Future<void> showNotification({
+    required String title,
+    required String body,
+    String payload = '',
+  }) async {
+    // Skip on web
+    if (kIsWeb) {
+      return;
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      'ctp_app_channel',
+      'CTP Notifications',
+      channelDescription: 'Commercial Trader Portal notifications',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    try {
+      await _localNotifications.show(
+        DateTime.now().millisecond,
+        title,
+        body,
+        notificationDetails,
+        payload: payload,
+      );
+    } catch (e) {
+      print('Error showing notification: $e');
+    }
+  }
+}
