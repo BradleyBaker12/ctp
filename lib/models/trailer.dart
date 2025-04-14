@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/trailer_types/superlink.dart';
 import 'package:ctp/models/trailer_types/tri_axle.dart';
+import 'package:ctp/models/trailer_types/double_axle.dart';
 
 class Trailer {
   final String id;
@@ -45,6 +46,7 @@ class Trailer {
   // Type-specific data
   final SuperlinkTrailer? superlinkData;
   final TriAxleTrailer? triAxleData;
+  final DoubleAxleTrailer? doubleAxleData;
 
   // To preserve the exact structure from Firestore.
   final Map<String, dynamic>? rawTrailerExtraInfo;
@@ -89,6 +91,7 @@ class Trailer {
     this.additionalImages = const [],
     this.superlinkData,
     this.triAxleData,
+    this.doubleAxleData,
     this.rawTrailerExtraInfo,
     this.damages = const [],
     this.damagesCondition = 'no',
@@ -123,6 +126,7 @@ class Trailer {
 
     SuperlinkTrailer? superlinkData;
     TriAxleTrailer? triAxleData;
+    DoubleAxleTrailer? doubleAxleData;
 
     if (trailerType.toLowerCase() == 'superlink') {
       final trailerA = _safeMapConversion(rawExtra['trailerA']);
@@ -168,6 +172,8 @@ class Trailer {
       //     'DEBUG: Created SuperlinkTrailer data: ${superlinkData.toJson()}');
     } else if (trailerType == 'Tri-Axle') {
       triAxleData = TriAxleTrailer.fromJson(rawExtra);
+    } else if (trailerType == 'Double-Axle') {
+      doubleAxleData = DoubleAxleTrailer.fromJson(rawExtra);
     }
 
     // Helper to safely convert a value to String.
@@ -261,6 +267,7 @@ class Trailer {
       additionalImages: parseAdditionalImages(data['additionalImages']),
       superlinkData: superlinkData,
       triAxleData: triAxleData,
+      doubleAxleData: doubleAxleData,
       damages: List<Map<String, dynamic>>.from(data['damages'] ?? []),
       damagesCondition: safeString(data['damagesCondition'] ?? 'no'),
       features: List<Map<String, dynamic>>.from(data['features'] ?? []),
@@ -314,6 +321,10 @@ class Trailer {
           : null,
       triAxleData: json['triAxleData'] != null
           ? TriAxleTrailer.fromJson(json['triAxleData'] as Map<String, dynamic>)
+          : null,
+      doubleAxleData: json['doubleAxleData'] != null
+          ? DoubleAxleTrailer.fromJson(
+              json['doubleAxleData'] as Map<String, dynamic>)
           : null,
       rawTrailerExtraInfo: json['rawTrailerExtraInfo'] as Map<String, dynamic>?,
       damages: List<Map<String, dynamic>>.from(json['damages'] ?? []),
@@ -371,6 +382,8 @@ class Trailer {
       data['trailerExtraInfo'] = superlinkData!.toJson();
     } else if (trailerType == 'Tri-Axle' && triAxleData != null) {
       data['trailerExtraInfo'] = triAxleData!.toJson();
+    } else if (trailerType == 'Double-Axle' && doubleAxleData != null) {
+      data['trailerExtraInfo'] = doubleAxleData!.toJson();
     }
 
     return data;

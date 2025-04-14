@@ -408,6 +408,19 @@ class _VehiclesTabState extends State<VehiclesTab>
     super.dispose();
   }
 
+  String _safeToLower(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value.toLowerCase();
+    if (value is num) return value.toString().toLowerCase();
+    if (value is Map) {
+      if (value.containsKey('brandName')) {
+        return value['brandName'].toString().toLowerCase();
+      }
+      return value.toString().toLowerCase();
+    }
+    return value.toString().toLowerCase();
+  }
+
   // --------------------------------------------------------------------
   // 4) Client-Side Searching
   // --------------------------------------------------------------------
@@ -415,21 +428,19 @@ class _VehiclesTabState extends State<VehiclesTab>
     if (_searchQuery.isEmpty) return true;
     final query = _searchQuery.toLowerCase();
 
-    String reference = (vehicleData['referenceNumber'] ?? '').toLowerCase();
+    String reference = _safeToLower(vehicleData['referenceNumber']);
     List<dynamic> brandList = vehicleData['brands'] ?? [];
-    String brandConcat = brandList.join(' ').toLowerCase();
-    String makeModel = (vehicleData['makeModel'] ?? '').toLowerCase();
-    String variant = (vehicleData['variant'] ?? '').toLowerCase();
-    String yearStr = (vehicleData['year']?.toString() ?? '').toLowerCase();
-    String statusStr = (vehicleData['vehicleStatus'] ?? '').toLowerCase();
-    String transmissionStr =
-        (vehicleData['transmissionType'] ?? '').toLowerCase();
-    String countryStr = (vehicleData['country'] ?? '').toLowerCase();
-    String provinceStr = (vehicleData['province'] ?? '').toLowerCase();
-    String applicationStr =
-        (vehicleData['applicationOfUse'] ?? '').toLowerCase();
-    String configStr = (vehicleData['config'] ?? '').toLowerCase();
-    String vehicleTypeStr = (vehicleData['vehicleType'] ?? '').toLowerCase();
+    String brandConcat = brandList.map((e) => _safeToLower(e)).join(' ');
+    String makeModel = _safeToLower(vehicleData['makeModel']);
+    String variant = _safeToLower(vehicleData['variant']);
+    String yearStr = _safeToLower(vehicleData['year']?.toString());
+    String statusStr = _safeToLower(vehicleData['vehicleStatus']);
+    String transmissionStr = _safeToLower(vehicleData['transmissionType']);
+    String countryStr = _safeToLower(vehicleData['country']);
+    String provinceStr = _safeToLower(vehicleData['province']);
+    String applicationStr = _safeToLower(vehicleData['applicationOfUse']);
+    String configStr = _safeToLower(vehicleData['config']);
+    String vehicleTypeStr = _safeToLower(vehicleData['vehicleType']);
 
     return brandConcat.contains(query) ||
         makeModel.contains(query) ||
@@ -699,16 +710,19 @@ class _VehiclesTabState extends State<VehiclesTab>
                         var vehicleData = filteredVehicles[index].data()
                             as Map<String, dynamic>;
                         String vehicleId = filteredVehicles[index].id;
-                        Vehicle vehicle =
-                            Vehicle.fromFirestore(vehicleId, vehicleData);
 
-                        String brand = vehicle.brands.isNotEmpty
-                            ? vehicle.brands[0]
-                            : 'Unknown Brand';
-                        String variant = (vehicle.variant == null ||
-                                vehicle.variant!.isEmpty)
-                            ? ''
-                            : vehicle.variant!;
+                        // Get the makeModel directly from the data
+                        String makeModel =
+                            vehicleData['makeModel']?.toString() ?? 'N/A';
+                        String variant =
+                            vehicleData['variant']?.toString() ?? '';
+                        String referenceNumber =
+                            vehicleData['referenceNumber']?.toString() ?? 'N/A';
+                        String year = vehicleData['year']?.toString() ?? 'N/A';
+                        String vehicleStatus =
+                            vehicleData['vehicleStatus']?.toString() ?? 'N/A';
+                        String vehicleType =
+                            vehicleData['vehicleType']?.toString() ?? 'truck';
 
                         return Card(
                           color: Colors.grey[900],
@@ -720,32 +734,34 @@ class _VehiclesTabState extends State<VehiclesTab>
                               height: 60,
                               child: Align(
                                 alignment: Alignment.center,
-                                child:
-                                    (vehicle.mainImageUrl?.isNotEmpty ?? false)
-                                        ? Image.network(
-                                            vehicle.mainImageUrl!,
-                                            fit: BoxFit.cover,
-                                            width: 50,
-                                            height: 50,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                              return const Icon(
-                                                Icons.directions_car,
-                                                color: Colors.blueAccent,
-                                              );
-                                            },
-                                          )
-                                        : const Icon(
+                                child: (vehicleData['mainImageUrl'] != null &&
+                                        vehicleData['mainImageUrl']
+                                            .toString()
+                                            .isNotEmpty)
+                                    ? Image.network(
+                                        vehicleData['mainImageUrl'],
+                                        fit: BoxFit.cover,
+                                        width: 50,
+                                        height: 50,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return const Icon(
                                             Icons.directions_car,
                                             color: Colors.blueAccent,
-                                            size: 50,
-                                          ),
+                                          );
+                                        },
+                                      )
+                                    : const Icon(
+                                        Icons.directions_car,
+                                        color: Colors.blueAccent,
+                                        size: 50,
+                                      ),
                               ),
                             ),
                             title: Text(
-                              vehicle.vehicleType.toLowerCase() == 'trailer'
-                                  ? '${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ${vehicle.variant!}' : ''}'
-                                  : '${(vehicle.brands.isNotEmpty ? vehicle.brands[0] : 'Unknown Brand')} ${vehicle.makeModel}${(vehicle.variant != null && vehicle.variant!.isNotEmpty) ? ' ${vehicle.variant!}' : ''}',
+                              vehicleType.toLowerCase() == 'trailer'
+                                  ? '$makeModel${variant.isNotEmpty ? ' $variant' : ''}'
+                                  : variant,
                               style: GoogleFonts.montserrat(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -755,7 +771,7 @@ class _VehiclesTabState extends State<VehiclesTab>
                               text: TextSpan(
                                 children: [
                                   TextSpan(
-                                    text: 'Ref: ${vehicle.referenceNumber}\n',
+                                    text: 'Ref: $referenceNumber\n',
                                     style: GoogleFonts.montserrat(
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.orange,
@@ -764,7 +780,9 @@ class _VehiclesTabState extends State<VehiclesTab>
                                   ),
                                   TextSpan(
                                     text:
-                                        'Year: ${vehicle.year}\nStatus: ${vehicle.vehicleStatus}\n${vehicle.vehicleType.toLowerCase() == 'trailer' ? 'Trailer Type' : 'Transmission'}: ${vehicle.vehicleType.toLowerCase() == 'trailer' ? vehicle.trailerType : vehicle.transmissionType}',
+                                        'Year: $year\nStatus: $vehicleStatus\n'
+                                        '${vehicleType.toLowerCase() == 'trailer' ? 'Trailer Type' : 'Transmission'}: '
+                                        '${vehicleType.toLowerCase() == 'trailer' ? _getTrailerTypeString(vehicleData['trailerType']) : vehicleData['transmissionType']?.toString() ?? 'N/A'}',
                                     style: GoogleFonts.montserrat(
                                       color: Colors.white70,
                                       fontSize: 14,
@@ -778,8 +796,9 @@ class _VehiclesTabState extends State<VehiclesTab>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      VehicleDetailsPage(vehicle: vehicle),
+                                  builder: (context) => VehicleDetailsPage(
+                                      vehicle: Vehicle.fromFirestore(
+                                          vehicleId, vehicleData)),
                                 ),
                               );
                             },
@@ -1501,5 +1520,15 @@ class _VehiclesTabState extends State<VehiclesTab>
         ),
       ],
     );
+  }
+
+  // Add this helper method to your _VehiclesTabState class
+  String _getTrailerTypeString(dynamic trailerType) {
+    if (trailerType == null) return 'N/A';
+    if (trailerType is String) return trailerType;
+    if (trailerType is Map) {
+      return trailerType['name']?.toString() ?? 'N/A';
+    }
+    return 'N/A';
   }
 }

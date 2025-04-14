@@ -270,24 +270,24 @@ class TrailerProvider extends ChangeNotifier {
   }
 
   bool _validateSuperlinkData(Trailer trailer) {
-    final info = trailer.superlinkData; // Changed from superLinkInfo
+    final info = trailer.superlinkData;
     if (info == null) return false;
 
-    return info.lengthA.isNotEmpty &&
-        info.vinA.isNotEmpty &&
-        info.registrationA.isNotEmpty &&
-        info.lengthB.isNotEmpty &&
-        info.vinB.isNotEmpty &&
-        info.registrationB.isNotEmpty;
+    return info.lengthA?.isNotEmpty == true &&
+        info.vinA?.isNotEmpty == true &&
+        info.registrationA?.isNotEmpty == true &&
+        info.lengthB?.isNotEmpty == true &&
+        info.vinB?.isNotEmpty == true &&
+        info.registrationB?.isNotEmpty == true;
   }
 
   bool _validateTriAxleData(Trailer trailer) {
-    final info = trailer.triAxleData; // Changed from triAxleInfo
+    final info = trailer.triAxleData;
     if (info == null) return false;
 
-    return info.length.isNotEmpty &&
-        info.vin.isNotEmpty &&
-        info.registration.isNotEmpty;
+    return info.length?.isNotEmpty == true &&
+        info.vin?.isNotEmpty == true &&
+        info.registration?.isNotEmpty == true;
   }
 
   // NEW: Add data format validation method

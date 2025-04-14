@@ -1,4 +1,4 @@
-class TriAxleTrailer {
+class DoubleAxleTrailer {
   final String? length;
   final String? vin;
   final String? registration;
@@ -6,7 +6,7 @@ class TriAxleTrailer {
   final String? year;
   final List<Map<String, dynamic>>? additionalImages;
 
-  TriAxleTrailer({
+  DoubleAxleTrailer({
     this.length,
     this.vin,
     this.registration,
@@ -15,8 +15,8 @@ class TriAxleTrailer {
     this.additionalImages,
   });
 
-  factory TriAxleTrailer.fromJson(Map<String, dynamic> json) {
-    return TriAxleTrailer(
+  factory DoubleAxleTrailer.fromJson(Map<String, dynamic> json) {
+    return DoubleAxleTrailer(
       length: json['length'],
       vin: json['vin'],
       registration: json['registration'],

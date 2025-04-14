@@ -52,6 +52,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
+import 'package:ctp/providers/vehicle_provider.dart' hide VehicleProvider;
+import 'package:ctp/providers/user_provider.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
@@ -68,9 +70,13 @@ void main() async {
 
   // Initialize notifications
   if (!kIsWeb) {
-    // final notificationService = NotificationService();
-    // await notificationService.initialize();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // Handle platform-specific setup safely
+    try {
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      print('Error setting up messaging: $e');
+    }
   }
 
   // For web, ensure user session persistence is local.
@@ -78,7 +84,33 @@ void main() async {
     await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
   }
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => VehicleProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => TrailerProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProxyProvider<UserProvider, VehicleProvider>(
+          create: (_) => VehicleProvider(),
+          update: (_, userProvider, vehicleProvider) {
+            vehicleProvider?.initialize(userProvider);
+            return vehicleProvider!;
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => OfferProvider()),
+        ChangeNotifierProvider(create: (_) => ComplaintsProvider()),
+        ChangeNotifierProvider(create: (_) => FormDataProvider()),
+        ChangeNotifierProxyProvider<FormDataProvider, TruckConditionsProvider>(
+          create: (_) => TruckConditionsProvider(''),
+          update: (_, formData, __) =>
+              TruckConditionsProvider(formData.vehicleId ?? ''),
+        ),
+        ChangeNotifierProvider(create: (_) => TrailerFormProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

@@ -22,12 +22,16 @@ class FormDataProvider with ChangeNotifier {
   String? _engineNumber;
   String? _registrationNumber;
   String? _suspension;
+  String? _suspensionA;
+  String? _suspensionB;
   String? _transmissionType;
   String? _hydraulics;
   String? _maintenance;
   String? _warranty;
   String? _warrantyDetails;
   String? _requireToSettleType;
+  String? _absA;
+  String? _absB;
 
   // SECTION 2: Maintenance Information
   File? _maintenanceDocFile;
@@ -62,7 +66,11 @@ class FormDataProvider with ChangeNotifier {
   String? get application => _application;
   String? get engineNumber => _engineNumber;
   String? get registrationNumber => _registrationNumber;
-  String get suspension => _suspension ?? 'spring';
+  String get suspension => _suspension ?? 'steel';
+  String get suspensionA => _suspensionA ?? 'steel';
+  String get suspensionB => _suspensionB ?? 'steel';
+  String get absA => _absA ?? 'yes';
+  String get absB => _absB ?? 'yes';
   String get transmissionType => _transmissionType ?? 'automatic';
   String get hydraulics => _hydraulics ?? 'yes';
   String get maintenance => _maintenance ?? 'yes';
@@ -77,6 +85,16 @@ class FormDataProvider with ChangeNotifier {
   String? get warrantyDocUrl => _warrantyDocUrl;
   String get oemInspectionType => _oemInspectionType;
   String? get oemInspectionExplanation => _oemInspectionExplanation;
+
+  void setAbsA(String? value) {
+    _absA = value;
+    notifyListeners();
+  }
+
+  void setAbsB(String? value) {
+    _absB = value;
+    notifyListeners();
+  }
 
   // Maintenance Setters
   void setMaintenanceDocFile(File? file, {bool notify = true}) {
@@ -180,6 +198,16 @@ class FormDataProvider with ChangeNotifier {
 
   void setSuspension(String? value, {bool notify = true}) {
     _suspension = value;
+    if (notify) notifyListeners();
+  }
+
+  void setSuspensionA(String? value, {bool notify = true}) {
+    _suspensionA = value;
+    if (notify) notifyListeners();
+  }
+
+  void setSuspensionB(String? value, {bool notify = true}) {
+    _suspensionB = value;
     if (notify) notifyListeners();
   }
 

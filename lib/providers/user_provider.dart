@@ -10,6 +10,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase;
+import '../models/user_model.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
@@ -1014,6 +1016,46 @@ class UserProvider extends ChangeNotifier {
         _vatNumber!.isNotEmpty &&
         _registrationNumber != null &&
         _registrationNumber!.isNotEmpty;
+  }
+
+  UserModel? _currentUser;
+
+  UserModel? get currentUser => _currentUser;
+
+  Future<void> fetchUserDetails() async {
+    final firebaseUser = firebase.FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      _currentUser = null;
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        _currentUser = UserModel(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          firstName: userDoc.data()?['firstName'],
+          lastName: userDoc.data()?['lastName'],
+          tradingName: userDoc.data()?['tradingName'],
+        );
+      } else {
+        _currentUser = UserModel.fromFirebaseUser(firebaseUser);
+      }
+    } catch (error) {
+      _currentUser = UserModel.fromFirebaseUser(firebaseUser);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }
 

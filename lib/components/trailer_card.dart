@@ -30,24 +30,152 @@ class TrailerCard extends StatelessWidget {
     this.borderColor,
   });
 
-  // Modified: get detailed trailer info based on type with debugging.
+  // Modified: get detailed trailer info based on type with make and model information
   String getTrailerDetails() {
-    debugPrint('Trailer type: ${trailer.trailerType}');
+    // Direct console printing for better visibility
+    print('====== TRAILER DEBUG ======');
+    print('Trailer type: ${trailer.trailerType}');
+    print('Complete trailer data: ${trailer.toJson()}');
+
     switch (trailer.trailerType) {
       case 'Superlink':
         final data = trailer.superlinkData;
-        debugPrint('Superlink data: $data');
+        print('Superlink data: $data');
         if (data != null) {
-          return 'Superlink';
+          try {
+            // Access data using toJson to handle the data structure properly
+            final jsonData = data.toJson();
+            print('Superlink jsonData structure: ${jsonData.keys}');
+            print('Full Superlink jsonData: $jsonData');
+
+            // Try different access patterns
+            if (jsonData.containsKey('trailerA')) {
+              final trailerA = jsonData['trailerA'] as Map<String, dynamic>?;
+              print('Superlink trailerA data: $trailerA');
+
+              if (trailerA != null) {
+                final make = trailerA['make'] as String? ?? '';
+                final model = trailerA['model'] as String? ?? '';
+                print(
+                    'Superlink values found - make: "$make", model: "$model"');
+
+                if (make.isNotEmpty || model.isNotEmpty) {
+                  final result = '$make $model'.trim();
+                  print('RETURNING Superlink result: "$result"');
+                  return result;
+                }
+              }
+            }
+
+            // Fallback: try to access data directly
+            if (jsonData.containsKey('make') && jsonData.containsKey('model')) {
+              final make = jsonData['make'] as String? ?? '';
+              final model = jsonData['model'] as String? ?? '';
+              print('Direct superlink values - make: "$make", model: "$model"');
+              if (make.isNotEmpty || model.isNotEmpty) {
+                final result = '$make $model'.trim();
+                print('RETURNING direct Superlink result: "$result"');
+                return result;
+              }
+            }
+
+            // Dump all potential data locations
+            print('Checking all superlink data paths...');
+            jsonData.forEach((key, value) {
+              if (value is Map && value.containsKey('make')) {
+                print('Found make in key: $key, value: ${value['make']}');
+              }
+            });
+                    } catch (e) {
+            print('ERROR accessing Superlink data: $e');
+          }
         }
+        print('Falling back to default: "Superlink"');
         return 'Superlink';
+
       case 'Tri-Axle':
         final data = trailer.triAxleData;
-        debugPrint('Tri-Axle data: $data');
+        print('Tri-Axle data: $data');
         if (data != null) {
-          return 'Tri-Axle';
+          try {
+            // Access data using toJson to get the map
+            final jsonData = data.toJson();
+            print('Tri-Axle jsonData structure: ${jsonData.keys}');
+            print('Full Tri-Axle jsonData: $jsonData');
+
+            final make = jsonData['make'] as String? ?? '';
+            final model = jsonData['model'] as String? ?? '';
+            print('Tri-Axle values - make: "$make", model: "$model"');
+
+            if (make.isNotEmpty || model.isNotEmpty) {
+              final result = '$make $model'.trim();
+              print('RETURNING Tri-Axle result: "$result"');
+              return result;
+            }
+          } catch (e) {
+            print('ERROR accessing Tri-Axle data: $e');
+          }
         }
-        return 'Tri-Axle';
+        print('Falling back to default: "${trailer.trailerType}"');
+        return trailer.trailerType;
+
+      case 'Double Axle':
+      case 'Other':
+        // Get trailer extra info from trailer data map
+        print('Processing ${trailer.trailerType} trailer');
+        try {
+          final trailerData = trailer.toJson();
+          print('${trailer.trailerType} trailerData keys: ${trailerData.keys}');
+
+          // Try all possible fields for trailer extra info
+          final possibleFields = [
+            'trailerExtraInfo',
+            'trailerExtra',
+            'trailerExtraData',
+            'extraInfo'
+          ];
+
+          for (final fieldName in possibleFields) {
+            if (trailerData.containsKey(fieldName)) {
+              print('Found field: $fieldName');
+              final extraInfo = trailerData[fieldName] as Map<String, dynamic>?;
+              print('${trailer.trailerType} $fieldName: $extraInfo');
+
+              if (extraInfo != null) {
+                final make = extraInfo['make'] as String? ?? '';
+                final model = extraInfo['model'] as String? ?? '';
+                print(
+                    '${trailer.trailerType} $fieldName - make: "$make", model: "$model"');
+
+                if (make.isNotEmpty || model.isNotEmpty) {
+                  final result = '$make $model'.trim();
+                  print(
+                      'RETURNING ${trailer.trailerType} result from $fieldName: "$result"');
+                  return result;
+                }
+              }
+            }
+          }
+
+          // Last attempt - check trailerData directly
+          if (trailerData.containsKey('make') &&
+              trailerData.containsKey('model')) {
+            final make = trailerData['make'] as String? ?? '';
+            final model = trailerData['model'] as String? ?? '';
+            print('Direct trailer values - make: "$make", model: "$model"');
+
+            if (make.isNotEmpty || model.isNotEmpty) {
+              final result = '$make $model'.trim();
+              print('RETURNING direct trailer result: "$result"');
+              return result;
+            }
+          }
+        } catch (e) {
+          print('ERROR accessing trailer extra info: $e');
+        }
+        print('Falling back to default: "${trailer.trailerType}"');
+        return trailer.trailerType;
+
       default:
         return trailer.trailerType;
     }

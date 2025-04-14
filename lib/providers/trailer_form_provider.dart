@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 
@@ -34,6 +33,18 @@ class TrailerFormProvider with ChangeNotifier {
   List<Map<String, dynamic>>? _features;
   String? _damagesCondition;
   List<Map<String, dynamic>>? _damages;
+
+  // Suspension fields
+  String? _suspensionA;
+  String? _suspensionB;
+  String get suspensionA => _suspensionA ?? 'none';
+  String get suspensionB => _suspensionB ?? 'none';
+
+  // ABS fields
+  String? _absA;
+  String? _absB;
+  String get absA => _absA ?? 'no';
+  String get absB => _absB ?? 'no';
 
   // Getters
   String? get trailerType => _trailerType;
@@ -173,6 +184,30 @@ class TrailerFormProvider with ChangeNotifier {
     }).toList();
 
     _damages = processedDamages;
+    notifyListeners();
+  }
+
+  void setSuspensionA(String? value) {
+    _suspensionA = value;
+    notifyListeners();
+  }
+
+  void setSuspensionB(String? value) {
+    _suspensionB = value;
+    notifyListeners();
+  }
+
+  void setAbsA(String? value) {
+    _absA = value;
+    notifyListeners();
+  }
+
+  void setAbsB(String? value) {
+    _absB = value;
+    notifyListeners();
+  }
+
+  void saveFormState() {
     notifyListeners();
   }
 
@@ -373,6 +408,9 @@ class TrailerFormProvider with ChangeNotifier {
       Map<String, dynamic> trailerA = {};
       if (trailerExtraInfo['trailerA'] != null) {
         trailerA = Map<String, dynamic>.from(trailerExtraInfo['trailerA']);
+        // Set suspension and ABS for Trailer A
+        _suspensionA = trailerA['suspension']?.toString() ?? 'steel';
+        _absA = trailerA['abs']?.toString() ?? 'no';
       }
       // debugPrint('DEBUG: Raw Trailer A data: $trailerA');
 
@@ -398,6 +436,9 @@ class TrailerFormProvider with ChangeNotifier {
       Map<String, dynamic> trailerB = {};
       if (trailerExtraInfo['trailerB'] != null) {
         trailerB = Map<String, dynamic>.from(trailerExtraInfo['trailerB']);
+        // Set suspension and ABS for Trailer B
+        _suspensionB = trailerB['suspension']?.toString() ?? 'steel';
+        _absB = trailerB['abs']?.toString() ?? 'no';
       }
       // debugPrint('DEBUG: Raw Trailer B data: $trailerB');
 
