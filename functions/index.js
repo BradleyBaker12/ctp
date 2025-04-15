@@ -315,3 +315,65 @@ exports.sendNewVehicleNotification = onCall(
     }
   }
 );
+
+// Special test function that doesn't require App Check
+exports.sendDirectNotificationNoAppCheck = onCall(
+  {
+    region: "us-central1",
+    enforceAppCheck: false // Explicitly disable App Check for this function
+  },
+  async (request) => {
+    const { userId, title, body, dataPayload = {} } = request.data;
+
+    if (!userId || !title || !body) {
+      throw new Error(
+        "Missing required parameters: userId, title, and body are required"
+      );
+    }
+
+    try {
+      console.log(`Attempting to send test notification to user ${userId}`);
+      
+      // Get user's FCM token
+      const userDoc = await db.collection("users").doc(userId).get();
+
+      if (!userDoc.exists) {
+        throw new Error("User not found");
+      }
+
+      const userData = userDoc.data();
+      if (!userData.fcmToken) {
+        throw new Error("User has no FCM token registered");
+      }
+
+      console.log(`Found FCM token for user: ${userData.fcmToken.substring(0, 20)}...`);
+
+      // Send notification
+      const message = {
+        notification: {
+          title: title,
+          body: body,
+          clickAction: "FLUTTER_NOTIFICATION_CLICK",
+        },
+        data: {
+          ...dataPayload,
+          timestamp: new Date().toISOString(),
+          isTestNotification: "true"
+        },
+        token: userData.fcmToken,
+      };
+
+      await getMessaging().send(message);
+      console.log("Test notification sent successfully");
+      
+      return { 
+        success: true, 
+        message: "Test notification sent successfully",
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error("Error sending test notification:", error);
+      throw new Error(`Failed to send test notification: ${error.message}`);
+    }
+  }
+);

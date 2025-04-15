@@ -2,10 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/services/notification_service.dart'; // Add this import
+import 'package:ctp/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class NotificationTestPage extends StatefulWidget {
   const NotificationTestPage({Key? key}) : super(key: key);
@@ -17,12 +18,15 @@ class NotificationTestPage extends StatefulWidget {
 class _NotificationTestPageState extends State<NotificationTestPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
+  final TextEditingController _delayMinutesController =
+      TextEditingController(text: '1');
 
   List<Map<String, dynamic>> users = [];
   String? selectedUserId;
   bool isLoading = false;
   String resultMessage = '';
   bool isSuccess = false;
+  bool isScheduled = false;
 
   @override
   void initState() {
@@ -34,6 +38,7 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
+    _delayMinutesController.dispose();
     super.dispose();
   }
 
@@ -120,42 +125,149 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
 
       print('DEBUG: Attempting to send notification to token: $fcmToken');
 
-      // Call the Firebase Function with App Check disabled
-      final HttpsCallable callable = FirebaseFunctions.instance
-          .httpsCallable('sendDirectNotificationNoAppCheck');
+      if (isScheduled && _delayMinutesController.text.isNotEmpty) {
+        // Schedule the notification
+        final delayMinutes = int.tryParse(_delayMinutesController.text) ?? 1;
+        final scheduledTime =
+            DateTime.now().add(Duration(minutes: delayMinutes));
 
-      final result = await callable.call({
-        'userId': selectedUserId,
-        'title': _titleController.text,
-        'body': _bodyController.text,
-        'dataPayload': {
-          'type': 'test',
-          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
-        }
-      });
+        // Schedule local notification
+        await NotificationService.scheduleNotification(
+          title: _titleController.text,
+          body: _bodyController.text,
+          scheduledDate: scheduledTime,
+          payload: 'scheduled_test',
+        );
 
-      print('DEBUG: Function result: ${result.data}');
+        // Save to Firestore for potential server-side processing
+        final notificationId =
+            await NotificationService.saveNotificationToFirestore(
+          targetUserId: selectedUserId,
+          fcmToken: fcmToken,
+          title: _titleController.text,
+          body: _bodyController.text,
+          data: {
+            'type': 'scheduled_test',
+            'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+          },
+          sendImmediately: false,
+          scheduledFor: scheduledTime,
+        );
 
-      // Also trigger a local notification for redundancy
-      await NotificationService.showNotification(
-        title: _titleController.text,
-        body: _bodyController.text,
-        payload: 'test_notification',
-      );
+        setState(() {
+          resultMessage =
+              'Notification scheduled for ${scheduledTime.toString()}\n'
+              'Notification ID: $notificationId';
+          isSuccess = true;
+          isLoading = false;
+        });
+      } else {
+        // Send immediate notification
+        await NotificationService.sendTestNotification(
+          userId: selectedUserId,
+          fcmToken: fcmToken,
+          title: _titleController.text,
+          body: _bodyController.text,
+          data: {
+            'type': 'test',
+            'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+          },
+        );
 
-      setState(() {
-        resultMessage =
-            'Notification sent via both methods: Firebase Cloud Messaging and local notification.\nCheck your device notifications.\nToken: ${fcmToken.toString().substring(0, 15)}...';
-        isSuccess = true;
-        isLoading = false;
-      });
+        setState(() {
+          resultMessage = 'Notification sent successfully!\n'
+              'A local notification was shown and a record was saved to Firestore.';
+          isSuccess = true;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         resultMessage = 'Error sending notification: ${e.toString()}';
         isSuccess = false;
         isLoading = false;
       });
-      print('DEBUG: Error calling function: $e');
+      print('DEBUG: Error in notification test: $e');
+
+      // If there's an error, try to at least show a local notification
+      try {
+        await NotificationService.showNotification(
+          title: _titleController.text,
+          body: _bodyController.text,
+          payload: 'error_fallback',
+        );
+
+        setState(() {
+          resultMessage += '\n\nFell back to local notification only.';
+        });
+      } catch (localError) {
+        print('DEBUG: Even local notification failed: $localError');
+      }
+    }
+  }
+
+  // Method to directly use Firebase Messaging
+  Future<void> _testDirectPushNotification() async {
+    if (_titleController.text.isEmpty || _bodyController.text.isEmpty) {
+      setState(() {
+        resultMessage =
+            'Please provide both title and body for the notification';
+        isSuccess = false;
+      });
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      resultMessage = '';
+    });
+
+    try {
+      // Get the FCM token of the currently signed-in user
+      final currentToken = await FirebaseMessaging.instance.getToken();
+      if (currentToken == null) {
+        setState(() {
+          resultMessage = 'Unable to get FCM token for the current device';
+          isSuccess = false;
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Save notification record with token for server-side processing
+      final notificationId =
+          await NotificationService.saveNotificationToFirestore(
+        fcmToken: currentToken,
+        title: _titleController.text,
+        body: _bodyController.text,
+        data: {
+          'test': true,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+        sendImmediately: true,
+      );
+
+      // Show immediate local notification for testing
+      await NotificationService.showNotification(
+        title: _titleController.text,
+        body: _bodyController.text,
+        payload: 'self_test',
+      );
+
+      setState(() {
+        resultMessage =
+            'Local notification shown and push request saved to Firestore.\n\n'
+            'Notification ID: $notificationId\n'
+            'For production use, the Cloud Function we deployed will process this notification.';
+        isSuccess = true;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        resultMessage = 'Error: ${e.toString()}';
+        isSuccess = false;
+        isLoading = false;
+      });
     }
   }
 
@@ -234,9 +346,13 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            '${user['name']} (${user['role']})',
-                            style: GoogleFonts.montserrat(color: Colors.white),
+                          Expanded(
+                            child: Text(
+                              '${user['name']} (${user['role']})',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           Icon(
                             hasToken ? Icons.check_circle : Icons.error_outline,
@@ -307,6 +423,51 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                 fillColor: Colors.black45,
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Schedule option
+            Row(
+              children: [
+                Checkbox(
+                  value: isScheduled,
+                  activeColor: Colors.purple,
+                  onChanged: (value) {
+                    setState(() {
+                      isScheduled = value ?? false;
+                    });
+                  },
+                ),
+                Text(
+                  'Schedule notification',
+                  style: GoogleFonts.montserrat(color: Colors.white),
+                ),
+                const SizedBox(width: 16),
+                if (isScheduled)
+                  Expanded(
+                    child: TextField(
+                      controller: _delayMinutesController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Delay (minutes)',
+                        labelStyle:
+                            GoogleFonts.montserrat(color: Colors.white70),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.purple),
+                        ),
+                        filled: true,
+                        fillColor: Colors.black45,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                      ),
+                      style: GoogleFonts.montserrat(color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 24),
 
             // Send button
@@ -315,7 +476,8 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
               child: ElevatedButton(
                 onPressed: isLoading ? null : _sendTestNotification,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2F7FFF),
+                  backgroundColor:
+                      isScheduled ? Colors.purple : const Color(0xFF2F7FFF),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -324,7 +486,9 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                 child: isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        'SEND TEST NOTIFICATION',
+                        isScheduled
+                            ? 'SCHEDULE NOTIFICATION'
+                            : 'SEND TEST NOTIFICATION',
                         style: GoogleFonts.montserrat(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -382,6 +546,29 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                 ),
                 child: Text(
                   'TEST LOCAL NOTIFICATION ONLY',
+                  style: GoogleFonts.montserrat(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Self notification button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : _testDirectPushNotification,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'TEST SELF-NOTIFICATION (CURRENT DEVICE)',
                   style: GoogleFonts.montserrat(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -453,6 +640,48 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
                   Text(
                     '3. Verify that Firebase Cloud Messaging is properly set up',
                     style: GoogleFonts.montserrat(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Current FCM token display
+                  FutureBuilder<String?>(
+                    future: FirebaseMessaging.instance.getToken(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Colors.blue),
+                        );
+                      }
+
+                      final token = snapshot.data;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Current Device FCM Token:',
+                            style: GoogleFonts.montserrat(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              token != null
+                                  ? '${token.substring(0, 25)}...'
+                                  : 'No FCM token available',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white70),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 

@@ -81,6 +81,7 @@ dependencies:
   shimmer: ^3.0.0
   syncfusion_flutter_pdfviewer: ^27.2.5
   table_calendar: ^3.1.2
+  timezone: ^0.10.0
   ulid: ^2.0.1
   universal_html: ^2.2.4
   url_launcher: ^6.1.10

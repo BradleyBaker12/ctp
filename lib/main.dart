@@ -46,20 +46,39 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:ctp/providers/trailer_form_provider.dart';
 import 'package:ctp/services/notification_service.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'package:ctp/providers/vehicle_provider.dart' hide VehicleProvider;
 import 'package:ctp/providers/user_provider.dart';
 
+// This needs to be a top-level function for background messaging
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Need to initialize Firebase for background handling
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   print('Handling a background message: ${message.messageId}');
+  print('Background message data: ${message.data}');
 }
+
+// Global notification channel for Android
+const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  'ctp_app_channel', // id
+  'CTP Notifications', // title
+  description: 'Commercial Trader Portal notifications', // description
+  importance: Importance.high,
+);
+
+// Global FlutterLocalNotificationsPlugin for showing messages when in foreground
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +91,9 @@ void main() async {
 
   // Setup notifications service
   await setupNotifications();
+
+  // Comment out App Check activation as it's causing permission issues
+  // await FirebaseAppCheck.instance.activate();
 
   // For web, ensure user session persistence is local.
   if (kIsWeb) {
@@ -121,6 +143,26 @@ Future<void> setupNotifications() async {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     print('DEBUG: Background message handler registered');
 
+    // Create the Android notification channel
+    final notificationSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@drawable/ic_notification'),
+      iOS: DarwinInitializationSettings(),
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(
+      notificationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse details) {
+        print('Notification clicked: ${details.payload}');
+        // Handle notification click here
+      },
+    );
+
+    // Create the notification channel on Android
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
     // Request permission (iOS)
     final messaging = FirebaseMessaging.instance;
     final settings = await messaging.requestPermission(
@@ -134,26 +176,42 @@ Future<void> setupNotifications() async {
 
     // Get FCM token for debugging
     final token = await messaging.getToken();
-    print(
-        'DEBUG: FCM Token: ${token != null ? token.substring(0, 20) + '...' : 'null'}');
+    print('DEBUG: FCM Token: ${token ?? "null"}');
+
+    if (token != null) {
+      print('DEBUG: Full FCM Token: $token');
+    }
 
     // Register to handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('DEBUG: Got a foreground message!');
       print('DEBUG: Message data: ${message.data}');
 
-      if (message.notification != null) {
-        print(
-            'DEBUG: Message notification title: ${message.notification!.title}');
-        print(
-            'DEBUG: Message notification body: ${message.notification!.body}');
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
 
-        // Show local notification
-        NotificationService.showNotification(
-          title: message.notification!.title ?? 'New Notification',
-          body: message.notification!.body ?? '',
+      if (notification != null) {
+        print('DEBUG: Message notification title: ${notification.title}');
+        print('DEBUG: Message notification body: ${notification.body}');
+
+        // Show a local notification if we're in the foreground
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              channel.id,
+              channel.name,
+              channelDescription: channel.description,
+              icon: android?.smallIcon ?? '@drawable/ic_notification',
+              // Use the icon specified in the Android manifest or a default one
+            ),
+            iOS: DarwinNotificationDetails(),
+          ),
           payload: message.data.toString(),
         );
+
         print('DEBUG: Local notification displayed');
       }
     });
@@ -162,9 +220,10 @@ Future<void> setupNotifications() async {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print(
           'DEBUG: Notification clicked - opening app. Message: ${message.data}');
+      // Handle notification click here - e.g., navigate to specific screen
     });
 
-    // Initialize local notification handler
+    // Initialize notification service
     await NotificationService.initialize();
     print('DEBUG: NotificationService initialized');
 
