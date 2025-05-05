@@ -224,14 +224,15 @@ class _AdminHomePageState extends State<AdminHomePage>
                     Navigator.pushReplacementNamed(context, '/adminVehicles');
                   },
                 ),
-                ListTile(
-                  title: const Text('Notification Test'),
-                  textColor: Colors.white,
-                  onTap: () {
-                    Navigator.pushReplacementNamed(
-                        context, '/adminNotificationTest');
-                  },
-                ),
+                if (userProvider.getUserEmail == 'bradley@admin.co.za')
+                  ListTile(
+                    title: const Text('Notification Test'),
+                    textColor: Colors.white,
+                    onTap: () {
+                      Navigator.pushReplacementNamed(
+                          context, '/adminNotificationTest');
+                    },
+                  ),
               ],
             ),
           ),
