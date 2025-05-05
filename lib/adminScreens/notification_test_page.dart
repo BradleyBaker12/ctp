@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 class NotificationTestPage extends StatefulWidget {
-  const NotificationTestPage({Key? key}) : super(key: key);
+  const NotificationTestPage({super.key});
 
   @override
   State<NotificationTestPage> createState() => _NotificationTestPageState();

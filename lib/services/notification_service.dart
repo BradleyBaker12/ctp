@@ -194,9 +194,7 @@ class NotificationService {
       }
 
       // If still no token, try to get current device token
-      if (token == null) {
-        token = await getToken();
-      }
+      token ??= await getToken();
 
       final notificationData = {
         'title': title,

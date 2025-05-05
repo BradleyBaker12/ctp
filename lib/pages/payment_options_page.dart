@@ -324,14 +324,14 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
 
       // Create a detailed item description including vehicle details
       final String vehicleDescription =
-          '${make} ${model} ${year} (Reg: ${registrationNumber})';
+          '$make $model $year (Reg: $registrationNumber)';
 
       // Print debug information about the amounts
       print('DEBUG: Offer amount: $offerAmount');
 
       // Create description for the fixed fee (12500 before tax)
-      final String feeDescription = 'CTP Service Fee';
-      final double feeAmount = 12500.0; // Fixed fee amount BEFORE tax
+      const String feeDescription = 'CTP Service Fee';
+      const double feeAmount = 12500.0; // Fixed fee amount BEFORE tax
 
       print('DEBUG: Fee amount before tax: $feeAmount');
 
@@ -756,10 +756,10 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
         final String invoiceContent = """
 INVOICE REFERENCE
 ==============================
-Invoice #: ${invoiceId}
+Invoice #: $invoiceId
 Date: ${DateTime.now().toString()}
 Offer ID: ${widget.offerId}
-Vehicle ID: ${vehicleId}
+Vehicle ID: $vehicleId
 ==============================
 This is a reference document for an invoice generated in Sage One.
 To view the actual invoice, please log in to the Sage One portal.
@@ -841,7 +841,7 @@ To view the actual invoice, please log in to the Sage One portal.
 INVOICE GENERATION ERROR
 ==============================
 Offer ID: ${widget.offerId}
-Vehicle ID: ${vehicleId}
+Vehicle ID: $vehicleId
 Date: ${DateTime.now().toString()}
 Error: ${e.toString()}
 ==============================

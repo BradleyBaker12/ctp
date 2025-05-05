@@ -5,11 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/inspection_details.dart'; // Ensure this model exists
 import 'package:ctp/models/user_details.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import '../models/user_model.dart';

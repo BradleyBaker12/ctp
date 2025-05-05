@@ -31,7 +31,7 @@ class Vehicle {
 }
 
 class VehicleProvider with ChangeNotifier {
-  List<Vehicle> _vehicles = [];
+  final List<Vehicle> _vehicles = [];
 
   List<Vehicle> get vehicles => [..._vehicles];
 

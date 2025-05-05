@@ -46,7 +46,6 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:ctp/providers/trailer_form_provider.dart';
 import 'package:ctp/services/notification_service.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -56,8 +55,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
-import 'package:ctp/providers/vehicle_provider.dart' hide VehicleProvider;
-import 'package:ctp/providers/user_provider.dart';
 
 // This needs to be a top-level function for background messaging
 @pragma('vm:entry-point')
