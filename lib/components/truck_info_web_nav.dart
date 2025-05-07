@@ -224,11 +224,39 @@ class TruckInfoWebNavBar extends StatelessWidget {
                               context,
                               "Truck Conditions",
                               selectedTab == "Truck Conditions",
-                              () => Navigator.pushReplacementNamed(
-                                context,
-                                '/external_cab',
-                                arguments: vehicleId,
-                              ),
+                              () {
+                                switch (selectedTab) {
+                                  case "External Cab":
+                                    Navigator.pushReplacementNamed(
+                                        context, '/external_cab',
+                                        arguments: vehicleId);
+                                    break;
+                                  case "Internal Cab":
+                                    Navigator.pushReplacementNamed(
+                                        context, '/internal_cab',
+                                        arguments: vehicleId);
+                                    break;
+                                  case "Chassis":
+                                    Navigator.pushReplacementNamed(
+                                        context, '/chassis',
+                                        arguments: vehicleId);
+                                    break;
+                                  case "Drive Train":
+                                    Navigator.pushReplacementNamed(
+                                        context, '/drive_train',
+                                        arguments: vehicleId);
+                                    break;
+                                  case "Tyres":
+                                    Navigator.pushReplacementNamed(
+                                        context, '/tyres',
+                                        arguments: vehicleId);
+                                    break;
+                                  default:
+                                    Navigator.pushReplacementNamed(
+                                        context, '/external_cab',
+                                        arguments: vehicleId);
+                                }
+                              },
                             ),
                             _buildNavItem(
                               context,

@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/services/notification_service.dart';

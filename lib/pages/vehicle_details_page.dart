@@ -366,7 +366,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   Future<void> _toggleVehicleStatus() async {
     try {
-      final currentStatus = vehicle.vehicleStatus.toLowerCase() ?? 'draft';
+      final currentStatus = vehicle.vehicleStatus.toLowerCase();
       String newStatus = currentStatus;
 
       if (currentStatus == 'draft') {
@@ -1226,12 +1226,27 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               ),
             ),
             if (title.contains('TRUCK CONDITION')) ...[
-              subFields("EXTERNAL CAB", '${_calculateExternalCabProgress()}/7'),
-              subFields(
-                  "INTERNAL CAB", '${_calculateInternalCabProgress()}/20'),
-              subFields("CHASSIS", '${_calculateChassisProgress()}/17'),
-              subFields("DRIVE TRAIN", '${_calculateDriveTrainProgress()}/21'),
-              subFields("TYRES", '${_calculateTyresProgress()}/24'),
+              subFields("EXTERNAL CAB", '${_calculateExternalCabProgress()}/7',
+                  () {
+                Navigator.pushNamed(context, '/external_cab',
+                    arguments: vehicle.id);
+              }),
+              subFields("INTERNAL CAB", '${_calculateInternalCabProgress()}/20',
+                  () {
+                Navigator.pushNamed(context, '/internal_cab',
+                    arguments: vehicle.id);
+              }),
+              subFields("CHASSIS", '${_calculateChassisProgress()}/17', () {
+                Navigator.pushNamed(context, '/chassis', arguments: vehicle.id);
+              }),
+              subFields("DRIVE TRAIN", '${_calculateDriveTrainProgress()}/21',
+                  () {
+                Navigator.pushNamed(context, '/drive_train',
+                    arguments: vehicle.id);
+              }),
+              subFields("TYRES", '${_calculateTyresProgress()}/24', () {
+                Navigator.pushNamed(context, '/tyres', arguments: vehicle.id);
+              }),
             ],
           ],
         ),
@@ -1239,63 +1254,74 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     );
   }
 
-  Widget subFields(String title, String progress) {
+  Widget subFields(String title, String progress, VoidCallback onTap) {
     List<String> progressValues = progress.split('/');
     double first = double.parse(progressValues[0]);
     double second = double.parse(progressValues[1]);
     // Clamp the value to be between 0.0 and 1.0
     double progressValue = (first / second).clamp(0.0, 1.0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 10),
-        Container(
-          width: MediaQuery.of(context).size.width / 1.6,
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.blue,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 10).copyWith(bottom: 20),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.blue),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25),
-          child: Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progressValue,
-                    minHeight: 5,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
-                    backgroundColor: Colors.grey.withOpacity(0.5),
-                  ),
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Prevents infinite height issues
+          children: [
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(8),
               ),
-              const SizedBox(width: 10),
-              Text(
-                progress,
+              child: Text(
+                title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: progressValue,
+                      minHeight: 5,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.green),
+                      backgroundColor: Colors.grey.withOpacity(0.5),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    progress,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -2905,7 +2931,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // Check images
     // if (externalCab?.images.isNotEmpty == true) completedSteps++;
-    completedSteps += externalCab.images.length ?? 0;
+    completedSteps += externalCab.images.length;
 
     // Check damages section
     if (externalCab.damagesCondition.isNotEmpty == true) {
@@ -2932,8 +2958,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // Check view images
     // if (internalCab?.viewImages.isNotEmpty == true) completedSteps++;
-    completedSteps += internalCab.viewImages.length ?? 0;
-    print("InternalCabImages: ${internalCab.viewImages.length}");
+    completedSteps += internalCab.viewImages.length;
 
     // Check damages section
     if (internalCab.damagesCondition.isNotEmpty == true) completedSteps++;
@@ -2973,7 +2998,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // Check images
     // if (driveTrain?.images.isNotEmpty == true) completedSteps++;
-    completedSteps += driveTrain.images.length ?? 0;
+    completedSteps += driveTrain.images.length;
 
     // Check damages
     if (driveTrain.damages.isNotEmpty == true) completedSteps++;
@@ -3000,7 +3025,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // Check images
     // if (chassis?.images.isNotEmpty == true) completedSteps++;
-    completedSteps += chassis.images.length ?? 0;
+    completedSteps += chassis.images.length;
 
     // Check damages section
     if (chassis.damagesCondition.isNotEmpty == true) completedSteps++;
@@ -3052,20 +3077,17 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   String _calculateAdminProgressString() {
     int completed = 0;
     int total = 3;
-    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty ?? false) {
+    if (widget.vehicle.adminData.natisRc1Url.isNotEmpty) {
       completed++;
     }
-    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty ?? false) {
+    if (widget.vehicle.adminData.licenseDiskUrl.isNotEmpty) {
       completed++;
     }
-    if (widget.vehicle.requireToSettleType == 'yes') {
-      total++;
-      if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty ?? false) {
-        completed++;
-      }
-      if (widget.vehicle.adminData.settlementAmount.isNotEmpty ?? false) {
-        completed++;
-      }
+    if (widget.vehicle.adminData.settlementLetterUrl.isNotEmpty) {
+      completed++;
+    }
+    if (widget.vehicle.adminData.settlementAmount.isNotEmpty) {
+      completed++;
     }
     return "$completed/$total";
   }
