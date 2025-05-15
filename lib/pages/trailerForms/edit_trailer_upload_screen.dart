@@ -475,7 +475,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             "DEBUG: Trailer A additionalImages: ${trailerA['trailerAAdditionalImages']}");
 
         // --- Robust Superlink image/document URL extraction ---
-        String _getField(Map<String, dynamic> map, List<String> keys) {
+        String getField(Map<String, dynamic> map, List<String> keys) {
           for (final key in keys) {
             if (map[key] != null && map[key].toString().isNotEmpty) {
               return map[key].toString();
@@ -485,17 +485,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         }
 
         // Trailer A Image URLs
-        _frontImageAUrl = _getField(
+        _frontImageAUrl = getField(
             trailerA, ['frontImageUrl', 'front_image_url', 'frontimageurl']);
-        _sideImageAUrl = _getField(
+        _sideImageAUrl = getField(
             trailerA, ['sideImageUrl', 'side_image_url', 'sideimageurl']);
-        _tyresImageAUrl = _getField(
+        _tyresImageAUrl = getField(
             trailerA, ['tyresImageUrl', 'tyres_image_url', 'tyresimageurl']);
-        _chassisImageAUrl = _getField(trailerA,
+        _chassisImageAUrl = getField(trailerA,
             ['chassisImageUrl', 'chassis_image_url', 'chassisimageurl']);
-        _deckImageAUrl = _getField(
+        _deckImageAUrl = getField(
             trailerA, ['deckImageUrl', 'deck_image_url', 'deckimageurl']);
-        _makersPlateImageAUrl = _getField(trailerA, [
+        _makersPlateImageAUrl = getField(trailerA, [
           'makersPlateImageUrl',
           'makers_plate_image_url',
           'makersplateimageurl'
@@ -509,7 +509,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           );
         }
         // NATIS doc for Trailer A (handle possible typo: natisDoc1Url)
-        _existingNatisTrailerADocUrl = _getField(
+        _existingNatisTrailerADocUrl = getField(
             trailerA, ['natisDocUrl', 'natisDoc1Url', 'natis_document_url']);
         _existingNatisTrailerADoc1Url = _existingNatisTrailerADocUrl ?? '';
         _existingNatisTrailerADoc1Name =
@@ -518,7 +518,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             "NATIS Trailer A Document: '$_existingNatisTrailerADoc1Url', name: '$_existingNatisTrailerADoc1Name'");
 
         // --- Trailer B ---
-        _existingNatisTrailerBDoc1Url = _getField(
+        _existingNatisTrailerBDoc1Url = getField(
             trailerB, ['natisDocUrl', 'natisDoc1Url', 'natis_document_url']);
         _existingNatisTrailerBDoc1Name =
             _getFileNameFromUrl(_existingNatisTrailerBDoc1Url);
@@ -535,17 +535,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         debugPrint(
             "DEBUG: Trailer B additionalImages: ${trailerB['trailerBAdditionalImages']}");
         // Trailer B Image URLs
-        _frontImageBUrl = _getField(
+        _frontImageBUrl = getField(
             trailerB, ['frontImageUrl', 'front_image_url', 'frontimageurl']);
-        _sideImageBUrl = _getField(
+        _sideImageBUrl = getField(
             trailerB, ['sideImageUrl', 'side_image_url', 'sideimageurl']);
-        _tyresImageBUrl = _getField(
+        _tyresImageBUrl = getField(
             trailerB, ['tyresImageUrl', 'tyres_image_url', 'tyresimageurl']);
-        _chassisImageBUrl = _getField(trailerB,
+        _chassisImageBUrl = getField(trailerB,
             ['chassisImageUrl', 'chassis_image_url', 'chassisimageurl']);
-        _deckImageBUrl = _getField(
+        _deckImageBUrl = getField(
             trailerB, ['deckImageUrl', 'deck_image_url', 'deckimageurl']);
-        _makersPlateImageBUrl = _getField(trailerB, [
+        _makersPlateImageBUrl = getField(trailerB, [
           'makersPlateImageUrl',
           'makers_plate_image_url',
           'makersplateimageurl'
@@ -2318,10 +2318,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Front Image (Trailer A)',
           _frontImageA,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _frontImageA = img;
               });
+            }
           },
           existingUrl: _frontImageAUrl,
         ),
@@ -2330,10 +2331,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Side Image (Trailer A)',
           _sideImageA,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _sideImageA = img;
               });
+            }
           },
           existingUrl: _sideImageAUrl,
         ),
@@ -2342,10 +2344,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Tyres Image (Trailer A)',
           _tyresImageA,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _tyresImageA = img;
               });
+            }
           },
           existingUrl: _tyresImageAUrl,
         ),
@@ -2354,10 +2357,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Chassis Image (Trailer A)',
           _chassisImageA,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _chassisImageA = img;
               });
+            }
           },
           existingUrl: _chassisImageAUrl,
         ),
@@ -2366,10 +2370,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Deck Image (Trailer A)',
           _deckImageA,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _deckImageA = img;
               });
+            }
           },
           existingUrl: _deckImageAUrl,
         ),
@@ -2378,10 +2383,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Makers Plate Image (Trailer A)',
           _makersPlateImageA,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _makersPlateImageA = img;
               });
+            }
           },
           existingUrl: _makersPlateImageAUrl,
         ),
@@ -2561,10 +2567,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Front Image (Trailer B)',
           _frontImageB,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _frontImageB = img;
               });
+            }
           },
           existingUrl: _frontImageBUrl,
         ),
@@ -2573,10 +2580,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Side Image (Trailer B)',
           _sideImageB,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _sideImageB = img;
               });
+            }
           },
           existingUrl: _sideImageBUrl,
         ),
@@ -2585,10 +2593,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Tyres Image (Trailer B)',
           _tyresImageB,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _tyresImageB = img;
               });
+            }
           },
           existingUrl: _tyresImageBUrl,
         ),
@@ -2597,10 +2606,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Chassis Image (Trailer B)',
           _chassisImageB,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _chassisImageB = img;
               });
+            }
           },
           existingUrl: _chassisImageBUrl,
         ),
@@ -2609,10 +2619,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Deck Image (Trailer B)',
           _deckImageB,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _deckImageB = img;
               });
+            }
           },
           existingUrl: _deckImageBUrl,
         ),
@@ -2621,10 +2632,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           'Makers Plate Image (Trailer B)',
           _makersPlateImageB,
           (img) {
-            if (!isDealer)
+            if (!isDealer) {
               setState(() {
                 _makersPlateImageB = img;
               });
+            }
           },
           existingUrl: _makersPlateImageBUrl,
         ),
