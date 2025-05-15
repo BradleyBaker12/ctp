@@ -135,12 +135,53 @@ class _SignUpPageState extends State<SignUpPage> {
         await _firestore.collection('users').doc(user.uid).set(userData);
         print("DEBUG: Firestore document created");
 
+        // Notify all admins of new user signup
+        final adminsSnapshot = await _firestore
+            .collection('users')
+            .where('userRole', isEqualTo: 'admin')
+            .get();
+        final adminsQuery = adminsSnapshot.docs.where((doc) {
+          final token = doc.data()['fcmToken'] as String?;
+          return token != null && token.isNotEmpty;
+        });
+        for (final admin in adminsQuery) {
+          final adminId = admin.id;
+          final adminFcmToken = admin.data()['fcmToken'];
+          await FirebaseFirestore.instance
+              .collection('direct_push_notifications')
+              .add({
+            'title': 'New User Signup',
+            'body': 'A new user (${user.email}) has registered.',
+            'targetUserId': adminId,
+            'token': adminFcmToken,
+            'data': {
+              'type': 'new_user_signup',
+              'userEmail': user.email,
+              'userId': user.uid,
+            },
+            'createdAt': FieldValue.serverTimestamp(),
+            'status': 'pending',
+            'sendImmediately': true,
+          });
+        }
+
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         userProvider.setUser(user);
         print("DEBUG: User set in provider");
 
-        print("DEBUG: Navigating to phone number page");
-        Navigator.pushReplacementNamed(context, '/phoneNumber');
+        // If the user is admin or sales representative, skip phone number page
+        // (userRole is 'pending' at this point, but you may want to check email or other logic)
+        final email = user.email?.toLowerCase() ?? '';
+        if (email.contains('admin') ||
+            email.contains('salesrep') ||
+            email.contains('sales-rep') ||
+            email.contains('sales representative')) {
+          // Go directly to first name page or admin home
+          Navigator.pushReplacementNamed(context, '/firstNamePage');
+        } else {
+          print("DEBUG: Navigating to phone number page");
+          Navigator.pushReplacementNamed(context, '/phoneNumber');
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage = e.message ?? 'An error occurred. Please try again.';

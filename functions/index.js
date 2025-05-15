@@ -1,8 +1,5 @@
+const admin = require("firebase-admin");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
-const { getMessaging } = require("firebase-admin/messaging");
-const { onCall, onRequest } = require("firebase-functions/v2/https");
 
 // Import Places API functions
 const placesApi = require("./src/places-api");
@@ -11,8 +8,8 @@ const placesApi = require("./src/places-api");
 exports.placesAutocomplete = placesApi.placesAutocomplete;
 exports.getPlaceDetails = placesApi.getPlaceDetails;
 
-initializeApp();
-const db = getFirestore();
+admin.initializeApp();
+const db = admin.firestore();
 
 // Existing function for offer notifications
 exports.sendOfferNotification = onDocumentCreated(
@@ -57,7 +54,7 @@ exports.sendOfferNotification = onDocumentCreated(
       };
 
       try {
-        await getMessaging().sendToDevice(fcmToken, payload);
+        await admin.messaging().sendToDevice(fcmToken, payload);
         console.log("Notification sent to transporter:", transporterId);
       } catch (error) {
         console.error("Error sending notification:", error);
@@ -84,12 +81,16 @@ exports.notifyAdminsOnNewUser = onDocumentCreated(
     const userData = snap.data();
     const userId = event.params.userId;
 
-    // Only notify for dealer or transporter registrations
+    // Only notify for dealer, transporter, or pending registrations
     if (
       !userData.userRole ||
-      (userData.userRole !== "dealer" && userData.userRole !== "transporter")
+      (userData.userRole !== "dealer" &&
+        userData.userRole !== "transporter" &&
+        userData.userRole !== "pending")
     ) {
-      console.log("Skipping notification for non-dealer/transporter user");
+      console.log(
+        "Skipping notification for non-dealer/transporter/pending user"
+      );
       return;
     }
 
@@ -114,13 +115,13 @@ exports.notifyAdminsOnNewUser = onDocumentCreated(
         `${userData.firstName || ""} ${userData.lastName || ""}`.trim() ||
         "New user";
 
-      // Send notification to each admin
-      const notifications = adminUsersSnapshot.docs.map(async (adminDoc) => {
+      // Send notification to each admin using admin.messaging().send(...)
+      for (const adminDoc of adminUsersSnapshot.docs) {
         const adminData = adminDoc.data();
 
         if (!adminData.fcmToken) {
           console.log(`Admin ${adminDoc.id} has no FCM token`);
-          return;
+          continue;
         }
 
         const message = {
@@ -139,19 +140,16 @@ exports.notifyAdminsOnNewUser = onDocumentCreated(
         };
 
         try {
-          await getMessaging().send(message);
+          await admin.messaging().send(message);
           console.log(`Notification sent to admin ${adminDoc.id}`);
-          return true;
         } catch (error) {
           console.error(
             `Error sending notification to admin ${adminDoc.id}:`,
             error
           );
-          return false;
         }
-      });
+      }
 
-      await Promise.all(notifications);
       console.log("Admin notifications process completed");
     } catch (error) {
       console.error("Error in notifyAdminsOnNewUser function:", error);
@@ -201,7 +199,7 @@ exports.notifyDealersOnNewVehicle = onDocumentCreated(
           topic: "newVehicles",
         };
 
-        await getMessaging().send(message);
+        await admin.messaging().send(message);
         console.log(
           "Notification sent to all dealers subscribed to newVehicles topic"
         );
@@ -215,7 +213,7 @@ exports.notifyDealersOnNewVehicle = onDocumentCreated(
 );
 
 // Direct notification function (callable from client for testing)
-exports.sendDirectNotification = onCall(
+exports.sendDirectNotification = require("firebase-functions/v2/https").onCall(
   {
     region: "us-central1",
   },
@@ -255,7 +253,7 @@ exports.sendDirectNotification = onCall(
         token: userData.fcmToken,
       };
 
-      await getMessaging().send(message);
+      await admin.messaging().send(message);
       return { success: true, message: "Notification sent successfully" };
     } catch (error) {
       console.error("Error sending direct notification:", error);
@@ -265,115 +263,119 @@ exports.sendDirectNotification = onCall(
 );
 
 // Additional specific notification for new vehicles
-exports.sendNewVehicleNotification = onCall(
-  {
-    region: "us-central1",
-  },
-  async (request) => {
-    const { vehicleId } = request.data;
+exports.sendNewVehicleNotification =
+  require("firebase-functions/v2/https").onCall(
+    {
+      region: "us-central1",
+    },
+    async (request) => {
+      const { vehicleId } = request.data;
 
-    if (!vehicleId) {
-      throw new Error("Missing required parameter: vehicleId");
-    }
-
-    try {
-      // Get vehicle data
-      const vehicleDoc = await db.collection("vehicles").doc(vehicleId).get();
-
-      if (!vehicleDoc.exists) {
-        throw new Error("Vehicle not found");
+      if (!vehicleId) {
+        throw new Error("Missing required parameter: vehicleId");
       }
 
-      const vehicleData = vehicleDoc.data();
+      try {
+        // Get vehicle data
+        const vehicleDoc = await db.collection("vehicles").doc(vehicleId).get();
 
-      // Send notification to all dealers through the topic
-      const message = {
-        notification: {
-          title: "New Truck Available",
-          body: `A ${vehicleData.brand} ${vehicleData.model} ${
-            vehicleData.year || ""
-          } is now available.`,
-          clickAction: "FLUTTER_NOTIFICATION_CLICK",
-        },
-        data: {
-          vehicleId: vehicleId,
-          notificationType: "new_vehicle",
-          vehicleType: vehicleData.vehicleType || "truck",
-          timestamp: new Date().toISOString(),
-        },
-        topic: "newVehicles",
-      };
+        if (!vehicleDoc.exists) {
+          throw new Error("Vehicle not found");
+        }
 
-      await getMessaging().send(message);
-      return {
-        success: true,
-        message: "New vehicle notification sent to all dealers",
-      };
-    } catch (error) {
-      console.error("Error sending new vehicle notification:", error);
-      throw new Error(`Failed to send notification: ${error.message}`);
+        const vehicleData = vehicleDoc.data();
+
+        // Send notification to all dealers through the topic
+        const message = {
+          notification: {
+            title: "New Truck Available",
+            body: `A ${vehicleData.brand} ${vehicleData.model} ${
+              vehicleData.year || ""
+            } is now available.`,
+            clickAction: "FLUTTER_NOTIFICATION_CLICK",
+          },
+          data: {
+            vehicleId: vehicleId,
+            notificationType: "new_vehicle",
+            vehicleType: vehicleData.vehicleType || "truck",
+            timestamp: new Date().toISOString(),
+          },
+          topic: "newVehicles",
+        };
+
+        await admin.messaging().send(message);
+        return {
+          success: true,
+          message: "New vehicle notification sent to all dealers",
+        };
+      } catch (error) {
+        console.error("Error sending new vehicle notification:", error);
+        throw new Error(`Failed to send notification: ${error.message}`);
+      }
     }
-  }
-);
+  );
 
 // Special test function that doesn't require App Check
-exports.sendDirectNotificationNoAppCheck = onCall(
-  {
-    region: "us-central1",
-    enforceAppCheck: false // Explicitly disable App Check for this function
-  },
-  async (request) => {
-    const { userId, title, body, dataPayload = {} } = request.data;
+exports.sendDirectNotificationNoAppCheck =
+  require("firebase-functions/v2/https").onCall(
+    {
+      region: "us-central1",
+      enforceAppCheck: false, // Explicitly disable App Check for this function
+    },
+    async (request) => {
+      const { userId, title, body, dataPayload = {} } = request.data;
 
-    if (!userId || !title || !body) {
-      throw new Error(
-        "Missing required parameters: userId, title, and body are required"
-      );
-    }
-
-    try {
-      console.log(`Attempting to send test notification to user ${userId}`);
-      
-      // Get user's FCM token
-      const userDoc = await db.collection("users").doc(userId).get();
-
-      if (!userDoc.exists) {
-        throw new Error("User not found");
+      if (!userId || !title || !body) {
+        throw new Error(
+          "Missing required parameters: userId, title, and body are required"
+        );
       }
 
-      const userData = userDoc.data();
-      if (!userData.fcmToken) {
-        throw new Error("User has no FCM token registered");
-      }
+      try {
+        console.log(`Attempting to send test notification to user ${userId}`);
 
-      console.log(`Found FCM token for user: ${userData.fcmToken.substring(0, 20)}...`);
+        // Get user's FCM token
+        const userDoc = await db.collection("users").doc(userId).get();
 
-      // Send notification
-      const message = {
-        notification: {
-          title: title,
-          body: body,
-          clickAction: "FLUTTER_NOTIFICATION_CLICK",
-        },
-        data: {
-          ...dataPayload,
+        if (!userDoc.exists) {
+          throw new Error("User not found");
+        }
+
+        const userData = userDoc.data();
+        if (!userData.fcmToken) {
+          throw new Error("User has no FCM token registered");
+        }
+
+        console.log(
+          `Found FCM token for user: ${userData.fcmToken.substring(0, 20)}...`
+        );
+
+        // Send notification
+        const message = {
+          notification: {
+            title: title,
+            body: body,
+            clickAction: "FLUTTER_NOTIFICATION_CLICK",
+          },
+          data: {
+            ...dataPayload,
+            timestamp: new Date().toISOString(),
+            isTestNotification: "true",
+          },
+          token: userData.fcmToken,
+        };
+
+        await admin.messaging().send(message);
+        console.log("Test notification sent successfully");
+
+        return {
+          success: true,
+          message: "Test notification sent successfully",
           timestamp: new Date().toISOString(),
-          isTestNotification: "true"
-        },
-        token: userData.fcmToken,
-      };
-
-      await getMessaging().send(message);
-      console.log("Test notification sent successfully");
-      
-      return { 
-        success: true, 
-        message: "Test notification sent successfully",
-        timestamp: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error("Error sending test notification:", error);
-      throw new Error(`Failed to send test notification: ${error.message}`);
+        };
+      } catch (error) {
+        console.error("Error sending test notification:", error);
+        throw new Error(`Failed to send test notification: ${error.message}`);
+      }
     }
-  }
-);
+  );

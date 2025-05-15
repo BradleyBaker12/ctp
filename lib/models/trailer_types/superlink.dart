@@ -57,6 +57,7 @@ class SuperlinkTrailer {
 
   final List<Map<String, dynamic>> additionalImagesA;
   final List<Map<String, dynamic>> additionalImagesB;
+  final String? numberOfAxles;
 
   SuperlinkTrailer({
     this.lengthA,
@@ -115,6 +116,7 @@ class SuperlinkTrailer {
     this.axle2ImageUrlB,
     this.additionalImagesA = const [],
     this.additionalImagesB = const [],
+    this.numberOfAxles,
   });
 
   factory SuperlinkTrailer.fromJson(Map<String, dynamic> json) {
@@ -129,7 +131,7 @@ class SuperlinkTrailer {
       makeA: trailerA['make'],
       modelA: trailerA['model'],
       yearA: trailerA['year'],
-      axlesA: trailerA['axles'],
+      axlesA: trailerA['axles']?.toString(), // <-- Ensure string conversion
       licenceDiskExpA: trailerA['licenceExp'],
       absA: trailerA['abs'],
       suspensionA: trailerA['suspension'],
@@ -160,7 +162,7 @@ class SuperlinkTrailer {
       makeB: trailerB['make'],
       modelB: trailerB['model'],
       yearB: trailerB['year'],
-      axlesB: trailerB['axles'],
+      axlesB: trailerB['axles']?.toString(), // <-- Ensure string conversion
       licenceDiskExpB: trailerB['licenceExp'],
       absB: trailerB['abs'],
       suspensionB: trailerB['suspension'],
@@ -183,6 +185,8 @@ class SuperlinkTrailer {
       axle2ImageUrlB: trailerB['axle2ImageUrl'],
       additionalImagesB: List<Map<String, dynamic>>.from(
           trailerB['trailerBAdditionalImages'] ?? []),
+      numberOfAxles:
+          json['numberOfAxles']?.toString() ?? json['axles']?.toString(),
     );
   }
 
@@ -248,6 +252,7 @@ class SuperlinkTrailer {
         'axle2ImageUrl': axle2ImageUrlB,
         'trailerBAdditionalImages': additionalImagesB,
       },
+      'numberOfAxles': numberOfAxles,
     };
   }
 

@@ -1,7 +1,8 @@
 {
   "projects": {
     "default": "ctp-central-database",
-    "staging": "ctp-central-database"
+    "staging": "ctp-central-database",
+    "staging 2": "ctp-central-database"
   },
   "targets": {
     "ctp-central-database": {
@@ -18,5 +19,6 @@
       }
     }
   },
-  "etags": {}
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
 }

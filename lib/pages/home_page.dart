@@ -110,23 +110,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     // Break chain at first missing requirement
 
-    // 1. Phone number check is most important
-    final String? phoneNumber = userProvider.getPhoneNumber;
-    // Fix: Check if phone number exists in account and isn't just empty whitespace
-    if (phoneNumber == null || phoneNumber.trim().isEmpty) {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/phoneNumber');
-      }
-      return; // Phone number page will handle next steps
-    }
-    
-    // 2. User role check
+    // 1. User role check (skip phone number check for admin/sales rep)
     final userRole = userProvider.getUserRole.toLowerCase();
     if (userRole == 'pending') {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/tradingCategory');
       }
       return; // Trading category page will handle next steps
+    }
+
+    // 2. Phone number check (only for non-admin/non-sales rep)
+    if (userRole != 'admin' && userRole != 'sales representative') {
+      final String? phoneNumber = userProvider.getPhoneNumber;
+      // Fix: Check if phone number exists in account and isn't just empty whitespace
+      if (phoneNumber == null || phoneNumber.trim().isEmpty) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/phoneNumber');
+        }
+        return; // Phone number page will handle next steps
+      }
     }
 
     // 3. VAT/Registration check

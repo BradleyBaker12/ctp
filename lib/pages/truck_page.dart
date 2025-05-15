@@ -13,6 +13,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
 import 'package:ctp/components/trailer_card.dart'; // Trailer card widget
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NavigationItem {
   final String title;
@@ -1321,4 +1323,35 @@ extension StringExtension on String {
     if (isEmpty) return this;
     return "${this[0].toUpperCase()}${substring(1)}";
   }
+}
+
+// Function to send push notifications to all dealers
+Future<void> sendPushNotificationToDealers(String vehicleName) async {
+  try {
+    // Fetch all dealer tokens from Firestore
+    final dealersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'dealer')
+        .get();
+
+    for (var dealer in dealersSnapshot.docs) {
+      final token = dealer.data()['fcmToken'];
+      if (token != null) {
+        await FirebaseMessaging.instance.sendMessage(
+          to: token,
+          data: {
+            'title': 'New Vehicle Available',
+            'body': 'Check out the new $vehicleName now available!',
+          },
+        );
+      }
+    }
+  } catch (e) {
+    debugPrint('Error sending push notifications: $e');
+  }
+}
+
+// Call this function when a vehicle is pushed to live
+void onVehiclePushedToLive(String vehicleName) {
+  sendPushNotificationToDealers(vehicleName);
 }

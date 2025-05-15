@@ -224,11 +224,53 @@ class Vehicle {
           }),
         };
       }
-      // debugPrint(
-      //     'DEBUG: trailerExtraInfo to be passed to Trailer.fromFirestore: $trailerExtraInfo');
-      // Merge trailerExtraInfo into the full data map for the trailer.
-      Map<String, dynamic> trailerData = safeMap(data);
-      trailerData['trailerExtraInfo'] = trailerExtraInfo;
+      // Always create a Trailer object for trailers, using all available fields.
+      Map<String, dynamic> trailerData = {
+        'id': docId,
+        'makeModel': getString(data['makeModel']),
+        'year': getString(data['year']),
+        'trailerType': trailerTypeValue,
+        'axles': getString(data['axles']),
+        'length': getString(data['length']),
+        'vinNumber': getString(data['vinNumber']),
+        'registrationNumber': getString(data['registrationNumber']),
+        'mileage': getString(data['mileage']),
+        'engineNumber': getString(data['engineNumber']),
+        'sellingPrice': getString(data['sellingPrice']),
+        'warrantyDetails': getString(data['warrantyDetails']),
+        'referenceNumber': getString(data['referenceNumber']),
+        'country': getString(data['country']),
+        'province': getString(data['province']),
+        'vehicleStatus': getString(data['vehicleStatus']),
+        'userId': getString(data['userId']),
+        'assignedSalesRepId': getString(data['assignedSalesRepId']),
+        'createdAt': data['createdAt'],
+        'updatedAt': data['updatedAt'],
+        'natisDocumentUrl': getString(data['natisDocumentUrl']),
+        'serviceHistoryUrl': getString(data['serviceHistoryUrl']),
+        'mainImageUrl': getString(data['mainImageUrl']),
+        'frontImageUrl': getString(data['frontImageUrl']),
+        'sideImageUrl': getString(data['sideImageUrl']),
+        'tyresImageUrl': getString(data['tyresImageUrl']),
+        'chassisImageUrl': getString(data['chassisImageUrl']),
+        'deckImageUrl': getString(data['deckImageUrl']),
+        'makersPlateImageUrl': getString(data['makersPlateImageUrl']),
+        'hookingPinImageUrl': getString(data['hookingPinImageUrl']),
+        'roofImageUrl': getString(data['roofImageUrl']),
+        'tailBoardImageUrl': getString(data['tailBoardImageUrl']),
+        'spareWheelImageUrl': getString(data['spareWheelImageUrl']),
+        'landingLegsImageUrl': getString(data['landingLegsImageUrl']),
+        'hoseAndElectricCableImageUrl':
+            getString(data['hoseAndElectricCableImageUrl']),
+        'licenseDiskImageUrl': getString(data['licenseDiskImageUrl']),
+        'additionalImages': data['additionalImages'] ?? [],
+        'damages': data['damages'] ?? [],
+        'damagesCondition': getString(data['damagesCondition']),
+        'features': data['features'] ?? [],
+        'featuresCondition': getString(data['featuresCondition']),
+        'brands': data['brands'] ?? [],
+        'trailerExtraInfo': trailerExtraInfo,
+      };
       trailerObj = Trailer.fromFirestore(docId, trailerData);
     }
 

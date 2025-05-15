@@ -41,6 +41,13 @@ class Trailer {
   final String? chassisImageUrl;
   final String? deckImageUrl;
   final String? makersPlateImageUrl;
+  final String? hookingPinImageUrl; // <-- add
+  final String? roofImageUrl; // <-- add
+  final String? tailBoardImageUrl; // <-- add
+  final String? spareWheelImageUrl; // <-- add
+  final String? landingLegsImageUrl; // <-- add
+  final String? hoseAndElectricCableImageUrl; // <-- add
+  final String? licenseDiskImageUrl; // <-- add
   final List<Map<String, dynamic>> additionalImages;
 
   // Type-specific data
@@ -57,6 +64,9 @@ class Trailer {
   final List<Map<String, dynamic>> features;
   final String featuresCondition;
   final List<String> brands;
+
+  // New field for number of axles
+  final String numberOfAxles;
 
   Trailer({
     required this.id,
@@ -88,6 +98,13 @@ class Trailer {
     this.chassisImageUrl,
     this.deckImageUrl,
     this.makersPlateImageUrl,
+    this.hookingPinImageUrl, // <-- add
+    this.roofImageUrl, // <-- add
+    this.tailBoardImageUrl, // <-- add
+    this.spareWheelImageUrl, // <-- add
+    this.landingLegsImageUrl, // <-- add
+    this.hoseAndElectricCableImageUrl, // <-- add
+    this.licenseDiskImageUrl, // <-- add
     this.additionalImages = const [],
     this.superlinkData,
     this.triAxleData,
@@ -98,6 +115,7 @@ class Trailer {
     this.features = const [],
     this.featuresCondition = 'no',
     this.brands = const [],
+    this.numberOfAxles = '',
   });
 
   static Map<String, dynamic> _safeMapConversion(dynamic value) {
@@ -132,38 +150,73 @@ class Trailer {
       final trailerA = _safeMapConversion(rawExtra['trailerA']);
       final trailerB = _safeMapConversion(rawExtra['trailerB']);
 
-      // debugPrint('DEBUG: Raw Trailer A data: $trailerA');
-      // debugPrint('DEBUG: Raw Trailer B data: $trailerB');
-
-      // Create map for SuperlinkTrailer with all fields preserved
+      // --- PATCH: Ensure axles are included in superlinkMap ---
       final superlinkMap = {
         'trailerA': {
           'length': trailerA['length']?.toString() ?? '',
           'vin': trailerA['vin']?.toString() ?? '',
           'registration': trailerA['registration']?.toString() ?? '',
-          'natisDocUrl': trailerA['natisDocUrl']?.toString() ?? '',
-          'frontImageUrl': trailerA['frontImageUrl']?.toString() ?? '',
-          'sideImageUrl': trailerA['sideImageUrl']?.toString() ?? '',
-          'tyresImageUrl': trailerA['tyresImageUrl']?.toString() ?? '',
-          'chassisImageUrl': trailerA['chassisImageUrl']?.toString() ?? '',
-          'deckImageUrl': trailerA['deckImageUrl']?.toString() ?? '',
-          'makersPlateImageUrl':
-              trailerA['makersPlateImageUrl']?.toString() ?? '',
-          'additionalImages': trailerA['additionalImages'] ?? [],
+          'axles':
+              trailerA['axles']?.toString() ?? '', // <-- Ensure axles present
+          'make': trailerA['make']?.toString(),
+          'model': trailerA['model']?.toString(),
+          'year': trailerA['year']?.toString(),
+          'licenceExp': trailerA['licenceExp']?.toString(),
+          'abs': trailerA['abs']?.toString(),
+          'suspension': trailerA['suspension']?.toString(),
+          'natisDoc1Url': trailerA['natisDoc1Url']?.toString(),
+          'frontImageUrl': trailerA['frontImageUrl']?.toString(),
+          'sideImageUrl': trailerA['sideImageUrl']?.toString(),
+          'tyresImageUrl': trailerA['tyresImageUrl']?.toString(),
+          'chassisImageUrl': trailerA['chassisImageUrl']?.toString(),
+          'deckImageUrl': trailerA['deckImageUrl']?.toString(),
+          'makersPlateImageUrl': trailerA['makersPlateImageUrl']?.toString(),
+          'hookPinImageUrl': trailerA['hookPinImageUrl']?.toString(),
+          'roofImageUrl': trailerA['roofImageUrl']?.toString(),
+          'tailBoardImageUrl': trailerA['tailBoardImageUrl']?.toString(),
+          'spareWheelImageUrl': trailerA['spareWheelImageUrl']?.toString(),
+          'landingLegImageUrl': trailerA['landingLegImageUrl']?.toString(),
+          'hoseAndElecticalCableImageUrl':
+              trailerA['hoseAndElecticalCableImageUrl']?.toString(),
+          'brakesAxle1ImageUrl': trailerA['brakesAxle1ImageUrl']?.toString(),
+          'brakesAxle2ImageUrl': trailerA['brakesAxle2ImageUrl']?.toString(),
+          'axle1ImageUrl': trailerA['axle1ImageUrl']?.toString(),
+          'axle2ImageUrl': trailerA['axle2ImageUrl']?.toString(),
+          'trailerAAdditionalImages':
+              trailerA['trailerAAdditionalImages'] ?? [],
         },
         'trailerB': {
           'length': trailerB['length']?.toString() ?? '',
           'vin': trailerB['vin']?.toString() ?? '',
           'registration': trailerB['registration']?.toString() ?? '',
-          'natisDocUrl': trailerB['natisDocUrl']?.toString() ?? '',
-          'frontImageUrl': trailerB['frontImageUrl']?.toString() ?? '',
-          'sideImageUrl': trailerB['sideImageUrl']?.toString() ?? '',
-          'tyresImageUrl': trailerB['tyresImageUrl']?.toString() ?? '',
-          'chassisImageUrl': trailerB['chassisImageUrl']?.toString() ?? '',
-          'deckImageUrl': trailerB['deckImageUrl']?.toString() ?? '',
-          'makersPlateImageUrl':
-              trailerB['makersPlateImageUrl']?.toString() ?? '',
-          'additionalImages': trailerB['additionalImages'] ?? [],
+          'axles':
+              trailerB['axles']?.toString() ?? '', // <-- Ensure axles present
+          'make': trailerB['make']?.toString(),
+          'model': trailerB['model']?.toString(),
+          'year': trailerB['year']?.toString(),
+          'licenceExp': trailerB['licenceExp']?.toString(),
+          'abs': trailerB['abs']?.toString(),
+          'suspension': trailerB['suspension']?.toString(),
+          'natisDoc1Url': trailerB['natisDoc1Url']?.toString(),
+          'frontImageUrl': trailerB['frontImageUrl']?.toString(),
+          'sideImageUrl': trailerB['sideImageUrl']?.toString(),
+          'tyresImageUrl': trailerB['tyresImageUrl']?.toString(),
+          'chassisImageUrl': trailerB['chassisImageUrl']?.toString(),
+          'deckImageUrl': trailerB['deckImageUrl']?.toString(),
+          'makersPlateImageUrl': trailerB['makersPlateImageUrl']?.toString(),
+          'hookPinImageUrl': trailerB['hookPinImageUrl']?.toString(),
+          'roofImageUrl': trailerB['roofImageUrl']?.toString(),
+          'tailBoardImageUrl': trailerB['tailBoardImageUrl']?.toString(),
+          'spareWheelImageUrl': trailerB['spareWheelImageUrl']?.toString(),
+          'landingLegImageUrl': trailerB['landingLegImageUrl']?.toString(),
+          'hoseAndElecticalCableImageUrl':
+              trailerB['hoseAndElecticalCableImageUrl']?.toString(),
+          'brakesAxle1ImageUrl': trailerB['brakesAxle1ImageUrl']?.toString(),
+          'brakesAxle2ImageUrl': trailerB['brakesAxle2ImageUrl']?.toString(),
+          'axle1ImageUrl': trailerB['axle1ImageUrl']?.toString(),
+          'axle2ImageUrl': trailerB['axle2ImageUrl']?.toString(),
+          'trailerBAdditionalImages':
+              trailerB['trailerBAdditionalImages'] ?? [],
         }
       };
 
@@ -264,6 +317,27 @@ class Trailer {
       makersPlateImageUrl: data['makersPlateImageUrl'] != null
           ? safeString(data['makersPlateImageUrl'])
           : null,
+      hookingPinImageUrl: data['hookingPinImageUrl'] != null
+          ? safeString(data['hookingPinImageUrl'])
+          : null,
+      roofImageUrl: data['roofImageUrl'] != null
+          ? safeString(data['roofImageUrl'])
+          : null,
+      tailBoardImageUrl: data['tailBoardImageUrl'] != null
+          ? safeString(data['tailBoardImageUrl'])
+          : null,
+      spareWheelImageUrl: data['spareWheelImageUrl'] != null
+          ? safeString(data['spareWheelImageUrl'])
+          : null,
+      landingLegsImageUrl: data['landingLegsImageUrl'] != null
+          ? safeString(data['landingLegsImageUrl'])
+          : null,
+      hoseAndElectricCableImageUrl: data['hoseAndElectricCableImageUrl'] != null
+          ? safeString(data['hoseAndElectricCableImageUrl'])
+          : null,
+      licenseDiskImageUrl: data['licenseDiskImageUrl'] != null
+          ? safeString(data['licenseDiskImageUrl'])
+          : null,
       additionalImages: parseAdditionalImages(data['additionalImages']),
       superlinkData: superlinkData,
       triAxleData: triAxleData,
@@ -275,6 +349,9 @@ class Trailer {
       brands: List<String>.from(data['brands'] ?? []),
       // Store the raw Firestore data for later use in the edit form.
       rawTrailerExtraInfo: data['trailerExtraInfo'] as Map<String, dynamic>?,
+      numberOfAxles: data['numberOfAxles']?.toString() ??
+          data['axles']?.toString() ??
+          '', // fallback to axles if not present
     );
   }
 
@@ -313,6 +390,14 @@ class Trailer {
       chassisImageUrl: json['chassisImageUrl'] as String?,
       deckImageUrl: json['deckImageUrl'] as String?,
       makersPlateImageUrl: json['makersPlateImageUrl'] as String?,
+      hookingPinImageUrl: json['hookingPinImageUrl'] as String?, // <-- add
+      roofImageUrl: json['roofImageUrl'] as String?, // <-- add
+      tailBoardImageUrl: json['tailBoardImageUrl'] as String?, // <-- add
+      spareWheelImageUrl: json['spareWheelImageUrl'] as String?, // <-- add
+      landingLegsImageUrl: json['landingLegsImageUrl'] as String?, // <-- add
+      hoseAndElectricCableImageUrl:
+          json['hoseAndElectricCableImageUrl'] as String?, // <-- add
+      licenseDiskImageUrl: json['licenseDiskImageUrl'] as String?, // <-- add
       additionalImages:
           List<Map<String, dynamic>>.from(json['additionalImages'] ?? []),
       superlinkData: json['superlinkData'] != null
@@ -332,6 +417,8 @@ class Trailer {
       features: List<Map<String, dynamic>>.from(json['features'] ?? []),
       featuresCondition: json['featuresCondition'] as String? ?? 'no',
       brands: List<String>.from(json['brands'] ?? []),
+      numberOfAxles:
+          json['numberOfAxles']?.toString() ?? json['axles']?.toString() ?? '',
     );
   }
 
@@ -367,12 +454,20 @@ class Trailer {
       'chassisImageUrl': chassisImageUrl,
       'deckImageUrl': deckImageUrl,
       'makersPlateImageUrl': makersPlateImageUrl,
+      'hookingPinImageUrl': hookingPinImageUrl, // <-- add
+      'roofImageUrl': roofImageUrl, // <-- add
+      'tailBoardImageUrl': tailBoardImageUrl, // <-- add
+      'spareWheelImageUrl': spareWheelImageUrl, // <-- add
+      'landingLegsImageUrl': landingLegsImageUrl, // <-- add
+      'hoseAndElectricCableImageUrl': hoseAndElectricCableImageUrl, // <-- add
+      'licenseDiskImageUrl': licenseDiskImageUrl, // <-- add
       'additionalImages': additionalImages,
       'damages': damages,
       'damagesCondition': damagesCondition,
       'features': features,
       'featuresCondition': featuresCondition,
       'brands': brands,
+      'numberOfAxles': numberOfAxles,
     };
 
     // Always include the raw data if available.

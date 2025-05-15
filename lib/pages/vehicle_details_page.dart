@@ -947,7 +947,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         displayValue = (value ?? '').toUpperCase();
       }
     } else {
-      displayValue = (value ?? 'N/A').toUpperCase();
+      if (value == null) {
+        displayValue = 'N/A';
+      } else if (value.trim().isEmpty) {
+        displayValue = '--';
+      } else {
+        displayValue = value.toUpperCase();
+      }
     }
     return Flexible(
       child: Container(
@@ -2593,10 +2599,183 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                         Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceEvenly,
-                                          children: widget.vehicle.vehicleType
-                                                      .toLowerCase() ==
-                                                  'trailer'
-                                              ? [
+                                          children: (() {
+                                            // Debugging: Print all possible trailer info sources
+                                            debugPrint(
+                                                '==== TRAILER DEBUG INFO ====');
+                                            debugPrint(
+                                                'widget.trailer: ${widget.trailer}');
+                                            debugPrint(
+                                                'widget.trailer?.toJson(): ${widget.trailer?.toJson()}');
+                                            debugPrint(
+                                                'widget.vehicle.trailer: ${widget.vehicle.trailer}');
+                                            debugPrint(
+                                                'widget.vehicle.trailer?.toJson(): ${widget.vehicle.trailer?.toJson()}');
+                                            debugPrint(
+                                                'widget.vehicle.trailerType: ${widget.vehicle.trailerType}');
+                                            debugPrint(
+                                                'widget.vehicle.vehicleType: ${widget.vehicle.vehicleType}');
+                                            debugPrint(
+                                                'widget.vehicle as JSON: ${widget.vehicle.toJson()}');
+                                            if (widget.vehicle.trailer !=
+                                                null) {
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.length: ${widget.vehicle.trailer?.length}');
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.axles: ${widget.vehicle.trailer?.axles}');
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.mainImageUrl: ${widget.vehicle.trailer?.mainImageUrl}');
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.registrationNumber: ${widget.vehicle.trailer?.registrationNumber}');
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.referenceNumber: ${widget.vehicle.trailer?.referenceNumber}');
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.country: ${widget.vehicle.trailer?.country}');
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.province: ${widget.vehicle.trailer?.province}');
+                                              debugPrint(
+                                                  'widget.vehicle.trailer.vehicleStatus: ${widget.vehicle.trailer?.vehicleStatus}');
+                                            }
+                                            debugPrint(
+                                                '==== END TRAILER DEBUG INFO ====');
+
+                                            // --- PATCH: Use trailerExtraInfo for Double Axle/Other ---
+                                            // If Double Axle or Other, try to pull length/axles from trailerExtraInfo if present
+                                            String? doubleAxleLength;
+                                            String? doubleAxleAxles;
+                                            if (widget.vehicle.trailerType ==
+                                                    'Double Axle' ||
+                                                widget.vehicle.trailerType ==
+                                                    'Other') {
+                                              // Try to get from trailerExtraInfo
+                                              final trailerExtraInfo = widget
+                                                      .vehicle
+                                                      .trailer
+                                                      ?.rawTrailerExtraInfo ??
+                                                  widget.vehicle.toMap()[
+                                                      'trailerExtraInfo'] ??
+                                                  (widget.vehicle
+                                                          .toMap()['trailer']
+                                                      ?['trailerExtraInfo']);
+                                              if (trailerExtraInfo != null &&
+                                                  trailerExtraInfo is Map) {
+                                                doubleAxleLength =
+                                                    trailerExtraInfo['length']
+                                                        ?.toString();
+                                                doubleAxleAxles =
+                                                    trailerExtraInfo['axles']
+                                                        ?.toString();
+                                                debugPrint(
+                                                    'PATCH: DoubleAxle/Other trailerExtraInfo: $trailerExtraInfo');
+                                                debugPrint(
+                                                    'PATCH: DoubleAxle/Other length: $doubleAxleLength');
+                                                debugPrint(
+                                                    'PATCH: DoubleAxle/Other axles: $doubleAxleAxles');
+                                              }
+                                            }
+
+                                            if (widget.vehicle.vehicleType
+                                                    .toLowerCase() !=
+                                                'trailer') {
+                                              return <Widget>[
+                                                _buildInfoContainer(
+                                                    'Year', vehicle.year),
+                                                const SizedBox(width: 5),
+                                                _buildInfoContainer(
+                                                    'Mileage', vehicle.mileage),
+                                                const SizedBox(width: 5),
+                                                _buildInfoContainer('Gearbox',
+                                                    vehicle.transmissionType),
+                                                const SizedBox(width: 5),
+                                                _buildInfoContainer(
+                                                    'Config', vehicle.config),
+                                              ];
+                                            }
+                                            // Debugging: Print trailerType and trailer object
+                                            debugPrint(
+                                                'DEBUG: vehicle.trailerType: ${widget.vehicle.trailerType}');
+                                            debugPrint(
+                                                'DEBUG: widget.trailer: ${widget.trailer}');
+                                            debugPrint(
+                                                'DEBUG: widget.trailer?.superlinkData: ${widget.trailer?.superlinkData}');
+                                            debugPrint(
+                                                'DEBUG: widget.trailer?.toJson(): ${widget.trailer?.toJson()}');
+                                            debugPrint(
+                                                'DEBUG: widget.vehicle.trailer: ${widget.vehicle.trailer}');
+                                            debugPrint(
+                                                'DEBUG: widget.vehicle.trailer?.superlinkData: ${widget.vehicle.trailer?.superlinkData}');
+                                            debugPrint(
+                                                'DEBUG: widget.vehicle.trailer?.toJson(): ${widget.vehicle.trailer?.toJson()}');
+                                            debugPrint(
+                                                'DEBUG: widget.vehicle.trailerType: ${widget.vehicle.trailerType}');
+                                            debugPrint(
+                                                'DEBUG: widget.vehicle.vehicleType: ${widget.vehicle.vehicleType}');
+                                            if (widget.vehicle.trailer !=
+                                                null) {
+                                              debugPrint(
+                                                  'DEBUG: widget.vehicle.trailer.length: ${widget.vehicle.trailer?.length}');
+                                              debugPrint(
+                                                  'DEBUG: widget.vehicle.trailer.axles: ${widget.vehicle.trailer?.axles}');
+                                            }
+                                            switch (
+                                                widget.vehicle.trailerType) {
+                                              case 'Superlink':
+                                                // Use direct fields from superlinkData (lengthA, axlesA, lengthB, axlesB)
+                                                final superlink = widget.trailer
+                                                        ?.superlinkData ??
+                                                    widget.vehicle.trailer
+                                                        ?.superlinkData;
+                                                debugPrint(
+                                                    'DEBUG: superlinkData (widget.trailer): ${widget.trailer?.superlinkData}');
+                                                debugPrint(
+                                                    'DEBUG: superlinkData (widget.vehicle.trailer): ${widget.vehicle.trailer?.superlinkData}');
+                                                debugPrint(
+                                                    'DEBUG: superlinkData used: $superlink');
+                                                if (superlink != null) {
+                                                  debugPrint(
+                                                      'DEBUG: superlink.lengthA: ${superlink.lengthA}');
+                                                  debugPrint(
+                                                      'DEBUG: superlink.axlesA: ${superlink.axlesA}');
+                                                  debugPrint(
+                                                      'DEBUG: superlink.lengthB: ${superlink.lengthB}');
+                                                  debugPrint(
+                                                      'DEBUG: superlink.axlesB: ${superlink.axlesB}');
+                                                  debugPrint(
+                                                      'DEBUG: superlink.toJson(): ${superlink.toJson()}');
+                                                } else {
+                                                  debugPrint(
+                                                      'DEBUG: superlinkData is null');
+                                                }
+                                                return <Widget>[
+                                                  _buildInfoContainer(
+                                                      'Trailer Type',
+                                                      widget.vehicle
+                                                              .trailerType ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Length A',
+                                                      superlink?.lengthA ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Axles A',
+                                                      superlink?.axlesA ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Length B',
+                                                      superlink?.lengthB ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Axles B',
+                                                      superlink?.axlesB ??
+                                                          'N/A'),
+                                                ];
+                                              case 'Tri-Axle':
+                                                // ...existing code...
+                                                return <Widget>[
                                                   _buildInfoContainer(
                                                       'Trailer Type',
                                                       widget.vehicle
@@ -2605,29 +2784,75 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                   const SizedBox(width: 5),
                                                   _buildInfoContainer(
                                                       'Length',
-                                                      widget.vehicle.trailer
+                                                      widget.trailer?.length ??
+                                                          widget
+                                                              .vehicle
+                                                              .trailer
+                                                              ?.rawTrailerExtraInfo?[
+                                                                  'lengthTrailer']
+                                                              ?.toString() ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Axles',
+                                                      widget.trailer?.axles ??
+                                                          widget
+                                                              .vehicle
+                                                              .trailer
+                                                              ?.rawTrailerExtraInfo?[
+                                                                  'axles']
+                                                              ?.toString() ??
+                                                          'N/A'),
+                                                ];
+                                              case 'Double Axle':
+                                              case 'Other':
+                                                // Use the PATCH: fallback to trailerExtraInfo for length/axles
+                                                return <Widget>[
+                                                  _buildInfoContainer(
+                                                      'Trailer Type',
+                                                      widget.vehicle
+                                                              .trailerType ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Length',
+                                                      doubleAxleLength ??
+                                                          widget.trailer
+                                                              ?.length ??
+                                                          widget.vehicle.trailer
                                                               ?.length ??
                                                           'N/A'),
                                                   const SizedBox(width: 5),
                                                   _buildInfoContainer(
                                                       'Axles',
-                                                      widget.vehicle.trailer
+                                                      doubleAxleAxles ??
+                                                          widget
+                                                              .trailer?.axles ??
+                                                          widget.vehicle.trailer
                                                               ?.axles ??
                                                           'N/A'),
-                                                ]
-                                              : [
+                                                ];
+                                              default:
+                                                // ...existing code...
+                                                return <Widget>[
                                                   _buildInfoContainer(
-                                                      'Year', vehicle.year),
-                                                  const SizedBox(width: 5),
-                                                  _buildInfoContainer('Mileage',
-                                                      vehicle.mileage),
-                                                  const SizedBox(width: 5),
-                                                  _buildInfoContainer('Gearbox',
-                                                      vehicle.transmissionType),
+                                                      'Trailer Type',
+                                                      widget.vehicle
+                                                              .trailerType ??
+                                                          'N/A'),
                                                   const SizedBox(width: 5),
                                                   _buildInfoContainer(
-                                                      'Config', vehicle.config),
-                                                ],
+                                                      'Length',
+                                                      widget.trailer?.length ??
+                                                          'N/A'),
+                                                  const SizedBox(width: 5),
+                                                  _buildInfoContainer(
+                                                      'Axles',
+                                                      widget.trailer?.axles ??
+                                                          'N/A'),
+                                                ];
+                                            }
+                                          }()),
                                         ),
                                         const SizedBox(height: 16),
                                         if (offerWidgets.isNotEmpty)

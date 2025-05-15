@@ -4,6 +4,7 @@ class TriAxleTrailer {
   final String? registration;
   final String? make;
   final String? year;
+  final String? numberOfAxles;
   final List<Map<String, dynamic>>? additionalImages;
 
   TriAxleTrailer({
@@ -12,6 +13,7 @@ class TriAxleTrailer {
     this.registration,
     this.make,
     this.year,
+    this.numberOfAxles,
     this.additionalImages,
   });
 
@@ -22,6 +24,8 @@ class TriAxleTrailer {
       registration: json['registration'],
       make: json['make'],
       year: json['year'],
+      numberOfAxles:
+          json['numberOfAxles']?.toString() ?? json['axles']?.toString(),
       additionalImages:
           List<Map<String, dynamic>>.from(json['additionalImages'] ?? []),
     );
@@ -34,6 +38,7 @@ class TriAxleTrailer {
       'registration': registration,
       'make': make,
       'year': year,
+      'numberOfAxles': numberOfAxles,
       'additionalImages': additionalImages,
     };
   }

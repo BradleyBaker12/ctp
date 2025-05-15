@@ -14,11 +14,9 @@ import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:universal_html/html.dart' as html;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ctp/providers/trailer_form_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
@@ -88,6 +86,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   final TextEditingController _vinAController = TextEditingController();
   final TextEditingController _registrationAController =
       TextEditingController();
+  final TextEditingController _modelTrailerAController =
+      TextEditingController();
+  final TextEditingController _yearTrailerAController = TextEditingController();
+  final TextEditingController _makeTrailerAController =
+      TextEditingController(); // For symmetry, but _makeController is used for Trailer A
   Uint8List? _frontImageA;
   Uint8List? _sideImageA;
   Uint8List? _tyresImageA;
@@ -102,6 +105,10 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   final TextEditingController _vinBController = TextEditingController();
   final TextEditingController _registrationBController =
       TextEditingController();
+  final TextEditingController _makeTrailerBController = TextEditingController();
+  final TextEditingController _modelTrailerBController =
+      TextEditingController();
+  final TextEditingController _yearTrailerBController = TextEditingController();
   Uint8List? _frontImageB;
   Uint8List? _sideImageB;
   Uint8List? _tyresImageB;
@@ -192,9 +199,105 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   String? _selectedSalesRepId;
   String? _selectedSalesRepEmail;
 
-  // Add this near other state variables
+  // ── Double-Axle ─────────────────────────────────────────────────────────
+  final TextEditingController _makeDoubleAxleController =
+      TextEditingController();
+  final TextEditingController _modelDoubleAxleController =
+      TextEditingController();
+  final TextEditingController _yearDoubleAxleController =
+      TextEditingController();
+  final TextEditingController _lengthDoubleAxleController =
+      TextEditingController();
+  final TextEditingController _vinDoubleAxleController =
+      TextEditingController();
+  final TextEditingController _registrationDoubleAxleController =
+      TextEditingController();
+  final TextEditingController _licenceDiskExpDoubleAxleController =
+      TextEditingController();
+  final TextEditingController _numbAxelDoubleAxleController =
+      TextEditingController();
+  String _suspensionDoubleAxle = 'steel';
+  String _absDoubleAxle = 'no';
+  // === Double-Axle Images & Doc ===
+  Uint8List? _frontImageDoubleAxle;
+  Uint8List? _sideImageDoubleAxle;
+  Uint8List? _tyresImageDoubleAxle;
+  Uint8List? _chassisImageDoubleAxle;
+  Uint8List? _deckImageDoubleAxle;
+  Uint8List? _makersPlateImageDoubleAxle;
+  Uint8List? _natisDoubleAxleDocFile;
+  String? _natisDoubleAxleDocFileName;
+  String? _existingNatisDoubleAxleDocUrl;
+  // Add missing fields for Double Axle
+  Uint8List? _hookingPinDoubleAxleImage;
+  Uint8List? _roofDoubleAxleImage;
+  Uint8List? _tyresDoubleAxleImage;
+  Uint8List? _tailBoardDoubleAxleImage;
+  Uint8List? _spareWheelDoubleAxleImage;
+  Uint8List? _landingLegsDoubleAxleImage;
+  Uint8List? _hoseAndElecCableDoubleAxleImage;
+  Uint8List? _brakesAxle1DoubleAxleImage;
+  Uint8List? _brakesAxle2DoubleAxleImage;
+  Uint8List? _axle1DoubleAxleImage;
+  Uint8List? _axle2DoubleAxleImage;
+  Uint8List? _licenseDiskDoubleAxleImage;
+  Uint8List? _makersPlateDblAxleImage;
+
+  // ── Other Trailer ───────────────────────────────────────────────────────
+  final TextEditingController _makeOtherController = TextEditingController();
+  final TextEditingController _modelOtherController = TextEditingController();
+  final TextEditingController _yearOtherController = TextEditingController();
+  final TextEditingController _lengthOtherController = TextEditingController();
+  final TextEditingController _vinOtherController = TextEditingController();
+  final TextEditingController _registrationOtherController =
+      TextEditingController();
+  final TextEditingController _licenceDiskExpOtherController =
+      TextEditingController();
+  final TextEditingController _numbAxelOtherController =
+      TextEditingController();
+  String _suspensionOther = 'steel';
+  String _absOther = 'no';
+  // === Other Images & Doc ===
+  Uint8List? _frontOtherImage;
+  Uint8List? _sideOtherImage;
+  Uint8List? _tyresOtherImage;
+  Uint8List? _chassisOtherImage;
+  Uint8List? _deckOtherImage;
+  Uint8List? _makersPlateOtherImage;
+  Uint8List? _natisOtherDocFile;
+  String? _natisOtherDocFileName;
+  String? _existingNatisOtherDocUrl;
+  // Add missing fields for 'Other' trailer type
+  Uint8List? _hookingPinOtherImage;
+  Uint8List? _roofOtherImage;
+  Uint8List? _tailBoardOtherImage;
+  Uint8List? _spareWheelOtherImage;
+  Uint8List? _landingLegsOtherImage;
+  Uint8List? _hoseAndElecCableOtherImage;
+  Uint8List? _licenseDiskOtherImage;
+
+  // === Damage & Additional Features (Missing in original edit form) ===
   String _damagesCondition = 'no';
   final List<Map<String, dynamic>> _damageList = [];
+
+  // Add fields for Double Axle image URLs
+  String? _hookingPinDoubleAxleUrl;
+  String? _roofDoubleAxleUrl;
+  String? _tailBoardDoubleAxleUrl;
+  String? _spareWheelDoubleAxleUrl;
+  String? _landingLegsDoubleAxleUrl;
+  String? _hoseAndElecCableDoubleAxleUrl;
+  String? _brakesAxle1DoubleAxleUrl;
+  String? _brakesAxle2DoubleAxleUrl;
+  String? _axle1DoubleAxleUrl;
+  String? _axle2DoubleAxleUrl;
+  String? _licenseDiskDoubleAxleUrl;
+
+  // --- Superlink Suspension/ABS fields ---
+  String _suspensionTrailerA = 'steel';
+  String _absTrailerA = 'no';
+  String _suspensionTrailerB = 'steel';
+  String _absTrailerB = 'no';
 
   @override
   void initState() {
@@ -256,6 +359,24 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     _axlesTrailerAController.dispose();
     _axlesTrailerBController.dispose();
     _scrollController.dispose();
+    // Double-Axle
+    _makeDoubleAxleController.dispose();
+    _modelDoubleAxleController.dispose();
+    _yearDoubleAxleController.dispose();
+    _lengthDoubleAxleController.dispose();
+    _vinDoubleAxleController.dispose();
+    _registrationDoubleAxleController.dispose();
+    _licenceDiskExpDoubleAxleController.dispose();
+    _numbAxelDoubleAxleController.dispose();
+// Other
+    _makeOtherController.dispose();
+    _modelOtherController.dispose();
+    _yearOtherController.dispose();
+    _lengthOtherController.dispose();
+    _vinOtherController.dispose();
+    _registrationOtherController.dispose();
+    _licenceDiskExpOtherController.dispose();
+    _numbAxelOtherController.dispose();
     for (var item in _damageList) {
       if (item['controller'] != null) {
         (item['controller'] as TextEditingController).dispose();
@@ -266,6 +387,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         (item['controller'] as TextEditingController).dispose();
       }
     }
+    _modelTrailerAController.dispose();
+    _yearTrailerAController.dispose();
+    _makeTrailerBController.dispose();
+    _modelTrailerBController.dispose();
+    _yearTrailerBController.dispose();
     super.dispose();
   }
 
@@ -326,6 +452,16 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         debugPrint("DEBUG: Populating Trailer A fields with: $trailerA");
         debugPrint("DEBUG: Populating Trailer B fields with: $trailerB");
 
+        // --- Add missing fields for Trailer A ---
+        _makeController.text = trailerA['make']?.toString() ?? '';
+        _modelTrailerAController.text = trailerA['model']?.toString() ?? '';
+        _yearTrailerAController.text = trailerA['year']?.toString() ?? '';
+
+        // --- Add missing fields for Trailer B ---
+        _makeTrailerBController.text = trailerB['make']?.toString() ?? '';
+        _modelTrailerBController.text = trailerB['model']?.toString() ?? '';
+        _yearTrailerBController.text = trailerB['year']?.toString() ?? '';
+
         // Trailer A
         _lengthTrailerAController.text = trailerA['length']?.toString() ?? '';
         _vinAController.text = trailerA['vin']?.toString() ?? '';
@@ -337,13 +473,33 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             "DEBUG: Set Trailer A - Length: ${_lengthTrailerAController.text}, VIN: ${_vinAController.text}, Reg: ${_registrationAController.text}");
         debugPrint(
             "DEBUG: Trailer A additionalImages: ${trailerA['trailerAAdditionalImages']}");
+
+        // --- Robust Superlink image/document URL extraction ---
+        String _getField(Map<String, dynamic> map, List<String> keys) {
+          for (final key in keys) {
+            if (map[key] != null && map[key].toString().isNotEmpty) {
+              return map[key].toString();
+            }
+          }
+          return '';
+        }
+
         // Trailer A Image URLs
-        _frontImageAUrl = trailerA['frontImageUrl'];
-        _sideImageAUrl = trailerA['sideImageUrl'];
-        _tyresImageAUrl = trailerA['tyresImageUrl'];
-        _chassisImageAUrl = trailerA['chassisImageUrl'];
-        _deckImageAUrl = trailerA['deckImageUrl'];
-        _makersPlateImageAUrl = trailerA['makersPlateImageUrl'];
+        _frontImageAUrl = _getField(
+            trailerA, ['frontImageUrl', 'front_image_url', 'frontimageurl']);
+        _sideImageAUrl = _getField(
+            trailerA, ['sideImageUrl', 'side_image_url', 'sideimageurl']);
+        _tyresImageAUrl = _getField(
+            trailerA, ['tyresImageUrl', 'tyres_image_url', 'tyresimageurl']);
+        _chassisImageAUrl = _getField(trailerA,
+            ['chassisImageUrl', 'chassis_image_url', 'chassisimageurl']);
+        _deckImageAUrl = _getField(
+            trailerA, ['deckImageUrl', 'deck_image_url', 'deckimageurl']);
+        _makersPlateImageAUrl = _getField(trailerA, [
+          'makersPlateImageUrl',
+          'makers_plate_image_url',
+          'makersplateimageurl'
+        ]);
         _additionalImagesListTrailerA.clear();
         if (trailerA['trailerAAdditionalImages'] != null &&
             (trailerA['trailerAAdditionalImages'] as List).isNotEmpty) {
@@ -352,40 +508,48 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 trailerA['trailerAAdditionalImages']),
           );
         }
-        _existingNatisTrailerADocUrl = trailerA['natisDocUrl'];
-
-        _existingNatisTrailerADoc1Url =
-            trailerA['natisDocUrl']?.toString() ?? '';
+        // NATIS doc for Trailer A (handle possible typo: natisDoc1Url)
+        _existingNatisTrailerADocUrl = _getField(
+            trailerA, ['natisDocUrl', 'natisDoc1Url', 'natis_document_url']);
+        _existingNatisTrailerADoc1Url = _existingNatisTrailerADocUrl ?? '';
         _existingNatisTrailerADoc1Name =
             _getFileNameFromUrl(_existingNatisTrailerADoc1Url);
         debugPrint(
             "NATIS Trailer A Document: '$_existingNatisTrailerADoc1Url', name: '$_existingNatisTrailerADoc1Name'");
 
-        _existingNatisTrailerBDoc1Url =
-            trailerB['natisDocUrl']?.toString() ?? '';
+        // --- Trailer B ---
+        _existingNatisTrailerBDoc1Url = _getField(
+            trailerB, ['natisDocUrl', 'natisDoc1Url', 'natis_document_url']);
         _existingNatisTrailerBDoc1Name =
             _getFileNameFromUrl(_existingNatisTrailerBDoc1Url);
-        debugPrint(
-            "NATIS Trailer B Document: '$_existingNatisTrailerBDoc1Url', name: '$_existingNatisTrailerBDoc1Name'");
 
         // Trailer B
         _lengthTrailerBController.text = trailerB['length']?.toString() ?? '';
         _vinBController.text = trailerB['vin']?.toString() ?? '';
         _registrationBController.text =
             trailerB['registration']?.toString() ?? '';
-        _axlesTrailerBController.text = trailerA['axles']?.toString() ?? '';
+        _axlesTrailerBController.text = trailerB['axles']?.toString() ?? '';
 
         debugPrint(
             "DEBUG: Set Trailer B - Length: ${_lengthTrailerBController.text}, VIN: ${_vinBController.text}, Reg: ${_registrationBController.text}");
         debugPrint(
             "DEBUG: Trailer B additionalImages: ${trailerB['trailerBAdditionalImages']}");
         // Trailer B Image URLs
-        _frontImageBUrl = trailerB['frontImageUrl'];
-        _sideImageBUrl = trailerB['sideImageUrl'];
-        _tyresImageBUrl = trailerB['tyresImageUrl'];
-        _chassisImageBUrl = trailerB['chassisImageUrl'];
-        _deckImageBUrl = trailerB['deckImageUrl'];
-        _makersPlateImageBUrl = trailerB['makersPlateImageUrl'];
+        _frontImageBUrl = _getField(
+            trailerB, ['frontImageUrl', 'front_image_url', 'frontimageurl']);
+        _sideImageBUrl = _getField(
+            trailerB, ['sideImageUrl', 'side_image_url', 'sideimageurl']);
+        _tyresImageBUrl = _getField(
+            trailerB, ['tyresImageUrl', 'tyres_image_url', 'tyresimageurl']);
+        _chassisImageBUrl = _getField(trailerB,
+            ['chassisImageUrl', 'chassis_image_url', 'chassisimageurl']);
+        _deckImageBUrl = _getField(
+            trailerB, ['deckImageUrl', 'deck_image_url', 'deckimageurl']);
+        _makersPlateImageBUrl = _getField(trailerB, [
+          'makersPlateImageUrl',
+          'makers_plate_image_url',
+          'makersplateimageurl'
+        ]);
         _additionalImagesListTrailerB.clear();
         if (trailerB['trailerBAdditionalImages'] != null &&
             (trailerB['trailerBAdditionalImages'] as List).isNotEmpty) {
@@ -403,6 +567,15 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         // Add this line to populate the NATIS document URL
         _existingNatisTriAxleDocUrl =
             trailerExtra['natisDocUrl']?.toString() ?? '';
+        // --- FIX: Prepopulate Tri-Axle image URLs ---
+        _frontImageUrl = trailerExtra['frontImageUrl']?.toString() ?? '';
+        _sideImageUrl = trailerExtra['sideImageUrl']?.toString() ?? '';
+        _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ?? '';
+        _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ?? '';
+        _deckImageUrl = trailerExtra['deckImageUrl']?.toString() ?? '';
+        _makersPlateImageUrl =
+            trailerExtra['makersPlateImageUrl']?.toString() ?? '';
+        // --- END FIX ---
         debugPrint("DEBUG: Tri-Axle NATIS URL: $_existingNatisTriAxleDocUrl");
         if (trailerExtra.containsKey('additionalImages') &&
             (trailerExtra['additionalImages'] as List).isNotEmpty) {
@@ -411,8 +584,295 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             List<Map<String, dynamic>>.from(trailerExtra['additionalImages']),
           );
         }
-      }
+      } else if (_selectedTrailerType == 'Double Axle') {
+        // Prepopulate Double Axle images and NATIS doc
+        _frontImageDoubleAxle = null;
+        _sideImageDoubleAxle = null;
+        _tyresImageDoubleAxle = null;
+        _chassisImageDoubleAxle = null;
+        _deckImageDoubleAxle = null;
+        _makersPlateImageDoubleAxle = null;
+        _hookingPinDoubleAxleImage = null;
+        _roofDoubleAxleImage = null;
+        _tailBoardDoubleAxleImage = null;
+        _spareWheelDoubleAxleImage = null;
+        _landingLegsDoubleAxleImage = null;
+        _hoseAndElecCableDoubleAxleImage = null;
+        _brakesAxle1DoubleAxleImage = null;
+        _brakesAxle2DoubleAxleImage = null;
+        _axle1DoubleAxleImage = null;
+        _axle2DoubleAxleImage = null;
+        _licenseDiskDoubleAxleImage = null;
+        _makersPlateDblAxleImage = null;
+        _existingNatisDoubleAxleDocUrl =
+            trailerExtra['natisDocUrl']?.toString() ??
+                data['natisDocUrl']?.toString() ??
+                '';
 
+        // Prepopulate controllers from trailerExtra or root-level fields
+        _makeDoubleAxleController.text =
+            trailerExtra['make']?.toString() ?? data['make']?.toString() ?? '';
+        _modelDoubleAxleController.text = trailerExtra['model']?.toString() ??
+            data['model']?.toString() ??
+            '';
+        _yearDoubleAxleController.text =
+            trailerExtra['year']?.toString() ?? data['year']?.toString() ?? '';
+        _lengthDoubleAxleController.text = trailerExtra['length']?.toString() ??
+            data['length']?.toString() ??
+            '';
+        _vinDoubleAxleController.text =
+            trailerExtra['vin']?.toString() ?? data['vin']?.toString() ?? '';
+        _registrationDoubleAxleController.text =
+            trailerExtra['registration']?.toString() ??
+                data['registration']?.toString() ??
+                '';
+        _licenceDiskExpDoubleAxleController.text =
+            trailerExtra['licenseExp']?.toString() ??
+                data['licenseExp']?.toString() ??
+                '';
+        _numbAxelDoubleAxleController.text =
+            trailerExtra['numbAxel']?.toString() ??
+                data['numbAxel']?.toString() ??
+                '';
+        _suspensionDoubleAxle = trailerExtra['suspension']?.toString() ??
+            data['suspension']?.toString() ??
+            'steel';
+        _absDoubleAxle =
+            trailerExtra['abs']?.toString() ?? data['abs']?.toString() ?? 'no';
+
+        // Prepopulate image URLs for Double Axle (use trailerExtra first, fallback to root-level)
+        _frontImageUrl = trailerExtra['frontImageUrl']?.toString() ??
+            data['frontImageUrl']?.toString() ??
+            '';
+        _sideImageUrl = trailerExtra['sideImageUrl']?.toString() ??
+            data['sideImageUrl']?.toString() ??
+            '';
+        _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ??
+            data['tyresImageUrl']?.toString() ??
+            '';
+        _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ??
+            data['chassisImageUrl']?.toString() ??
+            '';
+        _deckImageUrl = trailerExtra['deckImageUrl']?.toString() ??
+            data['deckImageUrl']?.toString() ??
+            '';
+        _makersPlateImageUrl =
+            trailerExtra['makersPlateImageUrl']?.toString() ??
+                data['makersPlateImageUrl']?.toString() ??
+                '';
+
+        // Additional Double Axle images
+        // Hooking Pin
+        final hookPinDoubleAxleUrl =
+            trailerExtra['hookingPinImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['hookingPinImageUrl']?.toString() ??
+                data['hookingPinImageUrl']?.toString() ??
+                '';
+        // Roof
+        final roofDoubleAxleUrl = trailerExtra['roofImageUrl']?.toString() ??
+            data['trailerExtraInfo']?['roofImageUrl']?.toString() ??
+            data['roofImageUrl']?.toString() ??
+            '';
+        // Tail Board
+        final tailBoardDoubleAxleUrl =
+            trailerExtra['tailBoardImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['tailBoardImageUrl']?.toString() ??
+                data['tailBoardImageUrl']?.toString() ??
+                '';
+        // Spare Wheel
+        final spareWheelDoubleAxleUrl =
+            trailerExtra['spareWheelImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['spareWheelImageUrl']?.toString() ??
+                data['spareWheelImageUrl']?.toString() ??
+                '';
+        // Landing Legs
+        final landingLegsDoubleAxleUrl =
+            trailerExtra['landingLegsImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['landingLegsImageUrl']?.toString() ??
+                data['landingLegsImageUrl']?.toString() ??
+                '';
+        // Hose and Electrical Cable
+        final hoseAndElecCableDoubleAxleUrl =
+            trailerExtra['hoseAndElectricCableImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['hoseAndElectricCableImageUrl']
+                    ?.toString() ??
+                data['hoseAndElectricCableImageUrl']?.toString() ??
+                '';
+        // Brakes Axle 1
+        final brakesAxle1DoubleAxleUrl =
+            trailerExtra['brakesAxle1ImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['brakesAxle1ImageUrl']?.toString() ??
+                data['brakesAxle1ImageUrl']?.toString() ??
+                '';
+        // Brakes Axle 2
+        final brakesAxle2DoubleAxleUrl =
+            trailerExtra['brakesAxle2ImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['brakesAxle2ImageUrl']?.toString() ??
+                data['brakesAxle2ImageUrl']?.toString() ??
+                '';
+        // Axle 1
+        final axle1DoubleAxleUrl = trailerExtra['axle1ImageUrl']?.toString() ??
+            data['trailerExtraInfo']?['axle1ImageUrl']?.toString() ??
+            data['axle1ImageUrl']?.toString() ??
+            '';
+        // Axle 2
+        final axle2DoubleAxleUrl = trailerExtra['axle2ImageUrl']?.toString() ??
+            data['trailerExtraInfo']?['axle2ImageUrl']?.toString() ??
+            data['axle2ImageUrl']?.toString() ??
+            '';
+        // Licence Disk
+        final licenseDiskDoubleAxleUrl =
+            trailerExtra['licenseDiskImageUrl']?.toString() ??
+                data['trailerExtraInfo']?['licenseDiskImageUrl']?.toString() ??
+                data['licenseDiskImageUrl']?.toString() ??
+                '';
+
+        // Assign these URLs to be used in the UI
+        _hookingPinDoubleAxleUrl = hookPinDoubleAxleUrl;
+        _roofDoubleAxleUrl = roofDoubleAxleUrl;
+        _tailBoardDoubleAxleUrl = tailBoardDoubleAxleUrl;
+        _spareWheelDoubleAxleUrl = spareWheelDoubleAxleUrl;
+        _landingLegsDoubleAxleUrl = landingLegsDoubleAxleUrl;
+        _hoseAndElecCableDoubleAxleUrl = hoseAndElecCableDoubleAxleUrl;
+        _brakesAxle1DoubleAxleUrl = brakesAxle1DoubleAxleUrl;
+        _brakesAxle2DoubleAxleUrl = brakesAxle2DoubleAxleUrl;
+        _axle1DoubleAxleUrl = axle1DoubleAxleUrl;
+        _axle2DoubleAxleUrl = axle2DoubleAxleUrl;
+        _licenseDiskDoubleAxleUrl = licenseDiskDoubleAxleUrl;
+
+        // Debugging: Print all Double Axle image/document fields
+        debugPrint('[DEBUG][DoubleAxle] trailerExtra: $trailerExtra');
+        debugPrint(
+            '[DEBUG][DoubleAxle] natisDocUrl: $_existingNatisDoubleAxleDocUrl');
+        debugPrint('[DEBUG][DoubleAxle] frontImageUrl: $_frontImageUrl');
+        debugPrint('[DEBUG][DoubleAxle] sideImageUrl: $_sideImageUrl');
+        debugPrint('[DEBUG][DoubleAxle] tyresImageUrl: $_tyresImageUrl');
+        debugPrint('[DEBUG][DoubleAxle] chassisImageUrl: $_chassisImageUrl');
+        debugPrint('[DEBUG][DoubleAxle] deckImageUrl: $_deckImageUrl');
+        debugPrint(
+            '[DEBUG][DoubleAxle] makersPlateImageUrl: $_makersPlateImageUrl');
+      } else if (_selectedTrailerType == 'Other') {
+        // Prepopulate Other images and NATIS doc
+        // Try to get from trailerExtra first, fallback to root-level fields
+        _frontOtherImage = null;
+        _sideOtherImage = null;
+        _tyresOtherImage = null;
+        _chassisOtherImage = null;
+        _deckOtherImage = null;
+        _makersPlateOtherImage = null;
+        _hookingPinOtherImage = null;
+        _roofOtherImage = null;
+        _tailBoardOtherImage = null;
+        _spareWheelOtherImage = null;
+        _landingLegsOtherImage = null;
+        _hoseAndElecCableOtherImage = null;
+        _licenseDiskOtherImage = null;
+        _existingNatisOtherDocUrl = trailerExtra['natisDocUrl']?.toString() ??
+            data['natisDocUrl']?.toString() ??
+            '';
+
+        // Prepopulate controllers from root-level fields if present
+        _makeOtherController.text =
+            trailerExtra['make']?.toString() ?? data['make']?.toString() ?? '';
+        _modelOtherController.text = trailerExtra['model']?.toString() ??
+            data['model']?.toString() ??
+            '';
+        _yearOtherController.text =
+            trailerExtra['year']?.toString() ?? data['year']?.toString() ?? '';
+        _lengthOtherController.text = trailerExtra['length']?.toString() ??
+            data['length']?.toString() ??
+            '';
+        _vinOtherController.text =
+            trailerExtra['vin']?.toString() ?? data['vin']?.toString() ?? '';
+        _registrationOtherController.text =
+            trailerExtra['registration']?.toString() ??
+                data['registration']?.toString() ??
+                '';
+        _licenceDiskExpOtherController.text =
+            trailerExtra['licenseExp']?.toString() ??
+                data['licenseExp']?.toString() ??
+                '';
+        _numbAxelOtherController.text = trailerExtra['numbAxel']?.toString() ??
+            data['numbAxel']?.toString() ??
+            '';
+        _suspensionOther = trailerExtra['suspension']?.toString() ??
+            data['suspension']?.toString() ??
+            'steel';
+        _absOther =
+            trailerExtra['abs']?.toString() ?? data['abs']?.toString() ?? 'no';
+
+        // Prepopulate image URLs from root-level fields if present
+        // (these are used as 'existingUrl' in _buildImageSectionWithTitle)
+        _frontOtherImage = null;
+        _sideOtherImage = null;
+        _tyresOtherImage = null;
+        _chassisOtherImage = null;
+        _deckOtherImage = null;
+        _makersPlateOtherImage = null;
+        _hookingPinOtherImage = null;
+        _roofOtherImage = null;
+        _tailBoardOtherImage = null;
+        _spareWheelOtherImage = null;
+        _landingLegsOtherImage = null;
+        _hoseAndElecCableOtherImage = null;
+        _licenseDiskOtherImage = null;
+
+        // Store URLs for use in _buildImageSectionWithTitle
+        _frontImageUrl = trailerExtra['frontImageUrl']?.toString() ??
+            data['frontImageUrl']?.toString() ??
+            '';
+        _sideImageUrl = trailerExtra['sideImageUrl']?.toString() ??
+            data['sideImageUrl']?.toString() ??
+            '';
+        _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ??
+            data['tyresImageUrl']?.toString() ??
+            '';
+        _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ??
+            data['chassisImageUrl']?.toString() ??
+            '';
+        _deckImageUrl = trailerExtra['deckImageUrl']?.toString() ??
+            data['deckImageUrl']?.toString() ??
+            '';
+        _makersPlateImageUrl =
+            trailerExtra['makersPlateImageUrl']?.toString() ??
+                data['makersPlateImageUrl']?.toString() ??
+                '';
+
+        // Debugging: Print all relevant fields for 'Other' trailer type
+        debugPrint('DEBUG: [Other] trailerExtra: $trailerExtra');
+        debugPrint('DEBUG: [Other] natisDocUrl: $_existingNatisOtherDocUrl');
+        debugPrint('DEBUG: [Other] frontImageUrl: $_frontImageUrl');
+        debugPrint('DEBUG: [Other] sideImageUrl: $_sideImageUrl');
+        debugPrint('DEBUG: [Other] tyresImageUrl: $_tyresImageUrl');
+        debugPrint('DEBUG: [Other] chassisImageUrl: $_chassisImageUrl');
+        debugPrint('DEBUG: [Other] deckImageUrl: $_deckImageUrl');
+        debugPrint('DEBUG: [Other] makersPlateImageUrl: $_makersPlateImageUrl');
+        debugPrint(
+            'DEBUG: [Other] hookingPinImageUrl: ${trailerExtra['hookingPinImageUrl']?.toString() ?? data['trailerExtraInfo']?['hookingPinImageUrl']?.toString() ?? data['hookingPinImageUrl']?.toString() ?? 'NULL'}');
+        debugPrint(
+            'DEBUG: [Other] roofImageUrl: ${trailerExtra['roofImageUrl']?.toString() ?? data['trailerExtraInfo']?['roofImageUrl']?.toString() ?? data['roofImageUrl']?.toString() ?? 'NULL'}');
+        debugPrint(
+            'DEBUG: [Other] tailBoardImageUrl: ${trailerExtra['tailBoardImageUrl']?.toString() ?? data['trailerExtraInfo']?['tailBoardImageUrl']?.toString() ?? data['tailBoardImageUrl']?.toString() ?? 'NULL'}');
+        debugPrint(
+            'DEBUG: [Other] spareWheelImageUrl: ${trailerExtra['spareWheelImageUrl']?.toString() ?? data['trailerExtraInfo']?['spareWheelImageUrl']?.toString() ?? data['spareWheelImageUrl']?.toString() ?? 'NULL'}');
+        debugPrint(
+            'DEBUG: [Other] landingLegsImageUrl: ${trailerExtra['landingLegsImageUrl']?.toString() ?? data['trailerExtraInfo']?['landingLegsImageUrl']?.toString() ?? data['landingLegsImageUrl']?.toString() ?? 'NULL'}');
+        debugPrint(
+            'DEBUG: [Other] hoseAndElecCableImageUrl: ${trailerExtra['hoseAndElectricCableImageUrl']?.toString() ?? data['trailerExtraInfo']?['hoseAndElectricCableImageUrl']?.toString() ?? data['hoseAndElectricCableImageUrl']?.toString() ?? 'NULL'}');
+        debugPrint(
+            'DEBUG: [Other] licenseDiskImageUrl: ${trailerExtra['licenseDiskImageUrl']?.toString() ?? data['trailerExtraInfo']?['licenseDiskImageUrl']?.toString() ?? data['licenseDiskImageUrl']?.toString() ?? 'NULL'}');
+        debugPrint(
+            'DEBUG: [Other] additionalImages: ${trailerExtra['additionalImages']?.toString() ?? data['additionalImages']?.toString() ?? 'NULL'}');
+
+        // Additional images for 'Other' trailer type
+        _additionalImagesList.clear();
+        if (trailerExtra['additionalImages'] != null &&
+            (trailerExtra['additionalImages'] as List).isNotEmpty) {
+          _additionalImagesList.addAll(
+            List<Map<String, dynamic>>.from(trailerExtra['additionalImages']),
+          );
+        }
+      }
       _featureList.clear();
       if (data['features'] != null && data['features'] is List) {
         _featureList.addAll(
@@ -729,167 +1189,123 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     );
   }
 
-  // Add this new widget below your _buildFeaturesSection() function.
-  Widget _buildDamageSection() {
-    return _buildItemSection(
-      title: 'Damages',
-      items: _damageList,
-      onAdd: () {
-        setState(() {
-          _damageList.add({
-            'description': '',
-            'image': null,
-            'controller': TextEditingController(),
-          });
-        });
-      },
-      showImageSourceDialog: _showDamageImageSourceDialog,
-    );
-  }
+  Widget _buildNatisDoubleAxleDocSection() {
+    Widget buildFileDisplay(String? fileName, bool isExisting) {
+      String extension = fileName?.split('.').last.toLowerCase() ?? '';
+      IconData iconData = _getFileIcon(extension);
+      return Column(
+        children: [
+          Icon(iconData, color: Colors.white, size: 50.0),
+          const SizedBox(height: 10),
+          Text(
+            fileName ?? (isExisting ? 'Existing Document' : 'Select Document'),
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      );
+    }
 
-  // --- File and Image Pickers (similar to upload form) ---
-  Future<void> _pickImageOrFile({
-    required String title,
-    required bool pickImageOnly,
-    required void Function(Uint8List?, String fileName) callback,
-  }) async {
-    if (pickImageOnly) {
-      try {
-        if (kIsWeb) {
-          bool cameraAvailable = false;
-          try {
-            cameraAvailable = html.window.navigator.mediaDevices != null;
-          } catch (e) {
-            cameraAvailable = false;
-          }
-          showDialog(
-            context: context,
-            builder: (BuildContext ctx) {
-              return AlertDialog(
-                title: Text(title),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (cameraAvailable)
-                      ListTile(
-                        leading: const Icon(Icons.camera_alt),
-                        title: const Text('Take Photo'),
-                        onTap: () async {
-                          Navigator.of(ctx).pop();
-                          final imageBytes = await capturePhoto(context);
-                          if (imageBytes != null) {
-                            callback(imageBytes, 'captured.png');
-                          }
-                        },
-                      ),
-                    ListTile(
-                      leading: const Icon(Icons.folder),
-                      title: const Text('Pick from Device'),
-                      onTap: () async {
-                        Navigator.of(ctx).pop();
-                        final XFile? pickedFile = await ImagePicker()
-                            .pickImage(source: ImageSource.gallery);
-                        if (pickedFile != null) {
-                          final fileName = pickedFile.name;
-                          final bytes = await pickedFile.readAsBytes();
-                          callback(bytes, fileName);
-                        }
+    return Column(
+      children: [
+        Center(
+          child: Text('NATIS DOUBLE AXLE DOCUMENT'.toUpperCase(),
+              style: const TextStyle(
+                  fontSize: 15,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900),
+              textAlign: TextAlign.center),
+        ),
+        const SizedBox(height: 15),
+        InkWell(
+          onTap: () {
+            if (_existingNatisDoubleAxleDocUrl != null ||
+                _natisDoubleAxleDocFile != null) {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('NATIS Document'),
+                  content:
+                      const Text('What would you like to do with the file?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _viewTrailerBDocument();
                       },
+                      child: const Text('View Document'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _pickImageOrFile(
+                          title: 'Select NATIS Document for Double Axle',
+                          pickImageOnly: false,
+                          callback: (file, fileName) {
+                            if (file != null) {
+                              setState(() {
+                                _natisDoubleAxleDocFile = file;
+                                _natisDoubleAxleDocFileName = fileName;
+                              });
+                            }
+                          },
+                        );
+                      },
+                      child: const Text('Replace Document'),
                     ),
                   ],
                 ),
               );
-            },
-          );
-        } else {
-          final XFile? pickedFile =
-              await ImagePicker().pickImage(source: ImageSource.gallery);
-          if (pickedFile != null) {
-            final fileName = pickedFile.name;
-            final bytes = await pickedFile.readAsBytes();
-            callback(bytes, fileName);
-          }
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: $e')),
-        );
-      }
-    } else {
-      FilePickerResult? result =
-          await FilePicker.platform.pickFiles(type: FileType.any);
-      if (result != null && result.files.isNotEmpty) {
-        final fileName = result.files.first.name;
-        final bytes = result.files.first.bytes;
-        callback(bytes, fileName);
-      }
-    }
-  }
-
-  // --- Service History File Picker ---
-  Future<void> _pickServiceHistoryFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
+            } else {
+              _pickImageOrFile(
+                title: 'Select NATIS Document for Double Axle',
+                pickImageOnly: false,
+                callback: (file, fileName) {
+                  if (file != null) {
+                    setState(() {
+                      _natisDoubleAxleDocFile = file;
+                      _natisDoubleAxleDocFileName = fileName;
+                    });
+                  }
+                },
+              );
+            }
+          },
+          borderRadius: BorderRadius.circular(10.0),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E4CAF).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
+            ),
+            child: _natisDoubleAxleDocFile != null
+                ? _buildFileDisplay(_natisDoubleAxleDocFileName, false)
+                : (_existingNatisDoubleAxleDocUrl != null)
+                    ? _buildFileDisplay(
+                        _getFileNameFromUrl(_existingNatisDoubleAxleDocUrl),
+                        true)
+                    : const Column(
+                        children: [
+                          Icon(Icons.upload_file,
+                              color: Colors.white, size: 50.0),
+                          SizedBox(height: 10),
+                          Text(
+                            'Upload NATIS Document',
+                            style:
+                                TextStyle(fontSize: 14, color: Colors.white70),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+          ),
+        ),
+      ],
     );
-    if (result != null && result.files.isNotEmpty) {
-      final fileName = result.files.first.name;
-      final bytes = result.files.first.bytes;
-      setState(() {
-        _serviceHistoryFile = bytes;
-        _serviceHistoryFileName = fileName;
-      });
-    }
   }
-
-  // --- Document Section for NATIS/RC1 (as in upload form) ---
-  // Widget _buildNatisDocumentSection() {
-  //   return Column(
-  //     children: [
-  //       Center(
-  //         child: Text(
-  //           'NATIS/RC1 DOCUMENTATION'.toUpperCase(),
-  //           style: const TextStyle(
-  //               fontSize: 15, color: Colors.white, fontWeight: FontWeight.w900),
-  //           textAlign: TextAlign.center,
-  //         ),
-  //       ),
-  //       const SizedBox(height: 15),
-  //       InkWell(
-  //         onTap: () {
-  //           final bool isDealer =
-  //               Provider.of<UserProvider>(context, listen: false).getUserRole ==
-  //                   'dealer';
-  //           if (isDealer) {
-  //             _viewDocument();
-  //           } else {
-  //             if (_existingNatisRc1Url != null || _natisRc1File != null) {
-  //               _showDocumentOptions();
-  //             } else {
-  //               _pickNatisRc1File();
-  //             }
-  //           }
-  //         },
-  //         borderRadius: BorderRadius.circular(10.0),
-  //         child: Container(
-  //           width: double.infinity,
-  //           padding: const EdgeInsets.all(16.0),
-  //           decoration: BoxDecoration(
-  //             color: const Color(0xFF0E4CAF).withOpacity(0.1),
-  //             borderRadius: BorderRadius.circular(10.0),
-  //             border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
-  //           ),
-  //           child: _natisRc1File != null
-  //               ? _buildFileDisplay(_natisRc1FileName?.split('/').last, false)
-  //               : (_existingNatisRc1Url != null &&
-  //                       _existingNatisRc1Url!.isNotEmpty)
-  //                   ? _buildFileDisplay(
-  //                       _getFileNameFromUrl(_existingNatisRc1Url), true)
-  //                   : _buildFileDisplay(null, false),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
 
   // --- Service History Section ---
   Widget _buildServiceHistorySection() {
@@ -1125,6 +1541,63 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     }
   }
 
+  void _showAdditionalImageSourceDialog(Map<String, dynamic> item) {
+    if (item['image'] != null) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Additional Image'),
+          content: const Text('What would you like to do with this image?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _pickImageOrFile(
+                  title: 'Change Additional Image',
+                  pickImageOnly: true,
+                  callback: (file, fileName) {
+                    if (file != null) {
+                      setState(() {
+                        item['image'] = file;
+                      });
+                    }
+                  },
+                );
+              },
+              child: const Text('Change Image'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  item['image'] = null;
+                });
+              },
+              child: const Text('Remove Image',
+                  style: TextStyle(color: Colors.red)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      _pickImageOrFile(
+        title: 'Additional Image',
+        pickImageOnly: true,
+        callback: (file, fileName) {
+          if (file != null) {
+            setState(() {
+              item['image'] = file;
+            });
+          }
+        },
+      );
+    }
+  }
+
   void _showFeatureImageSourceDialog(Map<String, dynamic> item) {
     if (item['image'] != null) {
       showDialog(
@@ -1288,6 +1761,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
+
                   final imageBytes = await capturePhoto(context);
                   if (imageBytes != null) {
                     setState(() {
@@ -1365,475 +1839,201 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         enabled: !isDealer,
       ),
       const SizedBox(height: 15),
-      if (_selectedTrailerType == 'Double Axle' ||
-          _selectedTrailerType == 'Other')
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0E4CAF).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF0E4CAF)),
-          ),
-          child: const Column(
-            children: [
-              Icon(Icons.construction, size: 50, color: Colors.white),
-              SizedBox(height: 15),
-              Text('Form Coming Soon',
-                  style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold)),
-              SizedBox(height: 10),
-              Text(
-                  'This form is currently under development.\nPlease check back later.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.white70)),
-            ],
-          ),
-        )
-      else if (_selectedTrailerType != null) ...[
+      if (_selectedTrailerType == 'Double Axle') ...[
+        const SizedBox(height: 15),
         CustomTextField(
-          controller: _makeController,
-          hintText: 'Make',
-          enabled: !isDealer,
+          controller: _makeDoubleAxleController,
+          hintText: 'Make of Trailer',
         ),
         const SizedBox(height: 15),
         CustomTextField(
-          controller: _yearController,
-          hintText: 'Year',
+          controller: _modelDoubleAxleController,
+          hintText: 'Model of Trailer',
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _yearDoubleAxleController,
+          hintText: 'Year of Trailer',
           keyboardType: TextInputType.number,
-          enabled: !isDealer,
         ),
         const SizedBox(height: 15),
         CustomTextField(
-          controller: _sellingPriceController,
-          hintText: 'Expected Selling Price',
+          controller: _lengthDoubleAxleController,
+          hintText: 'Length Trailer',
           keyboardType: TextInputType.number,
-          inputFormatter: [
-            FilteringTextInputFormatter.digitsOnly,
-            ThousandsSeparatorInputFormatter()
-          ],
-          enabled: !isDealer,
         ),
-        // const SizedBox(height: 15),
-        // _buildNatisDocumentSection(),
         const SizedBox(height: 15),
-        // NEW: For Superlink add Number of Axles
-        if (_selectedTrailerType == 'Tri-Axle') ...[
-          CustomTextField(
-            controller: _axlesController,
-            hintText: 'Number of Axles',
-            keyboardType: TextInputType.number,
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-        ],
-        // Trailer type specific sections
-        if (_selectedTrailerType == 'Superlink') ...[
-          const Text("Trailer A Details",
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _lengthTrailerAController,
-            hintText: 'Length Trailer A',
-            keyboardType: TextInputType.number,
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _vinAController,
-            hintText: 'VIN A',
-            inputFormatter: [UpperCaseTextFormatter()],
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _registrationAController,
-            hintText: 'Registration A',
-            inputFormatter: [UpperCaseTextFormatter()],
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          // Add number of axles for Trailer A:
-          CustomTextField(
-            controller: _axlesTrailerAController,
-            hintText: 'Number of Axles Trailer A',
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 15),
-// NATIS document upload for Trailer A:
-          // NATIS document upload for Trailer A:
-          const Text(
-            'NATIS Document for Trailer A',
-            style: TextStyle(
-                fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          // Instead of inline code, add:
-          const SizedBox(height: 15),
-          _buildNatisTrailerADocSection(),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle('Trailer A - Front Image', _frontImageA,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _frontImageA = img;
-              });
-            }
-          }, existingUrl: _frontImageAUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle('Trailer A - Side Image', _sideImageA,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _sideImageA = img;
-              });
-            }
-          }, existingUrl: _sideImageAUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle('Trailer A - Tyres Image', _tyresImageA,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _tyresImageA = img;
-              });
-            }
-          }, existingUrl: _tyresImageAUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-              'Trailer A - Chassis Image', _chassisImageA, (img) {
-            if (!isDealer) {
-              setState(() {
-                _chassisImageA = img;
-              });
-            }
-          }, existingUrl: _chassisImageAUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle('Trailer A - Deck Image', _deckImageA,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _deckImageA = img;
-              });
-            }
-          }, existingUrl: _deckImageAUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-              'Trailer A - Makers Plate Image', _makersPlateImageA, (img) {
-            if (!isDealer) {
-              setState(() {
-                _makersPlateImageA = img;
-              });
-            }
-          }, existingUrl: _makersPlateImageAUrl),
-          const SizedBox(height: 15),
-          _buildAdditionalImagesSectionForTrailerA(),
-          const SizedBox(height: 15),
-          const Text("Trailer B Details",
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _lengthTrailerBController,
-            hintText: 'Length Trailer B',
-            keyboardType: TextInputType.number,
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _vinBController,
-            hintText: 'VIN B',
-            inputFormatter: [UpperCaseTextFormatter()],
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _registrationBController,
-            hintText: 'Registration B',
-            inputFormatter: [UpperCaseTextFormatter()],
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          // Add number of axles for Trailer B:
-          CustomTextField(
-            controller: _axlesTrailerBController,
-            hintText: 'Number of Axles Trailer B',
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 15),
-// NATIS document upload for Trailer B:
-          _buildNatisTrailerBDocSection(),
-          _buildImageSectionWithTitle('Trailer B - Front Image', _frontImageB,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _frontImageB = img;
-              });
-            }
-          }, existingUrl: _frontImageBUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle('Trailer B - Side Image', _sideImageB,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _sideImageB = img;
-              });
-            }
-          }, existingUrl: _sideImageBUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle('Trailer B - Tyres Image', _tyresImageB,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _tyresImageB = img;
-              });
-            }
-          }, existingUrl: _tyresImageBUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-              'Trailer B - Chassis Image', _chassisImageB, (img) {
-            if (!isDealer) {
-              setState(() {
-                _chassisImageB = img;
-              });
-            }
-          }, existingUrl: _chassisImageBUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle('Trailer B - Deck Image', _deckImageB,
-              (img) {
-            if (!isDealer) {
-              setState(() {
-                _deckImageB = img;
-              });
-            }
-          }, existingUrl: _deckImageBUrl),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-              'Trailer B - Makers Plate Image', _makersPlateImageB, (img) {
-            if (!isDealer) {
-              setState(() {
-                _makersPlateImageB = img;
-              });
-            }
-          }, existingUrl: _makersPlateImageBUrl),
-          const SizedBox(height: 15),
-          _buildAdditionalImagesSectionForTrailerB(),
-        ]
-        // Tri-Axle branch.
-        else if (_selectedTrailerType == 'Tri-Axle') ...[
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _lengthTrailerController,
-            hintText: 'Length Trailer',
-            keyboardType: TextInputType.number,
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _vinController,
-            hintText: 'VIN',
-            inputFormatter: [UpperCaseTextFormatter()],
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          CustomTextField(
-            controller: _registrationController,
-            hintText: 'Registration',
-            inputFormatter: [UpperCaseTextFormatter()],
-            enabled: !isDealer,
-          ),
-          const SizedBox(height: 15),
-          const Text(
-            'NATIS Document for Tri-Axle',
-            style: TextStyle(
-                fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            onTap: () {
-              if (_existingNatisTriAxleDocUrl != null ||
-                  _natisTriAxleDocFile != null) {
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('NATIS Document Options'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_existingNatisTriAxleDocUrl != null)
-                          ListTile(
-                            leading: const Icon(Icons.remove_red_eye),
-                            title: const Text('View Document'),
-                            onTap: () async {
-                              Navigator.pop(context);
-                              if (_existingNatisTriAxleDocUrl != null) {
-                                final Uri uri =
-                                    Uri.parse(_existingNatisTriAxleDocUrl!);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri,
-                                      mode: LaunchMode.externalApplication);
-                                }
-                              }
-                            },
-                          ),
-                        ListTile(
-                          leading: const Icon(Icons.upload_file),
-                          title: const Text('Replace Document'),
-                          onTap: () {
-                            Navigator.pop(context);
-                            _pickImageOrFile(
-                              title: 'Select NATIS Document for Tri-Axle',
-                              pickImageOnly: false,
-                              callback: (file, fileName) {
-                                if (file != null) {
-                                  setState(() {
-                                    _natisTriAxleDocFile = file;
-                                    _natisTriAxleDocFileName = fileName;
-                                  });
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              } else {
-                _pickImageOrFile(
-                  title: 'Select NATIS Document for Tri-Axle',
-                  pickImageOnly: false,
-                  callback: (file, fileName) {
-                    if (file != null) {
-                      setState(() {
-                        _natisTriAxleDocFile = file;
-                        _natisTriAxleDocFileName = fileName;
-                      });
-                    }
-                  },
-                );
-              }
-            },
-            child: _buildStyledContainer(
-              child: _natisTriAxleDocFile != null
-                  ? _buildFileDisplay(_natisTriAxleDocFileName, false)
-                  : (_existingNatisTriAxleDocUrl != null)
-                      ? _buildFileDisplay(
-                          _getFileNameFromUrl(_existingNatisTriAxleDocUrl),
-                          true)
-                      : const Column(
-                          children: [
-                            Icon(Icons.upload_file,
-                                color: Colors.white, size: 50.0),
-                            SizedBox(height: 10),
-                            Text(
-                              'Upload NATIS Document',
-                              style: TextStyle(
-                                  fontSize: 14, color: Colors.white70),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
+        CustomTextField(
+          controller: _vinDoubleAxleController,
+          hintText: 'VIN',
+          inputFormatter: [UpperCaseTextFormatter()],
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _registrationDoubleAxleController,
+          hintText: 'Registration',
+          inputFormatter: [UpperCaseTextFormatter()],
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _licenceDiskExpDoubleAxleController,
+          hintText: 'Licence Disk Expiry Date',
+          inputFormatter: [UpperCaseTextFormatter()],
+        ),
+        const SizedBox(height: 15),
+        Center(
+            child: Text('ABS',
+                style: const TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center)),
+        const SizedBox(height: 15),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: _absDoubleAxle,
+              onChanged: (value) {
+                setState(() {
+                  _absDoubleAxle = value ?? 'yes';
+                });
+              },
             ),
-          ),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-            'Front Trailer Image',
-            _frontImage,
-            (img) {
-              if (!isDealer) {
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: _absDoubleAxle,
+              onChanged: (value) {
                 setState(() {
-                  _frontImage = img;
+                  _absDoubleAxle = value ?? 'no';
                 });
-              }
-            },
-            existingUrl:
-                widget.vehicle.trailer?.rawTrailerExtraInfo?['frontImageUrl'] ??
-                    '',
-          ),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-            'Side Image',
-            _sideImage,
-            (img) {
-              if (!isDealer) {
-                setState(() {
-                  _sideImage = img;
-                });
-              }
-            },
-            existingUrl:
-                widget.vehicle.trailer?.rawTrailerExtraInfo?['sideImageUrl'] ??
-                    '',
-          ),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-            'Tyres Image',
-            _tyresImage,
-            (img) {
-              if (!isDealer) {
-                setState(() {
-                  _tyresImage = img;
-                });
-              }
-            },
-            existingUrl:
-                widget.vehicle.trailer?.rawTrailerExtraInfo?['tyresImageUrl'] ??
-                    '',
-          ),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-            'Chassis Image',
-            _chassisImage,
-            (img) {
-              if (!isDealer) {
-                setState(() {
-                  _chassisImage = img;
-                });
-              }
-            },
-            existingUrl: widget
-                    .vehicle.trailer?.rawTrailerExtraInfo?['chassisImageUrl'] ??
-                '',
-          ),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-            'Deck Image',
-            _deckImage,
-            (img) {
-              if (!isDealer) {
-                setState(() {
-                  _deckImage = img;
-                });
-              }
-            },
-            existingUrl:
-                widget.vehicle.trailer?.rawTrailerExtraInfo?['deckImageUrl'] ??
-                    '',
-          ),
-          const SizedBox(height: 15),
-          _buildImageSectionWithTitle(
-            'Makers Plate Image',
-            _makersPlateImage,
-            (img) {
-              if (!isDealer) {
-                setState(() {
-                  _makersPlateImage = img;
-                });
-              }
-            },
-            existingUrl: widget.vehicle.trailer
-                    ?.rawTrailerExtraInfo?['makersPlateImageUrl'] ??
-                '',
-          ),
-          const SizedBox(height: 15),
-          _buildAdditionalImagesSection(),
-        ],
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        // --- FIX: Use the correct controllers for Double Axle fields ---
+        _buildNatisDoubleAxleDocSection(),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Front Image',
+          _frontImageDoubleAxle,
+          (img) => setState(() => _frontImageDoubleAxle = img),
+          existingUrl: _frontImageUrl, // <-- FIXED
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Side Image',
+          _sideImageDoubleAxle,
+          (img) => setState(() => _sideImageDoubleAxle = img),
+          existingUrl: _sideImageUrl, // <-- FIXED
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Chassis Image',
+          _chassisImageDoubleAxle,
+          (img) => setState(() => _chassisImageDoubleAxle = img),
+          existingUrl: _chassisImageUrl, // <-- FIXED
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Hooking Pin Image',
+          _hookingPinDoubleAxleImage,
+          (img) => setState(() => _hookingPinDoubleAxleImage = img),
+          existingUrl: _hookingPinDoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Deck Image',
+          _deckImageDoubleAxle,
+          (img) => setState(() => _deckImageDoubleAxle = img),
+          existingUrl: _deckImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Roof Image (if applicable)',
+          _roofDoubleAxleImage,
+          (img) => setState(() => _roofDoubleAxleImage = img),
+          existingUrl: _roofDoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Tyres Image',
+          _tyresDoubleAxleImage,
+          (img) => setState(() => _tyresDoubleAxleImage = img),
+          existingUrl: _tyresImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Tail Board Image',
+          _tailBoardDoubleAxleImage,
+          (img) => setState(() => _tailBoardDoubleAxleImage = img),
+          existingUrl: _tailBoardDoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Spare Wheel Image',
+          _spareWheelDoubleAxleImage,
+          (img) => setState(() => _spareWheelDoubleAxleImage = img),
+          existingUrl: _spareWheelDoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Landing Legs Image',
+          _landingLegsDoubleAxleImage,
+          (img) => setState(() => _landingLegsDoubleAxleImage = img),
+          existingUrl: _landingLegsDoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Hose and Electrical Cable Image',
+          _hoseAndElecCableDoubleAxleImage,
+          (img) => setState(() => _hoseAndElecCableDoubleAxleImage = img),
+          existingUrl: _hoseAndElecCableDoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Brakes Axle 1 Image',
+          _brakesAxle1DoubleAxleImage,
+          (img) => setState(() => _brakesAxle1DoubleAxleImage = img),
+          existingUrl: _brakesAxle1DoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Brakes Axle 2 Image',
+          _brakesAxle2DoubleAxleImage,
+          (img) => setState(() => _brakesAxle2DoubleAxleImage = img),
+          existingUrl: _brakesAxle2DoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Axle 1 Image',
+          _axle1DoubleAxleImage,
+          (img) => setState(() => _axle1DoubleAxleImage = img),
+          existingUrl: _axle1DoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Axle 2 Image',
+          _axle2DoubleAxleImage,
+          (img) => setState(() => _axle2DoubleAxleImage = img),
+          existingUrl: _axle2DoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Licence Disk Image',
+          _licenseDiskDoubleAxleImage,
+          (img) => setState(() => _licenseDiskDoubleAxleImage = img),
+          existingUrl: _licenseDiskDoubleAxleUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Makers Plate Image',
+          _makersPlateDblAxleImage,
+          (img) => setState(() => _makersPlateDblAxleImage = img),
+          existingUrl: _makersPlateImageUrl,
+        ),
         const SizedBox(height: 15),
         // Service History Section
         _buildServiceHistorySection(),
@@ -1854,7 +2054,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               groupValue: _damagesCondition,
               enabled: !isDealer,
               onChanged: isDealer
-                  ? (_) {} // Empty function instead of null
+                  ? (_) {}
                   : (val) {
                       setState(() {
                         _damagesCondition = val ?? 'no';
@@ -1873,7 +2073,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               groupValue: _damagesCondition,
               enabled: !isDealer,
               onChanged: isDealer
-                  ? (_) {} // Empty function instead of null
+                  ? (_) {}
                   : (val) {
                       setState(() {
                         _damagesCondition = val ?? 'no';
@@ -1905,7 +2105,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               groupValue: _featuresCondition,
               enabled: !isDealer,
               onChanged: isDealer
-                  ? (_) {} // Empty function instead of null
+                  ? (_) {}
                   : (val) {
                       setState(() {
                         _featuresCondition = val ?? 'no';
@@ -1925,7 +2125,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               groupValue: _featuresCondition,
               enabled: !isDealer,
               onChanged: isDealer
-                  ? (_) {} // Empty function instead of null
+                  ? (_) {}
                   : (val) {
                       setState(() {
                         _featuresCondition = val ?? 'no';
@@ -1942,7 +2142,885 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             (_featureList.isNotEmpty && isDealer))
           _buildFeaturesSection(),
         const SizedBox(height: 30),
-      ],
+      ]
+      // --- ADD BACK SUPERLINK FIELDS ---
+      else if (_selectedTrailerType == 'Superlink') ...[
+        const SizedBox(height: 15),
+        // Trailer A
+        const Text('Trailer A',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        // --- Add missing fields for Trailer A ---
+        CustomTextField(
+          controller: _makeController,
+          hintText: 'Make Trailer A',
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _modelTrailerAController,
+          hintText: 'Model Trailer A',
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _yearTrailerAController,
+          hintText: 'Year Trailer A',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        // --- Suspension for Trailer A ---
+        Center(
+            child: Text('Suspension (Trailer A)',
+                style: const TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center)),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Steel',
+              value: 'steel',
+              groupValue: _suspensionTrailerA,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _suspensionTrailerA = val ?? 'steel';
+                      });
+                    },
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'Air',
+              value: 'air',
+              groupValue: _suspensionTrailerA,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _suspensionTrailerA = val ?? 'air';
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _lengthTrailerAController,
+          hintText: 'Length Trailer A',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _vinAController,
+          hintText: 'VIN Trailer A',
+          inputFormatter: [UpperCaseTextFormatter()],
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _registrationAController,
+          hintText: 'Registration Trailer A',
+          inputFormatter: [UpperCaseTextFormatter()],
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _axlesTrailerAController,
+          hintText: 'Axles Trailer A',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        // --- ABS for Trailer A ---
+        Center(
+            child: Text('ABS (Trailer A)',
+                style: const TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center)),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: _absTrailerA,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _absTrailerA = val ?? 'yes';
+                      });
+                    },
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: _absTrailerA,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _absTrailerA = val ?? 'no';
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // --- NATIS Document for Trailer A ---
+        const Text(
+          'NATIS Document for Trailer A',
+          style: TextStyle(
+              fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: () {
+            if (_existingNatisTrailerADoc1Url != null ||
+                _natisTrailerADoc1File != null) {
+              _showTrailerADocumentOptions();
+            } else {
+              _pickTrailerADocFile();
+            }
+          },
+          borderRadius: BorderRadius.circular(10.0),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E4CAF).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
+            ),
+            child: _natisTrailerADoc1File != null
+                ? _buildFileDisplay(
+                    _natisTrailerADoc1FileName?.split('/').last, false)
+                : (_existingNatisTrailerADoc1Name != null &&
+                        _existingNatisTrailerADoc1Name!.isNotEmpty)
+                    ? _buildFileDisplay(_existingNatisTrailerADoc1Name, true)
+                    : _buildFileDisplay(null, false),
+          ),
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Front Image (Trailer A)',
+          _frontImageA,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _frontImageA = img;
+              });
+          },
+          existingUrl: _frontImageAUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Side Image (Trailer A)',
+          _sideImageA,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _sideImageA = img;
+              });
+          },
+          existingUrl: _sideImageAUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Tyres Image (Trailer A)',
+          _tyresImageA,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _tyresImageA = img;
+              });
+          },
+          existingUrl: _tyresImageAUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Chassis Image (Trailer A)',
+          _chassisImageA,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _chassisImageA = img;
+              });
+          },
+          existingUrl: _chassisImageAUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Deck Image (Trailer A)',
+          _deckImageA,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _deckImageA = img;
+              });
+          },
+          existingUrl: _deckImageAUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Makers Plate Image (Trailer A)',
+          _makersPlateImageA,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _makersPlateImageA = img;
+              });
+          },
+          existingUrl: _makersPlateImageAUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildAdditionalImagesSectionForTrailerA(),
+        const SizedBox(height: 20),
+        // Trailer B
+        const Text('Trailer B',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        // --- Add missing fields for Trailer B ---
+        CustomTextField(
+          controller: _makeTrailerBController,
+          hintText: 'Make Trailer B',
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _modelTrailerBController,
+          hintText: 'Model Trailer B',
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _yearTrailerBController,
+          hintText: 'Year Trailer B',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        // --- Suspension for Trailer B ---
+        Center(
+            child: Text('Suspension (Trailer B)',
+                style: const TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center)),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Steel',
+              value: 'steel',
+              groupValue: _suspensionTrailerB,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _suspensionTrailerB = val ?? 'steel';
+                      });
+                    },
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'Air',
+              value: 'air',
+              groupValue: _suspensionTrailerB,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _suspensionTrailerB = val ?? 'air';
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _lengthTrailerBController,
+          hintText: 'Length Trailer B',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _vinBController,
+          hintText: 'VIN Trailer B',
+          inputFormatter: [UpperCaseTextFormatter()],
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _registrationBController,
+          hintText: 'Registration Trailer B',
+          inputFormatter: [UpperCaseTextFormatter()],
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 10),
+        CustomTextField(
+          controller: _axlesTrailerBController,
+          hintText: 'Axles Trailer B',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+
+        const SizedBox(height: 10),
+        // --- ABS for Trailer B ---
+        Center(
+            child: Text('ABS (Trailer B)',
+                style: const TextStyle(fontSize: 14, color: Colors.white),
+                textAlign: TextAlign.center)),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: _absTrailerB,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _absTrailerB = val ?? 'yes';
+                      });
+                    },
+            ),
+            const SizedBox(width: 15),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: _absTrailerB,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _absTrailerB = val ?? 'no';
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // --- NATIS Document for Trailer B ---
+        const Text(
+          'NATIS Document for Trailer B',
+          style: TextStyle(
+              fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: () {
+            if (_existingNatisTrailerBDoc1Url != null ||
+                _natisTrailerBDoc1File != null) {
+              _showTrailerBDocumentOptions();
+            } else {
+              _pickTrailerBDocFile();
+            }
+          },
+          borderRadius: BorderRadius.circular(10.0),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E4CAF).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10.0),
+              border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
+            ),
+            child: _natisTrailerBDoc1File != null
+                ? _buildFileDisplay(
+                    _natisTrailerBDoc1FileName?.split('/').last, false)
+                : (_existingNatisTrailerBDoc1Name != null &&
+                        _existingNatisTrailerBDoc1Name!.isNotEmpty)
+                    ? _buildFileDisplay(_existingNatisTrailerBDoc1Name, true)
+                    : _buildFileDisplay(null, false),
+          ),
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Front Image (Trailer B)',
+          _frontImageB,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _frontImageB = img;
+              });
+          },
+          existingUrl: _frontImageBUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Side Image (Trailer B)',
+          _sideImageB,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _sideImageB = img;
+              });
+          },
+          existingUrl: _sideImageBUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Tyres Image (Trailer B)',
+          _tyresImageB,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _tyresImageB = img;
+              });
+          },
+          existingUrl: _tyresImageBUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Chassis Image (Trailer B)',
+          _chassisImageB,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _chassisImageB = img;
+              });
+          },
+          existingUrl: _chassisImageBUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Deck Image (Trailer B)',
+          _deckImageB,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _deckImageB = img;
+              });
+          },
+          existingUrl: _deckImageBUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Makers Plate Image (Trailer B)',
+          _makersPlateImageB,
+          (img) {
+            if (!isDealer)
+              setState(() {
+                _makersPlateImageB = img;
+              });
+          },
+          existingUrl: _makersPlateImageBUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildAdditionalImagesSectionForTrailerB(),
+        const SizedBox(height: 20),
+        // Service History Section
+        _buildServiceHistorySection(),
+        const SizedBox(height: 20),
+        // Damages Section
+        const Text(
+          'Are there any damages?',
+          style: TextStyle(
+              fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: _damagesCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _damagesCondition = val ?? 'no';
+                        if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                          _damageList.add({'description': '', 'image': null});
+                        } else if (_damagesCondition == 'no') {
+                          _damageList.clear();
+                        }
+                      });
+                    },
+            ),
+            const SizedBox(width: 20),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: _damagesCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _damagesCondition = val ?? 'no';
+                        if (_damagesCondition == 'no') {
+                          _damageList.clear();
+                        }
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        if (_damagesCondition == 'yes' || (_damageList.isNotEmpty && isDealer))
+          _buildDamageSection(),
+        const SizedBox(height: 20),
+        // Additional Features Section
+        const Text(
+          'Are there any additional features?',
+          style: TextStyle(
+              fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: _featuresCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _featuresCondition = val ?? 'no';
+                        if (_featuresCondition == 'yes' &&
+                            _featureList.isEmpty) {
+                          _featureList.add({'description': '', 'image': null});
+                        } else if (_featuresCondition == 'no') {
+                          _featureList.clear();
+                        }
+                      });
+                    },
+            ),
+            const SizedBox(width: 20),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: _featuresCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _featuresCondition = val ?? 'no';
+                        if (_featuresCondition == 'no') {
+                          _featureList.clear();
+                        }
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        if (_featuresCondition == 'yes' ||
+            (_featureList.isNotEmpty && isDealer))
+          _buildFeaturesSection(),
+        const SizedBox(height: 30),
+      ]
+      // --- ADD BACK TRI-AXLE FIELDS ---
+      else if (_selectedTrailerType == 'Tri-Axle') ...[
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _lengthTrailerController,
+          hintText: 'Length Trailer',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _vinController,
+          hintText: 'VIN',
+          inputFormatter: [UpperCaseTextFormatter()],
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _registrationController,
+          hintText: 'Registration',
+          inputFormatter: [UpperCaseTextFormatter()],
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 15),
+        // NATIS Document for Tri-Axle
+        const Text(
+          'NATIS Document for Tri-Axle',
+          style: TextStyle(
+              fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: () {
+            if (_existingNatisTriAxleDocUrl != null ||
+                _natisTriAxleDocFile != null) {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('NATIS Document Options'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_existingNatisTriAxleDocUrl != null)
+                        ListTile(
+                          leading: const Icon(Icons.remove_red_eye),
+                          title: const Text('View Document'),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            if (_existingNatisTriAxleDocUrl != null) {
+                              final uri =
+                                  Uri.parse(_existingNatisTriAxleDocUrl!);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri,
+                                    mode: LaunchMode.externalApplication);
+                              }
+                            }
+                          },
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.upload_file),
+                        title: const Text('Replace Document'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _pickImageOrFile(
+                            title: 'Select NATIS Document for Tri-Axle',
+                            pickImageOnly: false,
+                            callback: (file, fileName) {
+                              if (file != null) {
+                                setState(() {
+                                  _natisTriAxleDocFile = file;
+                                  _natisTriAxleDocFileName = fileName;
+                                });
+                              }
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else {
+              _pickImageOrFile(
+                title: 'Select NATIS Document for Tri-Axle',
+                pickImageOnly: false,
+                callback: (file, fileName) {
+                  if (file != null) {
+                    setState(() {
+                      _natisTriAxleDocFile = file;
+                      _natisTriAxleDocFileName = fileName;
+                    });
+                  }
+                },
+              );
+            }
+          },
+          child: _buildStyledContainer(
+            child: _natisTriAxleDocFile != null
+                ? _buildFileDisplay(_natisTriAxleDocFileName, false)
+                : (_existingNatisTriAxleDocUrl != null)
+                    ? _buildFileDisplay(
+                        _getFileNameFromUrl(_existingNatisTriAxleDocUrl), true)
+                    : const Column(
+                        children: [
+                          Icon(Icons.upload_file,
+                              color: Colors.white, size: 50.0),
+                          SizedBox(height: 10),
+                          Text(
+                            'Upload NATIS Document',
+                            style:
+                                TextStyle(fontSize: 14, color: Colors.white70),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Front Trailer Image',
+          _frontImage,
+          (img) {
+            if (!isDealer) setState(() => _frontImage = img);
+          },
+          existingUrl: _frontImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Side Image',
+          _sideImage,
+          (img) {
+            if (!isDealer) setState(() => _sideImage = img);
+          },
+          existingUrl: _sideImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Tyres Image',
+          _tyresImage,
+          (img) {
+            if (!isDealer) setState(() => _tyresImage = img);
+          },
+          existingUrl: _tyresImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Chassis Image',
+          _chassisImage,
+          (img) {
+            if (!isDealer) setState(() => _chassisImage = img);
+          },
+          existingUrl: _chassisImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Deck Image',
+          _deckImage,
+          (img) {
+            if (!isDealer) setState(() => _deckImage = img);
+          },
+          existingUrl: _deckImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildImageSectionWithTitle(
+          'Makers Plate Image',
+          _makersPlateImage,
+          (img) {
+            if (!isDealer) setState(() => _makersPlateImage = img);
+          },
+          existingUrl: _makersPlateImageUrl,
+        ),
+        const SizedBox(height: 15),
+        _buildAdditionalImagesSection(),
+        const SizedBox(height: 15),
+        // Service History Section
+        _buildServiceHistorySection(),
+        const SizedBox(height: 20),
+        // Damages Section
+        const Text(
+          'Are there any damages?',
+          style: TextStyle(
+              fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: _damagesCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _damagesCondition = val ?? 'no';
+                        if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                          _damageList.add({'description': '', 'image': null});
+                        } else if (_damagesCondition == 'no') {
+                          _damageList.clear();
+                        }
+                      });
+                    },
+            ),
+            const SizedBox(width: 20),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: _damagesCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _damagesCondition = val ?? 'no';
+                        if (_damagesCondition == 'no') {
+                          _damageList.clear();
+                        }
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        if (_damagesCondition == 'yes' || (_damageList.isNotEmpty && isDealer))
+          _buildDamageSection(),
+        const SizedBox(height: 20),
+        // Additional Features Section
+        const Text(
+          'Are there any additional features?',
+          style: TextStyle(
+              fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CustomRadioButton(
+              label: 'Yes',
+              value: 'yes',
+              groupValue: _featuresCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _featuresCondition = val ?? 'no';
+                        if (_featuresCondition == 'yes' &&
+                            _featureList.isEmpty) {
+                          _featureList.add({'description': '', 'image': null});
+                        } else if (_featuresCondition == 'no') {
+                          _featureList.clear();
+                        }
+                      });
+                    },
+            ),
+            const SizedBox(width: 20),
+            CustomRadioButton(
+              label: 'No',
+              value: 'no',
+              groupValue: _featuresCondition,
+              enabled: !isDealer,
+              onChanged: isDealer
+                  ? (_) {}
+                  : (val) {
+                      setState(() {
+                        _featuresCondition = val ?? 'no';
+                        if (_featuresCondition == 'no') {
+                          _featureList.clear();
+                        }
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        if (_featuresCondition == 'yes' ||
+            (_featureList.isNotEmpty && isDealer))
+          _buildFeaturesSection(),
+        const SizedBox(height: 30),
+      ]
     ]);
   }
 
@@ -2248,6 +3326,15 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         .where((email) => email != null)
         .toList();
 
+    // --- DEBUGGING ---
+    debugPrint(
+        '[DEBUG][Transporter] _selectedTransporterId: $_selectedTransporterId');
+    debugPrint(
+        '[DEBUG][Transporter] currentTransporterEmail: $currentTransporterEmail');
+    debugPrint('[DEBUG][Transporter] transporterEmails: $transporterEmails');
+    debugPrint('[DEBUG][Transporter] _transporterUsers: $_transporterUsers');
+    // -----------------
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2297,6 +3384,13 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         .map((e) => e['email'] as String)
         .where((email) => email != null)
         .toList();
+
+    // --- DEBUGGING ---
+    debugPrint('[DEBUG][SalesRep] _selectedSalesRepId: $_selectedSalesRepId');
+    debugPrint('[DEBUG][SalesRep] currentSalesRepEmail: $currentSalesRepEmail');
+    debugPrint('[DEBUG][SalesRep] salesRepEmails: $salesRepEmails');
+    debugPrint('[DEBUG][SalesRep] _salesRepUsers: $_salesRepUsers');
+    // -----------------
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2449,6 +3543,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             'vin': _vinAController.text,
             'registration': _registrationAController.text,
             'axles': _axlesTrailerAController.text,
+            'suspension': _suspensionTrailerA,
+            'abs': _absTrailerA,
             'natisDocUrl': _natisTrailerADoc1File != null
                 ? await _uploadFileToFirebaseStorage(_natisTrailerADoc1File!,
                     'vehicle_documents', _natisTrailerADoc1FileName)
@@ -2485,6 +3581,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             'vin': _vinBController.text,
             'registration': _registrationBController.text,
             'axles': _axlesTrailerBController.text,
+            'suspension': _suspensionTrailerB,
+            'abs': _absTrailerB,
             'natisDocUrl': _natisTrailerBDoc1File != null
                 ? await _uploadFileToFirebaseStorage(_natisTrailerBDoc1File!,
                     'vehicle_documents', _natisTrailerBDoc1FileName)
@@ -2559,6 +3657,156 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                       ?.rawTrailerExtraInfo?['makersPlateImageUrl'] ??
                   '',
           'additionalImages': await _uploadListItems(_additionalImagesList),
+        };
+      } else if (_selectedTrailerType == 'Double Axle') {
+        trailerExtraInfo = {
+          'trailerA': {
+            'length': _lengthTrailerAController.text,
+            'vin': _vinAController.text,
+            'registration': _registrationAController.text,
+            'axles': _axlesTrailerAController.text,
+            'natisDocUrl': _natisTrailerADoc1File != null
+                ? await _uploadFileToFirebaseStorage(_natisTrailerADoc1File!,
+                    'vehicle_documents', _natisTrailerADoc1FileName)
+                : _existingNatisTrailerADocUrl ?? '',
+            'frontImageUrl': _frontImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _frontImageA!, 'vehicle_images')
+                : _frontImageAUrl ?? '',
+            'sideImageUrl': _sideImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _sideImageA!, 'vehicle_images')
+                : _sideImageAUrl ?? '',
+            'tyresImageUrl': _tyresImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _tyresImageA!, 'vehicle_images')
+                : _tyresImageAUrl ?? '',
+            'chassisImageUrl': _chassisImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _chassisImageA!, 'vehicle_images')
+                : _chassisImageAUrl ?? '',
+            'deckImageUrl': _deckImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _deckImageA!, 'vehicle_images')
+                : _deckImageAUrl ?? '',
+            'makersPlateImageUrl': _makersPlateImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _makersPlateImageA!, 'vehicle_images')
+                : _makersPlateImageAUrl ?? '',
+            'trailerAAdditionalImages':
+                await _uploadListItems(_additionalImagesListTrailerA),
+          },
+          'trailerB': {
+            'length': _lengthTrailerBController.text,
+            'vin': _vinBController.text,
+            'registration': _registrationBController.text,
+            'axles': _axlesTrailerBController.text,
+            'natisDocUrl': _natisTrailerBDoc1File != null
+                ? await _uploadFileToFirebaseStorage(_natisTrailerBDoc1File!,
+                    'vehicle_documents', _natisTrailerBDoc1FileName)
+                : _existingNatisTrailerBDocUrl ?? '',
+            'frontImageUrl': _frontImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _frontImageB!, 'vehicle_images')
+                : _frontImageBUrl ?? '',
+            'sideImageUrl': _sideImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _sideImageB!, 'vehicle_images')
+                : _sideImageBUrl ?? '',
+            'tyresImageUrl': _tyresImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _tyresImageB!, 'vehicle_images')
+                : _tyresImageBUrl ?? '',
+            'chassisImageUrl': _chassisImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _chassisImageB!, 'vehicle_images')
+                : _chassisImageBUrl ?? '',
+            'deckImageUrl': _deckImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _deckImageB!, 'vehicle_images')
+                : _deckImageBUrl ?? '',
+            'makersPlateImageUrl': _makersPlateImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _makersPlateImageB!, 'vehicle_images')
+                : _makersPlateImageBUrl ?? '',
+            'trailerBAdditionalImages':
+                await _uploadListItems(_additionalImagesListTrailerB),
+          },
+        };
+      } else if (_selectedTrailerType == 'Other') {
+        trailerExtraInfo = {
+          'trailerA': {
+            'length': _lengthTrailerAController.text,
+            'vin': _vinAController.text,
+            'registration': _registrationAController.text,
+            'axles': _axlesTrailerAController.text,
+            'natisDocUrl': _natisTrailerADoc1File != null
+                ? await _uploadFileToFirebaseStorage(_natisTrailerADoc1File!,
+                    'vehicle_documents', _natisTrailerADoc1FileName)
+                : _existingNatisTrailerADocUrl ?? '',
+            'frontImageUrl': _frontImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _frontImageA!, 'vehicle_images')
+                : _frontImageAUrl ?? '',
+            'sideImageUrl': _sideImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _sideImageA!, 'vehicle_images')
+                : _sideImageAUrl ?? '',
+            'tyresImageUrl': _tyresImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _tyresImageA!, 'vehicle_images')
+                : _tyresImageAUrl ?? '',
+            'chassisImageUrl': _chassisImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _chassisImageA!, 'vehicle_images')
+                : _chassisImageAUrl ?? '',
+            'deckImageUrl': _deckImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _deckImageA!, 'vehicle_images')
+                : _deckImageAUrl ?? '',
+            'makersPlateImageUrl': _makersPlateImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _makersPlateImageA!, 'vehicle_images')
+                : _makersPlateImageAUrl ?? '',
+            'trailerAAdditionalImages':
+                await _uploadListItems(_additionalImagesListTrailerA),
+          },
+          'trailerB': {
+            'length': _lengthTrailerBController.text,
+            'vin': _vinBController.text,
+            'registration': _registrationBController.text,
+            'axles': _axlesTrailerBController.text,
+            'natisDocUrl': _natisTrailerBDoc1File != null
+                ? await _uploadFileToFirebaseStorage(_natisTrailerBDoc1File!,
+                    'vehicle_documents', _natisTrailerBDoc1FileName)
+                : _existingNatisTrailerBDocUrl ?? '',
+            'frontImageUrl': _frontImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _frontImageB!, 'vehicle_images')
+                : _frontImageBUrl ?? '',
+            'sideImageUrl': _sideImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _sideImageB!, 'vehicle_images')
+                : _sideImageBUrl ?? '',
+            'tyresImageUrl': _tyresImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _tyresImageB!, 'vehicle_images')
+                : _tyresImageBUrl ?? '',
+            'chassisImageUrl': _chassisImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _chassisImageB!, 'vehicle_images')
+                : _chassisImageBUrl ?? '',
+            'deckImageUrl': _deckImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _deckImageB!, 'vehicle_images')
+                : _deckImageBUrl ?? '',
+            'makersPlateImageUrl': _makersPlateImageB != null
+                ? await _uploadFileToFirebaseStorage(
+                    _makersPlateImageB!, 'vehicle_images')
+                : _makersPlateImageBUrl ?? '',
+            'trailerBAdditionalImages':
+                await _uploadListItems(_additionalImagesListTrailerB),
+          },
         };
       }
 
@@ -2652,6 +3900,139 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     }
   }
 
+  // --- Custom image/file picker dialog ---
+  void _pickImageOrFile({
+    required String title,
+    required bool pickImageOnly,
+    required void Function(Uint8List?, String? fileName) callback,
+  }) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+
+                  final imageBytes = await capturePhoto(context);
+                  if (imageBytes != null) {
+                    callback(imageBytes, 'captured.png');
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
+                    type: pickImageOnly ? FileType.image : FileType.custom,
+                    allowedExtensions: pickImageOnly
+                        ? ['jpg', 'jpeg', 'png']
+                        : [
+                            'pdf',
+                            'jpg',
+                            'jpeg',
+                            'png',
+                            'doc',
+                            'docx',
+                            'xls',
+                            'xlsx'
+                          ],
+                  );
+                  if (result != null && result.files.isNotEmpty) {
+                    final fileName = result.files.first.name;
+                    final bytes = result.files.first.bytes;
+                    callback(bytes, fileName);
+                  }
+                },
+              ),
+              if (!pickImageOnly)
+                ListTile(
+                  leading: const Icon(Icons.folder),
+                  title: const Text('Pick from Device'),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    FilePickerResult? result =
+                        await FilePicker.platform.pickFiles(
+                      type: FileType.any,
+                    );
+                    if (result != null && result.files.isNotEmpty) {
+                      final fileName = result.files.first.name;
+                      final bytes = result.files.first.bytes;
+                      callback(bytes, fileName);
+                    }
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // --- Service History file picker ---
+  void _pickServiceHistoryFile() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Select Service History File'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.folder),
+                title: const Text('Pick from Device'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: [
+                      'pdf',
+                      'jpg',
+                      'jpeg',
+                      'png',
+                      'doc',
+                      'docx',
+                      'xls',
+                      'xlsx'
+                    ],
+                  );
+                  if (result != null && result.files.isNotEmpty) {
+                    setState(() {
+                      _serviceHistoryFile = result.files.first.bytes;
+                      _serviceHistoryFileName = result.files.first.name;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Fix the 'Uri' variable bug in Tri-Axle NATIS document section
+  // Replace:
+  // final Uri = Uri.parse(_existingNatisTriAxleDocUrl!);
+  // if (await canLaunchUrl(Uri)) {
+  //   await launchUrl(Uri, ...);
+  // }
+  // With:
+  // final uri = Uri.parse(_existingNatisTriAxleDocUrl!);
+  // if (await canLaunchUrl(uri)) {
+  //   await launchUrl(uri, ...);
+  // }
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -2660,23 +4041,23 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     return WillPopScope(
       onWillPop: () async => true,
       child: GradientBackground(
-        child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
-              color: Colors.white,
-            ),
-            backgroundColor: Colors.transparent,
-            elevation: 0.0,
-            centerTitle: true,
-            title: const Text('Edit Trailer'),
-          ),
-          body: Stack(
-            children: [
-              SafeArea(
+        child: Stack(
+          children: [
+            Scaffold(
+              resizeToAvoidBottomInset: true,
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                leading: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back),
+                  color: Colors.white,
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0.0,
+                centerTitle: true,
+                title: const Text('Edit Trailer'),
+              ),
+              body: SafeArea(
                 child: SingleChildScrollView(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(
@@ -2698,21 +4079,24 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                   ),
                 ),
               ),
-              if (_isLoading)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black.withOpacity(0.5),
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
+            ),
+            if (_isLoading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  // Opens an image in full-screen mode.
+  void _viewDocument() {
+    // TODO: Implement document viewing logic
+  }
+
   void _openFullScreenImage({Uint8List? image, String? imageUrl}) {
     showDialog(
       context: context,
@@ -2732,8 +4116,6 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     );
   }
 
-// Displays an image upload section with title, handling new image picking and full-screen preview.
-// The optional [existingUrl] is used to display an already stored image.
   Widget _buildImageSectionWithTitle(
       String title, Uint8List? image, Function(Uint8List?) onImagePicked,
       {String? existingUrl}) {
@@ -2906,88 +4288,20 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     );
   }
 
-// Opens the NATIS/RC1 document in an external browser.
-  Future<void> _viewDocument() async {
-    // Use the existing document URL if available.
-    final String? url = _natisRc1FileName == null ? _existingNatisRc1Url : null;
-    if (url != null && url.isNotEmpty) {
-      try {
-        final Uri uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open document')),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening document: $e')),
-        );
-      }
-    } else if (_natisRc1File != null) {
-      // Optionally handle viewing a locally stored file.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Local document viewing not implemented')),
-      );
-    }
-  }
-
-// Displays a dialog for selecting an action on an additional image (e.g. change or remove).
-  void _showAdditionalImageSourceDialog(Map<String, dynamic> item) {
-    if (item['image'] != null) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Additional Image'),
-          content: const Text('What would you like to do with this image?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _pickImageOrFile(
-                  title: 'Change Additional Image',
-                  pickImageOnly: true,
-                  callback: (file, fileName) {
-                    if (file != null) {
-                      setState(() {
-                        item['image'] = file;
-                      });
-                    }
-                  },
-                );
-              },
-              child: const Text('Change Image'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                setState(() {
-                  item['image'] = null;
-                });
-              },
-              child: const Text('Remove Image',
-                  style: TextStyle(color: Colors.red)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      _pickImageOrFile(
-        title: 'Additional Image',
-        pickImageOnly: true,
-        callback: (file, fileName) {
-          if (file != null) {
-            setState(() {
-              item['image'] = file;
-            });
-          }
-        },
-      );
-    }
+  Widget _buildDamageSection() {
+    return _buildItemSection(
+      title: 'Damages',
+      items: _damageList,
+      onAdd: () {
+        setState(() {
+          _damageList.add({
+            'description': '',
+            'image': null,
+            'controller': TextEditingController(),
+          });
+        });
+      },
+      showImageSourceDialog: _showDamageImageSourceDialog,
+    );
   }
 }

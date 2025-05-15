@@ -55,6 +55,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
+// import 'package:firebase_vertexai/firebase_vertexai.dart';
 
 // This needs to be a top-level function for background messaging
 @pragma('vm:entry-point')
@@ -85,9 +86,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Setup notifications service
-  await setupNotifications();
 
   // Comment out App Check activation as it's causing permission issues
   // await FirebaseAppCheck.instance.activate();

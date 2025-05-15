@@ -758,14 +758,111 @@ class _VehiclesTabState extends State<VehiclesTab>
                                       ),
                               ),
                             ),
-                            title: Text(
-                              vehicleType.toLowerCase() == 'trailer'
-                                  ? '$makeModel${variant.isNotEmpty ? ' $variant' : ''}'
-                                  : variant,
-                              style: GoogleFonts.montserrat(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                            title: Builder(
+                              builder: (context) {
+                                if (vehicleType.toLowerCase() == 'trailer') {
+                                  // Debug: print the trailerExtraInfo and trailer object
+                                  debugPrint(
+                                      'TRAILER vehicleData: $vehicleData');
+                                  final trailerType =
+                                      vehicleData['trailerType']?.toString() ??
+                                          '';
+                                  final trailerExtraInfo =
+                                      vehicleData['trailerExtraInfo']
+                                              as Map<String, dynamic>? ??
+                                          {};
+                                  debugPrint(
+                                      'DEBUG: trailerType: $trailerType');
+                                  debugPrint(
+                                      'DEBUG: trailerExtraInfo: $trailerExtraInfo');
+                                  // --- PATCH: Robust Superlink TrailerA info extraction ---
+                                  if (trailerType.toLowerCase() ==
+                                      'superlink') {
+                                    // Try all possible keys for Trailer A info
+                                    Map<String, dynamic>? trailerA;
+                                    if (trailerExtraInfo['trailerA']
+                                        is Map<String, dynamic>) {
+                                      trailerA = trailerExtraInfo['trailerA'];
+                                    } else if (trailerExtraInfo['trailerA']
+                                        is Map) {
+                                      trailerA = Map<String, dynamic>.from(
+                                          trailerExtraInfo['trailerA']);
+                                    } else {
+                                      trailerA = null;
+                                    }
+                                    debugPrint('Superlink TrailerA: $trailerA');
+                                    // Try to get make/model/year from trailerA, fallback to vehicleData
+                                    final makeA = trailerA?['make'] ??
+                                        vehicleData['makeModel'] ??
+                                        '';
+                                    final modelA = trailerA?['model'] ?? '';
+                                    final yearA = trailerA?['year'] ??
+                                        vehicleData['year'] ??
+                                        '';
+                                    // If all are empty, show fallback
+                                    if ((makeA.toString() +
+                                            modelA.toString() +
+                                            yearA.toString())
+                                        .trim()
+                                        .isEmpty) {
+                                      return Text(
+                                        'Superlink - Trailer A: (no info)',
+                                        style: GoogleFonts.montserrat(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      );
+                                    }
+                                    return Text(
+                                      'Superlink - Trailer A: $makeA $modelA $yearA',
+                                      style: GoogleFonts.montserrat(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    );
+                                  }
+                                  // For Tri-Axle, Double Axle, Other: show make/model/year
+                                  else if (trailerType == 'Tri-Axle' ||
+                                      trailerType == 'Double Axle' ||
+                                      trailerType == 'Other') {
+                                    debugPrint(
+                                        '$trailerType Info: $trailerExtraInfo');
+                                    final make = trailerExtraInfo['make'] ??
+                                        vehicleData['makeModel'] ??
+                                        '';
+                                    final model =
+                                        trailerExtraInfo['model'] ?? '';
+                                    final year = trailerExtraInfo['year'] ??
+                                        vehicleData['year'] ??
+                                        '';
+                                    return Text(
+                                      '$make $model $year',
+                                      style: GoogleFonts.montserrat(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    );
+                                  }
+                                  // fallback for unknown trailer types
+                                  return Text(
+                                    '$makeModel${variant.isNotEmpty ? ' $variant' : ''} ${year != 'N/A' ? year : ''}'
+                                        .trim(),
+                                    style: GoogleFonts.montserrat(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                } else {
+                                  // Not a trailer, show variant as before
+                                  return Text(
+                                    variant,
+                                    style: GoogleFonts.montserrat(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                }
+                              },
                             ),
                             subtitle: RichText(
                               text: TextSpan(

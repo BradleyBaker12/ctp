@@ -1,7 +1,7 @@
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/utils/camera_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide VoidCallback;
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
@@ -10,7 +10,8 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide VoidCallback;
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
@@ -20,6 +21,8 @@ import 'package:ctp/pages/truckForms/custom_dropdown.dart';
 import 'package:universal_html/html.dart' as html;
 import '../truckForms/custom_text_field.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+// Only include this if not targeting web
+import 'dart:io' as io;
 
 /// Formats input text to uppercase.
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -586,12 +589,14 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     try {
       if (pickImageOnly) {
         if (kIsWeb) {
+          // Web: Already using html and file picker
           bool cameraAvailable = false;
           try {
             cameraAvailable = html.window.navigator.mediaDevices != null;
           } catch (e) {
             cameraAvailable = false;
           }
+
           showDialog(
             context: context,
             builder: (BuildContext ctx) {
@@ -619,7 +624,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                         Navigator.of(ctx).pop();
                         FilePickerResult? result =
                             await FilePicker.platform.pickFiles(
-                          type: FileType.any,
+                          type: FileType.image,
                         );
                         if (result != null && result.files.isNotEmpty) {
                           final fileName = result.files.first.name;
@@ -634,29 +639,76 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             },
           );
         } else {
-          FilePickerResult? result = await FilePicker.platform.pickFiles(
-            type: FileType.any,
+          // Mobile/Desktop: use image_picker
+          showModalBottomSheet(
+            context: context,
+            builder: (_) {
+              return SafeArea(
+                child: Wrap(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.camera_alt),
+                      title: const Text('Take Photo'),
+                      onTap: () async {
+                        Navigator.of(context).pop();
+                        final XFile? image = await ImagePicker().pickImage(
+                          source: ImageSource.camera,
+                          maxWidth: 1800,
+                          maxHeight: 1800,
+                        );
+                        if (image != null) {
+                          final bytes = await image.readAsBytes();
+                          callback(bytes, image.name);
+                        }
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.photo_library),
+                      title: const Text('Pick from Gallery'),
+                      onTap: () async {
+                        Navigator.of(context).pop();
+                        final XFile? image = await ImagePicker().pickImage(
+                          source: ImageSource.gallery,
+                        );
+                        if (image != null) {
+                          final bytes = await image.readAsBytes();
+                          callback(bytes, image.name);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
           );
-          if (result != null && result.files.isNotEmpty) {
-            final fileName = result.files.first.name;
-            final bytes = result.files.first.bytes;
-            callback(bytes, fileName);
-          }
         }
       } else {
+        // Files of any type
         FilePickerResult? result = await FilePicker.platform.pickFiles(
           type: FileType.any,
         );
+        debugPrint('FilePickerResult: $result');
         if (result != null && result.files.isNotEmpty) {
           final fileName = result.files.first.name;
-          final bytes = result.files.first.bytes;
+          Uint8List? bytes = result.files.first.bytes;
+          debugPrint('Picked file: $fileName, bytes: ${bytes?.length}');
+          // If bytes are null, try reading from the file path (mobile fallback)
+          if (bytes == null && result.files.first.path != null) {
+            final io.File file = io.File(result.files.first.path!);
+            bytes = await file.readAsBytes();
+            debugPrint('Read bytes from file path: ${bytes.length}');
+          }
+          // Call the callback with the file bytes and name
           callback(bytes, fileName);
+        } else {
+          debugPrint('No file picked or result.files is empty');
         }
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error picking file: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking file: $e')),
+      );
     }
   }
 
@@ -812,7 +864,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               hintText: 'Reference Number',
               inputFormatter: [UpperCaseTextFormatter()],
             ),
-            _buildSalesRepField(),
+            // _buildSalesRepField(),
             const SizedBox(height: 15),
             CustomDropdown(
               hintText: 'Select Trailer Type',
@@ -954,6 +1006,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               const SizedBox(height: 10),
               InkWell(
                 onTap: () {
+                  debugPrint(
+                      'NATIS doc tap: file=$_natisOtherDocFile, name=$_natisOtherDocFileName');
                   if (_natisOtherDocFile != null) {
                     showDialog(
                       context: context,
@@ -969,6 +1023,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                                 title: 'Change NATIS Document',
                                 pickImageOnly: false,
                                 callback: (file, fileName) {
+                                  debugPrint(
+                                      'Change NATIS callback: file=$file, name=$fileName');
                                   if (file != null) {
                                     setState(() {
                                       _natisOtherDocFile = file;
@@ -1003,6 +1059,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       title: 'Select NATIS Document',
                       pickImageOnly: false,
                       callback: (file, fileName) {
+                        debugPrint(
+                            'Select NATIS callback: file=$file, name=$fileName');
                         if (file != null) {
                           setState(() {
                             _natisOtherDocFile = file;
@@ -1035,10 +1093,18 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                                 color: Colors.white, size: 50.0),
                             SizedBox(height: 10),
                             Text(
-                              _natisOtherDocFileName!.split('/').last,
+                              _natisOtherDocFileName != null
+                                  ? _natisOtherDocFileName!.split('/').last
+                                  : 'No file name',
                               style: const TextStyle(
                                   color: Colors.white70, fontSize: 14),
                             ),
+                            // Debug info
+                            Builder(builder: (_) {
+                              debugPrint(
+                                  'NATIS doc widget: file=$_natisOtherDocFile, name=$_natisOtherDocFileName');
+                              return const SizedBox.shrink();
+                            }),
                           ],
                         ),
                 ),
@@ -2021,21 +2087,21 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                     hintText: 'Registration',
                     inputFormatter: [UpperCaseTextFormatter()],
                   ),
+                  // New fields for Double Axle
                   const SizedBox(height: 15),
                   CustomTextField(
-                    controller: _licenceDiskExpDoubleAxleController,
-                    hintText: 'Licence Disk Expiry Date',
-                    inputFormatter: [UpperCaseTextFormatter()],
-                  ),
-                  const SizedBox(height: 15),
-                  CustomTextField(
-                    controller: _numbAxelDoubleAxleController,
-                    hintText: 'Number of Axles',
+                    controller: _axlesTrailerBController,
+                    hintText: 'Number of Axles Trailer B',
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 15),
+                  CustomTextField(
+                      controller: _licenceDiskExpDoubleAxleController,
+                      hintText: 'Licence Disk Expriry Date Trailer B',
+                      inputFormatter: [UpperCaseTextFormatter()]),
+                  const SizedBox(height: 15),
                   Center(
-                      child: Text('ABS',
+                      child: Text('ABS Trailer B',
                           style: const TextStyle(
                               fontSize: 14, color: Colors.white),
                           textAlign: TextAlign.center)),
@@ -2066,7 +2132,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 15),
                   const Text(
                     'NATIS Document for Double Axle',
                     style: TextStyle(
@@ -2243,16 +2308,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       _axle2DoubleAxleImage,
                       (img) => setState(() => _axle2DoubleAxleImage = img)),
                   const SizedBox(height: 15),
-                  _buildImageSectionWithTitle(
-                      'Licence Disk Image',
-                      _licenseDiskDoubleAxleImage,
-                      (img) =>
-                          setState(() => _licenseDiskDoubleAxleImage = img)),
-                  const SizedBox(height: 15),
-                  _buildImageSectionWithTitle(
-                      'Makers Plate Image',
-                      _makersPlateDblAxleImage,
-                      (img) => setState(() => _makersPlateDblAxleImage = img)),
                   _buildAdditionalImagesSection(),
                   const SizedBox(height: 15),
                 ],
@@ -3437,11 +3492,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               ? await _uploadFileToFirebaseStorage(
                   _axel1Image!, 'vehicle_images')
               : '',
-          'axel2ImageUrl': _axel2Image != null
+          'axle2ImageUrl': _axel2Image != null
               ? await _uploadFileToFirebaseStorage(
                   _axel2Image!, 'vehicle_images')
               : '',
-          'axel3ImageUrl': _axel3Image != null
+          'axle3ImageUrl': _axel3Image != null
               ? await _uploadFileToFirebaseStorage(
                   _axel3Image!, 'vehicle_images')
               : '',
@@ -3975,18 +4030,31 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     _registrationController.clear();
     _axlesController.clear();
     _lengthController.clear();
-
-    // Clear new Trailer A fields
-    _axlesTrailerAController.clear();
-    _natisTrailerADoc1File = null;
-    _natisTrailerADoc1FileName = null;
-    _natisTrailerADoc2File = null;
-    _natisTrailerADoc2FileName = null;
-
-    // Clear new Trailer B fields
-    _axlesTrailerBController.clear();
-    _natisTrailerBDoc1File = null;
-    _natisTrailerBDoc1FileName = null;
+    _lengthDoubleAxleController.clear();
+    _scrollController.dispose();
+    _makeTrailerAController.clear();
+    _modelTrailerAController.clear();
+    _yearTrailerAController.clear();
+    _makeTrailerBController.clear();
+    _modelTrailerBController.clear();
+    _yearTrailerBController.clear();
+    _licenceDiskExpTrailerAController.clear();
+    _modelController.clear();
+    _licenseExpController.clear();
+    _numbAxelController.clear();
+    _makeDoubleAxleController.clear();
+    _modelDoubleAxleController.clear();
+    _yearDoubleAxleController.clear();
+    _licenceDiskExpDoubleAxleController.clear();
+    _numbAxelDoubleAxleController.clear();
+    _makeOtherController.clear();
+    _modelOtherController.clear();
+    _yearOtherController.clear();
+    _lengthOtherController.clear();
+    _vinOtherController.clear();
+    _registrationOtherController.clear();
+    _licenceDiskExpOtherController.clear();
+    _numbAxelOtherController.clear();
 
     setState(() {
       _selectedMainImage = null;
