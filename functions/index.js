@@ -11,6 +11,10 @@ exports.getPlaceDetails = placesApi.getPlaceDetails;
 admin.initializeApp();
 const db = admin.firestore();
 
+const express = require('express');
+const { onRequest } = require('firebase-functions/v2/https');
+const app = express();
+
 // Existing function for offer notifications
 exports.sendOfferNotification = onDocumentCreated(
   {
@@ -379,3 +383,37 @@ exports.sendDirectNotificationNoAppCheck =
       }
     }
   );
+
+// Dynamic SSR for vehicle link previews
+app.get('/vehicle/:id', async (req, res) => {
+  try {
+    const snap = await db.collection('vehicles').doc(req.params.id).get();
+    if (!snap.exists) return res.status(404).send('Vehicle not found');
+    const v = snap.data();
+    const title = `${v.manokeModel} • R${v.expectedSellingPrice}`;
+    const desc  = `${v.year} • ${v.mileage} km • ${v.transmission} • Accidents: ${v.accidentFree ? 'None' : 'Yes'}`;
+    const img   = v.mainImageUrl;
+    const url   = `https://ctpapp.co.za/vehicle/${req.params.id}`;
+    res.set('Cache-Control', 'public, max-age=300');
+    return res.send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${desc}" />
+  <meta property="og:image" content="${img}" />
+  <meta property="og:url" content="${url}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script defer src="/main.dart.js"></script>
+</head>
+<body></body>
+</html>`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal error');
+  }
+});
+
+// Export Express app for hosting /vehicle/* SSR
+exports.app = onRequest({ region: 'us-central1' }, app);

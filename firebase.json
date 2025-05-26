@@ -70,6 +70,10 @@
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
         {
+          "source": "/vehicle/**",
+          "function": "app"
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }
@@ -80,6 +84,10 @@
       "public": "build/web",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
+        {
+          "source": "/vehicle/**",
+          "function": "app"
+        },
         {
           "source": "**",
           "destination": "/index.html"

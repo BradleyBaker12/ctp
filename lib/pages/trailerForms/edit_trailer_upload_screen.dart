@@ -63,6 +63,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   final TextEditingController _referenceNumberController =
       TextEditingController();
   final TextEditingController _makeController = TextEditingController();
+  final TextEditingController _modelController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _sellingPriceController = TextEditingController();
   final TextEditingController _axlesController = TextEditingController();
@@ -432,6 +433,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       _referenceNumberController.text =
           data['referenceNumber']?.toString() ?? '';
       _makeController.text = data['makeModel']?.toString() ?? '';
+      _modelController.text = data['model']?.toString() ?? '';
       _yearController.text = data['year']?.toString() ?? '';
       _sellingPriceController.text = data['sellingPrice']?.toString() ?? '';
       _axlesController.text = data['axles']?.toString() ?? '';
@@ -559,30 +561,55 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           );
         }
       } else if (_selectedTrailerType == 'Tri-Axle') {
+        // Prepopulate Tri-Axle fields from trailerExtraInfo if available, else fallback to root-level fields
+        _makeController.text = trailerExtra['make']?.toString() ??
+            data['makeModel']?.toString() ??
+            '';
+        _modelController.text = trailerExtra['model']?.toString() ??
+            data['model']?.toString() ??
+            '';
+        _yearController.text =
+            trailerExtra['year']?.toString() ?? data['year']?.toString() ?? '';
+        _axlesController.text = trailerExtra['axles']?.toString() ??
+            data['axles']?.toString() ??
+            '';
         _lengthTrailerController.text =
-            trailerExtra['lengthTrailer']?.toString() ?? '';
-        _vinController.text = trailerExtra['vin']?.toString() ?? '';
+            trailerExtra['lengthTrailer']?.toString() ??
+                data['lengthTrailer']?.toString() ??
+                '';
+        _vinController.text =
+            trailerExtra['vin']?.toString() ?? data['vin']?.toString() ?? '';
         _registrationController.text =
-            trailerExtra['registration']?.toString() ?? '';
-        // Add this line to populate the NATIS document URL
-        _existingNatisTriAxleDocUrl =
-            trailerExtra['natisDocUrl']?.toString() ?? '';
-        // --- FIX: Prepopulate Tri-Axle image URLs ---
-        _frontImageUrl = trailerExtra['frontImageUrl']?.toString() ?? '';
-        _sideImageUrl = trailerExtra['sideImageUrl']?.toString() ?? '';
-        _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ?? '';
-        _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ?? '';
-        _deckImageUrl = trailerExtra['deckImageUrl']?.toString() ?? '';
+            trailerExtra['registration']?.toString() ??
+                data['registration']?.toString() ??
+                '';
+        _existingNatisTriAxleDocUrl = trailerExtra['natisDocUrl']?.toString() ??
+            data['natisDocUrl']?.toString() ??
+            '';
+        _frontImageUrl = trailerExtra['frontImageUrl']?.toString() ??
+            data['frontImageUrl']?.toString() ??
+            '';
+        _sideImageUrl = trailerExtra['sideImageUrl']?.toString() ??
+            data['sideImageUrl']?.toString() ??
+            '';
+        _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ??
+            data['tyresImageUrl']?.toString() ??
+            '';
+        _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ??
+            data['chassisImageUrl']?.toString() ??
+            '';
+        _deckImageUrl = trailerExtra['deckImageUrl']?.toString() ??
+            data['deckImageUrl']?.toString() ??
+            '';
         _makersPlateImageUrl =
-            trailerExtra['makersPlateImageUrl']?.toString() ?? '';
-        // --- END FIX ---
-        debugPrint("DEBUG: Tri-Axle NATIS URL: $_existingNatisTriAxleDocUrl");
+            trailerExtra['makersPlateImageUrl']?.toString() ??
+                data['makersPlateImageUrl']?.toString() ??
+                '';
         if (trailerExtra.containsKey('additionalImages') &&
             (trailerExtra['additionalImages'] as List).isNotEmpty) {
           _additionalImagesList.clear();
-          _additionalImagesList.addAll(
-            List<Map<String, dynamic>>.from(trailerExtra['additionalImages']),
-          );
+          _additionalImagesList.addAll(List<Map<String, dynamic>>.from(
+              trailerExtra['additionalImages']));
         }
       } else if (_selectedTrailerType == 'Double Axle') {
         // Prepopulate Double Axle images and NATIS doc
@@ -1895,11 +1922,10 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
               groupValue: _absDoubleAxle,
               onChanged: (value) {
                 setState(() {
-                  _absDoubleAxle = value ?? 'yes';
+                  _absDoubleAxle = value ?? 'no';
                 });
               },
             ),
-            const SizedBox(width: 15),
             CustomRadioButton(
               label: 'No',
               value: 'no',
@@ -2755,6 +2781,32 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       else if (_selectedTrailerType == 'Tri-Axle') ...[
         const SizedBox(height: 15),
         CustomTextField(
+          controller: _makeController,
+          hintText: 'Make',
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _modelController,
+          hintText: 'Model',
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _yearController,
+          hintText: 'Year',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
+          controller: _axlesController,
+          hintText: 'Number of Axles',
+          keyboardType: TextInputType.number,
+          enabled: !isDealer,
+        ),
+        const SizedBox(height: 15),
+        CustomTextField(
           controller: _lengthTrailerController,
           hintText: 'Length Trailer',
           keyboardType: TextInputType.number,
@@ -2765,14 +2817,12 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           controller: _vinController,
           hintText: 'VIN',
           inputFormatter: [UpperCaseTextFormatter()],
-          enabled: !isDealer,
         ),
         const SizedBox(height: 15),
         CustomTextField(
           controller: _registrationController,
           hintText: 'Registration',
           inputFormatter: [UpperCaseTextFormatter()],
-          enabled: !isDealer,
         ),
         const SizedBox(height: 15),
         // NATIS Document for Tri-Axle

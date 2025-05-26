@@ -42,6 +42,14 @@ class _VehiclesListPageState extends State<VehiclesListPage>
   @override
   void initState() {
     super.initState();
+    // Redirect admin users before the page loads fully
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userRole =
+          Provider.of<UserProvider>(context, listen: false).getUserRole;
+      if (userRole == 'admin') {
+        Navigator.pushReplacementNamed(context, '/adminVehicles');
+      }
+    });
     _tabController = TabController(length: 3, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {

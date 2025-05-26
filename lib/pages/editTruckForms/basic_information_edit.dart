@@ -959,13 +959,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             final matching = _transporterUsers
                 .firstWhere((user) => user['id'] == currentOwnerId);
             _selectedTransporterEmail = matching['email'];
-            debugPrint(
-                'Prepopulated owner email: $_selectedTransporterEmail');
+            debugPrint('Prepopulated owner email: $_selectedTransporterEmail');
           } catch (e) {
             debugPrint('No matching owner found for id $currentOwnerId');
           }
         }
-            }
+      }
     } catch (e) {
       debugPrint('Error loading owner users: $e');
     }
@@ -2128,6 +2127,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     content: Text('Changes saved successfully'),
                     duration: Duration(seconds: 2)),
               );
+              final userRole =
+                  Provider.of<UserProvider>(context, listen: false).getUserRole;
+              if (userRole == 'admin') {
+                Navigator.pushReplacementNamed(context, '/adminVehicle');
+                return;
+              }
               await MyNavigator.pushReplacement(context, VehiclesListPage());
               debugPrint('Navigating back after successful save.');
               setState(() {});

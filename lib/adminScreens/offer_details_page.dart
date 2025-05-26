@@ -35,6 +35,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   late TextEditingController _vehicleYearController;
   late TextEditingController _vehicleMileageController;
   late TextEditingController _vehicleTransmissionController;
+  PlatformFile? _selectedTransporterInvoice;
+  String? _existingTransporterInvoiceUrl;
   bool _isLoadingVehicleDetails = false;
 
   @override
@@ -54,6 +56,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         TextEditingController(text: widget.offer.vehicleTransmission);
 
     _fetchVehicleDetails();
+    _refreshOfferDetails(); // Load existing transporterInvoice if any
   }
 
   Future<void> _fetchVehicleDetails() async {
@@ -143,6 +146,51 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       /// Invoice section
                       _buildInvoiceSection(),
                       const SizedBox(height: 20),
+                      if (userProvider.userRole == 'admin') ...[
+                        Text('Transporter Invoice',
+                            style: GoogleFonts.montserrat(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        const SizedBox(height: 10),
+                        if (_existingTransporterInvoiceUrl != null &&
+                            _existingTransporterInvoiceUrl!.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => ViewerPage(
+                                      url: _existingTransporterInvoiceUrl!)),
+                            ),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.picture_as_pdf,
+                                      color: Colors.red, size: 40),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                      child: Text(
+                                          'View Transporter Invoice (PDF)',
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white,
+                                              decoration:
+                                                  TextDecoration.underline))),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          CustomButton(
+                              text: 'Upload Transporter Invoice',
+                              borderColor: Colors.green,
+                              onPressed: _uploadTransporterInvoice),
+                        const SizedBox(height: 20),
+                      ],
 
                       /// Save changes
                       Center(
@@ -168,6 +216,41 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     );
   }
 
+  Future<void> _uploadTransporterInvoice() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+    if (result == null) return;
+    final file = result.files.first;
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()));
+    final ref = FirebaseStorage.instance
+        .ref('transporterInvoices/${widget.offer.offerId}/${file.name}');
+    final snap = await ref.putData(
+        file.bytes!, SettableMetadata(contentType: lookupMimeType(file.name)));
+    final url = await snap.ref.getDownloadURL();
+    await FirebaseFirestore.instance.runTransaction((tx) async {
+      final offerRef = FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId);
+      final vehicleRef = FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.offer.vehicleId);
+      tx.update(offerRef, {'transporterInvoice': url});
+      tx.update(vehicleRef, {'transporterInvoice': url});
+    });
+    setState(() {
+      _existingTransporterInvoiceUrl = url;
+    });
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Transporter invoice uploaded')));
+  }
+
   /// Refresh offer details from Firestore
   Future<void> _refreshOfferDetails() async {
     try {
@@ -179,6 +262,9 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
       if (offerSnapshot.exists) {
         setState(() {
+          // Only assign transporterInvoice to local state, not model
+          _existingTransporterInvoiceUrl = (offerSnapshot.data()!
+              as Map<String, dynamic>)['transporterInvoice'] as String?;
           final updatedOffer = Offer.fromFirestore(offerSnapshot);
           widget.offer.offerStatus = updatedOffer.offerStatus;
           widget.offer.offerAmount = updatedOffer.offerAmount;
@@ -186,18 +272,18 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           widget.offer.vehicleYear = updatedOffer.vehicleYear;
           widget.offer.vehicleMileage = updatedOffer.vehicleMileage;
           widget.offer.vehicleTransmission = updatedOffer.vehicleTransmission;
-          widget.offer.vehicleMainImage = updatedOffer.vehicleMainImage;
+          // widget.offer.vehicleMainImage = updatedOffer.vehicleMainImage;
           widget.offer.externalInvoice = updatedOffer.externalInvoice;
           widget.offer.needsInvoice = updatedOffer.needsInvoice;
           widget.offer.proofOfPaymentUrl = updatedOffer.proofOfPaymentUrl;
         });
         // debugText('Offer details refreshed successfully!');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Offer details refreshed successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(
+        //     content: Text('Offer details refreshed successfully'),
+        //     backgroundColor: Colors.green,
+        //   ),
+        // );
       } else {
         // debugText('Offer not found in Firestore.');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -507,7 +593,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   /// SECTION WHEN PAYMENT IS "REJECTED"
   Widget _buildPaymentRejectedSection(OfferProvider offerProvider) {
     // debugText(
-        // '_buildPaymentRejectedSection: showing "Payment Rejected" status');
+    // '_buildPaymentRejectedSection: showing "Payment Rejected" status');
     return Column(
       children: [
         Center(
@@ -526,7 +612,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           borderColor: Colors.orange,
           onPressed: () async {
             // debugText(
-                // 'Reverting "payment_rejected" status back to "payment pending"');
+            // 'Reverting "payment_rejected" status back to "payment pending"');
             await offerProvider.updateOfferStatus(
               widget.offer.offerId,
               'payment pending',
@@ -567,9 +653,9 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           offerData['inspectionDetails']?['inspectionLocations']?['locations']
               as List<dynamic>?,
         );
+        // FIX: Use correct path for collection locations
         final collectionLocations = _parseLocations(
-          offerData['collectionDetails']?['collectionLocations']?['locations']
-              as List<dynamic>?,
+          offerData['collectionDetails']?['locations'] as List<dynamic>?,
         );
 
         final isInspectionComplete = inspectionLocations.isNotEmpty;
@@ -649,7 +735,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   ) async {
     try {
       // debugText(
-          // '_updateOfferStatus: setting status = $status, action = $action');
+      // '_updateOfferStatus: setting status = $status, action = $action');
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId)
@@ -767,7 +853,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   /// Displays the dealer's email
   Widget _buildDealerEmailRow(UserProvider userProvider, String dealerId) {
     // debugText(
-        // '_buildDealerEmailRow: fetching user email for dealerId=$dealerId');
+    // '_buildDealerEmailRow: fetching user email for dealerId=$dealerId');
     return FutureBuilder<String?>(
       future: userProvider.getUserEmailById(dealerId),
       builder: (context, snapshot) {
@@ -788,7 +874,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     if (widget.offer.externalInvoice != null &&
         widget.offer.externalInvoice!.isNotEmpty) {
       // debugText(
-          // 'Invoice found. Showing the invoice preview and Replace button.');
+      // 'Invoice found. Showing the invoice preview and Replace button.');
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

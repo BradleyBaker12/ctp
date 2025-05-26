@@ -46,6 +46,9 @@ import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/providers/truck_conditions_provider.dart';
 import 'package:ctp/providers/trailer_form_provider.dart';
 import 'package:ctp/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -55,7 +58,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'package:url_strategy/url_strategy.dart';
-// import 'package:firebase_vertexai/firebase_vertexai.dart';
 
 // This needs to be a top-level function for background messaging
 @pragma('vm:entry-point')
@@ -86,6 +88,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Setup notifications service
+  await setupNotifications();
 
   // Comment out App Check activation as it's causing permission issues
   // await FirebaseAppCheck.instance.activate();
@@ -264,7 +269,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
         ),
-        home: const AppInitializer(),
+        // home: const AppInitializer(),
         routes: {
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignUpPage(),
@@ -369,6 +374,34 @@ class MyApp extends StatelessWidget {
           },
         },
         onGenerateRoute: (settings) {
+          // Handle deep link: /vehicle/:vehicleId
+          if (settings.name != null && settings.name!.startsWith('/vehicle/')) {
+            final uri = Uri.parse(settings.name!);
+            final vehicleId =
+                uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
+            if (vehicleId != null && vehicleId.isNotEmpty) {
+              return MaterialPageRoute(
+                builder: (context) => FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('vehicles')
+                      .doc(vehicleId)
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (!snapshot.hasData || !snapshot.data!.exists) {
+                      return const ErrorPage();
+                    }
+                    final vehicle = Vehicle.fromDocument(snapshot.data!);
+                    return VehicleDetailsPage(vehicle: vehicle);
+                  },
+                ),
+              );
+            }
+          }
           if (settings.name == '/inspectionDetails') {
             final args = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(

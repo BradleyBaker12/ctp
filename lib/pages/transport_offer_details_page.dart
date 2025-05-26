@@ -1,5 +1,6 @@
 // transporter_offer_details_page.dart
 
+import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/models/vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -10,6 +11,14 @@ import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart'; // Import CustomButton
 import 'package:ctp/utils/navigation.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+// Web blob support (use universal_html for cross-platform compatibility)
+import 'package:universal_html/html.dart' as html;
+import 'package:firebase_storage/firebase_storage.dart';
 
 class TransporterOfferDetailsPage extends StatefulWidget {
   final Offer offer;
@@ -28,6 +37,8 @@ class TransporterOfferDetailsPage extends StatefulWidget {
 
 class _TransporterOfferDetailsPageState
     extends State<TransporterOfferDetailsPage> {
+  PlatformFile? _selectedInvoice;
+  String? _existingInvoiceUrl;
   int _currentImageIndex = 0;
   late List<String> allPhotos;
   late PageController _pageController;
@@ -76,6 +87,235 @@ class _TransporterOfferDetailsPageState
       fontSize: size,
       fontWeight: weight,
       color: color,
+    );
+  }
+
+  Future<void> _pickInvoiceFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'png', 'doc', 'docx'],
+      withData: true, // ensure bytes are available for web
+    );
+    if (result != null) {
+      setState(() {
+        _selectedInvoice = result.files.first;
+      });
+      print(
+          'DEBUG: picked invoice: ${_selectedInvoice!.name}, bytes=${_selectedInvoice!.bytes != null}, path=${_selectedInvoice!.path}');
+    }
+  }
+
+  void _showInvoiceOptions() {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Invoice Options'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.remove_red_eye),
+                title: const Text('View Invoice'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ViewerPage(url: _existingInvoiceUrl!),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Replace Invoice'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickInvoiceFile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Invoice',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _selectedInvoice = null;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openInvoiceUrl(String url) async {
+    print('DEBUG: _openInvoiceUrl called with url=$url');
+    if (kIsWeb) {
+      html.window.open(url, '_blank');
+    } else {
+      final uri = Uri.parse(url);
+      // Try launching directly
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+      // Fallback: download and open as local file
+      try {
+        final httpClient = HttpClient();
+        final request = await httpClient.getUrl(uri);
+        final response = await request.close();
+        final bytes = await consolidateHttpClientResponseBytes(response);
+        final tempDir = await getTemporaryDirectory();
+        final filePath = '${tempDir.path}/${uri.pathSegments.last}';
+        final file = File(filePath);
+        // Ensure directory exists
+        await file.parent.create(recursive: true);
+        await file.writeAsBytes(bytes);
+        print('DEBUG: downloaded invoice to ${file.path}');
+        final fileUri = Uri.file(file.path);
+        if (await canLaunchUrl(fileUri)) {
+          await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+        } else {
+          print('DEBUG: cannot launch file URI: $fileUri');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cannot open downloaded invoice')),
+          );
+        }
+      } catch (e) {
+        print('DEBUG: error downloading/opening invoice: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening invoice: $e')),
+        );
+      }
+    }
+  }
+
+  void _viewInvoice() async {
+    print('DEBUG: _viewInvoice called with _selectedInvoice=$_selectedInvoice');
+    if (_selectedInvoice == null) return;
+    final name = _selectedInvoice!.name;
+    if (kIsWeb) {
+      final bytes = _selectedInvoice!.bytes;
+      if (bytes != null) {
+        final blob = html.Blob([bytes], _getMimeType(name));
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        print('DEBUG: opening URL: $url');
+        html.window.open(url, '_blank');
+      }
+    } else {
+      final path = _selectedInvoice!.path;
+      if (path != null && await canLaunchUrl(Uri.file(path))) {
+        await launchUrl(Uri.file(path), mode: LaunchMode.externalApplication);
+      }
+    }
+  }
+
+  IconData _getFileIcon(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.grid_on;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Icons.image;
+      case 'txt':
+        return Icons.text_snippet;
+      case 'zip':
+      case 'rar':
+        return Icons.archive;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  bool _isImageFile(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    return ['jpg', 'jpeg', 'png'].contains(extension);
+  }
+
+  Widget _buildInvoiceDisplay() {
+    final name = _selectedInvoice!.name;
+    final ext = name.split('.').last.toLowerCase();
+    return Column(
+      children: [
+        if (_isImageFile(name))
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8.0),
+            child: _selectedInvoice!.bytes != null
+                ? Image.memory(_selectedInvoice!.bytes!,
+                    width: 100, height: 100, fit: BoxFit.cover)
+                : (_selectedInvoice!.path != null
+                    ? Image.file(File(_selectedInvoice!.path!),
+                        width: 100, height: 100, fit: BoxFit.cover)
+                    : const SizedBox(
+                        width: 100,
+                        height: 100,
+                      )),
+          )
+        else
+          Column(
+            children: [
+              Icon(_getFileIcon(ext), color: Colors.white, size: 50.0),
+              const SizedBox(height: 8),
+              Text(name,
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  overflow: TextOverflow.ellipsis),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Future<void> _saveInvoice() async {
+    if (_selectedInvoice == null) return;
+    final name = _selectedInvoice!.name;
+    final storageRef = FirebaseStorage.instance
+        .ref()
+        .child('invoices/${widget.vehicle.id}/$name');
+    UploadTask uploadTask;
+    if (_selectedInvoice!.bytes != null) {
+      uploadTask = storageRef.putData(
+        _selectedInvoice!.bytes!,
+        SettableMetadata(contentType: _getMimeType(name)),
+      );
+    } else {
+      uploadTask = storageRef.putFile(
+        File(_selectedInvoice!.path!),
+        SettableMetadata(contentType: _getMimeType(name)),
+      );
+    }
+    final snapshot = await uploadTask;
+    final url = await snapshot.ref.getDownloadURL();
+    // Atomically update both vehicle and offer documents with invoice URL
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final vehicleRef = FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicle.id);
+      final offerRef = FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId);
+      transaction.update(vehicleRef, {'transporterInvoice': url});
+      transaction.update(offerRef, {'transporterInvoice': url});
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invoice saved successfully')),
     );
   }
 
@@ -215,30 +455,31 @@ class _TransporterOfferDetailsPageState
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
     var blue = const Color(0xFF2F7FFF);
+    // Ensure userRole is available in build method
+    // For demonstration, you may want to fetch or pass this in properly
+    String userRole =
+        'transporter'; // TODO: Replace with actual user role logic
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Text(
-                  "${widget.vehicle.brands.join("")} ${widget.vehicle.makeModel.toString().toUpperCase()}",
-                  style: GoogleFonts.montserrat(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: blue,
-                  ),
+            Expanded(
+              child: Text(
+                "${widget.vehicle.brands.join("")} ${widget.vehicle.makeModel.toString().toUpperCase()}",
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: blue,
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.verified, color: Color(0xFFFF4E00), size: 24),
-              ],
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
-            const Icon(Icons.arrow_drop_down,
-                color: Color(0xFFFF4E00), size: 40),
+            const SizedBox(width: 8),
+            const Icon(Icons.verified, color: Color(0xFFFF4E00), size: 24),
           ],
         ),
         leading: IconButton(
@@ -285,6 +526,11 @@ class _TransporterOfferDetailsPageState
           // Get the latest offer data
           Map<String, dynamic> offerData =
               offerSnapshot.data!.data() as Map<String, dynamic>;
+
+          // Capture existing transporter invoice URL if present
+          _existingInvoiceUrl = offerData['transporterInvoice'] as String?;
+          print('DEBUG: existingInvoiceUrl = $_existingInvoiceUrl');
+
           String offerStatus = offerData['offerStatus'] ?? 'in-progress';
 
           // Get inspection and collection details from the offer document
@@ -418,6 +664,104 @@ class _TransporterOfferDetailsPageState
                     ),
                   ),
 
+                // Admins and transporters see invoice section only when offerStatus is 'paymentOptions'
+                if ((userRole == 'transporter' || userRole == 'admin') &&
+                    offerStatus == 'payment options') ...[
+                  // Transporter invoice upload section
+                  InkWell(
+                    onTap: () async {
+                      print(
+                          'DEBUG: onTap triggered: _selectedInvoice=$_selectedInvoice, _existingInvoiceUrl=$_existingInvoiceUrl');
+                      if (_selectedInvoice != null) {
+                        _showInvoiceOptions();
+                      } else if (_existingInvoiceUrl != null) {
+                        print(
+                            'DEBUG: navigating to ViewerPage with $_existingInvoiceUrl');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ViewerPage(url: _existingInvoiceUrl!),
+                          ),
+                        );
+                      } else {
+                        _pickInvoiceFile();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(10.0),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10.0),
+                        border: Border.all(
+                            color: const Color(0xFF0E4CAF), width: 2.0),
+                      ),
+                      child: Builder(
+                        builder: (_) {
+                          final hasSelected = _selectedInvoice != null;
+                          final hasExisting = _existingInvoiceUrl != null;
+                          print(
+                              'DEBUG: invoice child - selected=$hasSelected, existing=$hasExisting');
+                          if (hasSelected) {
+                            return _buildInvoiceDisplay();
+                          }
+                          if (hasExisting) {
+                            // Decode filename from URL
+                            final existingName = Uri.decodeComponent(
+                                Uri.parse(_existingInvoiceUrl!)
+                                    .pathSegments
+                                    .last);
+                            return Column(
+                              children: [
+                                Icon(
+                                  _getFileIcon(existingName.split('.').last),
+                                  color: Colors.white,
+                                  size: 50.0,
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  existingName,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            );
+                          }
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_getFileIcon('pdf'),
+                                  color: Colors.white, size: 50.0),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Select Invoice',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 14),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  if (_selectedInvoice != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
+                      child: CustomButton(
+                        text: 'SAVE INVOICE',
+                        borderColor: const Color(0xFFFF4E00),
+                        onPressed: _saveInvoice,
+                      ),
+                    ),
+                  ],
+                ],
+
                 // Offer Details Section
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -454,5 +798,24 @@ class _TransporterOfferDetailsPageState
         },
       ),
     );
+  }
+}
+
+String _getMimeType(String name) {
+  final ext = name.split('.').last.toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'doc':
+      return 'application/msword';
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    default:
+      return 'application/octet-stream';
   }
 }

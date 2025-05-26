@@ -160,6 +160,14 @@ class _TruckPageState extends State<TruckPage> {
   @override
   void initState() {
     super.initState();
+    // Redirect admin users before the page loads fully
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userRole =
+          Provider.of<UserProvider>(context, listen: false).getUserRole;
+      if (userRole == 'admin') {
+        Navigator.pushReplacementNamed(context, '/adminVehicles');
+      }
+    });
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
 
@@ -995,6 +1003,8 @@ class _TruckPageState extends State<TruckPage> {
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
+
+    // Optionally removed: admin redirect logic moved to initState
 
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
