@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
+import 'package:ctp/pages/payment_options_page.dart';
 import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/pages/setup_inspection.dart';
 import 'package:flutter/material.dart';
@@ -335,10 +336,86 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
       case 'payment pending':
         return _buildPaymentPendingSection(offerProvider);
 
+      case 'payment options':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: CustomButton(
+                text: 'Go to Payment Options',
+                borderColor: Colors.purple,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          PaymentOptionsPage(offerId: widget.offer.offerId),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Verify/Reject payment buttons
+            SizedBox(
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CustomButton(
+                    text: 'Verify Payment',
+                    borderColor: Colors.green,
+                    onPressed: () async {
+                      await offerProvider.updateOfferStatus(
+                        widget.offer.offerId,
+                        'paid',
+                      );
+                      setState(() {
+                        widget.offer.offerStatus = 'paid';
+                      });
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Payment verified successfully.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    text: 'Reject Payment',
+                    borderColor: Colors.red,
+                    onPressed: () async {
+                      await offerProvider.updateOfferStatus(
+                        widget.offer.offerId,
+                        'payment_rejected',
+                      );
+                      setState(() {
+                        widget.offer.offerStatus = 'payment_rejected';
+                      });
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Payment has been rejected.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+
       case 'paid':
         return _buildPaidSection(offerProvider);
 
       case 'accepted':
+        return _buildAcceptedSection();
+
+      case 'inspection done':
         return _buildAcceptedSection();
 
       case 'rejected':
@@ -551,6 +628,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
   /// SECTION WHEN PAYMENT IS MARKED "PAID"
   Widget _buildPaidSection(OfferProvider offerProvider) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
     // debugText('_buildPaidSection: showing "Paid" status');
     return Column(
       children: [
@@ -586,6 +664,34 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             );
           },
         ),
+        const SizedBox(height: 16),
+        if (userProvider.userRole == 'admin') ...[
+          CustomButton(
+            text: 'Mark as Done & Sell Vehicle',
+            borderColor: Colors.blue,
+            onPressed: () async {
+              // Mark offer as done
+              await FirebaseFirestore.instance
+                  .collection('offers')
+                  .doc(widget.offer.offerId)
+                  .update({'offerStatus': 'Done'});
+              // Mark vehicle as sold
+              await FirebaseFirestore.instance
+                  .collection('vehicles')
+                  .doc(widget.offer.vehicleId)
+                  .update({'vehicleStatus': "Sold"});
+              setState(() {
+                widget.offer.offerStatus = 'done';
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Offer marked done and vehicle marked as sold'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+          ),
+        ],
       ],
     );
   }
@@ -636,6 +742,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   /// ACCEPTED SECTION: Setup Inspection/Collection
   Widget _buildAcceptedSection() {
     // debugText('_buildAcceptedSection: streaming offer data...');
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('offers')
@@ -649,62 +756,88 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         final offerData =
             offerSnapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-        final inspectionLocations = _parseLocations(
-          offerData['inspectionDetails']?['inspectionLocations']?['locations']
-              as List<dynamic>?,
-        );
-        // FIX: Use correct path for collection locations
+        final status = widget.offer.offerStatus.toLowerCase();
+        final isInspectionDone = status == 'inspection done';
         final collectionLocations = _parseLocations(
           offerData['collectionDetails']?['locations'] as List<dynamic>?,
         );
-
-        final isInspectionComplete = inspectionLocations.isNotEmpty;
         final isCollectionComplete = collectionLocations.isNotEmpty;
 
         return Column(
           children: [
             const SizedBox(height: 20),
-            isInspectionComplete
-                ? Text(
-                    'Inspection Setup Complete',
-                    style: GoogleFonts.montserrat(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : CustomButton(
-                    text: 'Setup Inspection',
-                    borderColor: Colors.blue,
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SetupInspectionPage(
-                          offerId: widget.offer.offerId,
-                        ),
-                      ),
+            // INSPECTION
+            if (isInspectionDone) ...[
+              Text(
+                'Inspection completed',
+                style: GoogleFonts.montserrat(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ] else if (userProvider.userRole == 'admin') ...[
+              CustomButton(
+                text: 'Mark Inspection Complete',
+                borderColor: Colors.green,
+                onPressed: _markInspectionComplete,
+              ),
+            ] else ...[
+              CustomButton(
+                text: 'Setup Inspection',
+                borderColor: Colors.blue,
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SetupInspectionPage(
+                      offerId: widget.offer.offerId,
                     ),
                   ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
-            isCollectionComplete
-                ? Text(
-                    'Collection Setup Complete',
-                    style: GoogleFonts.montserrat(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : CustomButton(
-                    text: 'Setup Collection',
-                    borderColor: Colors.blue,
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SetupCollectionPage(
-                          offerId: widget.offer.offerId,
+            // COLLECTION
+            if (userProvider.userRole == 'admin') ...[
+              isCollectionComplete
+                  ? CustomButton(
+                      text: 'Mark Collection Complete',
+                      borderColor: Colors.green,
+                      onPressed: _markCollectionComplete,
+                    )
+                  : CustomButton(
+                      text: 'Setup Collection',
+                      borderColor: Colors.blue,
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SetupCollectionPage(
+                            offerId: widget.offer.offerId,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+            ] else ...[
+              isCollectionComplete
+                  ? Text(
+                      'Collection Setup Complete',
+                      style: GoogleFonts.montserrat(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : CustomButton(
+                      text: 'Setup Collection',
+                      borderColor: Colors.blue,
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SetupCollectionPage(
+                            offerId: widget.offer.offerId,
+                          ),
+                        ),
+                      ),
+                    ),
+            ],
           ],
         );
       },
@@ -774,6 +907,64 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           content: Text(
             'Failed to $action the offer. Please try again.\nError: $e',
           ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Mark inspection as complete in Firestore
+  Future<void> _markInspectionComplete() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .update({
+        'inspectionCompleted': true,
+        'offerStatus': 'inspection done',
+      });
+      setState(() {
+        widget.offer.offerStatus = 'inspection done';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Inspection completed successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to mark inspection complete: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Mark collection as complete and push to payment options
+  Future<void> _markCollectionComplete() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .update({
+        'collectionCompleted': true,
+        'offerStatus': 'payment options',
+      });
+      setState(() {
+        widget.offer.offerStatus = 'payment options';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Collection completed. Moved to Payment Options'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to complete collection: $e'),
           backgroundColor: Colors.red,
         ),
       );

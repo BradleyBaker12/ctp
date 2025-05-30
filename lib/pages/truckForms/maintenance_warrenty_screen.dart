@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/pages/editTruckForms/external_cab_edit_page.dart';
 import 'package:ctp/pages/truckForms/admin_section.dart';
 import 'package:ctp/pages/truckForms/maintenance_section.dart';
-import 'package:ctp/pages/truckForms/truck_condition_section.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/pages/home_page.dart';
@@ -78,7 +78,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
   // Store child widgets as state variables
   late MaintenanceSection _maintenanceSection;
   late AdminSection _adminSection;
-  late TruckConditionSection _truckConditionSection;
 
   final GlobalKey<ScaffoldState> _scaffoldKey =
       GlobalKey<ScaffoldState>(); // Add this
@@ -160,10 +159,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
         _adminSectionKey.currentState?.updateAdminDoc3(file);
       },
     );
-
-    _truckConditionSection = TruckConditionSection(
-      vehicleId: widget.vehicleId,
-    );
   }
 
   void _buildTabs() {
@@ -177,9 +172,6 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
     _tabTitles.add('ADMIN');
     _tabContents.add(_adminSection);
-
-    _tabTitles.add('TRUCK CONDITION');
-    _tabContents.add(_truckConditionSection);
   }
 
   void _clearAllData() {
@@ -476,32 +468,49 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
   // Method to handle "Continue" button press
   Future<void> _onContinuePressed() async {
-    if (_selectedTabIndex < _tabContents.length - 1) {
-      String currentTab = _tabTitles[_selectedTabIndex];
-      bool dataSaved = false;
+    setState(() {
+      _isLoading = true;
+    });
 
-      if (currentTab == 'MAINTENANCE') {
-        bool maintenanceSaved =
-            await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
-                false;
-        if (maintenanceSaved) {
-          dataSaved = await _saveMaintenanceWarrantyData();
-        }
-      } else if (currentTab == 'ADMIN') {
-        dataSaved =
-            await _adminSectionKey.currentState?.saveAdminData() ?? false;
+    String currentTab = _tabTitles[_selectedTabIndex];
+    bool dataSaved = false;
+    if (currentTab == 'MAINTENANCE') {
+      bool maintenanceSaved =
+          await _maintenanceSectionKey.currentState?.saveMaintenanceData() ??
+              false;
+      if (maintenanceSaved) {
+        dataSaved = await _saveMaintenanceWarrantyData();
       }
+    } else if (currentTab == 'ADMIN') {
+      dataSaved = await _adminSectionKey.currentState?.saveAdminData() ?? false;
+    }
 
-      if (dataSaved) {
+    if (dataSaved) {
+      if (currentTab == 'ADMIN') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ExternalCabEditPage(
+              vehicleId: widget.vehicleId,
+              inTabsPage: true,
+              onProgressUpdate: () {},
+              isEditing: true,
+            ),
+          ),
+        );
+      } else {
         setState(() {
-          _selectedTabIndex += 1;
+          _selectedTabIndex++;
         });
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You are on the last tab.')),
+        const SnackBar(content: Text('Error saving data. Please try again.')),
       );
     }
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   // Method to handle "Done" button press
@@ -532,7 +541,10 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
           setState(() {
             _isLoading = false;
           });
-          Navigator.of(context).pushReplacementNamed('/home');
+          // Navigator.of(context).pushReplacementNamed('/home');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => _adminSection),
+          );
         } else {
           setState(() {
             _isLoading = false;
@@ -576,7 +588,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
 
     const isWeb = kIsWeb;
     final screenWidth = MediaQuery.of(context).size.width;
-    const useWebLayout = true; // Previously: kIsWeb && screenWidth > 600
+    final useWebLayout = isWeb && screenWidth > 600;
 
     return WillPopScope(
       onWillPop: () {
@@ -652,14 +664,11 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                           horizontal: 16.0, vertical: 10.0),
                       child: Row(
                         children: [
-                          if (!useWebLayout && !isTruckConditionTab) ...[
+                          if (_selectedTabIndex < _tabContents.length) ...[
                             Expanded(
                               child: CustomButton(
                                 text: 'Continue',
-                                onPressed:
-                                    _selectedTabIndex < _tabContents.length - 1
-                                        ? _onContinuePressed
-                                        : null,
+                                onPressed: _onContinuePressed,
                                 borderColor: AppColors.orange,
                               ),
                             ),

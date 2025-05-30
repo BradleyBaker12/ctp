@@ -1785,6 +1785,17 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         onPressed: () async {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);
+          // Require NATIS/RC1 upload if maintenance is selected
+          if (formData.maintenance == 'yes' &&
+              _natisRc1File == null &&
+              (_existingNatisRc1Url == null || _existingNatisRc1Url!.isEmpty)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'Please attach NATIS/RC1 document before continuing.')),
+            );
+            return;
+          }
           if (!widget.isAdminUpload &&
               widget.isNewUpload &&
               !_validateRequiredFields(formData)) {

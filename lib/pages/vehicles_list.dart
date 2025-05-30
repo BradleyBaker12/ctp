@@ -1,5 +1,6 @@
 // lib/pages/vehicles_list_page.dart
 
+import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/listing_card.dart';
 import 'package:ctp/pages/home_page.dart';
@@ -16,6 +17,8 @@ import 'package:ctp/components/custom_app_bar.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:ctp/components/custom_button.dart';
+import 'dart:ui';
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
@@ -110,6 +113,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         userVehicles.where((v) => v.vehicleStatus == 'pending').toList();
     final live = userVehicles.where((v) => v.vehicleStatus == 'Live').toList();
 
+    debugPrint(
+        '🔍 NestedScrollView scroll offset: ${_scrollController.offset}');
     return GradientBackground(
       child: Scaffold(
         key: _scaffoldKey,
@@ -194,112 +199,120 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                 ),
               )
             : null,
-        body: Column(
-          children: [
-            // if (kIsWeb)
-            //   WebNavigationBar(
-            //     isCompactNavigation: false,
-            //     currentRoute: '/transporterList',
-            //   ),
-            if (isLoading)
-              const Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            if (!isLoading && userVehicles.isEmpty)
-              Center(
-                child: Text(
-                  'No Vehicles Found',
-                  style: GoogleFonts.montserrat(color: Colors.white),
-                ),
-              ),
-            const SizedBox(height: 40),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.local_shipping,
-                  color: Color(0xFFFF4E00),
-                  size: 30,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'MY VEHICLES',
-                  style: TextStyle(
-                    color: Color(0xFFFF4E00),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-            const SizedBox(
-              width: 350,
-              child: Text(
-                'Here are your uploaded vehicles.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Tab bar for Draft / Pending / Live
-            TabBar(
-              controller: _tabController,
-              labelColor: const Color(0xFFFF4E00),
-              unselectedLabelColor: Colors.white,
-              indicatorColor: const Color(0xFFFF4E00),
-              tabs: [
-                Tab(text: 'Drafts (${drafts.length})'),
-                Tab(text: 'Pending (${pending.length})'),
-                Tab(text: 'Live (${live.length})'),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Tab views
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
+        body: NestedScrollView(
+          controller: _scrollController,
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverToBoxAdapter(
+              child: Column(
                 children: [
-                  // Draft tab
-                  drafts.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No Draft vehicles.',
-                            style: GoogleFonts.montserrat(color: Colors.white),
-                          ),
-                        )
-                      : _buildVehiclesList(drafts),
-
-                  // Pending tab
-                  pending.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No Pending vehicles.',
-                            style: GoogleFonts.montserrat(color: Colors.white),
-                          ),
-                        )
-                      : _buildVehiclesList(pending),
-
-                  // Live tab
-                  live.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No Live vehicles.',
-                            style: GoogleFonts.montserrat(color: Colors.white),
-                          ),
-                        )
-                      : _buildVehiclesList(live),
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  if (!isLoading && userVehicles.isEmpty)
+                    Center(
+                      child: Text(
+                        'No Vehicles Found',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
+                    ),
+                  const SizedBox(height: 40),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.local_shipping,
+                        color: Color(0xFFFF4E00),
+                        size: 30,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'MY VEHICLES',
+                        style: TextStyle(
+                          color: Color(0xFFFF4E00),
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(
+                    width: 350,
+                    child: Text(
+                      'Here are your uploaded vehicles.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SliverTabBarDelegate(
+                TabBar(
+                  controller: _tabController,
+                  labelColor: const Color(0xFFFF4E00),
+                  unselectedLabelColor: Colors.white,
+                  indicatorColor: const Color(0xFFFF4E00),
+                  tabs: [
+                    Tab(text: 'Drafts (${drafts.length})'),
+                    Tab(text: 'Pending (${pending.length})'),
+                    Tab(text: 'Live (${live.length})'),
+                  ],
+                ),
+              ),
+            ),
           ],
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              drafts.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No Draft vehicles.',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
+                    )
+                  : _buildVehiclesList(drafts),
+              pending.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No Pending vehicles.',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
+                    )
+                  : _buildVehiclesList(pending),
+              live.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No Live vehicles.',
+                        style: GoogleFonts.montserrat(color: Colors.white),
+                      ),
+                    )
+                  : _buildVehiclesList(live),
+            ],
+          ),
         ),
+        floatingActionButton:
+            userProvider.getUserRole.toLowerCase().trim() == 'transporter'
+                ? FloatingActionButton.extended(
+                    backgroundColor: const Color(0xFFFF4E00),
+                    foregroundColor: Colors.white,
+                    onPressed: _showVehicleTypeSelectionDialog,
+                    icon: const Icon(Icons.add),
+                    label: Text(
+                      'Add Vehicle',
+                      style: GoogleFonts.montserrat(color: Colors.white),
+                    ),
+                  )
+                : null,
         bottomNavigationBar: kIsWeb
             ? null
             : CustomBottomNavigation(
@@ -366,8 +379,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         }
 
         return GridView.builder(
-          controller: _scrollController,
           padding: const EdgeInsets.all(16),
+          primary: true,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             childAspectRatio: 0.8, // Adjust this value to control card height
@@ -390,5 +403,76 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         );
       },
     );
+  }
+
+  void _showVehicleTypeSelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          'Select Vehicle Type',
+          style: GoogleFonts.montserrat(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CustomButton(
+              text: 'Truck',
+              borderColor: const Color(0xFFFF4E00),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/truckUploadForm');
+              },
+            ),
+            const SizedBox(height: 16),
+            CustomButton(
+              text: 'Trailer',
+              borderColor: AppColors.blue,
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/trailerUploadForm');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar _tabBar;
+  _SliverTabBarDelegate(this._tabBar);
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    debugPrint(
+        '⏱ SliverTabBarDelegate.build called - shrinkOffset: $shrinkOffset, overlapsContent: $overlapsContent');
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: shrinkOffset > 0 ? 1.0 : 0.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        final bgColor = Color.lerp(Colors.transparent, AppColors.blue, value)!;
+        final elev = lerpDouble(0, 4, value)!;
+        return Material(
+          color: bgColor,
+          elevation: elev,
+          child: child,
+        );
+      },
+      child: _tabBar,
+    );
+  }
+
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  bool shouldRebuild(covariant _SliverTabBarDelegate oldDelegate) {
+    return _tabBar != oldDelegate._tabBar;
   }
 }

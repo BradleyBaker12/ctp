@@ -1477,7 +1477,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           if (isTransporter || isAdmin || isSalesRep)
             _buildReferenceNumberField(),
           const SizedBox(height: 15),
-          if (isTransporter || isAdmin || isSalesRep) _buildNatisRc1Section(),
+          if (isTransporter || isAdmin || isSalesRep)
+            _buildNatisRc1Section(),
           const SizedBox(height: 15),
           if (isAdmin || isSalesRep) ...[
             _buildTruckOwnerField(),

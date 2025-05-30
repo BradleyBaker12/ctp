@@ -15,7 +15,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/components/web_navigation_bar.dart' hide NavigationItem;
+import 'package:ctp/components/admin_web_navigation_bar.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -965,6 +966,7 @@ Please contact support for assistance.
     final userProvider = Provider.of<UserProvider>(context);
     final UserModel? currentUser = userProvider.currentUser;
     final userRole = userProvider.getUserRole;
+    final bool isAdmin = userRole == 'admin';
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
 
     List<NavigationItem> navigationItems = userRole == 'dealer'
@@ -985,75 +987,77 @@ Please contact support for assistance.
       // This ensures the body extends behind the AppBar (if present)
       extendBodyBehindAppBar: true,
       key: _scaffoldKey,
-      appBar: kIsWeb
+      appBar: isAdmin
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
-              child: WebNavigationBar(
+              child: AdminWebNavigationBar(
+                scaffoldKey: _scaffoldKey,
                 isCompactNavigation: _isCompactNavigation(context),
                 currentRoute: '/offers',
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                onTabSelected: _onItemTapped,
               ),
             )
           : null,
-      drawer: _isCompactNavigation(context) && kIsWeb
+      drawer: isAdmin
           ? Drawer(
               child: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: const [Colors.black, Color(0xFF2F7FFD)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black, Color(0xFF2F7FFD)],
                   ),
                 ),
-                child: Column(
+                child: ListView(
+                  padding: EdgeInsets.zero,
                   children: [
                     DrawerHeader(
                       decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Colors.white24, width: 1),
+                        gradient: LinearGradient(
+                          colors: [Colors.black, Color(0xFF2F7FFD)],
                         ),
                       ),
                       child: Center(
-                        child: Image.network(
-                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                          height: 50,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 50,
-                              width: 50,
-                              color: Colors.grey[900],
-                              child: const Icon(Icons.local_shipping,
-                                  color: Colors.white),
-                            );
-                          },
+                        child: Text(
+                          'Admin Menu',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 24,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: ListView(
-                        children: navigationItems.map((item) {
-                          bool isActive = '/offers' == item.route;
-                          return ListTile(
-                            title: Text(
-                              item.title,
-                              style: TextStyle(
-                                color: isActive
-                                    ? const Color(0xFFFF4E00)
-                                    : Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            selected: isActive,
-                            selectedTileColor: Colors.black12,
-                            onTap: () {
-                              Navigator.pop(context);
-                              if (!isActive) {
-                                Navigator.pushNamed(context, item.route);
-                              }
-                            },
-                          );
-                        }).toList(),
-                      ),
+                    ListTile(
+                      title: const Text('Users'),
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pushReplacementNamed(context, '/adminUsers');
+                      },
+                    ),
+                    ListTile(
+                      title: const Text('Offers'),
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pushReplacementNamed(context, '/adminOffers');
+                      },
+                    ),
+                    ListTile(
+                      title: const Text('Complaints'),
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pushReplacementNamed(
+                            context, '/adminComplaints');
+                      },
+                    ),
+                    ListTile(
+                      title: const Text('Vehicles'),
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pushReplacementNamed(
+                            context, '/adminVehicles');
+                      },
                     ),
                   ],
                 ),
@@ -1128,7 +1132,7 @@ Please contact support for assistance.
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 50),
                       Image.asset('lib/assets/CTPLogo.png'),
                       const SizedBox(height: 64),
                       Text(
@@ -1165,14 +1169,14 @@ Please contact support for assistance.
                       const SizedBox(height: 32), // Spacing before buttons
 
                       /// **Step 1 & Step 2 Buttons**
-                      CustomButton(
-                        text: invoiceButtonText,
-                        borderColor: const Color(0xFFFF4E00),
-                        onPressed: isInvoiceButtonEnabled
-                            ? () => _handleGenerateInvoice(snapshot.data!)
-                            : null,
-                        disabledColor: Colors.grey,
-                      ),
+                      // CustomButton(
+                      //   text: invoiceButtonText,
+                      //   borderColor: const Color(0xFFFF4E00),
+                      //   onPressed: isInvoiceButtonEnabled
+                      //       ? () => _handleGenerateInvoice(snapshot.data!)
+                      //       : null,
+                      //   disabledColor: Colors.grey,
+                      // ),
 
                       if (needsInvoice &&
                           (externalInvoice == null || externalInvoice.isEmpty))
@@ -1212,18 +1216,21 @@ Please contact support for assistance.
                       const SizedBox(height: 16),
 
                       /// **"Continue" Button**
-                      CustomButton(
-                        text: 'CONTINUE',
-                        borderColor: const Color(0xFFFF4E00),
-                        onPressed: isContinueEnabled
-                            ? () {
-                                _navigateBasedOnStatus(context, paymentStatus);
-                              }
-                            : null, // Disable if invoice not uploaded
-                        // Optionally, adjust appearance when disabled
-                        disabledColor: Colors.grey,
-                      ),
-                      const SizedBox(height: 16), // Bottom padding
+                      if (!isAdmin) ...[
+                        CustomButton(
+                          text: 'CONTINUE',
+                          borderColor: const Color(0xFFFF4E00),
+                          onPressed: isContinueEnabled
+                              ? () {
+                                  _navigateBasedOnStatus(
+                                      context, paymentStatus);
+                                }
+                              : null, // Disable if invoice not uploaded
+                          // Optionally, adjust appearance when disabled
+                          disabledColor: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                     ],
                   ),
                 ),
@@ -1232,7 +1239,7 @@ Please contact support for assistance.
           ),
         ),
       ),
-      bottomNavigationBar: showBottomNav
+      bottomNavigationBar: !isAdmin
           ? CustomBottomNavigation(
               selectedIndex: _selectedIndex,
               onItemTapped: _onItemTapped,

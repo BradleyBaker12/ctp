@@ -300,6 +300,38 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   String _suspensionTrailerB = 'steel';
   String _absTrailerB = 'no';
 
+  // === Superlink Trailer A missing controllers and image variables ===
+  final TextEditingController _licenceDiskExpTrailerAController =
+      TextEditingController();
+  Uint8List? _hookPinImageA;
+  Uint8List? _roofImageA;
+
+  // === Superlink Trailer B missing controllers and image variables ===
+  final TextEditingController _licenceDiskExpTrailerBController =
+      TextEditingController();
+  Uint8List? _hookPinImageB;
+  Uint8List? _roofImageB;
+
+  // === Superlink Trailer A additional image variables ===
+  Uint8List? _tailBoardImageA;
+  Uint8List? _spareWheelImageA;
+  Uint8List? _landingLegImageA;
+  Uint8List? _hoseAndElecticalCableImageA;
+  Uint8List? _brakesAxle1ImageA;
+  Uint8List? _brakesAxle2ImageA;
+  Uint8List? _axle1ImageA;
+  Uint8List? _axle2ImageA;
+
+  // === Superlink Trailer B additional image variables ===
+  Uint8List? _tailBoardImageB;
+  Uint8List? _spareWheelImageB;
+  Uint8List? _landingLegImageB;
+  Uint8List? _hoseAndElecticalCableImageB;
+  Uint8List? _brakesAxle1ImageB;
+  Uint8List? _brakesAxle2ImageB;
+  Uint8List? _axle1ImageB;
+  Uint8List? _axle2ImageB;
+
   @override
   void initState() {
     super.initState();
@@ -2418,7 +2450,39 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           existingUrl: _makersPlateImageAUrl,
         ),
         const SizedBox(height: 15),
-        _buildAdditionalImagesSectionForTrailerA(),
+        // Additional Superlink Trailer A images
+        const Text('Additional Images - Trailer A',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        for (int i = 0; i < _additionalImagesListTrailerA.length; i++)
+          _buildItemWidget(i, _additionalImagesListTrailerA[i],
+              _additionalImagesListTrailerA, _showAdditionalImageSourceDialog),
+        const SizedBox(height: 16.0),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _additionalImagesListTrailerA
+                    .add({'description': '', 'image': null});
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add Additional Image for Trailer A',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
         // Trailer B
         const Text('Trailer B',
@@ -2667,7 +2731,39 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           existingUrl: _makersPlateImageBUrl,
         ),
         const SizedBox(height: 15),
-        _buildAdditionalImagesSectionForTrailerB(),
+        // Additional Superlink Trailer B images
+        const Text('Additional Images - Trailer B',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        for (int i = 0; i < _additionalImagesListTrailerB.length; i++)
+          _buildItemWidget(i, _additionalImagesListTrailerB[i],
+              _additionalImagesListTrailerB, _showAdditionalImageSourceDialog),
+        const SizedBox(height: 16.0),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _additionalImagesListTrailerB
+                    .add({'description': '', 'image': null});
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add Additional Image for Trailer B',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
         // Service History Section
         _buildServiceHistorySection(),
@@ -2973,10 +3069,38 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           existingUrl: _makersPlateImageUrl,
         ),
         const SizedBox(height: 15),
-        _buildAdditionalImagesSection(),
-        const SizedBox(height: 15),
-        // Service History Section
-        _buildServiceHistorySection(),
+        // Additional Superlink Trailer images
+        const Text('Additional Images',
+            style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        for (int i = 0; i < _additionalImagesList.length; i++)
+          _buildItemWidget(i, _additionalImagesList[i], _additionalImagesList,
+              _showAdditionalImageSourceDialog),
+        const SizedBox(height: 16.0),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _additionalImagesList.add({'description': '', 'image': null});
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add Additional Item',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
         // Damages Section
         const Text(
@@ -3601,13 +3725,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       if (_selectedTrailerType == 'Superlink') {
         trailerExtraInfo = {
           'trailerA': {
+            'make': _makeController.text,
+            'model': _modelTrailerAController.text,
+            'year': _yearTrailerAController.text,
             'length': _lengthTrailerAController.text,
             'vin': _vinAController.text,
             'registration': _registrationAController.text,
             'axles': _axlesTrailerAController.text,
             'suspension': _suspensionTrailerA,
+            'licenseExp': _licenceDiskExpTrailerAController.text,
             'abs': _absTrailerA,
-            'natisDocUrl': _natisTrailerADoc1File != null
+            'natisDoc1Url': _natisTrailerADoc1File != null
                 ? await _uploadFileToFirebaseStorage(_natisTrailerADoc1File!,
                     'vehicle_documents', _natisTrailerADoc1FileName)
                 : _existingNatisTrailerADocUrl ?? '',
@@ -3635,20 +3763,65 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _makersPlateImageA!, 'vehicle_images')
                 : _makersPlateImageAUrl ?? '',
+            'hookPinImageUrl': _hookPinImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _hookPinImageA!, 'vehicle_images')
+                : '',
+            'roofImageUrl': _roofImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _roofImageA!, 'vehicle_images')
+                : '',
+            'tailBoardImageUrl': _tailBoardImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _tailBoardImageA!, 'vehicle_images')
+                : '',
+            'spareWheelImageUrl': _spareWheelImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _spareWheelImageA!, 'vehicle_images')
+                : '',
+            'landingLegImageUrl': _landingLegImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _landingLegImageA!, 'vehicle_images')
+                : '',
+            'hoseAndElecticalCableImageUrl':
+                _hoseAndElecticalCableImageA != null
+                    ? await _uploadFileToFirebaseStorage(
+                        _hoseAndElecticalCableImageA!, 'vehicle_images')
+                    : '',
+            'brakesAxle1ImageUrl': _brakesAxle1ImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _brakesAxle1ImageA!, 'vehicle_images')
+                : '',
+            'brakesAxle2ImageUrl': _brakesAxle2ImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _brakesAxle2ImageA!, 'vehicle_images')
+                : '',
+            'axle1ImageUrl': _axle1ImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _axle1ImageA!, 'vehicle_images')
+                : '',
+            'axle2ImageUrl': _axle2ImageA != null
+                ? await _uploadFileToFirebaseStorage(
+                    _axle2ImageA!, 'vehicle_images')
+                : '',
             'trailerAAdditionalImages':
                 await _uploadListItems(_additionalImagesListTrailerA),
           },
           'trailerB': {
+            'make': _makeTrailerBController.text,
+            'model': _modelTrailerBController.text,
+            'year': _yearTrailerBController.text,
             'length': _lengthTrailerBController.text,
             'vin': _vinBController.text,
             'registration': _registrationBController.text,
             'axles': _axlesTrailerBController.text,
             'suspension': _suspensionTrailerB,
+            'licenseExp': _licenceDiskExpTrailerBController.text,
             'abs': _absTrailerB,
-            'natisDocUrl': _natisTrailerBDoc1File != null
+            'natisDoc1Url': _natisTrailerBDoc1File != null
                 ? await _uploadFileToFirebaseStorage(_natisTrailerBDoc1File!,
                     'vehicle_documents', _natisTrailerBDoc1FileName)
-                : _existingNatisTrailerBDocUrl ?? '',
+                : _existingNatisTrailerBDoc1Url ?? '',
             'frontImageUrl': _frontImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _frontImageB!, 'vehicle_images')
@@ -3673,124 +3846,47 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _makersPlateImageB!, 'vehicle_images')
                 : _makersPlateImageBUrl ?? '',
-            'trailerBAdditionalImages':
-                await _uploadListItems(_additionalImagesListTrailerB),
-          },
-        };
-      } else if (_selectedTrailerType == 'Tri-Axle') {
-        trailerExtraInfo = {
-          'lengthTrailer': _lengthTrailerController.text,
-          'vin': _vinController.text,
-          'registration': _registrationController.text,
-          'natisDocUrl': _natisTriAxleDocFile != null
-              ? await _uploadFileToFirebaseStorage(_natisTriAxleDocFile!,
-                  'vehicle_documents', _natisTriAxleDocFileName)
-              : _existingNatisTriAxleDocUrl ?? '',
-          'frontImageUrl': _frontImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _frontImage!, 'vehicle_images')
-              : widget.vehicle.trailer?.rawTrailerExtraInfo?['frontImageUrl'] ??
-                  '',
-          'sideImageUrl': _sideImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _sideImage!, 'vehicle_images')
-              : widget.vehicle.trailer?.rawTrailerExtraInfo?['sideImageUrl'] ??
-                  '',
-          'tyresImageUrl': _tyresImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _tyresImage!, 'vehicle_images')
-              : widget.vehicle.trailer?.rawTrailerExtraInfo?['tyresImageUrl'] ??
-                  '',
-          'chassisImageUrl': _chassisImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _chassisImage!, 'vehicle_images')
-              : widget.vehicle.trailer
-                      ?.rawTrailerExtraInfo?['chassisImageUrl'] ??
-                  '',
-          'deckImageUrl': _deckImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _deckImage!, 'vehicle_images')
-              : widget.vehicle.trailer?.rawTrailerExtraInfo?['deckImageUrl'] ??
-                  '',
-          'makersPlateImageUrl': _makersPlateImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _makersPlateImage!, 'vehicle_images')
-              : widget.vehicle.trailer
-                      ?.rawTrailerExtraInfo?['makersPlateImageUrl'] ??
-                  '',
-          'additionalImages': await _uploadListItems(_additionalImagesList),
-        };
-      } else if (_selectedTrailerType == 'Double Axle') {
-        trailerExtraInfo = {
-          'trailerA': {
-            'length': _lengthTrailerAController.text,
-            'vin': _vinAController.text,
-            'registration': _registrationAController.text,
-            'axles': _axlesTrailerAController.text,
-            'natisDocUrl': _natisTrailerADoc1File != null
-                ? await _uploadFileToFirebaseStorage(_natisTrailerADoc1File!,
-                    'vehicle_documents', _natisTrailerADoc1FileName)
-                : _existingNatisTrailerADocUrl ?? '',
-            'frontImageUrl': _frontImageA != null
+            'hookPinImageUrl': _hookPinImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _frontImageA!, 'vehicle_images')
-                : _frontImageAUrl ?? '',
-            'sideImageUrl': _sideImageA != null
+                    _hookPinImageB!, 'vehicle_images')
+                : '',
+            'roofImageUrl': _roofImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _sideImageA!, 'vehicle_images')
-                : _sideImageAUrl ?? '',
-            'tyresImageUrl': _tyresImageA != null
+                    _roofImageB!, 'vehicle_images')
+                : '',
+            'tailBoardImageUrl': _tailBoardImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _tyresImageA!, 'vehicle_images')
-                : _tyresImageAUrl ?? '',
-            'chassisImageUrl': _chassisImageA != null
+                    _tailBoardImageB!, 'vehicle_images')
+                : '',
+            'spareWheelImageUrl': _spareWheelImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _chassisImageA!, 'vehicle_images')
-                : _chassisImageAUrl ?? '',
-            'deckImageUrl': _deckImageA != null
+                    _spareWheelImageB!, 'vehicle_images')
+                : '',
+            'landingLegImageUrl': _landingLegImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _deckImageA!, 'vehicle_images')
-                : _deckImageAUrl ?? '',
-            'makersPlateImageUrl': _makersPlateImageA != null
+                    _landingLegImageB!, 'vehicle_images')
+                : '',
+            'hoseAndElecticalCableImageUrl':
+                _hoseAndElecticalCableImageB != null
+                    ? await _uploadFileToFirebaseStorage(
+                        _hoseAndElecticalCableImageB!, 'vehicle_images')
+                    : '',
+            'brakesAxle1ImageUrl': _brakesAxle1ImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _makersPlateImageA!, 'vehicle_images')
-                : _makersPlateImageAUrl ?? '',
-            'trailerAAdditionalImages':
-                await _uploadListItems(_additionalImagesListTrailerA),
-          },
-          'trailerB': {
-            'length': _lengthTrailerBController.text,
-            'vin': _vinBController.text,
-            'registration': _registrationBController.text,
-            'axles': _axlesTrailerBController.text,
-            'natisDocUrl': _natisTrailerBDoc1File != null
-                ? await _uploadFileToFirebaseStorage(_natisTrailerBDoc1File!,
-                    'vehicle_documents', _natisTrailerBDoc1FileName)
-                : _existingNatisTrailerBDocUrl ?? '',
-            'frontImageUrl': _frontImageB != null
+                    _brakesAxle1ImageB!, 'vehicle_images')
+                : '',
+            'brakesAxle2ImageUrl': _brakesAxle2ImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _frontImageB!, 'vehicle_images')
-                : _frontImageBUrl ?? '',
-            'sideImageUrl': _sideImageB != null
+                    _brakesAxle2ImageB!, 'vehicle_images')
+                : '',
+            'axle1ImageUrl': _axle1ImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _sideImageB!, 'vehicle_images')
-                : _sideImageBUrl ?? '',
-            'tyresImageUrl': _tyresImageB != null
+                    _axle1ImageB!, 'vehicle_images')
+                : '',
+            'axle2ImageUrl': _axle2ImageB != null
                 ? await _uploadFileToFirebaseStorage(
-                    _tyresImageB!, 'vehicle_images')
-                : _tyresImageBUrl ?? '',
-            'chassisImageUrl': _chassisImageB != null
-                ? await _uploadFileToFirebaseStorage(
-                    _chassisImageB!, 'vehicle_images')
-                : _chassisImageBUrl ?? '',
-            'deckImageUrl': _deckImageB != null
-                ? await _uploadFileToFirebaseStorage(
-                    _deckImageB!, 'vehicle_images')
-                : _deckImageBUrl ?? '',
-            'makersPlateImageUrl': _makersPlateImageB != null
-                ? await _uploadFileToFirebaseStorage(
-                    _makersPlateImageB!, 'vehicle_images')
-                : _makersPlateImageBUrl ?? '',
+                    _axle2ImageB!, 'vehicle_images')
+                : '',
             'trailerBAdditionalImages':
                 await _uploadListItems(_additionalImagesListTrailerB),
           },

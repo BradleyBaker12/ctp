@@ -277,10 +277,8 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
       ),
     );
 
-    // If not in tabs page, wrap with GradientBackground
-    if (!widget.inTabsPage) {
-      content = GradientBackground(child: content);
-    }
+    // Always wrap with GradientBackground
+    content = GradientBackground(child: content);
 
     return Scaffold(
       key: _scaffoldKey,

@@ -70,17 +70,27 @@ class AdminWebNavigationBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Hamburger menu in compact mode.
-                  IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-                    onPressed: () {
-                      if (onMenuPressed != null) {
-                        onMenuPressed!();
-                      } else {
-                        Scaffold.of(context).openDrawer();
-                      }
-                    },
-                    tooltip: 'Open menu',
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.menu,
+                            color: Colors.white, size: 24),
+                        onPressed: () {
+                          if (onMenuPressed != null) {
+                            onMenuPressed!();
+                          } else {
+                            Scaffold.of(context).openDrawer();
+                          }
+                        },
+                        tooltip: 'Open menu',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back,
+                            color: Colors.white, size: 24),
+                        onPressed: () => Navigator.of(context).pop(),
+                        tooltip: 'Back',
+                      ),
+                    ],
                   ),
                   // Logo.
                   GestureDetector(
