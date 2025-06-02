@@ -18,6 +18,7 @@ class AdminWebNavigationBar extends StatelessWidget {
   final String currentRoute;
   final VoidCallback? onMenuPressed;
   final void Function(int)? onTabSelected; // new callback
+  final bool showBackArrow;
 
   const AdminWebNavigationBar({
     super.key,
@@ -26,6 +27,7 @@ class AdminWebNavigationBar extends StatelessWidget {
     required this.currentRoute,
     this.onMenuPressed,
     this.onTabSelected,
+    this.showBackArrow = true,
   });
 
   @override
@@ -84,12 +86,13 @@ class AdminWebNavigationBar extends StatelessWidget {
                         },
                         tooltip: 'Open menu',
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back,
-                            color: Colors.white, size: 24),
-                        onPressed: () => Navigator.of(context).pop(),
-                        tooltip: 'Back',
-                      ),
+                      if (showBackArrow)
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back,
+                              color: Colors.white, size: 24),
+                          onPressed: () => Navigator.of(context).pop(),
+                          tooltip: 'Back',
+                        ),
                     ],
                   ),
                   // Logo.

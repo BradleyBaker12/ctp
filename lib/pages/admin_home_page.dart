@@ -241,6 +241,7 @@ class _AdminHomePageState extends State<AdminHomePage>
           preferredSize: const Size.fromHeight(70),
           child: AdminWebNavigationBar(
             scaffoldKey: _scaffoldKey, // pass key here
+            showBackArrow: false,
             isCompactNavigation: false,
             currentRoute: _getCurrentTabTitle(),
             onMenuPressed: () {
