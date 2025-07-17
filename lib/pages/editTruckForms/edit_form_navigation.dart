@@ -19,6 +19,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
 import 'package:provider/provider.dart';
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class EditFormNavigation extends StatefulWidget {
   final Vehicle vehicle;
 

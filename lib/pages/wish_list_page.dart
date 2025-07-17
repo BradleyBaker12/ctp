@@ -18,6 +18,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:auto_route/auto_route.dart';
 
 /// Simple data class for navigation items.
 class NavigationItem {
@@ -30,7 +31,7 @@ class NavigationItem {
   });
 }
 
-class WishlistPage extends StatefulWidget {
+@RoutePage()class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
 
   @override

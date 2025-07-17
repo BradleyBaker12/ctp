@@ -2,6 +2,8 @@
 
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/pages/vehicle_details_page.dart';
+import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,6 +22,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:firebase_storage/firebase_storage.dart';
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class TransporterOfferDetailsPage extends StatefulWidget {
   final Offer offer;
   final Vehicle vehicle;
@@ -37,6 +42,9 @@ class TransporterOfferDetailsPage extends StatefulWidget {
 
 class _TransporterOfferDetailsPageState
     extends State<TransporterOfferDetailsPage> {
+  final TextEditingController _rejectReasonController = TextEditingController();
+  // Commission rate for calculating transporter payout (e.g., 10%)
+  static const double _commissionRate = 0.10;
   PlatformFile? _selectedInvoice;
   String? _existingInvoiceUrl;
   int _currentImageIndex = 0;
@@ -79,6 +87,7 @@ class _TransporterOfferDetailsPageState
   @override
   void dispose() {
     _pageController.dispose();
+    _rejectReasonController.dispose();
     super.dispose();
   }
 
@@ -385,12 +394,15 @@ class _TransporterOfferDetailsPageState
     }
   }
 
-  Future<void> _handleReject(BuildContext context) async {
+  Future<void> _handleReject(BuildContext context, String reason) async {
     try {
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId)
-          .update({'offerStatus': 'rejected'});
+          .update({
+        'offerStatus': 'rejected',
+        'rejectionReason': reason,
+      });
 
       if (mounted) {
         setState(() {
@@ -408,6 +420,44 @@ class _TransporterOfferDetailsPageState
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  /// Prompt the user to enter a rejection reason before rejecting
+  Future<void> _promptRejectReason() async {
+    _rejectReasonController.clear();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Reason for Rejection'),
+          content: TextField(
+            controller: _rejectReasonController,
+            decoration: const InputDecoration(
+              hintText: 'Enter reason for rejecting this offer',
+            ),
+            maxLines: 3,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final text = _rejectReasonController.text.trim();
+                if (text.isNotEmpty) {
+                  Navigator.pop(ctx, text);
+                }
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
+    if (reason != null && reason.isNotEmpty) {
+      await _handleReject(context, reason);
     }
   }
 
@@ -457,8 +507,8 @@ class _TransporterOfferDetailsPageState
     var blue = const Color(0xFF2F7FFF);
     // Ensure userRole is available in build method
     // For demonstration, you may want to fetch or pass this in properly
-    String userRole =
-        'transporter'; // TODO: Replace with actual user role logic
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userRole = userProvider.userRole;
 
     return Scaffold(
       appBar: AppBar(
@@ -532,6 +582,7 @@ class _TransporterOfferDetailsPageState
           print('DEBUG: existingInvoiceUrl = $_existingInvoiceUrl');
 
           String offerStatus = offerData['offerStatus'] ?? 'in-progress';
+          // Normalize offerStatus for comparison
 
           // Get inspection and collection details from the offer document
           bool hasInspectionDetails = offerData['inspectionDetails'] != null;
@@ -604,7 +655,7 @@ class _TransporterOfferDetailsPageState
                           child: CustomButton(
                             text: 'Reject',
                             borderColor: const Color(0xFFFF4E00),
-                            onPressed: () => _handleReject(context),
+                            onPressed: _promptRejectReason,
                           ),
                         ),
                       ],
@@ -622,13 +673,22 @@ class _TransporterOfferDetailsPageState
                     ),
                   ),
 
-                // Setup Inspection and Collection Buttons
-                if (offerStatus ==
-                    'accepted') // Only show when offer is accepted
+                // Show inspection/collection setup/status only if NOT dealer and offer is not in-progress or rejected
+                if ((userRole == 'transporter' ||
+                        userRole == 'admin' ||
+                        userRole == 'sales representative') &&
+                    offerStatus != 'in-progress' &&
+                    offerStatus != 'rejected')
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
                       children: [
+                        if (!hasInspectionDetails)
+                          CustomButton(
+                            text: 'Setup Inspection',
+                            borderColor: Colors.blue,
+                            onPressed: _setupInspection,
+                          ),
                         if (hasInspectionDetails)
                           Center(
                             child: Text(
@@ -637,115 +697,173 @@ class _TransporterOfferDetailsPageState
                                   customFont(18, FontWeight.bold, Colors.green),
                               textAlign: TextAlign.center,
                             ),
-                          )
-                        else
-                          CustomButton(
-                            text: 'Setup Inspection',
-                            borderColor: Colors.blue,
-                            onPressed: _setupInspection,
                           ),
                         const SizedBox(height: 16),
-                        if (hasInspectionDetails) // Only show collection after inspection is set up
-                          hasCollectionDetails
-                              ? Center(
-                                  child: Text(
-                                    'Collection has been set up',
-                                    style: customFont(
-                                        18, FontWeight.bold, Colors.green),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                )
-                              : CustomButton(
-                                  text: 'Setup Collection',
-                                  borderColor: Colors.blue,
-                                  onPressed: _setupCollection,
-                                ),
+                        if (!hasCollectionDetails)
+                          CustomButton(
+                            text: 'Setup Collection',
+                            borderColor: Colors.blue,
+                            onPressed: _setupCollection,
+                          )
+                        else
+                          Center(
+                            child: Text(
+                              'Collection has been set up',
+                              style:
+                                  customFont(18, FontWeight.bold, Colors.green),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                       ],
                     ),
                   ),
 
+                // Add View Vehicle button for both dealer and transporter
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: CustomButton(
+                    text: 'View Vehicle',
+                    borderColor: Colors.blue,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              VehicleDetailsPage(vehicle: widget.vehicle),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
                 // Admins and transporters see invoice section only when offerStatus is 'paymentOptions'
                 if ((userRole == 'transporter' || userRole == 'admin') &&
                     offerStatus == 'payment options') ...[
+                  // Invoice addressing instructions
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Upload Invoice',
+                          style: customFont(16, FontWeight.bold, Colors.white),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Please address your invoice to:',
+                          style:
+                              customFont(14, FontWeight.w500, Colors.white70),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Commercial Trader Portal (PTY) LTD',
+                          style:
+                              customFont(14, FontWeight.normal, Colors.white),
+                        ),
+                        Text(
+                          '54 Rooibos Road, Highbury, Randvaal, 1962',
+                          style:
+                              customFont(14, FontWeight.normal, Colors.white),
+                        ),
+                        Text(
+                          'VAT Number: 4780304798',
+                          style:
+                              customFont(14, FontWeight.normal, Colors.white),
+                        ),
+                        Text(
+                          'Registration Number: 2023/642131/07',
+                          style:
+                              customFont(14, FontWeight.normal, Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
                   // Transporter invoice upload section
-                  InkWell(
-                    onTap: () async {
-                      print(
-                          'DEBUG: onTap triggered: _selectedInvoice=$_selectedInvoice, _existingInvoiceUrl=$_existingInvoiceUrl');
-                      if (_selectedInvoice != null) {
-                        _showInvoiceOptions();
-                      } else if (_existingInvoiceUrl != null) {
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: InkWell(
+                      onTap: () async {
                         print(
-                            'DEBUG: navigating to ViewerPage with $_existingInvoiceUrl');
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ViewerPage(url: _existingInvoiceUrl!),
-                          ),
-                        );
-                      } else {
-                        _pickInvoiceFile();
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                            color: const Color(0xFF0E4CAF), width: 2.0),
-                      ),
-                      child: Builder(
-                        builder: (_) {
-                          final hasSelected = _selectedInvoice != null;
-                          final hasExisting = _existingInvoiceUrl != null;
+                            'DEBUG: onTap triggered: _selectedInvoice=$_selectedInvoice, _existingInvoiceUrl=$_existingInvoiceUrl');
+                        if (_selectedInvoice != null) {
+                          _showInvoiceOptions();
+                        } else if (_existingInvoiceUrl != null) {
                           print(
-                              'DEBUG: invoice child - selected=$hasSelected, existing=$hasExisting');
-                          if (hasSelected) {
-                            return _buildInvoiceDisplay();
-                          }
-                          if (hasExisting) {
-                            // Decode filename from URL
-                            final existingName = Uri.decodeComponent(
-                                Uri.parse(_existingInvoiceUrl!)
-                                    .pathSegments
-                                    .last);
+                              'DEBUG: navigating to ViewerPage with $_existingInvoiceUrl');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ViewerPage(url: _existingInvoiceUrl!),
+                            ),
+                          );
+                        } else {
+                          _pickInvoiceFile();
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10.0),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(
+                              color: const Color(0xFF0E4CAF), width: 2.0),
+                        ),
+                        child: Builder(
+                          builder: (_) {
+                            final hasSelected = _selectedInvoice != null;
+                            final hasExisting = _existingInvoiceUrl != null;
+                            print(
+                                'DEBUG: invoice child - selected=$hasSelected, existing=$hasExisting');
+                            if (hasSelected) {
+                              return _buildInvoiceDisplay();
+                            }
+                            if (hasExisting) {
+                              // Decode filename from URL
+                              final existingName = Uri.decodeComponent(
+                                  Uri.parse(_existingInvoiceUrl!)
+                                      .pathSegments
+                                      .last);
+                              return Column(
+                                children: [
+                                  Icon(
+                                    _getFileIcon(existingName.split('.').last),
+                                    color: Colors.white,
+                                    size: 50.0,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    existingName,
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 14),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              );
+                            }
                             return Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  _getFileIcon(existingName.split('.').last),
-                                  color: Colors.white,
-                                  size: 50.0,
-                                ),
+                                Icon(_getFileIcon('pdf'),
+                                    color: Colors.white, size: 50.0),
                                 const SizedBox(height: 10),
                                 Text(
-                                  existingName,
+                                  'Select Invoice',
                                   style: const TextStyle(
-                                      color: Colors.white, fontSize: 14),
-                                  overflow: TextOverflow.ellipsis,
+                                      color: Colors.white70, fontSize: 14),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
                             );
-                          }
-                          return Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(_getFileIcon('pdf'),
-                                  color: Colors.white, size: 50.0),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Select Invoice',
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 14),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          );
-                        },
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -776,18 +894,38 @@ class _TransporterOfferDetailsPageState
                       const SizedBox(height: 10),
                       _buildInfoRow('Offer Amount',
                           'R ${widget.offer.offerAmount.toString()}'),
-                      const SizedBox(height: 20),
-
+                      // Transporter commission and payout breakdown
+                      Builder(builder: (context) {
+                        // Retrieve the gross offer amount
+                        final dataMap =
+                            offerSnapshot.data!.data() as Map<String, dynamic>;
+                        final gross =
+                            (dataMap['offerAmount'] as num).toDouble();
+                        final commission = gross * _commissionRate;
+                        final payout = gross - 12500;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInfoRow(
+                              'Commission',
+                              'R 12 500.00',
+                            ),
+                            _buildInfoRow(
+                              'Your Payout',
+                              'R ${payout.toStringAsFixed(2)}',
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        );
+                      }),
                       // Vehicle Details Section
                       Text(
                         'Vehicle Details',
                         style: customFont(20, FontWeight.bold, Colors.white),
                       ),
                       const SizedBox(height: 10),
-                      _buildInfoRow(
-                          'Make/Model',
-                          _safeCapitalize(
-                              widget.vehicle.makeModel.toString() ?? 'N/A')),
+                      _buildInfoRow('Make/Model',
+                          _safeCapitalize(widget.vehicle.makeModel.toString())),
                       _buildInfoRow('Year', widget.vehicle.year.toString()),
                     ],
                   ),

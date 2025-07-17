@@ -14,11 +14,13 @@ class TruckCard extends StatelessWidget {
   final dynamic vehicle; // Change to dynamic to accept both Vehicle and Trailer
   final Function(dynamic) onInterested;
   final Color? borderColor;
+  final bool isSelectionMode;
 
   const TruckCard({
     super.key,
     required this.vehicle,
     required this.onInterested,
+    required this.isSelectionMode,
     this.borderColor,
   });
 
@@ -29,6 +31,14 @@ class TruckCard extends StatelessWidget {
   // Helper methods to get data regardless of model type
   String get displayMakeModel {
     if (isTrailer) {
+      // Superlink: show make/model of trailer A only
+      if (vehicle is Trailer && vehicle.trailerType == 'Superlink') {
+        return vehicle.superlinkData?.makeModelA ?? 'N/A';
+      } else if (vehicle is Vehicle &&
+          vehicle.trailer?.trailerType == 'Superlink') {
+        return vehicle.trailer?.superlinkData?.makeModelA ?? 'N/A';
+      }
+      // Other trailers: show normal make/model
       return vehicle is Trailer
           ? vehicle.makeModel ?? 'N/A'
           : vehicle.trailer?.makeModel ?? 'N/A';
@@ -38,6 +48,14 @@ class TruckCard extends StatelessWidget {
 
   String get displayYear {
     if (isTrailer) {
+      // Superlink: show year of trailer A only
+      if (vehicle is Trailer && vehicle.trailerType == 'Superlink') {
+        return vehicle.superlinkData?.yearA ?? 'N/A';
+      } else if (vehicle is Vehicle &&
+          vehicle.trailer?.trailerType == 'Superlink') {
+        return vehicle.trailer?.superlinkData?.yearA ?? 'N/A';
+      }
+      // Other trailers: show normal year
       return vehicle is Trailer
           ? vehicle.year ?? 'N/A'
           : vehicle.trailer?.year ?? 'N/A';
@@ -322,7 +340,7 @@ class TruckCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Fixed height for the card
-    const double cardHeight = 600.0;
+    const double cardHeight = 670.0;
 
     // Width based on screen size with a maximum limit
     final screenWidth = MediaQuery.of(context).size.width;
@@ -339,17 +357,18 @@ class TruckCard extends StatelessWidget {
     ].where((e) => e!.isNotEmpty).join(" ");
     final year = displayYear;
 
-    // Wrap the entire card in an InkWell so that tapping anywhere (except on interactive widgets)
-    // navigates to the vehicle details page.
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VehicleDetailsPage(vehicle: vehicle),
-          ),
-        );
-      },
+    // Card container (now wrapped in GestureDetector)
+    return GestureDetector(
+      onTap: isSelectionMode
+          ? null
+          : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VehicleDetailsPage(vehicle: vehicle),
+                ),
+              );
+            },
       child: Center(
         child: Container(
           width: cardWidth,
@@ -451,48 +470,116 @@ class TruckCard extends StatelessWidget {
                   Expanded(
                     child: Padding(
                       padding: EdgeInsets.only(
-                          left: 10, right: 10, top: 5, bottom: 5),
+                          left: 10, right: 10, top: 5, bottom: 0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(height: verticalSpacing),
-                          // Brand, Model, and Year text.
-                          Text(
-                            brandModel.isEmpty
-                                ? 'LOADING...'
-                                : brandModel.toUpperCase(),
-                            style: GoogleFonts.montserrat(
-                              fontSize: titleFontSize,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                          // Trailer display: fetch extra info and show Year Make Model
+                          if (isTrailer) ...[
+                            FutureBuilder<
+                                DocumentSnapshot<Map<String, dynamic>>>(
+                              future: FirebaseFirestore.instance
+                                  .collection('vehicles')
+                                  .doc(vehicle.id)
+                                  .get(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return SizedBox(
+                                    height: titleFontSize,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: titleFontSize,
+                                        height: titleFontSize,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final docData = snapshot.data?.data();
+                                // Data may be stored directly or under trailerExtraInfo
+                                final data = (docData?['trailerExtraInfo']
+                                        as Map<String, dynamic>?) ??
+                                    (docData?['trailerA']
+                                        as Map<String, dynamic>?) ??
+                                    (docData?['trailerB']
+                                        as Map<String, dynamic>?) ??
+                                    {};
+                                final info = data.containsKey('trailerA') ||
+                                        data.containsKey('trailerB')
+                                    ? data.containsKey('trailerA')
+                                        ? data['trailerA']
+                                        : data['trailerB']
+                                    : data;
+                                final make = info['make'] ?? '';
+                                final model = info['model'] ?? '';
+                                final yearTxt = info['year']?.toString() ?? '';
+                                return Text(
+                                  '$yearTxt $make $model'.toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          ] else ...[
+                            Text(
+                              brandModel.isEmpty
+                                  ? 'LOADING...'
+                                  : brandModel.toUpperCase(),
+                              style: GoogleFonts.montserrat(
+                                fontSize: titleFontSize,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              year,
+                              style: GoogleFonts.montserrat(
+                                fontSize: subtitleFontSize,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
                           Text(
-                            year,
+                            vehicle.referenceNumber != null &&
+                                    vehicle.referenceNumber.isNotEmpty
+                                ? 'Ref: ${vehicle.referenceNumber}'
+                                : '',
                             style: GoogleFonts.montserrat(
                               fontSize: subtitleFontSize,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white70,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFFF4E00),
                             ),
+                            maxLines: 1,
                           ),
-                          SizedBox(height: 18),
+                          SizedBox(height: 14),
 
                           // Specs row: Each spec box now sizes itself based on its content.
                           Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
+                              _buildSpecBox(context, '$displayMileage km',
+                                  specFontSize),
+                              SizedBox(width: responsiveSpacing),
                               _buildSpecBox(
-                                  context,
-                                  '${displayMileage ?? "N/A"} km',
-                                  specFontSize),
+                                  context, displayTransmission, specFontSize),
                               SizedBox(width: responsiveSpacing),
-                              _buildSpecBox(context,
-                                  displayTransmission ?? 'N/A', specFontSize),
-                              SizedBox(width: responsiveSpacing),
-                              _buildSpecBox(context, displayConfig ?? 'N/A',
-                                  specFontSize),
+                              _buildSpecBox(
+                                  context, displayConfig, specFontSize),
                             ],
                           ),
                           SizedBox(height: 18),
@@ -575,22 +662,25 @@ class TruckCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          SizedBox(height: 18),
+                          SizedBox(height: 10),
 
                           // Optionally, you can keep the "VIEW MORE DETAILS" button if desired.
                           // If you want the entire card to be clickable, this button could be removed.
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        VehicleDetailsPage(vehicle: vehicle),
-                                  ),
-                                );
-                              },
+                              onPressed: isSelectionMode
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              VehicleDetailsPage(
+                                                  vehicle: vehicle),
+                                        ),
+                                      );
+                                    },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2F7FFF),
                                 minimumSize:

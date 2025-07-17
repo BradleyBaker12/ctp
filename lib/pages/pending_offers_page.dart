@@ -7,7 +7,8 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground widget
 
-class PendingOffersPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class PendingOffersPage extends StatefulWidget {
   const PendingOffersPage({super.key});
 
   @override

@@ -28,6 +28,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
+// import 'package:auto_route/auto_route.dart';
 // Add this import
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
@@ -44,6 +45,7 @@ class PhotoItem {
   PhotoItem({required this.url, required this.label});
 }
 
+// @RoutePage()
 class VehicleDetailsPage extends StatefulWidget {
   final Vehicle vehicle;
   final Trailer? trailer;
@@ -76,6 +78,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   // Offer-related
   final TextEditingController _controller = TextEditingController();
+  int _selectedLifespan = 1;
   double _offerAmount = 0.0;
   double _totalCost = 0.0;
   bool _hasMadeOffer = false;
@@ -119,6 +122,23 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     _trailer = widget.trailer;
     if (widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
       debugPrint("DEBUG: Trailer data: ${widget.trailer.toString()}");
+    }
+    // Populate _trailer from Firestore if not supplied and this is a trailer.
+    if (_trailer == null &&
+        widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
+      FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicle.id)
+          .get()
+          .then((doc) {
+        if (doc.exists) {
+          setState(() {
+            _trailer = Trailer.fromJson(doc.data()!);
+          });
+        }
+      }).catchError((e) {
+        debugPrint('Error loading trailer details: $e');
+      });
     }
     // 3. If accepted, see if that acceptedOfferId belongs to this user
     _checkIfMyOfferAccepted();
@@ -388,6 +408,20 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // Send email if status changed to pending
+        if (newStatus == 'pending') {
+          // Customize these values as needed
+          String to = 'recipient@example.com'; // Replace with actual recipient
+          String from = 'noreply@ctpapp.co.za';
+          String subject = 'Vehicle Marked as Pending';
+          String text = 'A vehicle has been marked as pending.';
+          String html =
+              '<p>A vehicle has been marked as <strong>pending</strong>.</p>';
+          // TODO: Implement email sending functionality
+          // For now, we'll skip the email sending
+          debugPrint('Email would be sent with: to=$to, subject=$subject');
+        }
       }
     } catch (e) {
       debugPrint('Error toggling vehicle status: $e');
@@ -407,9 +441,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final digitsOnly = offerText.replaceAll(RegExp(r'[^0-9]'), '');
     final offerAmount =
         digitsOnly.isEmpty ? 0.0 : double.tryParse(digitsOnly) ?? 0.0;
+    final int? lifespanDays = _selectedLifespan == 0 ? null : _selectedLifespan;
     setState(() {
       _offerAmount = offerAmount;
     });
+    // Compute total cost including VAT and commission
+    final double computedOfferAmount = _calculateTotalCost(_offerAmount);
     if (!_canMakeOffer || vehicle.isAccepted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -452,7 +489,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           .where('vehicleId', isEqualTo: widget.vehicle.id)
           .where('dealerId', isEqualTo: _selectedDealer!.id)
           .get();
-      if (querySnapshot.docs.isNotEmpty) {
+      final activeOffers = querySnapshot.docs.where((doc) {
+        final status =
+            (doc.data()['offerStatus'] as String?)?.toLowerCase() ?? '';
+        return status != 'rejected';
+      }).toList();
+      if (activeOffers.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -467,6 +509,29 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     if (isDealer) {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
+        // Check if dealer has already made an offer for this vehicle
+        final offerSnapshot = await FirebaseFirestore.instance
+            .collection('offers')
+            .where('dealerId', isEqualTo: user.uid)
+            .where('vehicleId', isEqualTo: widget.vehicle.id)
+            .orderBy('createdAt', descending: true)
+            .limit(1)
+            .get();
+        if (offerSnapshot.docs.isNotEmpty) {
+          final offerData = offerSnapshot.docs.first.data();
+          final offerStatus =
+              offerData['offerStatus']?.toString().toLowerCase() ?? '';
+          if (offerStatus != 'rejected') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('You have already made an offer for this vehicle.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        }
         DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -522,7 +587,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         'dealerSelectedCollectionDate': null,
         'paymentStatus': 'pending',
         'offerStatus': 'in-progress',
-        'offerAmount': _offerAmount,
+        'typedOfferAmount': _offerAmount,
+        'offerAmount': computedOfferAmount,
+        'lifespanDays': lifespanDays,
+        'expirationDate': lifespanDays != null
+            ? createdAt.add(Duration(days: lifespanDays))
+            : null,
         'dealerInspectionComplete': false,
         'transporterInspectionComplete': false,
       });
@@ -566,6 +636,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final formattedAmount = offerAmount != null
         ? 'R ${_formatWithSpacing(offerAmount.toString())}'
         : 'N/A';
+    // Compute total cost including VAT and commission for confirmation display
+    final double dialogComputedAmount =
+        offerAmount != null ? _calculateTotalCost(offerAmount.toDouble()) : 0.0;
+    final String formattedComputed = offerAmount != null
+        ? 'R ${_formatWithSpacing(dialogComputedAmount.round().toString())}'
+        : 'N/A';
     debugPrint(
         'DEBUG: _showOfferConfirmationDialog formattedAmount: $formattedAmount');
     final vehicleName =
@@ -575,70 +651,130 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     return showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF101828), // deep blue-black
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(
-                color: Color(0xFF2F7FFF), width: 2), // blue border
-          ),
-          title: Center(
-            child: Text(
-              'Confirm Offer',
-              style: _customFont(
-                  22, FontWeight.bold, Color(0xFFFF4E00)), // orange title
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Are you sure you want to make an offer for:',
-                  style: _customFont(16, FontWeight.normal, Colors.white)),
-              const SizedBox(height: 8),
-              Text(vehicleName,
-                  style: _customFont(16, FontWeight.bold, Colors.white)),
-              const SizedBox(height: 16),
-              Text('Offer Price:',
-                  style: _customFont(16, FontWeight.normal, Colors.white)),
-              Text(formattedAmount,
-                  style: _customFont(
-                      24, FontWeight.bold, Color(0xFF2F7FFF))), // blue accent
-            ],
-          ),
-          actionsAlignment: MainAxisAlignment.spaceBetween,
-          actions: [
-            TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                textStyle: _customFont(16, FontWeight.bold, Colors.white),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side:
-                      const BorderSide(color: Color(0xFF2F7FFF)), // blue border
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        // Wrap AlertDialog in a StatefulBuilder so we can update the dropdown selection
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF101828),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFF2F7FFF), width: 2),
               ),
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF4E00), // orange
-                foregroundColor: Colors.white,
-                textStyle: _customFont(16, FontWeight.bold, Colors.white),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              title: Center(
+                child: Text(
+                  'Confirm Offer',
+                  style: _customFont(22, FontWeight.bold, Color(0xFFFF4E00)),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Confirm'),
-            ),
-          ],
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you sure you want to make an offer for:',
+                    style: _customFont(16, FontWeight.normal, Colors.white),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    vehicleName,
+                    style: _customFont(16, FontWeight.bold, Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Offer Price:',
+                    style: _customFont(16, FontWeight.normal, Colors.white),
+                  ),
+                  Text(
+                    formattedAmount,
+                    style: _customFont(24, FontWeight.bold, Color(0xFF2F7FFF)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Total Cost (incl. VAT & commission):',
+                    style: _customFont(16, FontWeight.normal, Colors.white),
+                  ),
+                  Text(
+                    formattedComputed,
+                    style: _customFont(24, FontWeight.bold, Color(0xFF2F7FFF)),
+                  ),
+                  const SizedBox(height: 16),
+                  // ▼ Updated DropdownButtonFormField<int> with "No Lifespan" option first ▼
+                  DropdownButtonFormField<int>(
+                    value: _selectedLifespan,
+                    dropdownColor: const Color(0xFF101828),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Offer Lifespan (days)',
+                      labelStyle: const TextStyle(color: Colors.grey),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Color(0xFF2F7FFF)),
+                      ),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int>(
+                        value: 0,
+                        child: Text('No Lifespan'),
+                      ),
+                      ...List.generate(7, (index) {
+                        final day = index + 1;
+                        return DropdownMenuItem<int>(
+                          value: day,
+                          child: Text('$day'),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        // This setState only rebuilds the dialog’s contents
+                        setState(() {
+                          _selectedLifespan = value;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              actions: [
+                TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    textStyle: _customFont(16, FontWeight.bold, Colors.white),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFF2F7FFF)),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF4E00),
+                    foregroundColor: Colors.white,
+                    textStyle: _customFont(16, FontWeight.bold, Colors.white),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                  ),
+                  onPressed: () async {
+                    debugPrint('DEBUG: Confirm button pressed');
+                    await _makeOffer();
+                    Navigator.of(context, rootNavigator: true).pop(true);
+                  },
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -757,6 +893,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       fontWeight: weight,
       color: color,
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _navigateToEditPage() async {
@@ -1106,15 +1248,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // Trailer section: Only shown when vehicle is a trailer.
   Widget _buildTrailerInfoSection() {
     // Debug print trailer details when building the section.
-    if (widget.trailer != null) {
+    if (_trailer != null) {
       debugPrint(
-          "DEBUG: Building Trailer Info Section - Type: ${widget.trailer!.trailerType}, Axles: ${widget.trailer!.axles}, Length: ${widget.trailer!.length}");
+          "DEBUG: Building Trailer Info Section - Type: ${_trailer!.trailerType}, Axles: ${_trailer!.axles}, Length: ${_trailer!.length}");
     }
     String trailerInfoText = 'TRAILER INFORMATION';
-    if (widget.trailer != null &&
-        widget.trailer!.trailerType.trim().isNotEmpty) {
+    if (_trailer != null && _trailer!.trailerType.trim().isNotEmpty) {
       trailerInfoText =
-          '${widget.trailer!.trailerType.toUpperCase()} TRAILER INFORMATION';
+          '${_trailer!.trailerType.toUpperCase()} TRAILER INFORMATION';
     }
 
     final size = MediaQuery.of(context).size;
@@ -2454,14 +2595,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // Determine title for AppBar: use trailer details if trailer, else vehicle
     String appBarTitle;
-    if (isTrailer && widget.trailer != null) {
-      final trailer = widget.trailer!;
+    if (isTrailer && (_trailer != null)) {
+      final trailer = _trailer!;
       final trailerBrands =
           trailer.brands.isNotEmpty ? trailer.brands : ['N/A'];
-      final trailerMakeModel = trailer.makeModel;
-      final trailerYear = trailer.year;
-      appBarTitle =
-          '${trailerBrands.join(', ')} $trailerMakeModel $trailerYear';
+      String trailerYear = trailer.year;
+      String trailerMakeModel = trailer.makeModel;
+      // For Superlink, use makeA/modelA/yearA from superlinkData
+      if (trailer.trailerType == 'Superlink' && trailer.superlinkData != null) {
+        trailerYear = trailer.superlinkData?.yearA ?? trailerYear;
+        // Use both makeA and modelA if available
+        String makeA = trailer.superlinkData?.makeA ?? '';
+        String modelA = trailer.superlinkData?.modelA ?? '';
+        trailerMakeModel = [makeA, modelA].where((e) => e.isNotEmpty).join(' ');
+      }
+      appBarTitle = '${trailer.trailerType} $trailerYear $trailerMakeModel';
     } else {
       appBarTitle = '${safeBrands.join(', ')} $safeMakeModel $safeYear';
     }
@@ -2484,9 +2632,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         title: Text(
           appBarTitle,
           style: GoogleFonts.montserrat(
-              color: Color(0xFFFF4E00),
-              fontWeight: FontWeight.bold,
-              fontSize: 18),
+            color: const Color(0xFFFF4E00),
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [

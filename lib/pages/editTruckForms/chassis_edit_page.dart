@@ -12,7 +12,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
 
-class ChassisEditPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class ChassisEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;

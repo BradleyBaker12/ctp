@@ -9,6 +9,7 @@ import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'package:universal_html/html.dart'
     as html; // Ensure this import path is correct
+import 'package:auto_route/auto_route.dart';
 
 class ImageData {
   final Uint8List? file;
@@ -25,7 +26,7 @@ class ItemData {
   ItemData({required this.description, required this.imageData});
 }
 
-class ExternalCabPage extends StatefulWidget {
+@RoutePage()class ExternalCabPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback? onContinue;
   final VoidCallback onProgressUpdate;

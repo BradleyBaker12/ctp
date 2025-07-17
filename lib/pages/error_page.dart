@@ -8,7 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'signup_page.dart'; // Import the SignUp page
 import 'package:ctp/utils/navigation.dart';
 
-class ErrorPage extends StatelessWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class ErrorPage extends StatelessWidget {
   const ErrorPage({super.key});
 
   @override

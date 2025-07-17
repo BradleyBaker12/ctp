@@ -17,7 +17,8 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
-class CropPhotoPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class CropPhotoPage extends StatefulWidget {
   final XFile imageFile;
   final Map<String, dynamic> userData;
 

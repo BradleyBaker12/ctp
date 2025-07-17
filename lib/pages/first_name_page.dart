@@ -9,7 +9,8 @@ import 'package:ctp/components/progress_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class FirstNamePage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class FirstNamePage extends StatefulWidget {
   const FirstNamePage({super.key});
 
   @override

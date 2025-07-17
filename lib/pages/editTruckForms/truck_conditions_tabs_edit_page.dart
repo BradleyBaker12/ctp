@@ -16,6 +16,9 @@ import 'dart:typed_data';
 import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class TruckConditionsTabsEditPage extends StatefulWidget {
   final int initialIndex;
   final Uint8List? mainImageFile;

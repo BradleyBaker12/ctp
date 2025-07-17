@@ -6,6 +6,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class AdminSection extends StatefulWidget {
   final String vehicleId; // Required vehicleId
   final bool isUploading;

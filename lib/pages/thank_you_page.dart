@@ -2,7 +2,8 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 
-class ThankYouPage extends StatelessWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class ThankYouPage extends StatelessWidget {
   const ThankYouPage({super.key});
 
   @override

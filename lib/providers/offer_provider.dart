@@ -11,6 +11,7 @@ class Offer extends ChangeNotifier {
   final String dealerId;
   final String vehicleId;
   final String transporterId;
+  final List<String>? vehicleIds;
   double? offerAmount;
   String offerStatus;
   String? description;
@@ -23,6 +24,8 @@ class Offer extends ChangeNotifier {
   bool? needsInvoice;
   String? variant; // Add this field
   String? vehicleRef; // Add this field
+  int? lifespanDays;
+  DateTime? expirationDate;
 
   List<String> vehicleImages = [];
   Map<String, String?> additionalInfo = {};
@@ -55,6 +58,7 @@ class Offer extends ChangeNotifier {
     required this.dealerId,
     required this.vehicleId,
     required this.transporterId,
+    this.vehicleIds,
     this.offerAmount,
     required this.offerStatus,
     this.description,
@@ -84,16 +88,28 @@ class Offer extends ChangeNotifier {
     this.needsInvoice,
     this.variant, // Add this parameter
     this.vehicleRef, // Add this parameter
+    this.lifespanDays,
+    this.expirationDate,
   });
 
   /// IMPORTANT: Ensure these keys match your Firestore fields.
   factory Offer.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
+    // Handle single vs bulk vehicle IDs
+    String vehicleIdStr = data['vehicleId']?.toString() ?? '';
+    List<String>? vehicleIdsList;
+    if (data['vehicleIds'] != null && data['vehicleIds'] is List) {
+      vehicleIdsList = List<String>.from(data['vehicleIds']);
+    } else if (data['vehicleId'] is List) {
+      vehicleIdsList = List<String>.from(data['vehicleId']);
+    }
+
     return Offer(
       offerId: doc.id,
       dealerId: data['dealerId'] ?? '',
-      vehicleId: data['vehicleId'] ?? '',
+      vehicleId: vehicleIdStr,
+      vehicleIds: vehicleIdsList,
       transporterId: data['transporterId'] ?? '',
       offerAmount: data['offerAmount']?.toDouble(),
       offerStatus: data['offerStatus'] ?? 'pending',
@@ -110,6 +126,14 @@ class Offer extends ChangeNotifier {
           : data['brands']?.toString(),
       variant: data['variant']?.toString(), // Add this mapping
       vehicleRef: data['vehicleRef']?.toString(), // Add this mapping
+      lifespanDays: data['lifespanDays'] is int
+          ? data['lifespanDays'] as int
+          : (data['lifespanDays'] != null
+              ? int.tryParse(data['lifespanDays'].toString())
+              : null),
+      expirationDate: data['expirationDate'] != null
+          ? (data['expirationDate'] as Timestamp).toDate()
+          : null,
 
       /// Add these mappings to pull fields from Firestore
       vehicleYear: data['vehicleYear'],
@@ -172,11 +196,11 @@ class Offer extends ChangeNotifier {
         vehicleMileage = data['vehicleMileage']?.toString();
         vehicleTransmission = data['vehicleTransmission']?.toString();
       } else {
-        print('ERROR: Vehicle document not found for ID: $vehicleId');
+        // print('ERROR: Vehicle document not found for ID: $vehicleId');
       }
-    } catch (e, stackTrace) {
-      print('ERROR: Failed to fetch vehicle details: $e');
-      print('ERROR: Stack trace: $stackTrace');
+    } catch (e) {
+      // print('ERROR: Failed to fetch vehicle details: $e');
+      // print('ERROR: Stack trace: $stackTrace');
     } finally {
       isVehicleDetailsLoading = false;
       notifyListeners();
@@ -210,6 +234,46 @@ extension IterableExtensions<E> on Iterable<E> {
 
 /// The OfferProvider manages the state and operations related to offers, including pagination.
 class OfferProvider with ChangeNotifier {
+  /// Automatically mark offers as rejected if past expirationDate
+  Future<void> expireOffers() async {
+    final now = DateTime.now();
+    final snapshot = await _firestore
+        .collection('offers')
+        .where('expirationDate', isLessThanOrEqualTo: Timestamp.fromDate(now))
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+
+      // Normalize whatever is in offerStatus into a lowercase, trimmed string:
+      final currentStatus = data['offerStatus'] != null
+          ? data['offerStatus'].toString().toLowerCase().trim()
+          : '';
+
+      // All of these are on “hold” when checking expiration:
+      final skipStatuses = <String>{
+        'inspection pending',
+        'inspection done',
+        'payment pending',
+        'collection location confirmation',
+        'set location and time',
+        'confirm location',
+        'confirm collection',
+        'payment options',
+        'accepted',
+        'paid',
+        'collection details',
+      };
+
+      // If it’s not already rejected and not in the “skip” list, expire it:
+      if (currentStatus.isNotEmpty &&
+          !skipStatuses.contains(currentStatus) &&
+          currentStatus != 'rejected') {
+        await doc.reference.update({'offerStatus': 'rejected'});
+      }
+    }
+  }
+
   // Remove the early initialization:
   // final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -246,6 +310,8 @@ class OfferProvider with ChangeNotifier {
 
   /// Fetches the initial batch of offers based on user ID and role.
   Future<void> fetchOffers(String userId, String userRole, {int? limit}) async {
+    // Ensure expired offers are marked rejected before fetching
+    await expireOffers();
     if (userId.isEmpty) {
       // print('User ID is empty, cannot fetch offers.');
       return;

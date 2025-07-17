@@ -11,7 +11,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
 
-class UploadProofOfPaymentPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class UploadProofOfPaymentPage extends StatefulWidget {
   final String offerId;
 
   const UploadProofOfPaymentPage({super.key, required this.offerId});

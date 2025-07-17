@@ -30,6 +30,9 @@ import 'package:ctp/components/truck_info_web_nav.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/utils/camera_helper.dart'; // <-- New import for camera helper
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class BasicInformationEdit extends StatefulWidget {
   final bool isDuplicating;
   final Vehicle? vehicle;

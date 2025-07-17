@@ -10,7 +10,8 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 
-class PreferredBrandsPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class PreferredBrandsPage extends StatefulWidget {
   const PreferredBrandsPage({super.key});
 
   @override

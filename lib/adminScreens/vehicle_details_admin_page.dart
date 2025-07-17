@@ -15,6 +15,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 // Define the PhotoItem class to hold both the image URL and its label
+// import 'package:auto_route/auto_route.dart';
+
+
 class PhotoItem {
   final String url;
   final String label;
@@ -22,6 +25,7 @@ class PhotoItem {
   PhotoItem({required this.url, required this.label});
 }
 
+// @RoutePage()
 class VehicleDetailsPageAdmin extends StatefulWidget {
   final Vehicle vehicle;
 

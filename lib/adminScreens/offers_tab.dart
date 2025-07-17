@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/offer_provider.dart';
+import '../providers/user_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class OffersTab extends StatefulWidget {
   final String userId;
@@ -47,6 +49,9 @@ class _OffersTabState extends State<OffersTab> {
 
   // Offers stream subscription
   StreamSubscription? _offerSubscription;
+
+  // Tab state – "All", "In Progress", "Successful", or "Rejected"
+  String _selectedTab = 'All';
 
   @override
   void initState() {
@@ -375,6 +380,106 @@ class _OffersTabState extends State<OffersTab> {
     }
   }
 
+  // Filtering logic (4 tabs):
+  List<Offer> _filterOffersByTab(List<Offer> offers, String status) {
+    final filtered = offers.where((offer) {
+      final lowerStatus = offer.offerStatus.toLowerCase();
+      return lowerStatus != 'sold';
+    }).toList();
+    switch (status.toUpperCase()) {
+      case 'ALL':
+        return filtered;
+      case 'IN PROGRESS':
+        return filtered.where((offer) {
+          final lowerStatus = offer.offerStatus.toLowerCase();
+          return lowerStatus != 'rejected' &&
+              lowerStatus != 'successful' &&
+              lowerStatus != 'completed' &&
+              lowerStatus != 'sold' &&
+              lowerStatus != 'done';
+        }).toList();
+      case 'SUCCESSFUL':
+        return filtered.where((offer) {
+          final lowerStatus = offer.offerStatus.toLowerCase();
+          return lowerStatus == 'successful' ||
+              lowerStatus == 'completed' ||
+              lowerStatus == 'sold' ||
+              lowerStatus == 'done';
+        }).toList();
+      case 'REJECTED':
+        return filtered
+            .where((offer) => offer.offerStatus.toLowerCase() == 'rejected')
+            .toList();
+      default:
+        return [];
+    }
+  }
+
+  int _getFilteredCount(List<Offer> offers, String status) {
+    return _filterOffersByTab(offers, status).length;
+  }
+
+  Widget _buildTabButton(String title, String tab) {
+    bool isSelected = _selectedTab == tab;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedTab = tab;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        decoration: BoxDecoration(
+          color: isSelected ? Color(0xFFFF4E00) : Colors.black,
+          borderRadius: BorderRadius.circular(4.0),
+          border: Border.all(
+            color: isSelected ? Colors.black : Colors.blue,
+            width: 1.0,
+          ),
+        ),
+        child: Text(
+          title.toUpperCase(),
+          style: GoogleFonts.montserrat(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStickyTabs(List<Offer> offers) {
+    return Container(
+      color: Colors.transparent,
+      alignment: Alignment.center,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            children: [
+              _buildTabButton(
+                  'All (${_getFilteredCount(offers, "ALL")})', 'All'),
+              const SizedBox(width: 12),
+              _buildTabButton(
+                  'In Progress (${_getFilteredCount(offers, "IN PROGRESS")})',
+                  'In Progress'),
+              const SizedBox(width: 12),
+              _buildTabButton(
+                  'Successful (${_getFilteredCount(offers, "SUCCESSFUL")})',
+                  'Successful'),
+              const SizedBox(width: 12),
+              _buildTabButton(
+                  'Rejected (${_getFilteredCount(offers, "REJECTED")})',
+                  'Rejected'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -434,6 +539,12 @@ class _OffersTabState extends State<OffersTab> {
               ),
             ],
           ),
+        ),
+        // Tabs under search bar
+        Consumer<OfferProvider>(
+          builder: (context, offerProvider, child) {
+            return _buildStickyTabs(offerProvider.offers);
+          },
         ),
         // Expanded Offers List.
         Expanded(
@@ -520,6 +631,32 @@ class _OffersTabState extends State<OffersTab> {
                           }
                         }
                         final offer = filteredAndSortedOffers[index];
+                        // Countdown calculation (or "No Life span" if none)
+                        final now = DateTime.now();
+                        final expiration = offer
+                            .expirationDate; // assumes expirationDate is a DateTime
+                        String countdownText;
+                        if (expiration != null) {
+                          final diff = expiration.difference(now);
+                          if (diff.isNegative) {
+                            countdownText = 'Offer Expired';
+                          } else {
+                            final days = diff.inDays;
+                            final hours = diff.inHours % 24;
+                            final minutes = diff.inMinutes % 60;
+                            if (days > 0) {
+                              countdownText =
+                                  '$days day${days > 1 ? 's' : ''} left';
+                            } else if (hours > 0) {
+                              countdownText =
+                                  '$hours hour${hours > 1 ? 's' : ''} $minutes min left';
+                            } else {
+                              countdownText = '$minutes min left';
+                            }
+                          }
+                        } else {
+                          countdownText = 'No Life span';
+                        }
                         final needsAttention = offer.needsInvoice == true;
                         return Card(
                           color: needsAttention
@@ -553,21 +690,53 @@ class _OffersTabState extends State<OffersTab> {
                             title: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (offer.vehicleRef != null)
-                                  RichText(
-                                    text: TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text: 'Ref: ${offer.vehicleRef}\n',
-                                          style: GoogleFonts.montserrat(
-                                            fontWeight: FontWeight.bold,
-                                            color: const Color(0xFFFF4E00),
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ],
+                                if (offer.vehicleRef != null) ...[
+                                  Text(
+                                    'Ref: ${offer.vehicleRef}',
+                                    style: GoogleFonts.montserrat(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFFF4E00),
+                                      fontSize: 16,
                                     ),
                                   ),
+                                  FutureBuilder<String?>(
+                                    future: Provider.of<UserProvider>(context,
+                                            listen: false)
+                                        .getUserEmailById(offer.dealerId),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 4.0),
+                                          child: SizedBox(
+                                            height: 18,
+                                            width: 18,
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                            Color>(
+                                                        Color(0xFFFF4E00)),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      final email = snapshot.data ?? '';
+                                      return email.isNotEmpty
+                                          ? Text(
+                                              email,
+                                              style: GoogleFonts.montserrat(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                              ),
+                                            )
+                                          : const SizedBox.shrink();
+                                    },
+                                  ),
+                                ],
                                 Text(
                                   "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
                                   style: GoogleFonts.montserrat(
@@ -592,6 +761,12 @@ class _OffersTabState extends State<OffersTab> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
+                                if (countdownText.isNotEmpty)
+                                  Text(
+                                    countdownText,
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white70),
+                                  ),
                               ],
                             ),
                             isThreeLine: needsAttention,
@@ -615,9 +790,12 @@ class _OffersTabState extends State<OffersTab> {
               } else {
                 // For non-sales representatives, proceed synchronously.
                 List<Offer> offersForDisplay = offerProvider.offers;
+                // Apply tab filter
+                final tabFilteredOffers =
+                    _filterOffersByTab(offersForDisplay, _selectedTab);
                 // Apply search filter.
                 final searchedOffers =
-                    offersForDisplay.where(_matchesSearch).toList();
+                    tabFilteredOffers.where(_matchesSearch).toList();
                 // Apply status filtering and sorting.
                 final filteredAndSortedOffers =
                     _getFilteredAndSortedOffers(searchedOffers);
@@ -651,6 +829,32 @@ class _OffersTabState extends State<OffersTab> {
                       }
                     }
                     final offer = filteredAndSortedOffers[index];
+                    // Countdown calculation (or "No Life span" if none)
+                    final now = DateTime.now();
+                    final expiration = offer
+                        .expirationDate; // assumes expirationDate is a DateTime
+                    String countdownText;
+                    if (expiration != null) {
+                      final diff = expiration.difference(now);
+                      if (diff.isNegative) {
+                        countdownText = 'Offer Expired';
+                      } else {
+                        final days = diff.inDays;
+                        final hours = diff.inHours % 24;
+                        final minutes = diff.inMinutes % 60;
+                        if (days > 0) {
+                          countdownText =
+                              '$days day${days > 1 ? 's' : ''} left';
+                        } else if (hours > 0) {
+                          countdownText =
+                              '$hours hour${hours > 1 ? 's' : ''} $minutes min left';
+                        } else {
+                          countdownText = '$minutes min left';
+                        }
+                      }
+                    } else {
+                      countdownText = 'No Life span';
+                    }
                     final needsAttention = offer.needsInvoice == true;
                     return Card(
                       color:
@@ -695,15 +899,52 @@ class _OffersTabState extends State<OffersTab> {
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white),
                             ),
-                            if (offer.vehicleRef != null)
+                            if (offer.vehicleRef != null) ...[
                               Text(
-                                'Ref: ${offer.vehicleRef}\n',
+                                'Ref: ${offer.vehicleRef}',
                                 style: GoogleFonts.montserrat(
                                   fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFFF4E00),
+                                  color: Color(0xFFFF4E00),
                                   fontSize: 16,
                                 ),
                               ),
+                              FutureBuilder<String?>(
+                                future: Provider.of<UserProvider>(context,
+                                        listen: false)
+                                    .getUserEmailById(offer.dealerId),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4.0),
+                                      child: SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    Color(0xFFFF4E00)),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final email = snapshot.data ?? '';
+                                  return email.isNotEmpty
+                                      ? Text(
+                                          email,
+                                          style: GoogleFonts.montserrat(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                          ),
+                                        )
+                                      : const SizedBox.shrink();
+                                },
+                              ),
+                            ],
                           ],
                         ),
                         subtitle: Column(
@@ -721,6 +962,12 @@ class _OffersTabState extends State<OffersTab> {
                                   color: Colors.yellowAccent,
                                   fontWeight: FontWeight.bold,
                                 ),
+                              ),
+                            if (countdownText.isNotEmpty)
+                              Text(
+                                countdownText,
+                                style: GoogleFonts.montserrat(
+                                    color: Colors.white70),
                               ),
                           ],
                         ),

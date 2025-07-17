@@ -12,7 +12,8 @@ import 'package:provider/provider.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
 
-class DriveTrainEditPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class DriveTrainEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;

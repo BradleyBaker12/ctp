@@ -13,6 +13,9 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/utils/navigation.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class PaymentApprovedPage extends StatefulWidget {
   final String offerId;
 

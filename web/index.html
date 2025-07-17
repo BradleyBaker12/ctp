@@ -94,6 +94,44 @@
       // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
     </script>
+
+    <!-- Firebase Messaging -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
+    <script>
+      // Initialize Firebase Messaging
+      const messaging = firebase.messaging();
+
+      // Register the service worker
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("/firebase-messaging-sw.js")
+          .then((registration) => {
+            console.log("Service worker registered:", registration);
+            messaging.useServiceWorker(registration);
+            // Get FCM token
+            return messaging.getToken({
+              vapidKey:
+                "BAlDvkaDKAYZPblZHC2VhYuf0hy2hNYqaGDDZZtq7I1sTwsFiQiHdfDjkzN0v4hkbVocdiw6ALkeOyYOkGs1uwQ",
+            });
+          })
+          .then((token) => {
+            console.log("Web FCM token:", token);
+            // TODO: Send token to your backend for storage
+          })
+          .catch((err) => {
+            console.error(
+              "Error registering service worker or getting token:",
+              err
+            );
+          });
+      }
+
+      // Handle incoming messages when the page is in focus
+      messaging.onMessage((payload) => {
+        console.log("Message received:", payload);
+        // Optionally display an in-app notification here
+      });
+    </script>
   </head>
   <body>
     <script src="main.dart.js" type="application/javascript"></script>

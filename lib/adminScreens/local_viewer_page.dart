@@ -2,7 +2,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:auto_route/auto_route.dart';
 
+@RoutePage()
 class LocalViewerPage extends StatelessWidget {
   final Uint8List file;
   final String title;

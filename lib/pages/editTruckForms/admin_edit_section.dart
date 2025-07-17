@@ -13,6 +13,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/utils/camera_helper.dart'; // Import shared camera helper
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class AdminEditSection extends StatefulWidget {
   final Vehicle vehicle;
   final bool isUploading;

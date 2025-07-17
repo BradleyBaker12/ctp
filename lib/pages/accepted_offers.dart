@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:ctp/components/custom_app_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -25,7 +26,7 @@ class NavigationItem {
   });
 }
 
-class AcceptedOffersPage extends StatefulWidget {
+@RoutePage()class AcceptedOffersPage extends StatefulWidget {
   const AcceptedOffersPage({super.key});
 
   @override

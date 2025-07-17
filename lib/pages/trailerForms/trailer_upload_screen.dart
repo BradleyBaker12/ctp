@@ -1,3 +1,4 @@
+// import 'package:auto_route/auto_route.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/utils/camera_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -57,6 +58,8 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   }
 }
 
+
+// @RoutePage()
 class TrailerUploadScreen extends StatefulWidget {
   final bool isDuplicating;
   final Vehicle? vehicle;
@@ -450,6 +453,19 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     _licenceDiskExpOtherController.dispose();
     _numbAxelOtherController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate(
+      BuildContext context, TextEditingController controller) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      controller.text = DateFormat('dd/MM/yyyy').format(picked);
+    }
   }
 
   @override
@@ -951,10 +967,14 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 inputFormatter: [UpperCaseTextFormatter()],
               ),
               const SizedBox(height: 15),
-              CustomTextField(
-                controller: _licenceDiskExpOtherController,
-                hintText: 'Licence Disk Expiry Date',
-                inputFormatter: [UpperCaseTextFormatter()],
+              InkWell(
+                onTap: () =>
+                    _selectDate(context, _licenceDiskExpOtherController),
+                child: CustomTextField(
+                  controller: _licenceDiskExpOtherController,
+                  hintText: 'Licence Disk Expiry Date',
+                  enabled: false,
+                ),
               ),
               const SizedBox(height: 15),
               CustomTextField(
@@ -1749,13 +1769,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   CustomTextField(
                     controller: _makeController,
                     hintText: 'Make of Trailer',
-                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 15),
                   CustomTextField(
                     controller: _modelController,
                     hintText: 'Model of Trailer',
-                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 15),
                   CustomTextField(
@@ -1815,10 +1833,13 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                     inputFormatter: [UpperCaseTextFormatter()],
                   ),
                   const SizedBox(height: 15),
-                  CustomTextField(
-                    controller: _licenseExpController,
-                    hintText: 'Licence disk expiry date',
-                    inputFormatter: [UpperCaseTextFormatter()],
+                  InkWell(
+                    onTap: () => _selectDate(context, _licenseExpController),
+                    child: CustomTextField(
+                      controller: _licenseExpController,
+                      hintText: 'Licence disk expiry date',
+                      enabled: false,
+                    ),
                   ),
                   const SizedBox(height: 15),
                   CustomTextField(

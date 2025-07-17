@@ -1,3 +1,4 @@
+// import 'package:auto_route/auto_route.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -50,6 +51,7 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   }
 }
 
+// @RoutePage()
 class EditTrailerScreen extends StatefulWidget {
   final Vehicle vehicle;
   const EditTrailerScreen({super.key, required this.vehicle});

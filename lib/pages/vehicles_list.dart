@@ -20,7 +20,8 @@ import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'dart:ui';
 
-class VehiclesListPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
 
   @override
@@ -113,8 +114,11 @@ class _VehiclesListPageState extends State<VehiclesListPage>
         userVehicles.where((v) => v.vehicleStatus == 'pending').toList();
     final live = userVehicles.where((v) => v.vehicleStatus == 'Live').toList();
 
-    debugPrint(
-        '🔍 NestedScrollView scroll offset: ${_scrollController.offset}');
+    if (_scrollController.hasClients) {
+      debugPrint(
+        '🔍 NestedScrollView scroll offset: ${_scrollController.offset}',
+      );
+    }
     return GradientBackground(
       child: Scaffold(
         key: _scaffoldKey,
@@ -300,19 +304,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             ],
           ),
         ),
-        floatingActionButton:
-            userProvider.getUserRole.toLowerCase().trim() == 'transporter'
-                ? FloatingActionButton.extended(
-                    backgroundColor: const Color(0xFFFF4E00),
-                    foregroundColor: Colors.white,
-                    onPressed: _showVehicleTypeSelectionDialog,
-                    icon: const Icon(Icons.add),
-                    label: Text(
-                      'Add Vehicle',
-                      style: GoogleFonts.montserrat(color: Colors.white),
-                    ),
-                  )
-                : null,
+        floatingActionButton: null,
         bottomNavigationBar: kIsWeb
             ? null
             : CustomBottomNavigation(

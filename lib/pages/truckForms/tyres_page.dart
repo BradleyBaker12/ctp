@@ -10,6 +10,7 @@ import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 // For web camera access
 import 'package:ctp/utils/camera_helper.dart'; // Import camera helper
+import 'package:auto_route/auto_route.dart';
 
 class ImageData {
   File? file;
@@ -21,8 +22,7 @@ class ImageData {
   bool get hasImage =>
       file != null || webImage != null || (url != null && url!.isNotEmpty);
 }
-
-class TyresPage extends StatefulWidget {
+@RoutePage()class TyresPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;

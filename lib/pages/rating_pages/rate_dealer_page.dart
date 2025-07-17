@@ -8,6 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/utils/navigation.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class RateDealerPage extends StatefulWidget {
   final String offerId;
 

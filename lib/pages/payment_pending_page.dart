@@ -12,7 +12,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/utils/navigation.dart';
 
-class PaymentPendingPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class PaymentPendingPage extends StatefulWidget {
   final String offerId;
 
   const PaymentPendingPage({super.key, required this.offerId});

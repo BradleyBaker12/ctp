@@ -16,7 +16,8 @@ import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart'; // Add this import
 import 'package:ctp/utils/navigation.dart';
 
-class ProfilePage extends StatelessWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class ProfilePage extends StatelessWidget {
   ProfilePage({super.key});
 
   // Add scaffold key for drawer

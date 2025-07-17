@@ -12,6 +12,9 @@ import 'user_detail_page.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class UsersTab extends StatefulWidget {
   const UsersTab({super.key});
 
@@ -68,6 +71,9 @@ class _UsersTabState extends State<UsersTab> {
 
   // Add new state variable for filter loading
   bool _isFilterLoading = false;
+
+  // Currently selected tab for user roles
+  String _selectedRoleTab = 'Dealers';
 
   @override
   void initState() {
@@ -366,415 +372,468 @@ class _UsersTabState extends State<UsersTab> {
 
   @override
   Widget build(BuildContext context) {
-    List<DocumentSnapshot> filteredUsers = _users.where((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      return _matchesFiltersAndSearch(data);
-    }).toList();
-
     // Get current user role and id.
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String currentUserRole = userProvider.getUserRole;
     final bool isAdmin = currentUserRole == 'admin';
     final String? currentUserId = userProvider.userId;
 
+    List<DocumentSnapshot> filteredUsers = _users.where((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      // Exclude archived users
+      if ((data['accountStatus'] as String?)?.toLowerCase() == 'archived') {
+        return false;
+      }
+      // Filter by role tab
+      switch (_selectedRoleTab) {
+        case 'Dealers':
+          // Only active or non-pending dealers
+          if ((data['userRole'] as String?)?.toLowerCase() != 'dealer' ||
+              (data['accountStatus'] as String?)?.toLowerCase() == 'pending') {
+            return false;
+          }
+          break;
+        case 'Transporters':
+          // Only active or non-pending transporters
+          if ((data['userRole'] as String?)?.toLowerCase() != 'transporter' ||
+              (data['accountStatus'] as String?)?.toLowerCase() == 'pending') {
+            return false;
+          }
+          break;
+        case 'Pending':
+          if ((data['accountStatus'] as String?)?.toLowerCase() != 'pending') {
+            return false;
+          }
+          break;
+      }
+      return _matchesFiltersAndSearch(data);
+    }).toList();
+
     return Scaffold(
       body: GradientBackground(
-        child: Column(
-          children: [
-            // Search, Sort, and Filter Row.
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        style: GoogleFonts.montserrat(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Search any field...',
-                          hintStyle:
-                              GoogleFonts.montserrat(color: Colors.white54),
-                          prefixIcon:
-                              const Icon(Icons.search, color: Colors.white54),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+        child: DefaultTabController(
+          length: isAdmin ? 3 : 2,
+          child: Column(
+            children: [
+              // Search, Sort, and Filter Row.
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[800],
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                            _users.clear();
-                            _lastDocument = null;
-                            _hasMore = true;
-                          });
-                          _fetchUsers();
-                        },
+                        child: TextField(
+                          controller: _searchController,
+                          style: GoogleFonts.montserrat(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Search any field...',
+                            hintStyle:
+                                GoogleFonts.montserrat(color: Colors.white54),
+                            prefixIcon:
+                                const Icon(Icons.search, color: Colors.white54),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value;
+                              _users.clear();
+                              _lastDocument = null;
+                              _hasMore = true;
+                            });
+                            _fetchUsers();
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.sort, color: Colors.white),
-                    onPressed: _showSortMenu,
-                    tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      _sortAscending
-                          ? Icons.arrow_upward
-                          : Icons.arrow_downward,
-                      color: Colors.white,
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.sort, color: Colors.white),
+                      onPressed: _showSortMenu,
+                      tooltip: 'Sort by: ${_sortField.replaceAll('_', ' ')}',
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _sortAscending = !_sortAscending;
-                        _users.clear();
-                        _lastDocument = null;
-                        _hasMore = true;
-                      });
-                      _fetchUsers();
-                    },
-                    tooltip:
-                        _sortAscending ? 'Sort Ascending' : 'Sort Descending',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.filter_list, color: Colors.white),
-                    onPressed: () async {
-                      await showDialog(
-                        context: context,
-                        builder: (context) {
-                          return StatefulBuilder(
-                            builder: (context, setStateDialog) {
-                              return AlertDialog(
-                                backgroundColor: Colors.grey[900],
-                                title: Text('Filter Users',
-                                    style: GoogleFonts.montserrat(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
-                                content: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: _filterOptions.map((filter) {
-                                      bool isHeader = filter == 'User Roles' ||
-                                          filter == 'Account Status' ||
-                                          filter == 'Verification Status';
+                    IconButton(
+                      icon: Icon(
+                        _sortAscending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _sortAscending = !_sortAscending;
+                          _users.clear();
+                          _lastDocument = null;
+                          _hasMore = true;
+                        });
+                        _fetchUsers();
+                      },
+                      tooltip:
+                          _sortAscending ? 'Sort Ascending' : 'Sort Descending',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.filter_list, color: Colors.white),
+                      onPressed: () async {
+                        await showDialog(
+                          context: context,
+                          builder: (context) {
+                            return StatefulBuilder(
+                              builder: (context, setStateDialog) {
+                                return AlertDialog(
+                                  backgroundColor: Colors.grey[900],
+                                  title: Text('Filter Users',
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: _filterOptions.map((filter) {
+                                        bool isHeader =
+                                            filter == 'User Roles' ||
+                                                filter == 'Account Status' ||
+                                                filter == 'Verification Status';
 
-                                      if (isHeader) {
-                                        return Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                              16, 16, 16, 8),
-                                          child: Text(
-                                            filter,
-                                            style: GoogleFonts.montserrat(
-                                              color: Colors.white70,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        );
-                                      }
-
-                                      return Container(
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 4.0),
-                                        child: Material(
-                                          color:
-                                              _selectedFilters.contains(filter)
-                                                  ? const Color(0xFFFF4E00)
-                                                  : Colors.grey[800],
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: InkWell(
-                                            onTap: () {
-                                              setStateDialog(() {
-                                                if (filter == 'All Users') {
-                                                  _selectedFilters.clear();
-                                                  if (!_selectedFilters
-                                                      .contains(filter)) {
-                                                    _selectedFilters
-                                                        .add(filter);
-                                                  }
-                                                } else {
-                                                  if (_selectedFilters
-                                                      .contains('All Users')) {
-                                                    _selectedFilters.clear();
-                                                  }
-                                                  if (_selectedFilters
-                                                      .contains(filter)) {
-                                                    _selectedFilters
-                                                        .remove(filter);
-                                                  } else {
-                                                    _selectedFilters
-                                                        .add(filter);
-                                                  }
-                                                }
-                                              });
-                                            },
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 16,
-                                                vertical: 12,
-                                              ),
-                                              child: Text(
-                                                filter,
-                                                style: GoogleFonts.montserrat(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: _selectedFilters
-                                                          .contains(filter)
-                                                      ? FontWeight.bold
-                                                      : FontWeight.normal,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    child: Text('Clear',
-                                        style: GoogleFonts.montserrat(
-                                            color: Colors.white70)),
-                                    onPressed: () {
-                                      setState(() {
-                                        _selectedFilters.clear();
-                                        _users.clear();
-                                        _lastDocument = null;
-                                        _hasMore = true;
-                                      });
-                                      Navigator.pop(context);
-                                      _fetchUsers();
-                                    },
-                                  ),
-                                  TextButton(
-                                    child: Text('Apply',
-                                        style: GoogleFonts.montserrat(
-                                            color: const Color(0xFFFF4E00))),
-                                    onPressed: () {
-                                      setState(() {
-                                        _users.clear();
-                                        _lastDocument = null;
-                                        _hasMore = true;
-                                        _isFilterLoading = true;
-                                      });
-                                      Navigator.pop(context);
-                                      _fetchUsers();
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
-                    tooltip: 'Filter Users',
-                  ),
-                ],
-              ),
-            ),
-            // Users List.
-            Expanded(
-              child: _isInitialLoading || _isFilterLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                      color: AppColors.orange,
-                    ))
-                  : filteredUsers.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No users found.',
-                            style: GoogleFonts.montserrat(color: Colors.white),
-                          ),
-                        )
-                      : ListView.builder(
-                          key: const PageStorageKey('users_list'),
-                          controller: _scrollController,
-                          itemCount: filteredUsers.length + (_hasMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == filteredUsers.length) {
-                              if (_isLoading) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            }
-                            var userData = filteredUsers[index].data()
-                                as Map<String, dynamic>;
-                            String userId = filteredUsers[index].id;
-                            String firstName =
-                                userData['firstName'] ?? 'No Name';
-                            String lastName = userData['lastName'] ?? '';
-                            String email = userData['email'] ?? 'No Email';
-                            String role = userData['userRole'] ?? 'user';
-                            String companyName =
-                                userData['companyName'] ?? 'No Company';
-                            String tradingAs =
-                                userData['tradingAs'] ?? 'No Trading As';
-                            var accountStatus = userData['accountStatus'];
-                            var isVerified = userData['isVerified'] ?? false;
-                            String status;
-                            Color statusColor;
-                            String statusText;
-
-                            // Determine status color and text
-                            if (accountStatus == 'suspended') {
-                              status = 'suspended';
-                              statusColor = Colors.red;
-                              statusText = 'Suspended';
-                            } else if (!isVerified) {
-                              status = 'pending';
-                              statusColor = Colors.amber;
-                              statusText = 'Pending Verification';
-                            } else if (accountStatus != 'active') {
-                              status = 'inactive';
-                              statusColor = Colors.orange;
-                              statusText = 'Inactive';
-                            } else {
-                              status = 'active';
-                              statusColor = Colors.transparent;
-                              statusText = '';
-                            }
-
-                            return Card(
-                              color: status != 'active'
-                                  ? statusColor.withOpacity(0.2)
-                                  : Colors.grey[900],
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              child: Stack(
-                                children: [
-                                  ListTile(
-                                    leading: Stack(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor: Colors.blueAccent,
-                                          child: Text(
-                                            firstName.isNotEmpty
-                                                ? firstName[0].toUpperCase()
-                                                : 'U',
-                                            style: GoogleFonts.montserrat(
-                                                color: Colors.white),
-                                          ),
-                                        ),
-                                        if (status != 'active')
-                                          Positioned(
-                                            right: -2,
-                                            top: -2,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(2),
-                                              decoration: BoxDecoration(
-                                                color: statusColor,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: Colors.grey[900]!,
-                                                  width: 1.5,
-                                                ),
-                                              ),
-                                              child: Icon(
-                                                status == 'suspended'
-                                                    ? Icons.block
-                                                    : status == 'pending'
-                                                        ? Icons.warning
-                                                        : Icons.warning_amber,
-                                                size: 12,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    title: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            '$firstName $lastName',
-                                            style: GoogleFonts.montserrat(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                        if (status != 'active')
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: statusColor,
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
+                                        if (isHeader) {
+                                          return Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                                16, 16, 16, 8),
                                             child: Text(
-                                              statusText,
+                                              filter,
                                               style: GoogleFonts.montserrat(
-                                                color: Colors.white,
+                                                color: Colors.white70,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
+                                          );
+                                        }
+
+                                        return Container(
+                                          margin: const EdgeInsets.symmetric(
+                                              vertical: 4.0),
+                                          child: Material(
+                                            color: _selectedFilters
+                                                    .contains(filter)
+                                                ? const Color(0xFFFF4E00)
+                                                : Colors.grey[800],
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: InkWell(
+                                              onTap: () {
+                                                setStateDialog(() {
+                                                  if (filter == 'All Users') {
+                                                    _selectedFilters.clear();
+                                                    if (!_selectedFilters
+                                                        .contains(filter)) {
+                                                      _selectedFilters
+                                                          .add(filter);
+                                                    }
+                                                  } else {
+                                                    if (_selectedFilters
+                                                        .contains(
+                                                            'All Users')) {
+                                                      _selectedFilters.clear();
+                                                    }
+                                                    if (_selectedFilters
+                                                        .contains(filter)) {
+                                                      _selectedFilters
+                                                          .remove(filter);
+                                                    } else {
+                                                      _selectedFilters
+                                                          .add(filter);
+                                                    }
+                                                  }
+                                                });
+                                              },
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 16,
+                                                  vertical: 12,
+                                                ),
+                                                child: Text(
+                                                  filter,
+                                                  style: GoogleFonts.montserrat(
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    fontWeight: _selectedFilters
+                                                            .contains(filter)
+                                                        ? FontWeight.bold
+                                                        : FontWeight.normal,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
                                           ),
-                                      ],
+                                        );
+                                      }).toList(),
                                     ),
-                                    subtitle: Text(
-                                      '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
-                                      style: GoogleFonts.montserrat(
-                                          color: Colors.white70),
-                                    ),
-                                    isThreeLine: false,
-                                    trailing: const Icon(
-                                        Icons.arrow_forward_ios,
-                                        color: Colors.white),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              UserDetailPage(userId: userId),
-                                        ),
-                                      );
-                                    },
                                   ),
-                                  if (status != 'active')
-                                    Positioned(
-                                      top: 0,
-                                      bottom: 0,
-                                      left: 0,
-                                      child: Container(
-                                        width: 4,
-                                        decoration: BoxDecoration(
-                                          color: statusColor,
-                                          borderRadius: const BorderRadius.only(
-                                            topLeft: Radius.circular(4),
-                                            bottomLeft: Radius.circular(4),
+                                  actions: [
+                                    TextButton(
+                                      child: Text('Clear',
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white70)),
+                                      onPressed: () {
+                                        setState(() {
+                                          _selectedFilters.clear();
+                                          _users.clear();
+                                          _lastDocument = null;
+                                          _hasMore = true;
+                                        });
+                                        Navigator.pop(context);
+                                        _fetchUsers();
+                                      },
+                                    ),
+                                    TextButton(
+                                      child: Text('Apply',
+                                          style: GoogleFonts.montserrat(
+                                              color: const Color(0xFFFF4E00))),
+                                      onPressed: () {
+                                        setState(() {
+                                          _users.clear();
+                                          _lastDocument = null;
+                                          _hasMore = true;
+                                          _isFilterLoading = true;
+                                        });
+                                        Navigator.pop(context);
+                                        _fetchUsers();
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                      tooltip: 'Filter Users',
+                    ),
+                  ],
+                ),
+              ),
+              // Custom-styled role tabs matching offer tabs
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    _buildUserTabButton('Dealers'),
+                    const SizedBox(width: 12),
+                    _buildUserTabButton('Transporters'),
+                    if (isAdmin) ...[
+                      const SizedBox(width: 12),
+                      _buildUserTabButton('Pending'),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Users List.
+              Expanded(
+                child: _isInitialLoading || _isFilterLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                        color: AppColors.orange,
+                      ))
+                    : filteredUsers.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No users found.',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white),
+                            ),
+                          )
+                        : ListView.builder(
+                            key: const PageStorageKey('users_list'),
+                            controller: _scrollController,
+                            itemCount:
+                                filteredUsers.length + (_hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == filteredUsers.length) {
+                                if (_isLoading) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16.0),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              }
+                              var userData = filteredUsers[index].data()
+                                  as Map<String, dynamic>;
+                              String userId = filteredUsers[index].id;
+                              String firstName =
+                                  userData['firstName'] ?? 'No Name';
+                              String lastName = userData['lastName'] ?? '';
+                              String email = userData['email'] ?? 'No Email';
+                              String role = userData['userRole'] ?? 'user';
+                              String companyName =
+                                  userData['companyName'] ?? 'No Company';
+                              String tradingAs =
+                                  userData['tradingAs'] ?? 'No Trading As';
+                              var accountStatus = userData['accountStatus'];
+                              var isVerified = userData['isVerified'] ?? false;
+                              String status;
+                              Color statusColor;
+                              String statusText;
+
+                              // Determine status color and text
+                              if (accountStatus == 'suspended') {
+                                status = 'suspended';
+                                statusColor = Colors.red;
+                                statusText = 'Suspended';
+                              } else if (!isVerified) {
+                                status = 'pending';
+                                statusColor = Colors.amber;
+                                statusText = 'Pending Verification';
+                              } else if (accountStatus != 'active') {
+                                status = 'inactive';
+                                statusColor = Colors.orange;
+                                statusText = 'Inactive';
+                              } else {
+                                status = 'active';
+                                statusColor = Colors.transparent;
+                                statusText = '';
+                              }
+
+                              return Card(
+                                color: status != 'active'
+                                    ? statusColor.withOpacity(0.2)
+                                    : Colors.grey[900],
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                child: Stack(
+                                  children: [
+                                    ListTile(
+                                      leading: Stack(
+                                        children: [
+                                          CircleAvatar(
+                                            backgroundColor: Colors.blueAccent,
+                                            child: Text(
+                                              firstName.isNotEmpty
+                                                  ? firstName[0].toUpperCase()
+                                                  : 'U',
+                                              style: GoogleFonts.montserrat(
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                          if (status != 'active')
+                                            Positioned(
+                                              right: -2,
+                                              top: -2,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.all(2),
+                                                decoration: BoxDecoration(
+                                                  color: statusColor,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.grey[900]!,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                child: Icon(
+                                                  status == 'suspended'
+                                                      ? Icons.block
+                                                      : status == 'pending'
+                                                          ? Icons.warning
+                                                          : Icons.warning_amber,
+                                                  size: 12,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              '$firstName $lastName',
+                                              style: GoogleFonts.montserrat(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          if (status != 'active')
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: statusColor,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                statusText,
+                                                style: GoogleFonts.montserrat(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      subtitle: Text(
+                                        '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
+                                        style: GoogleFonts.montserrat(
+                                            color: Colors.white70),
+                                      ),
+                                      isThreeLine: false,
+                                      trailing: const Icon(
+                                          Icons.arrow_forward_ios,
+                                          color: Colors.white),
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                UserDetailPage(userId: userId),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    if (status != 'active')
+                                      Positioned(
+                                        top: 0,
+                                        bottom: 0,
+                                        left: 0,
+                                        child: Container(
+                                          width: 4,
+                                          decoration: BoxDecoration(
+                                            color: statusColor,
+                                            borderRadius:
+                                                const BorderRadius.only(
+                                              topLeft: Radius.circular(4),
+                                              bottomLeft: Radius.circular(4),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-            ),
-          ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: _isSecondaryAuthReady
@@ -1106,6 +1165,32 @@ class _UsersTabState extends State<UsersTab> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildUserTabButton(String tab) {
+    bool isSelected = _selectedRoleTab == tab;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRoleTab = tab),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFF4E00) : Colors.black,
+          borderRadius: BorderRadius.circular(4.0),
+          border: Border.all(
+            color: isSelected ? Colors.black : const Color(0xFF0E4CAF),
+            width: 1.0,
+          ),
+        ),
+        child: Text(
+          tab.toUpperCase(),
+          style: GoogleFonts.montserrat(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 }

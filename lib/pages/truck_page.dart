@@ -12,9 +12,10 @@ import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
-import 'package:ctp/components/trailer_card.dart'; // Trailer card widget
+// Trailer card widget
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:auto_route/auto_route.dart';
 
 class NavigationItem {
   final String title;
@@ -39,7 +40,7 @@ class FilterCriterion {
   });
 }
 
-class TruckPage extends StatefulWidget {
+@RoutePage()class TruckPage extends StatefulWidget {
   final String? vehicleType;
   final String? selectedBrand;
 
@@ -75,6 +76,17 @@ class _TruckPageState extends State<TruckPage> {
 
   /// NEW: Track total number of filtered vehicles
   int _totalFilteredVehicles = 0;
+
+  // Company filter and bulk offer state
+  String? _selectedCompany;
+  List<String> _companyOptions = ['All'];
+  final Set<String> _selectedVehicleIdsForOffer = {};
+
+  // Fleet/All mode state
+  bool _isFleetMode = false;
+
+  // Selection mode for fleet view (long-press to activate)
+  bool _isSelectionMode = false;
 
   // --------------------------------------------------------------------
   // 1) Filter State
@@ -325,39 +337,85 @@ class _TruckPageState extends State<TruckPage> {
   // --------------------------------------------------------------------
   void _loadInitialVehicles() async {
     try {
+      debugPrint(
+          'DEBUG: _loadInitialVehicles called. isFleetMode=$_isFleetMode, selectedCompany=$_selectedCompany');
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
       await vehicleProvider.fetchAllVehicles();
+      if (_isFleetMode && _selectedCompany != null) {
+        debugPrint('DEBUG: Fetching fleet for name=$_selectedCompany');
+        final firestore = FirebaseFirestore.instance;
+        final fleetQuery = await firestore
+            .collection('fleets')
+            .where('fleetName', isEqualTo: _selectedCompany)
+            .limit(1)
+            .get();
 
-      setState(() {
-        /// Base filter: only vehicles with status "Live"
-        var filteredVehicles = vehicleProvider.vehicles
-            .where((vehicle) => vehicle.vehicleStatus == 'Live');
-
-        /// If a brand was passed in, apply it only if != 'All'
-        if (widget.selectedBrand != null && widget.selectedBrand != 'All') {
-          filteredVehicles = filteredVehicles.where(
-            (vehicle) => vehicle.brands.contains(widget.selectedBrand),
+        List<String> vehicleIdsRaw = [];
+        if (fleetQuery.docs.isNotEmpty) {
+          vehicleIdsRaw = List<String>.from(
+            fleetQuery.docs.first.data()['vehicleIds'] ?? [],
           );
         }
+        debugPrint('DEBUG: fleetVehicleIds = $vehicleIdsRaw');
+        debugPrint(
+            'DEBUG: vehicleProvider.vehicles count = ${vehicleProvider.vehicles.length}');
 
-        // Apply any user-chosen filters
-        filteredVehicles = _applySelectedFilters(filteredVehicles);
+        final normalizedFleetIds = vehicleIdsRaw.map((id) => id.trim()).toSet();
 
-        /// 1) Count them all
-        _totalFilteredVehicles = filteredVehicles.length;
+        var fleetVehicles = vehicleProvider.vehicles.where((v) {
+          final vid = v.id.trim();
+          debugPrint(
+              'DEBUG: Checking vehicle ${v.id} with status ${v.vehicleStatus}');
+          return normalizedFleetIds.contains(vid) &&
+              (v.vehicleStatus == 'Live' || v.vehicleStatus == 'Draft');
+        }).toList();
 
-        /// 2) Take the first page
-        displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
-        _currentPage = 1;
-        _isLoading = false;
-        loadedVehicleIndex = displayedVehicles.length;
+        setState(() {
+          _totalFilteredVehicles = fleetVehicles.length;
+          displayedVehicles = fleetVehicles;
+          _currentPage = 1;
+          _isLoading = false;
+          loadedVehicleIndex = displayedVehicles.length;
+          _hasReachedEnd = true;
+        });
+      } else {
+        // Default "All" mode
+        debugPrint(
+            'DEBUG: All mode. vehicleProvider.vehicles count = ${vehicleProvider.vehicles.length}');
+        _setCompanyOptions(vehicleProvider.vehicles);
+        setState(() {
+          /// Base filter: only vehicles with status "Live"
+          var filteredVehicles = vehicleProvider.vehicles
+              .where((vehicle) => vehicle.vehicleStatus == 'Live');
 
-        /// If we already got them all in the first page, mark `_hasReachedEnd`
-        _hasReachedEnd = displayedVehicles.length >= _totalFilteredVehicles;
-      });
+          /// If a brand was passed in, apply it only if != 'All'
+          if (widget.selectedBrand != null && widget.selectedBrand != 'All') {
+            filteredVehicles = filteredVehicles.where(
+              (vehicle) => vehicle.brands.contains(widget.selectedBrand),
+            );
+          }
+          // Apply any user-chosen filters
+          filteredVehicles = _applySelectedFilters(filteredVehicles);
+
+          debugPrint(
+              'DEBUG: filteredVehicles count = ${filteredVehicles.length}');
+
+          /// 1) Count them all
+          _totalFilteredVehicles = filteredVehicles.length;
+
+          /// 2) Take the first page
+          displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
+          _currentPage = 1;
+          _isLoading = false;
+          loadedVehicleIndex = displayedVehicles.length;
+
+          /// If we already got them all in the first page, mark `_hasReachedEnd`
+          _hasReachedEnd = displayedVehicles.length >= _totalFilteredVehicles;
+        });
+      }
     } catch (e) {
-      print('Error in _loadInitialVehicles: $e');
+      debugPrint('ERROR in _loadInitialVehicles: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to load vehicles. Please try again later.'),
@@ -367,38 +425,35 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   void _loadMoreVehicles() async {
+    // If not in All mode, we do not paginate fleet view
+    if (_isFleetMode) return;
     // If we've loaded all already, no need to do more
     if (_hasReachedEnd) return;
-
     setState(() {
       _isLoadingMore = true;
     });
     try {
       final vehicleProvider =
           Provider.of<VehicleProvider>(context, listen: false);
+      _setCompanyOptions(vehicleProvider.vehicles);
       int startIndex = _currentPage * _itemsPerPage;
-
-      // Re-filter everything (same logic as in _loadInitialVehicles)
+      // Re-filter everything (same logic as in _loadInitialVehicles "All" branch)
       var filteredVehicles = vehicleProvider.vehicles
           .where((vehicle) => vehicle.vehicleStatus == 'Live');
-
       if (widget.selectedBrand != null && widget.selectedBrand != 'All') {
         filteredVehicles = filteredVehicles.where(
           (vehicle) => vehicle.brands.contains(widget.selectedBrand),
         );
       }
       filteredVehicles = _applySelectedFilters(filteredVehicles);
-
       // Get the next batch
       List<Vehicle> moreVehicles =
           filteredVehicles.skip(startIndex).take(_itemsPerPage).toList();
-
       if (moreVehicles.isNotEmpty) {
         setState(() {
           displayedVehicles.addAll(moreVehicles);
           _currentPage++;
           _isLoadingMore = false;
-
           // Check if we’ve now got them all
           if (displayedVehicles.length >= _totalFilteredVehicles) {
             _hasReachedEnd = true;
@@ -421,6 +476,12 @@ class _TruckPageState extends State<TruckPage> {
   // Helper method to apply all selected filters.
   Iterable<Vehicle> _applySelectedFilters(Iterable<Vehicle> vehicles) {
     return vehicles.where((vehicle) {
+      // Company filter
+      if (_selectedCompany != null && _selectedCompany != 'All') {
+        if ((vehicle.companyName ?? 'Anonymous') != _selectedCompany) {
+          return false;
+        }
+      }
       // Apply vehicle type filter based on user selection
       if (_selectedVehicleType.isNotEmpty &&
           !_selectedVehicleType.contains('All')) {
@@ -485,6 +546,33 @@ class _TruckPageState extends State<TruckPage> {
         if (!_selectedVehicleType.contains(vehicle.vehicleType)) return false;
       }
       return true;
+    });
+  }
+
+  void _setCompanyOptions(List<Vehicle> vehicles) {
+    final companies = vehicles
+        .map((v) => v.companyName ?? 'Anonymous')
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    setState(() {
+      _companyOptions = ['All', ...companies];
+    });
+  }
+
+  Future<void> _loadFleetOptions() async {
+    final firestore = FirebaseFirestore.instance;
+    final fleetsSnapshot = await firestore
+        .collection('fleets')
+        .where('fleetStatus', isEqualTo: 'Live')
+        .get();
+    final fleetNames = fleetsSnapshot.docs
+        .map((doc) => (doc.data()['fleetName'] as String?) ?? 'Unnamed')
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    setState(() {
+      _companyOptions = ['All', ...fleetNames];
     });
   }
 
@@ -962,6 +1050,24 @@ class _TruckPageState extends State<TruckPage> {
     }
   }
 
+  // Handle bulk offer logic
+  void _onBulkOfferPressed() {
+    Navigator.pushNamed(
+      context,
+      '/bulkOffer',
+      arguments: _selectedVehicleIdsForOffer.toList(),
+    );
+  }
+
+  // Handle individual offers for selected vehicles
+  void _onIndividualOfferPressed() {
+    Navigator.pushNamed(
+      context,
+      '/individualOffer',
+      arguments: _selectedVehicleIdsForOffer.toList(),
+    );
+  }
+
   Widget _buildNoVehiclesAvailable() {
     return Center(
       child: Column(
@@ -1020,9 +1126,27 @@ class _TruckPageState extends State<TruckPage> {
             NavigationItem(title: 'In-Progress', route: '/in-progress'),
           ];
 
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: kIsWeb
+    // --- BEGIN: AppBar logic for selection mode ---
+    PreferredSizeWidget? appBarWidget;
+    if (_isSelectionMode) {
+      appBarWidget = AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () {
+            setState(() {
+              _selectedVehicleIdsForOffer.clear();
+              _isSelectionMode = false;
+            });
+          },
+        ),
+        title: Text(
+          '${_selectedVehicleIdsForOffer.length} selected',
+          style: _customFont(18, FontWeight.bold, Colors.white),
+        ),
+      );
+    } else {
+      appBarWidget = kIsWeb
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
               child: WebNavigationBar(
@@ -1031,7 +1155,13 @@ class _TruckPageState extends State<TruckPage> {
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
             )
-          : CustomAppBar(),
+          : CustomAppBar();
+    }
+    // --- END: AppBar logic for selection mode ---
+
+    return Scaffold(
+      key: _scaffoldKey,
+      appBar: appBarWidget,
       drawer: (kIsWeb && _isCompactNavigation(context))
           ? Drawer(
               child: Container(
@@ -1100,216 +1230,369 @@ class _TruckPageState extends State<TruckPage> {
             )
           : null,
       backgroundColor: Colors.black,
-      body: Column(
+      body: Stack(
         children: [
-          // Vehicle count display and filter actions
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                /// Show the *total* number of filtered vehicles, not just the first page
-                Text(
-                  'All Vehicles Total: $_totalFilteredVehicles',
-                  style: _customFont(16, FontWeight.bold, Colors.white),
-                ),
-                Row(
+          Column(
+            children: [
+              // View mode tabs (All vs. Fleet) and company selector when in Fleet mode
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Column(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.tune, color: Colors.white),
-                      onPressed: _showFilterDialog,
-                    ),
-                    if (_selectedYears.isNotEmpty ||
-                        _selectedBrands.isNotEmpty ||
-                        _selectedMakeModels.isNotEmpty ||
-                        _selectedVehicleStatuses.isNotEmpty ||
-                        _selectedTransmissions.isNotEmpty ||
-                        _selectedCountries.isNotEmpty ||
-                        _selectedProvinces.isNotEmpty ||
-                        _selectedApplicationOfUse.isNotEmpty ||
-                        _selectedConfigs.isNotEmpty ||
-                        _selectedVehicleType.isNotEmpty)
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedYears.clear();
-                            _selectedBrands.clear();
-                            _selectedMakeModels.clear();
-                            _selectedVehicleStatuses.clear();
-                            _selectedTransmissions.clear();
-                            _selectedCountries.clear();
-                            _selectedProvinces.clear();
-                            _selectedApplicationOfUse.clear();
-                            _selectedConfigs.clear();
-                            _selectedVehicleType.clear();
-                            _provinceOptions = ['All'];
-                          });
-                          _loadInitialVehicles();
-                        },
-                        child: const Text(
-                          "Clear Filters",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Main body
-          Expanded(
-            child: _isLoading || _isFiltering
-                ? GridView.builder(
-                    padding: const EdgeInsets.all(24),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: _calculateCrossAxisCount(context),
-                      crossAxisSpacing: 24,
-                      mainAxisSpacing: 24,
-                      mainAxisExtent: 600,
-                    ),
-                    itemCount: 8, // Show 8 shimmer cards
-                    itemBuilder: (context, index) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2F7FFF).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(25),
-                          border: Border.all(
-                            color: const Color(0xFF2F7FFF),
-                            width: 2,
+                    //                   DefaultTabController(
+//                     length: 2,
+//                     initialIndex: _isFleetMode ? 1 : 0,
+//                     child: TabBar(
+//                       labelColor: const Color(0xFFFF4E00),
+//                       unselectedLabelColor: Colors.white,
+//                       indicatorColor: const Color(0xFFFF4E00),
+//                       onTap: (index) {
+//                         setState(() {
+//                           _isFleetMode = index == 1;
+//                           if (_isFleetMode) {
+//                             _loadFleetOptions();
+//                             _selectedCompany = null;
+//                           } else {
+//                             // Reset to All view
+//                             _selectedCompany = 'All';
+//                             _loadInitialVehicles();
+//                           }
+//                         });
+//                       },
+//                       tabs: const [
+//                         Tab(text: 'All'),
+//                         Tab(text: 'Fleet'),
+//                       ],
+//                     ),
+//                   ),
+                    if (_isFleetMode) ...[
+                      const SizedBox(height: 8),
+                      // Only show dropdown when live fleets exist
+                      if (_companyOptions
+                          .where((c) => c != 'All')
+                          .isNotEmpty) ...[
+                        DropdownButton<String>(
+                          style: _customFont(
+                              14, FontWeight.normal, const Color(0xFFFF4E00)),
+                          value: (_selectedCompany != null &&
+                                  _selectedCompany != 'All' &&
+                                  _companyOptions.contains(_selectedCompany))
+                              ? _selectedCompany
+                              : null,
+                          hint: Text(
+                            'Select Company',
+                            style: _customFont(
+                                14, FontWeight.normal, Colors.white),
                           ),
-                        ),
-                        child: Shimmer.fromColors(
-                          baseColor: Colors.grey[900]!,
-                          highlightColor: Colors.grey[800]!,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Image placeholder
-                              Container(
-                                height: 360, // 60% of 600
-                                decoration: const BoxDecoration(
-                                  color: Colors.black12,
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(24),
-                                  ),
-                                ),
-                              ),
-                              // Content area
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // Title placeholder
-                                      Container(
-                                        height: 24,
-                                        width: double.infinity,
-                                        color: Colors.black12,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      // Subtitle placeholder
-                                      Container(
-                                        height: 16,
-                                        width: 100,
-                                        color: Colors.black12,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      // Spec boxes
-                                      Row(
-                                        children: [
-                                          for (var i = 0; i < 3; i++) ...[
-                                            if (i > 0) const SizedBox(width: 8),
-                                            Container(
-                                              height: 36,
-                                              width: 80,
-                                              decoration: BoxDecoration(
-                                                color: Colors.black12,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                      const SizedBox(height: 24),
-                                      // Progress bar placeholder
-                                      Container(
-                                        height: 24,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black12,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      // Button placeholder
-                                      Container(
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black12,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  )
-                : displayedVehicles.isNotEmpty
-                    ? NotificationListener<ScrollNotification>(
-                        onNotification: (scrollInfo) {
-                          if (scrollInfo is ScrollEndNotification) {
-                            _scrollListener();
-                          }
-                          return false;
-                        },
-                        child: GridView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(24),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: _calculateCrossAxisCount(context),
-                            crossAxisSpacing: 24,
-                            mainAxisSpacing: 24,
-                            mainAxisExtent: 600,
-                          ),
-                          itemCount: displayedVehicles.length +
-                              (_isLoadingMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index < displayedVehicles.length) {
-                              final vehicle = displayedVehicles[index];
-                              return vehicle.vehicleType == 'trailer'
-                                  ? TrailerCard(
-                                      trailer: vehicle.trailer!,
-                                      onInterested: (trailer) {
-                                        _markAsInterested(trailer);
-                                      },
-                                    )
-                                  : TruckCard(
-                                      vehicle: vehicle,
-                                      onInterested: _markAsInterested,
-                                    );
-                            } else {
-                              // Loading indicator for the next page
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
+                          dropdownColor: Colors.grey[900],
+                          items: _companyOptions
+                              .where((c) => c != 'All')
+                              .map((fleetName) => DropdownMenuItem(
+                                    value: fleetName,
+                                    child: Text(
+                                      fleetName,
+                                      style: _customFont(
+                                          14, FontWeight.normal, Colors.white),
+                                    ),
+                                  ))
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCompany = value;
+                              _isLoading = true;
+                            });
+                            _loadInitialVehicles();
                           },
                         ),
-                      )
-                    : _buildNoVehiclesAvailable(),
+                      ],
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'All Vehicles Total: $_totalFilteredVehicles',
+                          style: _customFont(16, FontWeight.bold, Colors.white),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.tune, color: Colors.white),
+                              onPressed: _showFilterDialog,
+                            ),
+                            if (_selectedYears.isNotEmpty ||
+                                _selectedBrands.isNotEmpty ||
+                                _selectedMakeModels.isNotEmpty ||
+                                _selectedVehicleStatuses.isNotEmpty ||
+                                _selectedTransmissions.isNotEmpty ||
+                                _selectedCountries.isNotEmpty ||
+                                _selectedProvinces.isNotEmpty ||
+                                _selectedApplicationOfUse.isNotEmpty ||
+                                _selectedConfigs.isNotEmpty ||
+                                _selectedVehicleType.isNotEmpty)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedYears.clear();
+                                    _selectedBrands.clear();
+                                    _selectedMakeModels.clear();
+                                    _selectedVehicleStatuses.clear();
+                                    _selectedTransmissions.clear();
+                                    _selectedCountries.clear();
+                                    _selectedProvinces.clear();
+                                    _selectedApplicationOfUse.clear();
+                                    _selectedConfigs.clear();
+                                    _selectedVehicleType.clear();
+                                    _provinceOptions = ['All'];
+                                    _selectedCompany = 'All';
+                                    _isFleetMode = false;
+                                  });
+                                  _loadInitialVehicles();
+                                },
+                                child: const Text(
+                                  "Clear Filters",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Main body
+              Expanded(
+                child: _isFleetMode && _selectedCompany == null
+                    ? _buildNoVehiclesAvailable()
+                    : _isLoading
+                        ? Center(
+                            child: Image.asset(
+                              'lib/assets/Loading_Logo_CTP.gif',
+                              width: 100,
+                              height: 100,
+                            ),
+                          )
+                        : _isFiltering
+                            ? GridView.builder(
+                                padding: const EdgeInsets.all(24),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount:
+                                      _calculateCrossAxisCount(context),
+                                  crossAxisSpacing: 24,
+                                  mainAxisSpacing: 24,
+                                  mainAxisExtent: 600,
+                                ),
+                                itemCount: 8, // Show 8 shimmer cards
+                                itemBuilder: (context, index) {
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2F7FFF)
+                                          .withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(25),
+                                      border: Border.all(
+                                        color: const Color(0xFF2F7FFF),
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Shimmer.fromColors(
+                                      baseColor: Colors.grey[900]!,
+                                      highlightColor: Colors.grey[800]!,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          // Image placeholder
+                                          Container(
+                                            height: 360, // 60% of 600
+                                            decoration: const BoxDecoration(
+                                              color: Colors.black12,
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                top: Radius.circular(24),
+                                              ),
+                                            ),
+                                          ),
+                                          // Content area
+                                          Expanded(
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.all(16.0),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  // Title placeholder
+                                                  Container(
+                                                    height: 24,
+                                                    width: double.infinity,
+                                                    color: Colors.black12,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  // Subtitle placeholder
+                                                  Container(
+                                                    height: 16,
+                                                    width: 100,
+                                                    color: Colors.black12,
+                                                  ),
+                                                  const SizedBox(height: 24),
+                                                  // Spec boxes
+                                                  Row(
+                                                    children: [
+                                                      for (var i = 0;
+                                                          i < 3;
+                                                          i++) ...[
+                                                        if (i > 0)
+                                                          const SizedBox(
+                                                              width: 8),
+                                                        Container(
+                                                          height: 36,
+                                                          width: 80,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color:
+                                                                Colors.black12,
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        8),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 24),
+                                                  // Progress bar placeholder
+                                                  Container(
+                                                    height: 24,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black12,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              12),
+                                                    ),
+                                                  ),
+                                                  const Spacer(),
+                                                  // Button placeholder
+                                                  Container(
+                                                    height: 48,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black12,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : displayedVehicles.isNotEmpty
+                                ? NotificationListener<ScrollNotification>(
+                                    onNotification: (scrollInfo) {
+                                      if (scrollInfo is ScrollEndNotification) {
+                                        _scrollListener();
+                                      }
+                                      return false;
+                                    },
+                                    child: GridView.builder(
+                                      controller: _scrollController,
+                                      padding: const EdgeInsets.all(24),
+                                      gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount:
+                                            _calculateCrossAxisCount(context),
+                                        crossAxisSpacing: 24,
+                                        mainAxisSpacing: 24,
+                                        mainAxisExtent: 600,
+                                      ),
+                                      itemCount: displayedVehicles.length +
+                                          (_isLoadingMore ? 1 : 0),
+                                      itemBuilder: (context, index) {
+                                        if (index < displayedVehicles.length) {
+                                          final vehicle =
+                                              displayedVehicles[index];
+                                          // Always pass trailer for trailers
+                                          final trailerObj = vehicle.vehicleType
+                                                      .toLowerCase() ==
+                                                  'trailer'
+                                              ? vehicle.trailer
+                                              : null;
+                                          return TruckCard(
+                                            vehicle: vehicle,
+                                            onInterested: _markAsInterested,
+                                            isSelectionMode: _isSelectionMode,
+                                            borderColor:
+                                                _selectedVehicleIdsForOffer
+                                                        .contains(vehicle.id)
+                                                    ? const Color(0xFFFF4E00)
+                                                    : null,
+                                            // When navigating, always pass trailer for trailers
+                                            key: ValueKey(vehicle.id),
+                                            // ...other props...
+                                            // Navigation logic inside TruckCard should use:
+                                            // Navigator.push(
+                                            //   context,
+                                            //   MaterialPageRoute(
+                                            //     builder: (context) => VehicleDetailsPage(vehicle: vehicle, trailer: trailerObj),
+                                            //   ),
+                                            // );
+                                          );
+                                        } else {
+                                          // Loading indicator for pagination
+                                          return Center(
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.all(24.0),
+                                              child: CircularProgressIndicator(
+                                                  color: Color(0xFFFF4E00)),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  )
+                                : _buildNoVehiclesAvailable(),
+              ),
+            ],
           ),
+          // Bulk/Individual offer buttons at bottom-right
+          if (_isSelectionMode && _selectedVehicleIdsForOffer.isNotEmpty)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: Row(
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF4E00)),
+                    onPressed: _onBulkOfferPressed,
+                    child: Text(
+                      'Place Bulk Offer (${_selectedVehicleIdsForOffer.length})',
+                      style: _customFont(14, FontWeight.bold, Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2F7FFF)),
+                    onPressed: _onIndividualOfferPressed,
+                    child: Text(
+                      'Place Individual Offers (${_selectedVehicleIdsForOffer.length})',
+                      style: _customFont(14, FontWeight.bold, Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
       bottomNavigationBar:

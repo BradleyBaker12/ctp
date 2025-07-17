@@ -19,6 +19,8 @@ import 'package:ctp/components/truck_info_web_nav.dart';
 // Import the shared camera helper
 import 'package:ctp/utils/camera_helper.dart';
 
+// import 'package:auto_route/auto_route.dart';
+// @RoutePage()
 class MaintenanceEditSection extends StatefulWidget {
   final String vehicleId;
   final bool isUploading;

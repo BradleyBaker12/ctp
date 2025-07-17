@@ -25,6 +25,9 @@ import 'package:ctp/providers/offer_provider.dart'; // Import OfferProvider
 import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground
 import 'package:ctp/utils/navigation.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class WishlistOffersPage extends StatefulWidget {
   const WishlistOffersPage({super.key});
 

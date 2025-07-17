@@ -9,6 +9,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 

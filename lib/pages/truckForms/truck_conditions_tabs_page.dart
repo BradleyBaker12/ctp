@@ -14,6 +14,9 @@ import 'drive_train_page.dart';
 import 'chassis_page.dart';
 import 'tyres_page.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class TruckConditionsTabsPage extends StatefulWidget {
   final int initialIndex;
   final File? mainImageFile;

@@ -1,5 +1,5 @@
 import 'dart:math' as Math;
-
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_app_bar.dart';
@@ -17,6 +17,7 @@ import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/web_footer.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/widgets.dart';
 // import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
@@ -24,7 +25,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:auto_route/auto_route.dart';
+import 'package:auto_route/annotations.dart';
 
+@RoutePage()
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -33,6 +37,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  bool _isVehiclesLoading = true;
+  bool _isOffersLoading = true;
+  late final Stopwatch _loadStopwatch;
+  late final Stopwatch _bgStopwatch;
+
   /// If the screen width is <= 1100, we use a more "compact" navigation approach (mobile/tablet).
   bool get _isCompactNavigation => MediaQuery.of(context).size.width <= 1100;
 
@@ -69,27 +78,50 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int _currentPageIndex = 0;
 
   // Add back the T&C dialog property
-  bool _termsDialogShown = false;
+  final bool _termsDialogShown = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Pre-cache the main hero image as early as possible
+    precacheImage(const AssetImage('lib/assets/HomePageHero.png'), context);
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadStopwatch = Stopwatch()..start();
 
-    // Immediately check the user's account & role status after first frame
+    // Immediately check the user's account & role status and transporter vehicles after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAccountStatus();
+      _loadTransporterVehicles();
+      // Start loading full data in background after essential data loads
+      _bgStopwatch = Stopwatch()..start();
+      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+      // Start background fetch of offers immediately
+      offerProvider
+          .fetchOffers(
+        FirebaseAuth.instance.currentUser!.uid,
+        Provider.of<UserProvider>(context, listen: false).getUserRole,
+      )
+          .then((_) {
+        setState(() => _isOffersLoading = false);
+      });
+      _initializeData().then((_) {
+        setState(() => _isVehiclesLoading = false);
+      });
     });
 
-    // Initialize data
-    _initialization = _initializeData();
+    // Initialize essential data (fast path for routing/offers)
+    _initialization = _initializeEssentialData().then((_) {
+      _loadStopwatch.stop();
+      debugPrint(
+          'Essential init time: ${_loadStopwatch.elapsedMilliseconds}ms');
+    });
     _checkPaymentStatusForOffers();
 
     _pageController = PageController(initialPage: 0);
-
-    // Load any "transporter vehicles" if relevant
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTransporterVehicles();
-    });
   }
 
   @override
@@ -181,78 +213,56 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// Initialize data: user data, vehicles, offers, etc.
+  /// Essential initialization: user data and offers only (fast path)
+  Future<void> _initializeEssentialData() async {
+    // No-op: essential path completes instantly
+  }
+
+  /// Initialize data: vehicles, offers, etc. (background loading, no routing)
   Future<void> _initializeData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final vehicleProvider =
         Provider.of<VehicleProvider>(context, listen: false);
 
     try {
-      await userProvider.fetchUserData();
-      final currentUser = FirebaseAuth.instance.currentUser;
-
-      if (currentUser == null || userProvider.userId == null) {
-        // If not logged in or userId is null, go to /login
-        await FirebaseAuth.instance.signOut();
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
-
-      // Check if phone number is empty
-      final String? phoneNumber = userProvider.getPhoneNumber;
-      if (phoneNumber == null || phoneNumber.isEmpty) {
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/phoneNumber');
-          return;
-        }
-      }
-
-      // Possibly check if user is admin or normal user
-      String userRole = userProvider.getUserRole;
-
-      // Example route decision for admin vs. normal user
-      if (userRole == 'admin' || userRole == 'sales representative') {
-        // If on /home but is admin -> /admin-home
-        if (ModalRoute.of(context)?.settings.name != '/admin-home') {
-          Navigator.pushReplacementNamed(context, '/admin-home');
-        }
-      } else {
-        // Else normal user -> /home
-        if (ModalRoute.of(context)?.settings.name != '/home') {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      }
-
-      // Fetch today’s/yesterday’s vehicles
-      todayVehicles = await vehicleProvider.fetchVehiclesForToday();
-      yesterdayVehicles = await vehicleProvider.fetchVehiclesForYesterday();
+      final currentUser = FirebaseAuth.instance.currentUser!;
+      await Future.wait([
+        userProvider.fetchUserData(),
+        (() async {
+          todayVehicles = await vehicleProvider.fetchVehiclesForToday();
+        })(),
+        (() async {
+          yesterdayVehicles = await vehicleProvider.fetchVehiclesForYesterday();
+        })(),
+        // Offers already loaded in essential, but refresh for completeness
+        _offerProvider.fetchOffers(currentUser.uid, userProvider.getUserRole),
+      ]);
 
       todayVehicles = todayVehicles
-          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'Sold')
+          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'sold')
           .toList();
       yesterdayVehicles = yesterdayVehicles
-          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'Sold')
+          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'sold')
           .toList();
 
       // Combine them into the displayed list
       displayedVehiclesNotifier.value = [...todayVehicles, ...yesterdayVehicles]
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      // Fetch offers & user preferences (liked/disliked)
-      await _offerProvider.fetchOffers(
-          currentUser.uid, userProvider.getUserRole);
       likedVehicles = List<String>.from(userProvider.getLikedVehicles);
       dislikedVehicles = List<String>.from(userProvider.getDislikedVehicles);
 
       // Update recentOffers with the 5 most recent offers
       setState(() {
         recentOffers = List<Offer>.from(_offerProvider.offers
-            .where((offer) => offer.offerStatus.toLowerCase() != 'Sold')
+            .where((offer) => offer.offerStatus.toLowerCase() != 'sold')
             .toList());
         if (recentOffers.length > 5) {
           recentOffers = recentOffers.sublist(0, 5);
         }
       });
+      _bgStopwatch.stop();
+      debugPrint('Background init time: ${_bgStopwatch.elapsedMilliseconds}ms');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -750,47 +760,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Column(
               children: [
                 Expanded(
-                  child: FutureBuilder<void>(
-                    future: _initialization,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Image(
-                            image:
-                                AssetImage('lib/assets/Loading_Logo_CTP.gif'),
-                            width: 100,
-                            height: 100,
-                          ),
-                        );
-                      } else if (snapshot.hasError) {
-                        return Center(
-                          child: Text(
-                            'Error loading data',
-                            style: TextStyle(
-                              fontSize: _adaptiveTextSize(context, 16, 20),
-                              color: Colors.white,
-                            ),
-                          ),
-                        );
-                      } else {
-                        // Only show T&C dialog if never accepted
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          final userProvider =
-                              Provider.of<UserProvider>(context, listen: false);
-                          if (!_termsDialogShown &&
-                              !userProvider.hasAcceptedTerms &&
-                              userProvider.hasCompletedRegistration) {
-                            _termsDialogShown = true;
-                            _showTermsAndConditionsDialog();
-                          }
-                        });
-
-                        return SingleChildScrollView(
-                          child: _buildHomePageContent(
-                              context, constraints, isTablet),
-                        );
-                      }
-                    },
+                  child: SingleChildScrollView(
+                    child:
+                        _buildHomePageContent(context, constraints, isTablet),
                   ),
                 ),
               ],
@@ -800,9 +772,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   userRole == 'admin' ||
                   userRole == 'sales representative')
               ? null
-              : CustomBottomNavigation(
-                  selectedIndex: _selectedIndex,
-                  onItemTapped: _onItemTapped,
+              : SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewPadding.bottom,
+                    ),
+                    child: CustomBottomNavigation(
+                      selectedIndex: _selectedIndex,
+                      onItemTapped: _onItemTapped,
+                    ),
+                  ),
                 ),
         );
       },
@@ -956,49 +937,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             textAlign: TextAlign.center,
           ),
           SizedBox(height: screenHeight * 0.05),
-          ValueListenableBuilder<List<Vehicle>>(
-            valueListenable: displayedVehiclesNotifier,
-            builder: (context, displayedVehicles, child) {
-              if (displayedVehicles.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(16.0),
-                  margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[900],
-                    borderRadius: BorderRadius.circular(10),
-                    border:
-                        Border.all(color: const Color(0xFF2F7FFF), width: 1),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.local_shipping,
-                          size: 50, color: AppColors.orange),
-                      const SizedBox(height: 10),
-                      Text(
-                        'NO NEW TRUCKS AVAILABLE',
-                        style: _getTextStyle(
-                          fontSize: _adaptiveTextSize(context, 20, 22),
-                          fontWeight: FontWeight.bold,
+          if (_isVehiclesLoading)
+            Center(child: CircularProgressIndicator())
+          else
+            ValueListenableBuilder<List<Vehicle>>(
+              valueListenable: displayedVehiclesNotifier,
+              builder: (context, displayedVehicles, child) {
+                if (displayedVehicles.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(16.0),
+                    margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: const Color(0xFF2F7FFF), width: 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.local_shipping,
+                            size: 50, color: AppColors.orange),
+                        const SizedBox(height: 10),
+                        Text(
+                          'NO NEW TRUCKS AVAILABLE',
+                          style: _getTextStyle(
+                            fontSize: _adaptiveTextSize(context, 20, 22),
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Check back later for new additions',
-                        style: _getTextStyle(
-                          fontSize: _adaptiveTextSize(context, 14, 16),
-                          color: Colors.grey,
+                        const SizedBox(height: 8),
+                        Text(
+                          'Check back later for new additions',
+                          style: _getTextStyle(
+                            fontSize: _adaptiveTextSize(context, 14, 16),
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              }
-              // Carousel for new arrivals
-              return _buildTruckCarousel(displayedVehicles);
-            },
-          ),
+                      ],
+                    ),
+                  );
+                }
+                // Carousel for new arrivals
+                return _buildTruckCarousel(displayedVehicles);
+              },
+            ),
           SizedBox(height: screenHeight * 0.03),
         ],
 
@@ -1049,7 +1033,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         SizedBox(height: screenHeight * 0.02),
-        if (recentOffers.isEmpty) ...[
+        if (_isOffersLoading)
+          Center(child: CircularProgressIndicator())
+        else if (recentOffers.isEmpty) ...[
           // No offers
           Container(
             padding: const EdgeInsets.all(16.0),
@@ -1186,6 +1172,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       vehicle: vehicle,
                       onInterested: _handleInterestedVehicle,
                       borderColor: const Color(0xFFFFC82F),
+                      isSelectionMode: false,
                     ),
                   ),
                 );

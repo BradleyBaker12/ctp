@@ -8,7 +8,8 @@ import 'package:firebase_storage/firebase_storage.dart'; // For file storage
 import 'dart:io'; // For File operations
 import 'package:ctp/utils/navigation.dart';
 
-class ReportVehicleIssuePage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class ReportVehicleIssuePage extends StatefulWidget {
   final String vehicleId; // Use vehicleId instead of offerId
 
   const ReportVehicleIssuePage({super.key, required this.vehicleId});

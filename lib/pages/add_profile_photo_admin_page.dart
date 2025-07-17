@@ -11,6 +11,9 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class AddProfilePhotoAdminPage extends StatefulWidget {
   const AddProfilePhotoAdminPage({super.key});
 

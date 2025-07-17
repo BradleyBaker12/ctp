@@ -9,7 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class AccountStatusPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class AccountStatusPage extends StatefulWidget {
   const AccountStatusPage({super.key});
 
   @override

@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/models/user_details.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import '../providers/user_provider.dart';
 import '../components/custom_button.dart'; // Import your CustomButton component
 import '../components/gradient_background.dart'; // Import your GradientBackground component
 
+@RoutePage()
 class ComplaintDetailPage extends StatelessWidget {
   final Complaint complaint; // Using the Complaint model
 

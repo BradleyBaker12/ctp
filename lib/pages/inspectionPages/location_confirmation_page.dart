@@ -14,7 +14,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
 
-class LocationConfirmationPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class LocationConfirmationPage extends StatefulWidget {
   final String offerId;
   final String location;
   final String address;

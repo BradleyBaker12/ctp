@@ -12,6 +12,7 @@ import 'package:ctp/components/custom_radio_button.dart';
 
 // Import the camera helper for cross-platform photo capture
 import 'package:ctp/utils/camera_helper.dart';
+import 'package:auto_route/auto_route.dart';
 
 class ImageData {
   File? file;
@@ -24,7 +25,8 @@ class ImageData {
       file != null || webImage != null || (url != null && url!.isNotEmpty);
 }
 
-class DriveTrainPage extends StatefulWidget {
+
+@RoutePage()class DriveTrainPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;

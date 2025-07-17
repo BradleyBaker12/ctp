@@ -10,7 +10,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class SignUpPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
   @override

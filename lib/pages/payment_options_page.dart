@@ -4,6 +4,7 @@ import 'package:ctp/models/user_model.dart';
 import 'package:ctp/pages/payment_approved.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/pages/offer_summary_page.dart';
+import 'package:ctp/pages/upload_pop.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -15,7 +16,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/web_navigation_bar.dart' hide NavigationItem;
 import 'package:ctp/components/admin_web_navigation_bar.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:flutter/foundation.dart';
@@ -27,7 +27,8 @@ import 'package:open_file/open_file.dart';
 import 'package:url_launcher/url_launcher.dart'; // Add this import for launchUrl
 import 'dart:io';
 
-class PaymentOptionsPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class PaymentOptionsPage extends StatefulWidget {
   final String offerId;
 
   const PaymentOptionsPage({super.key, required this.offerId});
@@ -92,6 +93,32 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
         ),
       );
     }
+  }
+
+  Future<void> _requestInvoice() async {
+    final offerRef =
+        FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
+    // Mark that an invoice has been requested
+    await offerRef.update({'needsInvoice': true});
+    // Notify all admins
+    final adminSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'admin')
+        .get();
+    for (var doc in adminSnapshot.docs) {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'userId': doc.id,
+        'offerId': widget.offerId,
+        'type': 'invoiceRequest',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Invoice request sent to admins.'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   /// Handle "Generate Invoice" button press
@@ -1113,9 +1140,9 @@ Please contact support for assistance.
               bool isInvoiceButtonEnabled =
                   (externalInvoice != null && externalInvoice.isNotEmpty) ||
                       !needsInvoice;
-              // **Determine if "Continue" button should be enabled based on Firestore data**
-              bool isContinueEnabled =
-                  externalInvoice != null && externalInvoice.isNotEmpty;
+              // Enable Continue as soon as an invoice has been requested or is available
+              bool isContinueEnabled = needsInvoice ||
+                  (externalInvoice != null && externalInvoice.isNotEmpty);
 
               return SingleChildScrollView(
                 child: Padding(
@@ -1169,39 +1196,41 @@ Please contact support for assistance.
                       const SizedBox(height: 32), // Spacing before buttons
 
                       /// **Step 1 & Step 2 Buttons**
-                      // CustomButton(
-                      //   text: invoiceButtonText,
-                      //   borderColor: const Color(0xFFFF4E00),
-                      //   onPressed: isInvoiceButtonEnabled
-                      //       ? () => _handleGenerateInvoice(snapshot.data!)
-                      //       : null,
-                      //   disabledColor: Colors.grey,
-                      // ),
-
-                      if (needsInvoice &&
-                          (externalInvoice == null || externalInvoice.isEmpty))
+                      // Step 1: Request invoice if not yet requested
+                      if (!needsInvoice && externalInvoice == null) ...[
+                        CustomButton(
+                          text: 'REQUEST INVOICE',
+                          borderColor: const Color(0xFFFF4E00),
+                          onPressed: () => _requestInvoice(),
+                        ),
+                        const SizedBox(height: 16),
+                      ]
+                      // Step 2: Show pending message once invoice request is sent
+                      else if (needsInvoice && externalInvoice == null) ...[
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 8.0),
                           child: Text(
-                            'Invoice has been requested. Please wait for admin to generate it.',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            'Invoice requested. Waiting for admin to upload the invoice.',
                             textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
-
-                      // CustomButton(
-                      //   text: 'PAY ONLINE NOW',
-                      //   borderColor: const Color(0xFFFF4E00),
-                      //   onPressed: () {
-                      //     // Implement online payment functionality here
-                      //     // For example, navigate to a payment gateway page
-                      //   },
-                      // ),
-                      // const SizedBox(height: 16),
+                        const SizedBox(height: 16),
+                      ]
+                      // Step 3: Download once invoice is available
+                      else if (externalInvoice != null) ...[
+                        CustomButton(
+                          text: 'DOWNLOAD INVOICE',
+                          borderColor: const Color(0xFFFF4E00),
+                          onPressed: () =>
+                              _handleGenerateInvoice(snapshot.data!),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
                       CustomButton(
                         text: 'SEND OFFER SUMMARY',
@@ -1222,8 +1251,11 @@ Please contact support for assistance.
                           borderColor: const Color(0xFFFF4E00),
                           onPressed: isContinueEnabled
                               ? () {
-                                  _navigateBasedOnStatus(
-                                      context, paymentStatus);
+                                  MyNavigator.push(
+                                    context,
+                                    UploadProofOfPaymentPage(
+                                        offerId: widget.offerId),
+                                  );
                                 }
                               : null, // Disable if invoice not uploaded
                           // Optionally, adjust appearance when disabled

@@ -8,7 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pinput/pinput.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class OTPScreen extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class OTPScreen extends StatefulWidget {
   const OTPScreen({super.key});
 
   @override

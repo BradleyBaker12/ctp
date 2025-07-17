@@ -7,7 +7,8 @@ import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/loading_screen.dart';
 
-class TutorialStartedPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class TutorialStartedPage extends StatefulWidget {
   const TutorialStartedPage({super.key});
 
   @override

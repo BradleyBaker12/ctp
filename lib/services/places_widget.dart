@@ -22,6 +22,7 @@ class PlacesSearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TypeAheadField<PlacesData>(
       controller: controller,
+      focusNode: FocusNode(),
       suggestionsCallback: _fetchSuggestions,
       hideOnEmpty: true,
       loadingBuilder: (context) => SizedBox(
@@ -30,9 +31,7 @@ class PlacesSearchField extends StatelessWidget {
           child: SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(
-              color: Colors.blue,
-            ),
+            child: CircularProgressIndicator(color: Colors.blue),
           ),
         ),
       ),
@@ -40,15 +39,14 @@ class PlacesSearchField extends StatelessWidget {
         return ListTile(
           title: Text(
             suggestion.description ?? "Unknown",
-            style: TextStyle(
-              fontSize: 13,
-            ),
+            style: const TextStyle(fontSize: 13, color: Colors.black),
           ),
         );
       },
-      builder: (context, controller, focusNode) {
+      builder: (context, TextEditingController fieldController,
+          FocusNode focusNode) {
         return TextFormField(
-          controller: controller,
+          controller: fieldController,
           focusNode: focusNode,
           cursorColor: const Color(0xFFFF4E00),
           decoration: InputDecoration(
@@ -69,12 +67,6 @@ class PlacesSearchField extends StatelessWidget {
             ),
           ),
           style: const TextStyle(color: Colors.white),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter address';
-            }
-            return null;
-          },
         );
       },
       onSelected: (PlacesData suggestion) {

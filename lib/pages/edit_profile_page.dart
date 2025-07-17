@@ -18,7 +18,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:ctp/utils/navigation.dart';
 
-class EditProfilePage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
 
   @override

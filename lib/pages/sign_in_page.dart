@@ -11,7 +11,8 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SignInPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
 
   @override

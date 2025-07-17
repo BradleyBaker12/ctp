@@ -12,7 +12,8 @@ import 'location_confirmation_page.dart';
 import 'package:intl/intl.dart'; // Import for date parsing
 import 'package:ctp/components/web_navigation_bar.dart'; // Add this import
 
-class InspectionDetailsPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class InspectionDetailsPage extends StatefulWidget {
   final String offerId;
   final String brand; // Changed from makeModel
   final String variant; // Added new property

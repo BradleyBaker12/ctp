@@ -56,6 +56,7 @@ class Vehicle {
   final String province;
   final String? variant;
   final String? truckType;
+  final String? companyName;
 
   // Nested Objects
   final AdminData adminData;
@@ -128,6 +129,7 @@ class Vehicle {
       required this.additionalFeatures,
       this.trailer,
       this.truckType,
+      this.companyName,
       // NEW FIELDS in constructor (all optional)
       this.natisDocumentUrl,
       this.serviceHistoryUrl,
@@ -400,6 +402,7 @@ class Vehicle {
                 )
               },
             ),
+      companyName: getString(data['companyName']),
       referenceNumber: getString(data['referenceNumber']),
       brands: brands,
       requireToSettleType: data['requireToSettleType'] as String?,
@@ -455,6 +458,7 @@ class Vehicle {
       'registrationNumber': registrationNumber,
       'suspensionType': suspensionType,
       'transmissionType': transmissionType,
+      'companyName': companyName,
       'config': config,
       'userId': userId,
       'vehicleType': vehicleType,
@@ -529,6 +533,7 @@ class Vehicle {
       'userId': userId,
       'vehicleType': vehicleType,
       'vinNumber': vinNumber,
+      'companyName': companyName,
       'warrentyType': warrentyType,
       'warrantyDetails': warrantyDetails,
       'createdAt': createdAt.toIso8601String(),
@@ -603,6 +608,7 @@ class Vehicle {
           ? Trailer.fromJson(json['trailer'] as Map<String, dynamic>)
           : null,
       truckType: json['truckType'] as String?,
+      companyName: json['companyName'] as String?,
     );
   }
 }

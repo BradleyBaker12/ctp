@@ -18,7 +18,8 @@ import 'dart:convert';
 import 'dart:developer';
 import '../services/places_data_model.dart'; // For Firebase Auth
 
-class SetupInspectionPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class SetupInspectionPage extends StatefulWidget {
   final String offerId; // Change from vehicleId to offerId
 
   const SetupInspectionPage({super.key, required this.offerId});
@@ -495,11 +496,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Error'),
+          title: const Text('Oops!'),
           content: Text(message),
           actions: <Widget>[
             TextButton(
-              child: const Text('OK'),
+              child: const Text('Got it'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -804,7 +805,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                   ),
                                   const SizedBox(height: 30),
                                   const Text(
-                                    'Now, Let\'s Set up a Meeting with the Potential Seller to Inspect the Vehicle. Your Careful Selection Ensures a Smooth Process Ahead.',
+                                    'Now, Let\'s Set up a Meeting with the Potential Buyer to Inspect the Vehicle. Your Careful Selection Ensures a Smooth Process Ahead.',
                                     style: TextStyle(
                                       fontSize: 15,
                                       color: Colors.white,
@@ -826,25 +827,50 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
 
                                   // Show input fields and calendar only if adding location
                                   if (_isAddingLocation) ...[
+                                    // Validation prompts for transporter setup
+                                    if (_addressLine1Controller
+                                        .text.isEmpty) ...[
+                                      Text(
+                                        'Please select an inspection location.',
+                                        style: TextStyle(
+                                            color: Colors.yellow, fontSize: 16),
+                                      ),
+                                      const SizedBox(height: 8),
+                                    ] else if (_selectedDay == null) ...[
+                                      Text(
+                                        'Please pick a date for inspection.',
+                                        style: TextStyle(
+                                            color: Colors.yellow, fontSize: 16),
+                                      ),
+                                      const SizedBox(height: 8),
+                                    ] else if (_selectedTimes
+                                        .any((t) => t == null)) ...[
+                                      Text(
+                                        'Please select at least one time slot.',
+                                        style: TextStyle(
+                                            color: Colors.yellow, fontSize: 16),
+                                      ),
+                                      const SizedBox(height: 8),
+                                    ],
                                     // _buildSavedLocationsDropdown(),
                                     PlacesSearchField(
                                       controller: _addressLine1Controller,
                                       onSuggestionSelected:
                                           (PlacesData p) async {
-                                        log("Suggestion Selected: ${p.description}");
+                                        log("Suggestion Selected: \\${p.description}");
                                         setState(() {
                                           isAddressSelected = true;
                                           _addressLine1Controller.text =
                                               p.description ?? '';
                                           print(
-                                              "Address1controller: ${_addressLine1Controller.text}");
+                                              "Address1controller: \\${_addressLine1Controller.text}");
                                         });
                                         print(
-                                            "Address1Controller: ${_addressLine1Controller.text}");
+                                            "Address1Controller: \\${_addressLine1Controller.text}");
                                         Map<String, dynamic> latLngData =
                                             await PlacesService.getPlaceLatLng(
                                                 p.placeId!);
-                                        print("LatLngData: $latLngData");
+                                        print("LatLngData: \\$latLngData");
                                         latLng = LatLng(
                                           latLngData['lat'],
                                           latLngData['lng'],
@@ -858,10 +884,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                       },
                                     ),
                                     const SizedBox(height: 16),
-                                    _buildTextField(
-                                      controller: _addressLine1Controller,
-                                      hintText: 'Address Line 1',
-                                    ),
+                                    // Removed duplicate Address Line 1 field to avoid confusion
+                                    // _buildTextField(
+                                    //   controller: _addressLine1Controller,
+                                    //   hintText: 'Address Line 1',
+                                    // ),
                                     const SizedBox(height: 16),
                                     _buildTextField(
                                       controller: _addressLine2Controller,

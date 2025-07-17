@@ -12,6 +12,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/utils/navigation.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class BoughtVehiclesListPage extends StatefulWidget {
   const BoughtVehiclesListPage({super.key});
 

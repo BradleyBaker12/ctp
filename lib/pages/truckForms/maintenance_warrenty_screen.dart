@@ -14,6 +14,9 @@ import 'package:ctp/components/truck_info_web_nav.dart'; // Add this import
 
 // Import the external camera helper for cross-platform photo capture
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class MaintenanceWarrantyScreen extends StatefulWidget {
   final String vehicleId;
   final String? natisRc1Url;

@@ -12,7 +12,8 @@ import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class CollectVehiclePage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class CollectVehiclePage extends StatefulWidget {
   final String offerId;
 
   const CollectVehiclePage({super.key, required this.offerId});

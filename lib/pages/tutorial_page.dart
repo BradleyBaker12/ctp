@@ -5,7 +5,8 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/loading_screen.dart';
 
-class TutorialPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class TutorialPage extends StatefulWidget {
   const TutorialPage({super.key});
 
   @override

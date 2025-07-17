@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/vehicle.dart';
 import '../models/trailer.dart';
 
@@ -49,48 +50,59 @@ class ListingCard extends StatelessWidget {
 
   String get displayMakeModel {
     if (isTrailer) {
-      return vehicle is Trailer
-          ? vehicle.makeModel ?? 'N/A'
-          : vehicle.trailer?.makeModel ?? 'N/A';
+      final t = vehicle is Trailer ? vehicle : vehicle.trailer;
+      // Fallback to vehicle.makeModel if trailer.makeModel is missing/empty
+      final makeModel = (t?.makeModel != null && t!.makeModel!.isNotEmpty)
+          ? t.makeModel
+          : (vehicle.makeModel ?? 'N/A');
+      return makeModel ?? 'N/A';
     }
     return '${vehicle.brands.join(" ")} ${vehicle.makeModel}'.trim();
   }
 
   String get displayYear {
     if (isTrailer) {
-      return vehicle is Trailer
-          ? vehicle.year ?? 'N/A'
-          : vehicle.trailer?.year ?? 'N/A';
+      final t = vehicle is Trailer ? vehicle : vehicle.trailer;
+      // Fallback to vehicle.year if trailer.year is missing/empty
+      final year = (t?.year != null && t!.year!.toString().isNotEmpty)
+          ? t.year
+          : (vehicle.year ?? 'N/A');
+      return year ?? 'N/A';
     }
     return vehicle.year ?? 'N/A';
   }
 
   String get displayMileage {
     if (isTrailer) {
-      return vehicle is Trailer
-          ? vehicle.mileage ?? 'N/A'
-          : vehicle.trailer?.mileage ?? 'N/A';
+      final t = vehicle is Trailer ? vehicle : vehicle.trailer;
+      return t?.mileage ?? 'N/A';
     }
     return vehicle.mileage ?? 'N/A';
   }
 
   String get displayConfig {
     if (isTrailer) {
-      return vehicle is Trailer
-          ? vehicle.trailerType ?? 'N/A'
-          : vehicle.trailer?.trailerType ?? 'N/A';
+      final t = vehicle is Trailer ? vehicle : vehicle.trailer;
+      return t?.trailerType ?? 'N/A';
     }
     return vehicle.config ?? 'N/A';
   }
 
   String get displayTransmission {
     if (isTrailer) {
-      final axles = vehicle is Trailer
-          ? vehicle.axles?.toString()
-          : vehicle.trailer?.axles?.toString();
+      final t = vehicle is Trailer ? vehicle : vehicle.trailer;
+      final axles = t?.axles?.toString();
       return axles != null ? '$axles AXLES' : 'N/A';
     }
     return vehicle.transmissionType ?? 'N/A';
+  }
+
+  String get displayReferenceNumber {
+    if (isTrailer) {
+      final t = vehicle is Trailer ? vehicle : vehicle.trailer;
+      return t?.referenceNumber ?? '';
+    }
+    return vehicle.referenceNumber ?? '';
   }
 
   bool _isFieldFilled(dynamic field) {
@@ -326,33 +338,115 @@ class ListingCard extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                displayMakeModel.toUpperCase(),
-                                style: GoogleFonts.montserrat(
-                                  fontSize: titleFontSize,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                            if (isTrailer)
+                              FutureBuilder<
+                                  DocumentSnapshot<Map<String, dynamic>>>(
+                                future: FirebaseFirestore.instance
+                                    .collection('vehicles')
+                                    .doc(vehicle.id)
+                                    .get(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return SizedBox(
+                                      height: titleFontSize,
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: titleFontSize,
+                                          height: titleFontSize,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final data =
+                                      snapshot.data?.data()?['trailerExtraInfo']
+                                              as Map<String, dynamic>? ??
+                                          {};
+                                  String make = '';
+                                  String model = '';
+                                  String year = '';
+                                  if (data.containsKey('trailerA')) {
+                                    final tA = data['trailerA']
+                                        as Map<String, dynamic>;
+                                    make = tA['make'] ?? '';
+                                    model = tA['model'] ?? '';
+                                    year = tA['year']?.toString() ?? '';
+                                  } else {
+                                    make = data['make'] ?? '';
+                                    model = data['model'] ?? '';
+                                    year = data['year']?.toString() ?? '';
+                                  }
+                                  return FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      '$year $make $model'.toUpperCase(),
+                                      style: GoogleFonts.montserrat(
+                                        fontSize: titleFontSize,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 1,
+                                    ),
+                                  );
+                                },
+                              )
+                            else
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  displayMakeModel.toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
                                 ),
-                                maxLines: 1,
                               ),
-                            ),
-                            SizedBox(height: paddingVal * 0.25),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                displayYear,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: subtitleFontSize,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.white70,
+                            // Reference Number
+                            if (displayReferenceNumber.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                    top: paddingVal * 0.15,
+                                    bottom: paddingVal * 0.15),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Ref: $displayReferenceNumber',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: subtitleFontSize,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFFF4E00),
+                                    ),
+                                    maxLines: 1,
+                                  ),
                                 ),
-                                maxLines: 1,
                               ),
-                            ),
+                            if (!isTrailer) ...[
+                              SizedBox(height: paddingVal * 0.25),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  displayYear,
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: subtitleFontSize,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.white70,
+                                  ),
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         SizedBox(height: paddingVal),

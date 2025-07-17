@@ -86,7 +86,7 @@ class TrailerCard extends StatelessWidget {
                 print('Found make in key: $key, value: ${value['make']}');
               }
             });
-                    } catch (e) {
+          } catch (e) {
             print('ERROR accessing Superlink data: $e');
           }
         }
@@ -468,25 +468,55 @@ class TrailerCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            brandModel.isEmpty
-                                ? 'LOADING...'
-                                : brandModel.toUpperCase(),
-                            style: GoogleFonts.montserrat(
-                              fontSize: titleFontSize,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            trailer.year,
-                            style: GoogleFonts.montserrat(
-                              fontSize: subtitleFontSize,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white70,
-                            ),
+                          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            future: FirebaseFirestore.instance
+                                .collection('vehicles')
+                                .doc(trailer.id)
+                                .get(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return SizedBox(
+                                  height: titleFontSize,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: titleFontSize,
+                                      height: titleFontSize,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              final doc = snapshot.data?.data();
+                              // Data may be under trailerExtraInfo, trailerA, or trailerB
+                              final raw = (doc?['trailerExtraInfo']
+                                      as Map<String, dynamic>?) ??
+                                  (doc?['trailerA'] as Map<String, dynamic>?) ??
+                                  (doc?['trailerB'] as Map<String, dynamic>?) ??
+                                  {};
+                              final info = raw.containsKey('trailerA') ||
+                                      raw.containsKey('trailerB')
+                                  ? (raw['trailerA'] ?? raw['trailerB'])
+                                  : raw;
+                              final make = info['make'] ?? '';
+                              final model = info['model'] ?? '';
+                              final yearTxt = info['year']?.toString() ?? '';
+                              return Text(
+                                '$yearTxt $make $model'.toUpperCase(),
+                                style: GoogleFonts.montserrat(
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
                           ),
                           const SizedBox(height: 18),
                           Row(

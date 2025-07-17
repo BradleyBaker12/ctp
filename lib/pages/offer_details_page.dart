@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class OfferDetailsPage extends StatefulWidget {
   final String offerId;
   final String vehicleName;

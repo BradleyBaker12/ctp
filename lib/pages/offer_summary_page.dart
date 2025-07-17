@@ -14,6 +14,9 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class OfferSummaryPage extends StatelessWidget {
   final String offerId;
 
@@ -49,11 +52,14 @@ class OfferSummaryPage extends StatelessWidget {
         ? await _networkImage(vehicleData['mainImageUrl'])
         : null;
 
-    // Calculate VAT, Commission, and Total
-    final offerAmount = (offerData['offerAmount'] as num?)?.toDouble() ?? 0.0;
-    final vatAmount = offerAmount * 0.15;
-    const commissionAmount = 12000.0;
-    final totalAmount = offerAmount + vatAmount + commissionAmount;
+    // Calculate breakdown based on typed offer before VAT and commission
+    final baseAmount =
+        (offerData['typedOfferAmount'] as num?)?.toDouble() ?? 0.0;
+    // Fixed commission
+    const double commissionAmount = 12500.0;
+    // VAT is applied on base + commission
+    final vatAmount = (baseAmount + commissionAmount) * 0.15;
+    final totalAmount = baseAmount + commissionAmount + vatAmount;
 
     pdf.addPage(
       pw.Page(
@@ -102,13 +108,17 @@ class OfferSummaryPage extends StatelessWidget {
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
-                            pw.Text('TRANSPORTER DETAILS',
+                            pw.Text('BANKING DETAILS',
                                 style: pw.TextStyle(
                                     font: robotoBold,
                                     fontSize: 16,
                                     color: PdfColors.white)),
                             pw.Text(
-                                'Name: ${transporterData['firstName'] ?? 'unknown'} ${transporterData['middleName'] ?? ''} ${transporterData['lastName'] ?? 'unknown'}\nTrading Name: ${transporterData['tradingName'] ?? 'unknown'}\nReg No: ${transporterData['registrationNumber'] ?? 'unknown'}\nVAT No: ${transporterData['vatNumber'] ?? 'unknown'}\nAddress: ${transporterData['addressLine1'] ?? 'unknown'} ${transporterData['addressLine2'] ?? ''}, ${transporterData['city'] ?? 'unknown'}, ${transporterData['state'] ?? 'unknown'}, ${transporterData['postalCode'] ?? 'unknown'}',
+                                'Acc Name: Commercial Trader Portal (PTY) LTD\n'
+                                'Bank: First Nation Bank\n'
+                                'Branch Code: 210835\n'
+                                'Acc Type: Cheque\n'
+                                'Acc No: 63046523030',
                                 style: pw.TextStyle(
                                     font: robotoRegular,
                                     color: PdfColors.white)),
@@ -123,13 +133,17 @@ class OfferSummaryPage extends StatelessWidget {
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
-                            pw.Text('DEALER DETAILS',
+                            pw.Text('INVOICING DETAILS',
                                 style: pw.TextStyle(
                                     font: robotoBold,
                                     fontSize: 16,
                                     color: PdfColors.white)),
                             pw.Text(
-                                'Name: ${dealerData['firstName'] ?? 'unknown'} ${dealerData['middleName'] ?? ''} ${dealerData['lastName'] ?? 'unknown'}\nTrading Name: ${dealerData['tradingName'] ?? 'unknown'}\nReg No: ${dealerData['registrationNumber'] ?? 'unknown'}\nVAT No: ${dealerData['vatNumber'] ?? 'unknown'}\nAddress: ${dealerData['addressLine1'] ?? 'unknown'} ${dealerData['addressLine2'] ?? ''}, ${dealerData['city'] ?? 'unknown'}, ${dealerData['state'] ?? 'unknown'}, ${dealerData['postalCode'] ?? 'unknown'}',
+                                'Company Name: Commercial Trader Portal\n'
+                                'Email Address: admin@ctpapp.co.za\n'
+                                'VAT Number: 4780304798\n'
+                                'Registration Number: 2023/642131/07\n'
+                                'Address: 54 Rooibos Road, Highbury, Randvaal, 1962',
                                 style: pw.TextStyle(
                                     font: robotoRegular,
                                     color: PdfColors.white)),
@@ -206,22 +220,22 @@ class OfferSummaryPage extends StatelessWidget {
                                 ],
                               ),
                               pw.SizedBox(height: 10),
-                              pw.Row(
-                                children: [
-                                  pw.Text('Transmission: ',
-                                      style: pw.TextStyle(
-                                          font: robotoBold,
-                                          fontSize: 12,
-                                          color: PdfColors.white)),
-                                  pw.Text(
-                                      '${vehicleData['transmission'] ?? 'unknown'}',
-                                      style: pw.TextStyle(
-                                          font: robotoRegular,
-                                          fontSize: 12,
-                                          color: PdfColors.white)),
-                                ],
-                              ),
-                              pw.SizedBox(height: 10),
+                              // pw.Row(
+                              //   children: [
+                              //     pw.Text('Transmission: ',
+                              //         style: pw.TextStyle(
+                              //             font: robotoBold,
+                              //             fontSize: 12,
+                              //             color: PdfColors.white)),
+                              //     pw.Text(
+                              //         '${vehicleData['transmission'] ?? 'unknown'}',
+                              //         style: pw.TextStyle(
+                              //             font: robotoRegular,
+                              //             fontSize: 12,
+                              //             color: PdfColors.white)),
+                              //   ],
+                              // ),
+                              // pw.SizedBox(height: 10),
                               pw.Row(
                                 children: [
                                   pw.Text('Config: ',
@@ -231,6 +245,22 @@ class OfferSummaryPage extends StatelessWidget {
                                           color: PdfColors.white)),
                                   pw.Text(
                                       '${vehicleData['config'] ?? 'unknown'}',
+                                      style: pw.TextStyle(
+                                          font: robotoRegular,
+                                          fontSize: 12,
+                                          color: PdfColors.white)),
+                                ],
+                              ),
+                              pw.SizedBox(height: 10),
+                              pw.Row(
+                                children: [
+                                  pw.Text('Reference Number: ',
+                                      style: pw.TextStyle(
+                                          font: robotoBold,
+                                          fontSize: 12,
+                                          color: PdfColors.white)),
+                                  pw.Text(
+                                      '${vehicleData['referenceNumber'] ?? 'unknown'}',
                                       style: pw.TextStyle(
                                           font: robotoRegular,
                                           fontSize: 12,
@@ -260,7 +290,10 @@ class OfferSummaryPage extends StatelessWidget {
                                     fontSize: 16,
                                     color: PdfColors.white)),
                             pw.Text(
-                                'Offer (Excl VAT): R ${offerAmount.toStringAsFixed(2)}\nVAT: R ${vatAmount.toStringAsFixed(2)}\nCommission: R ${commissionAmount.toStringAsFixed(2)}\nTotal: R ${totalAmount.toStringAsFixed(2)}',
+                                'Offer (Excl VAT & commission): R ${baseAmount.toStringAsFixed(2)}\n'
+                                'Commission: R ${commissionAmount.toStringAsFixed(2)}\n'
+                                'VAT (15%): R ${vatAmount.toStringAsFixed(2)}\n'
+                                'Total (Incl VAT & commission): R ${totalAmount.toStringAsFixed(2)}',
                                 style: pw.TextStyle(
                                     font: robotoRegular,
                                     color: PdfColors.white)),
@@ -268,27 +301,27 @@ class OfferSummaryPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    pw.SizedBox(width: 40),
-                    pw.Expanded(
-                      child: pw.Padding(
-                        padding: const pw.EdgeInsets.only(right: 40),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text('TRANSPORTER BANK DETAILS',
-                                style: pw.TextStyle(
-                                    font: robotoBold,
-                                    fontSize: 16,
-                                    color: PdfColors.white)),
-                            pw.Text(
-                                'Name: ${transporterData['firstName'] ?? 'N/A'} ${transporterData['middleName'] ?? ''} ${transporterData['lastName'] ?? 'N/A'}',
-                                style: pw.TextStyle(
-                                    font: robotoRegular,
-                                    color: PdfColors.white)),
-                          ],
-                        ),
-                      ),
-                    ),
+                    // pw.SizedBox(width: 40),
+                    // pw.Expanded(
+                    //   child: pw.Padding(
+                    //     padding: const pw.EdgeInsets.only(right: 40),
+                    //     child: pw.Column(
+                    //       crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    //       children: [
+                    //         pw.Text('TRANSPORTER BANK DETAILS',
+                    //             style: pw.TextStyle(
+                    //                 font: robotoBold,
+                    //                 fontSize: 16,
+                    //                 color: PdfColors.white)),
+                    //         pw.Text(
+                    //             'Name: ${transporterData['firstName'] ?? 'N/A'} ${transporterData['middleName'] ?? ''} ${transporterData['lastName'] ?? 'N/A'}',
+                    //             style: pw.TextStyle(
+                    //                 font: robotoRegular,
+                    //                 color: PdfColors.white)),
+                    //       ],
+                    //     ),
+                    //   ),
+                    // ),
                   ],
                 ),
                 pw.SizedBox(height: 50),

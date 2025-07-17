@@ -17,7 +17,8 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart'; // Import the services package for input formatters
 
-class DealerRegPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class DealerRegPage extends StatefulWidget {
   const DealerRegPage({super.key});
 
   @override

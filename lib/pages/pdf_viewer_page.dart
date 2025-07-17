@@ -5,7 +5,8 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class PdfViewerPage extends StatelessWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class PdfViewerPage extends StatelessWidget {
   final String pdfUrl;
 
   const PdfViewerPage({super.key, required this.pdfUrl});

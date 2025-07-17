@@ -17,7 +17,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class TransporterRegistrationPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class TransporterRegistrationPage extends StatefulWidget {
   const TransporterRegistrationPage({super.key});
 
   @override

@@ -27,8 +27,10 @@ import '../editTruckForms/basic_information_edit.dart';
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
+// import 'package:auto_route/auto_route.dart';
 // Import the camera helper
 
+// @RoutePage()
 class VehicleUploadScreen extends StatefulWidget {
   final bool isDuplicating;
   final Vehicle? vehicle;
@@ -76,6 +78,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     '6X2',
     '4X2',
     '8X4',
+    '8X8',
   ];
 
   // Add this field to your _VehicleUploadScreenState:

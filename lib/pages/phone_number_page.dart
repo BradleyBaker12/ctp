@@ -12,7 +12,8 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart';
 
-class PhoneNumberPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class PhoneNumberPage extends StatefulWidget {
   const PhoneNumberPage({super.key});
 
   @override

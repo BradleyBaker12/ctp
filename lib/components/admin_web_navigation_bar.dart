@@ -11,7 +11,6 @@ class NavigationItem {
     required this.route,
   });
 }
-
 class AdminWebNavigationBar extends StatelessWidget {
   final GlobalKey<ScaffoldState>? scaffoldKey;
   final bool isCompactNavigation;

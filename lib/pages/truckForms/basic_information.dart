@@ -13,6 +13,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/services/vehicle_form_service.dart';
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class BasicInformationForm extends StatefulWidget {
   final Map<String, dynamic>? formData;
 

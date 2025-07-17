@@ -10,6 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
 import 'dart:io';
+import 'package:auto_route/auto_route.dart';
 
 // Import the camera helper for cross-platform photo capture
 import 'package:ctp/utils/camera_helper.dart';
@@ -39,6 +40,7 @@ class ItemData {
   });
 }
 
+@RoutePage()
 class ChassisPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;

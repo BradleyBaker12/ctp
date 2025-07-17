@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:ctp/models/vehicle.dart';
 import 'package:ctp/pages/collectionPages/collection_confirmationPage.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart';
@@ -12,6 +13,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:ctp/pages/inspectionPages/final_inspection_approval_page.dart';
+import 'package:ctp/pages/bulk_offer_details_page.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
 import 'package:ctp/pages/payment_options_page.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
@@ -45,6 +47,8 @@ class _OfferCardState extends State<OfferCard> {
   String? vehicleConfig;
   String? mileage;
   String? vehicleYear; // New state variable for the year
+  // Bulk vehicles for bulk offers
+  List<Vehicle>? _bulkVehicles;
 
   @override
   void initState() {
@@ -75,47 +79,58 @@ class _OfferCardState extends State<OfferCard> {
   /// Fetch basic vehicle details from Firestore (including the year).
   Future<void> _fetchVehicleDetails() async {
     try {
-      debugPrint('Fetching vehicle details for ID: ${widget.offer.vehicleId}');
-      final vehicleDoc = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.offer.vehicleId)
-          .get();
-
-      if (vehicleDoc.exists && mounted) {
-        final data = vehicleDoc.data();
-        // debugPrint('Firestore data: $data');
-
-        setState(() {
-          transmissionType = data?['transmissionType'];
-          vehicleConfig = data?['config'];
-          mileage = data?['mileage'];
-          vehicleYear = data?['year']?.toString();
-
-          final vehicleType = data?['vehicleType']?.toString().toLowerCase();
-
-          if (vehicleType == 'trailer') {
-            // For trailer offers, show make (from makeModel) and year.
-            widget.offer.vehicleBrand = data?['makeModel']?.toString();
-            widget.offer.variant = '';
-          } else {
-            // Existing logic for trucks
-            if (data?['brands'] != null) {
-              if (data?['brands'] is List) {
-                widget.offer.vehicleBrand =
-                    (data?['brands'] as List).first.toString();
-              } else {
-                widget.offer.vehicleBrand = data?['brands'].toString();
+      if (widget.offer.vehicleIds != null &&
+          widget.offer.vehicleIds!.isNotEmpty) {
+        // Bulk: fetch multiple
+        final snap = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where(FieldPath.documentId, whereIn: widget.offer.vehicleIds)
+            .get();
+        if (mounted) {
+          setState(() {
+            _bulkVehicles =
+                snap.docs.map((d) => Vehicle.fromDocument(d)).toList();
+          });
+        }
+      } else {
+        // Single
+        // debugPrint(
+        //     'Fetching vehicle details for ID: ${widget.offer.vehicleId}');
+        final vehicleDoc = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.offer.vehicleId)
+            .get();
+        if (vehicleDoc.exists && mounted) {
+          final data = vehicleDoc.data();
+          setState(() {
+            transmissionType = data?['transmissionType'];
+            vehicleConfig = data?['config'];
+            mileage = data?['mileage'];
+            vehicleYear = data?['year']?.toString();
+            final vehicleType = data?['vehicleType']?.toString().toLowerCase();
+            if (vehicleType == 'trailer') {
+              // For trailer offers, show make (from makeModel) and year.
+              widget.offer.vehicleBrand = data?['makeModel']?.toString();
+              widget.offer.variant = '';
+            } else {
+              // Existing logic for trucks
+              if (data?['brands'] != null) {
+                if (data?['brands'] is List) {
+                  widget.offer.vehicleBrand =
+                      (data?['brands'] as List).first.toString();
+                } else {
+                  widget.offer.vehicleBrand = data?['brands'].toString();
+                }
               }
+              widget.offer.variant = data?['variant']?.toString();
             }
-            widget.offer.variant = data?['variant']?.toString();
-          }
-
-          debugPrint('Updated brand: ${widget.offer.vehicleBrand}');
-          debugPrint('Updated variant: ${widget.offer.variant}');
-        });
+            // debugPrint('Updated brand: ${widget.offer.vehicleBrand}');
+            // debugPrint('Updated variant: ${widget.offer.variant}');
+          });
+        }
       }
     } catch (e) {
-      debugPrint('Error fetching vehicle details: $e');
+      // debugPrint('Error fetching vehicle details: $e');
     }
   }
 
@@ -182,7 +197,7 @@ class _OfferCardState extends State<OfferCard> {
 
   IconData getStatusIcon(String? status) {
     final normalizedStatus = (status ?? '').toLowerCase().trim();
-    debugPrint('Getting status icon for normalized status: $normalizedStatus');
+    // debugPrint('Getting status icon for normalized status: $normalizedStatus');
 
     switch (normalizedStatus) {
       case 'sold':
@@ -229,9 +244,32 @@ class _OfferCardState extends State<OfferCard> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole ?? '';
 
-    // Check for sold status
-    if (widget.offer.offerStatus.toLowerCase() == 'sold') {
-      debugPrint('Offer status is sold, not navigating.');
+    // If offer is marked as done or sold, always go to TransporterOfferDetailsPage
+    if (widget.offer.offerStatus.toLowerCase() == 'done' ||
+        widget.offer.offerStatus.toLowerCase() == 'sold') {
+      _getVehicle().then((vehicle) async {
+        if (vehicle != null) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TransporterOfferDetailsPage(
+                offer: widget.offer,
+                vehicle: vehicle,
+              ),
+            ),
+          );
+          if (widget.onPop != null) {
+            widget.onPop!();
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Vehicle details could not be loaded.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
       return;
     }
 
@@ -589,32 +627,13 @@ class _OfferCardState extends State<OfferCard> {
 
   /// Main Offer Card layout with debugging prints and borders.
   Widget _buildWebCard(Color statusColor, BoxConstraints constraints) {
-    debugPrint('Offer status in web card: ${widget.offer.offerStatus}');
+    // debugPrint('Offer status in web card: ${widget.offer.offerStatus}');
 
     const bool isWeb = kIsWeb;
     final double cardWidth = isWeb ? 400 : constraints.maxWidth;
     // Increase cardHeight to allow for a larger gap without overflow.
     final double cardHeight = isWeb ? 600 : cardWidth * 1.4;
-    debugPrint('Card dimensions - Width: $cardWidth, Height: $cardHeight');
-
-    final String brandModel = [
-      widget.offer.vehicleBrand,
-      widget.offer.variant,
-    ].where((element) => element != null && element.isNotEmpty).join(' ');
-    final String year = vehicleYear ?? 'N/A';
-
-    String brandVariant = '';
-    debugPrint('Building card with brand: ${widget.offer.vehicleBrand}');
-    debugPrint('Building card with variant: ${widget.offer.variant}');
-    if (widget.offer.vehicleBrand?.isNotEmpty == true ||
-        widget.offer.variant?.isNotEmpty == true) {
-      List<String> parts = [
-        widget.offer.vehicleBrand ?? '',
-        widget.offer.variant ?? '',
-      ].where((element) => element.isNotEmpty).toList();
-      brandVariant = parts.join(' ');
-      debugPrint('Final brandVariant: $brandVariant');
-    }
+    // debugPrint('Card dimensions - Width: $cardWidth, Height: $cardHeight');
 
     return Center(
       child: Container(
@@ -646,6 +665,22 @@ class _OfferCardState extends State<OfferCard> {
             // debugPrint(
             //     'Calculated font sizes & padding - title: $titleFontSize, subtitle: $subtitleFontSize, padding: $paddingVal, specFontSize: $specFontSize');
 
+            // Determine title text for bulk/single
+            final String titleText;
+            if (_bulkVehicles != null) {
+              titleText = '${_bulkVehicles!.length} Vehicles';
+            } else {
+              final singleBrand = [
+                widget.offer.vehicleBrand,
+                widget.offer.variant,
+              ]
+                  .where((element) => element != null && element.isNotEmpty)
+                  .join(' ');
+              titleText = singleBrand.isEmpty
+                  ? 'LOADING...'
+                  : singleBrand.toUpperCase();
+            }
+
             return Column(
               children: [
                 // Image section with a debug border.
@@ -653,28 +688,140 @@ class _OfferCardState extends State<OfferCard> {
                   height: cardH * 0.55,
                   child: Stack(
                     children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(10)),
-                        child: Image.network(
-                          widget.offer.vehicleMainImage ?? '',
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Image.asset(
-                            'lib/assets/default_vehicle_image.png',
+                      // Bulk/single image logic
+                      if (_bulkVehicles != null) ...[
+                        (() {
+                          final count = _bulkVehicles!.length;
+                          // One image
+                          if (count == 1) {
+                            return ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(10)),
+                              child: Image.network(
+                                _bulkVehicles![0].mainImageUrl ?? '',
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            );
+                          }
+                          // Two images
+                          if (count == 2) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: _bulkVehicles!
+                                  .map((v) => Expanded(
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                                  top: Radius.circular(10)),
+                                          child: Image.network(
+                                              v.mainImageUrl ?? '',
+                                              fit: BoxFit.cover),
+                                        ),
+                                      ))
+                                  .toList(),
+                            );
+                          }
+                          // Three images
+                          if (count == 3) {
+                            return Column(
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: _bulkVehicles!
+                                        .sublist(0, 2)
+                                        .map((v) => Expanded(
+                                              child: ClipRRect(
+                                                borderRadius: const BorderRadius
+                                                    .vertical(
+                                                    top: Radius.circular(10)),
+                                                child: Image.network(
+                                                    v.mainImageUrl ?? '',
+                                                    fit: BoxFit.cover),
+                                              ),
+                                            ))
+                                        .toList(),
+                                  ),
+                                ),
+                                // remove spacing for seamless fill
+                                Expanded(
+                                  child: ClipRRect(
+                                    child: Image.network(
+                                        _bulkVehicles![2].mainImageUrl ?? '',
+                                        fit: BoxFit.cover),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          // Four or more
+                          final extra = count > 4 ? count - 4 : 0;
+                          final list = _bulkVehicles!.take(4).toList();
+                          return GridView.count(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 0,
+                            crossAxisSpacing: 0,
+                            childAspectRatio: cardW / (cardH * 0.55),
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: List.generate(4, (i) {
+                              final v = list[i];
+                              Widget img = ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(10)),
+                                child: Image.network(v.mainImageUrl ?? '',
+                                    fit: BoxFit.cover),
+                              );
+                              if (i == 3 && extra > 0) {
+                                // blur + overlay
+                                return Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                          sigmaX: 8, sigmaY: 8),
+                                      child: img,
+                                    ),
+                                    Center(
+                                      child: Text('+$extra',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                );
+                              }
+                              return img;
+                            }),
+                          );
+                        })()
+                      ] else ...[
+                        // Single offer fallback
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(10)),
+                          child: Image.network(
+                            widget.offer.vehicleMainImage ?? '',
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Image.asset(
+                              'lib/assets/default_vehicle_image.png',
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                       Positioned(
                         top: paddingVal * 0.75,
                         right: paddingVal * 0.75,
-                        child:
-                            _buildStatusBadge(widget.offer.offerStatus ?? ''),
+                        child: _buildStatusBadge(widget.offer.offerStatus),
                       ),
                     ],
                   ),
@@ -693,9 +840,7 @@ class _OfferCardState extends State<OfferCard> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  brandModel.isEmpty
-                                      ? 'LOADING...'
-                                      : brandModel.toUpperCase(),
+                                  titleText,
                                   style: GoogleFonts.montserrat(
                                     fontSize: titleFontSize,
                                     fontWeight: FontWeight.bold,
@@ -704,15 +849,118 @@ class _OfferCardState extends State<OfferCard> {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                SizedBox(height: paddingVal * 0.25),
-                                Text(
-                                  year,
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: subtitleFontSize,
-                                    fontWeight: FontWeight.w400,
-                                    color: Colors.white70,
+                                // Reference Number (from vehicle)
+                                if (_bulkVehicles != null &&
+                                    _bulkVehicles!.isNotEmpty) ...[
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                        top: paddingVal * 0.15,
+                                        bottom: paddingVal * 0.15),
+                                    child: Row(
+                                      children: [
+                                        ...(() {
+                                          final refs = _bulkVehicles!
+                                              .map((v) =>
+                                                  v.referenceNumber ?? '')
+                                              .where((r) => r.isNotEmpty)
+                                              .toList();
+                                          final displayCount =
+                                              refs.length > 4 ? 4 : refs.length;
+                                          List<Widget> list = [];
+                                          for (int i = 0;
+                                              i < displayCount;
+                                              i++) {
+                                            list.add(Text(
+                                              'Ref: ${refs[i]}',
+                                              style: GoogleFonts.montserrat(
+                                                fontSize: subtitleFontSize,
+                                                fontWeight: FontWeight.bold,
+                                                color: const Color(0xFFFF4E00),
+                                              ),
+                                            ));
+                                            if (i < displayCount - 1) {
+                                              list.add(
+                                                  const SizedBox(width: 8));
+                                            }
+                                          }
+                                          if (refs.length > 4) {
+                                            list = list.sublist(0, 3);
+                                            list.add(Text(
+                                              'and more...',
+                                              style: GoogleFonts.montserrat(
+                                                fontSize: subtitleFontSize,
+                                                fontWeight: FontWeight.bold,
+                                                color: const Color(0xFFFF4E00),
+                                              ),
+                                            ));
+                                          }
+                                          return list;
+                                        })(),
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                ] else if (vehicleYear != null) ...[
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                        top: paddingVal * 0.15,
+                                        bottom: paddingVal * 0.15),
+                                    child: Text(
+                                      'Ref: ${_bulkVehicles == null ? _getSingleVehicleReference() : ''}',
+                                      style: GoogleFonts.montserrat(
+                                        fontSize: subtitleFontSize,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFFFF4E00),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                // Bulk preview: up to 4 vehicle names, else year for single
+                                SizedBox(height: paddingVal * 0.25),
+                                if (_bulkVehicles != null &&
+                                    _bulkVehicles!.isNotEmpty) ...[
+                                  // Show up to 4 names; if more than 4, show first 3 + "and more..."
+                                  ...(() {
+                                    final names = _bulkVehicles!
+                                        .map((v) =>
+                                            '${v.year} ${v.brands.join(', ')} ${v.makeModel} ${v.variant}')
+                                        .toList();
+                                    final displayCount =
+                                        names.length > 4 ? 4 : names.length;
+                                    List<Widget> list = [];
+                                    for (int i = 0; i < displayCount; i++) {
+                                      list.add(Text(
+                                        names[i],
+                                        style: GoogleFonts.montserrat(
+                                          fontSize: subtitleFontSize,
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.white70,
+                                        ),
+                                      ));
+                                    }
+                                    if (names.length > 4) {
+                                      // show only first 3 then "and more..."
+                                      list = list.sublist(0, 3);
+                                      list.add(Text(
+                                        'and more...',
+                                        style: GoogleFonts.montserrat(
+                                          fontSize: subtitleFontSize,
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.white70,
+                                        ),
+                                      ));
+                                    }
+                                    return list;
+                                  })(),
+                                ] else ...[
+                                  Text(
+                                    vehicleYear ?? 'N/A',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: subtitleFontSize,
+                                      fontWeight: FontWeight.w400,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
                                 SizedBox(height: paddingVal * 0.5),
                                 Text(
                                   'Offer of ${formatOfferAmount(widget.offer.offerAmount)}',
@@ -722,6 +970,34 @@ class _OfferCardState extends State<OfferCard> {
                                     color: Colors.white,
                                   ),
                                 ),
+                                // Display lifespan if available
+                                if (widget.offer.lifespanDays != null)
+                                  Text(
+                                    'Lifespan: ${widget.offer.lifespanDays} day${widget.offer.lifespanDays! > 1 ? 's' : ''}',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: subtitleFontSize,
+                                      color: Colors.white70,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    'No Lifespan',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: subtitleFontSize,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                // Display expiration date if available
+                                if (widget.offer.expirationDate != null)
+                                  Text(
+                                    'Expires: ${DateFormat('dd MMM yyyy').format(widget.offer.expirationDate!)}',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: subtitleFontSize,
+                                      color: Colors.white70,
+                                    ),
+                                  )
+                                else
+                                  const SizedBox.shrink(),
                                 if (_buildSpecBoxes(cardW).isNotEmpty) ...[
                                   SizedBox(height: paddingVal * 0.5),
                                   Row(
@@ -839,9 +1115,26 @@ class _OfferCardState extends State<OfferCard> {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Center(
-            child: InkWell(
-                onTap: () => navigateBasedOnStatus(context),
-                child: _buildWebCard(statusColor, constraints)));
+          child: InkWell(
+            onTap: () {
+              if (widget.offer.vehicleIds != null &&
+                  widget.offer.vehicleIds!.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BulkOfferDetailsPage(
+                      offer: widget.offer,
+                      vehicles: _bulkVehicles ?? [],
+                    ),
+                  ),
+                );
+              } else {
+                navigateBasedOnStatus(context);
+              }
+            },
+            child: _buildWebCard(statusColor, constraints),
+          ),
+        );
       },
     );
   }
@@ -893,5 +1186,21 @@ class _OfferCardState extends State<OfferCard> {
         ),
       );
     }
+  }
+
+  /// Helper to get reference number for single vehicle
+  String _getSingleVehicleReference() {
+    // If vehicle details have been fetched
+    if (_bulkVehicles == null) {
+      // Try to get from the fetched vehicle data
+      // This info is fetched in _fetchVehicleDetails and stored in _bulkVehicles for bulk, but for single, we need to fetch from Firestore
+      // Since we already fetch vehicleYear, we can also fetch referenceNumber
+      // But for simplicity, let's just use the vehicleYear as a proxy for fetched data
+      // If you want to cache the referenceNumber, you can add a state variable for it
+      // For now, just return 'N/A' if not available
+      // You can extend _fetchVehicleDetails to cache referenceNumber if needed
+      return widget.offer.vehicleRef ?? 'N/A';
+    }
+    return 'N/A';
   }
 }

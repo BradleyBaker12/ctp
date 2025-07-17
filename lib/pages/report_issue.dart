@@ -8,7 +8,8 @@ import 'package:firebase_storage/firebase_storage.dart'; // Add this import
 import 'dart:io'; // Add this import
 import 'package:ctp/utils/navigation.dart';
 
-class ReportIssuePage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class ReportIssuePage extends StatefulWidget {
   final String offerId; // Add offerId as a required parameter
 
   const ReportIssuePage({super.key, required this.offerId});

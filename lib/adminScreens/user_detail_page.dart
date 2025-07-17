@@ -15,6 +15,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../providers/user_provider.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class UserDetailPage extends StatefulWidget {
   final String userId;
 
@@ -206,6 +209,36 @@ class _UserDetailPageState extends State<UserDetailPage> {
           ),
         );
       }
+    }
+  }
+
+  /// Archive the user by setting accountStatus to 'archived'
+  Future<void> _archiveUser() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .update({'accountStatus': 'archived'});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'User has been archived.',
+            style: GoogleFonts.montserrat(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() => _accountStatus = 'archived');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to archive user: $e',
+            style: GoogleFonts.montserrat(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -536,11 +569,39 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                             ),
                                           );
                                         }).toList(),
-                                        onChanged: (newValue) {
+                                        onChanged: (newValue) async {
                                           if (newValue != null) {
                                             setState(() {
                                               _accountStatus = newValue;
                                             });
+                                            try {
+                                              await FirebaseFirestore.instance
+                                                  .collection('users')
+                                                  .doc(widget.userId)
+                                                  .update({
+                                                'accountStatus': newValue
+                                              });
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      'Account status updated to ${newValue.toUpperCase()}',
+                                                      style: GoogleFonts
+                                                          .montserrat()),
+                                                ),
+                                              );
+                                            } catch (e) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      'Error updating account status: $e',
+                                                      style: GoogleFonts
+                                                          .montserrat()),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
                                           }
                                         },
                                       ),
@@ -565,14 +626,12 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                             value: data['isVerified'] ?? false,
                                             onChanged: (bool newValue) async {
                                               try {
-                                                // Directly update Firestore
                                                 await FirebaseFirestore.instance
                                                     .collection('users')
                                                     .doc(widget.userId)
                                                     .update({
                                                   'isVerified': newValue,
                                                 });
-
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(
                                                   SnackBar(
@@ -810,6 +869,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                     'taxCertificateUrl'),
                               ],
                             ),
+                            if (isAdmin) ...[
+                              CustomButton(
+                                text: 'Archive User',
+                                onPressed: _archiveUser,
+                                borderColor: Colors.red,
+                              ),
+                              SizedBox(height: 16),
+                            ],
                             CustomButton(
                               text: 'Save Changes',
                               onPressed: _saveChanges,

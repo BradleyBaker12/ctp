@@ -21,6 +21,9 @@ import 'package:ctp/components/gradient_background.dart';
 //   debugPrint('DEBUG: $message');
 // }
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class OfferDetailPage extends StatefulWidget {
   final Offer offer;
 
@@ -147,7 +150,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       /// Invoice section
                       _buildInvoiceSection(),
                       const SizedBox(height: 20),
-                      if (userProvider.userRole == 'admin') ...[
+                      if (userProvider.userRole.toLowerCase() == 'admin') ...[
                         Text('Transporter Invoice',
                             style: GoogleFonts.montserrat(
                                 fontSize: 18,
@@ -190,6 +193,299 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                               text: 'Upload Transporter Invoice',
                               borderColor: Colors.green,
                               onPressed: _uploadTransporterInvoice),
+                        const SizedBox(height: 20),
+
+                        // External Invoice
+                        Text('External Invoice',
+                            style: GoogleFonts.montserrat(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        const SizedBox(height: 10),
+                        if (widget.offer.externalInvoice != null &&
+                            widget.offer.externalInvoice!.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => ViewerPage(
+                                      url: widget.offer.externalInvoice!)),
+                            ),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.picture_as_pdf,
+                                      color: Colors.orange, size: 40),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                      child: Text('View External Invoice (PDF)',
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white,
+                                              decoration:
+                                                  TextDecoration.underline))),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            'No external invoice available.',
+                            style:
+                                GoogleFonts.montserrat(color: Colors.white70),
+                          ),
+                        const SizedBox(height: 20),
+
+                        // Proof of Payment
+                        Text('Proof of Payment',
+                            style: GoogleFonts.montserrat(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        const SizedBox(height: 10),
+                        if (widget.offer.proofOfPaymentUrl != null &&
+                            widget.offer.proofOfPaymentUrl!.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => ViewerPage(
+                                      url: widget.offer.proofOfPaymentUrl!)),
+                            ),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                      widget.offer.proofOfPaymentUrl!
+                                              .toLowerCase()
+                                              .endsWith('.pdf')
+                                          ? Icons.picture_as_pdf
+                                          : Icons.image,
+                                      color: Colors.blueAccent,
+                                      size: 40),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                      child: Text('View Proof of Payment',
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white,
+                                              decoration:
+                                                  TextDecoration.underline))),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            'No proof of payment uploaded.',
+                            style:
+                                GoogleFonts.montserrat(color: Colors.white70),
+                          ),
+                        const SizedBox(height: 20),
+
+                        Text(
+                          'Vehicle Documents',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          future: FirebaseFirestore.instance
+                              .collection('vehicles')
+                              .doc(widget.offer.vehicleId)
+                              .get(),
+                          builder: (context, snap) {
+                            if (snap.connectionState ==
+                                ConnectionState.waiting) {
+                              return const SizedBox();
+                            }
+                            final data = snap.data?.data() ?? {};
+                            // Top-level URL fields
+                            final topLevelFields = data.entries
+                                .where((e) =>
+                                    e.key.toLowerCase().endsWith('url') &&
+                                    e.value is String &&
+                                    (e.value as String).isNotEmpty)
+                                .toList();
+                            // Nested adminData URLs inside vehicle doc
+                            final adminDataMap =
+                                data['adminData'] as Map<String, dynamic>? ??
+                                    {};
+                            final nestedAdminFields = adminDataMap.entries
+                                .where((e) =>
+                                    e.key.toLowerCase().endsWith('url') &&
+                                    e.value is String &&
+                                    (e.value as String).isNotEmpty)
+                                .toList();
+                            // Merge both lists
+                            final docFields = [
+                              ...topLevelFields,
+                              ...nestedAdminFields
+                            ];
+                            if (docFields.isEmpty) {
+                              return const Text(
+                                'No documents available.',
+                                style: TextStyle(color: Colors.white70),
+                              );
+                            }
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: docFields.map((entry) {
+                                final url = entry.value as String;
+                                // Derive a user-friendly label by stripping 'Url', splitting camelCase, and title-casing
+                                String key = entry.key;
+                                if (key.toLowerCase().endsWith('url')) {
+                                  key = key.substring(0, key.length - 3);
+                                }
+                                // Split on transitions between lowercase and uppercase letters
+                                final words =
+                                    key.split(RegExp(r'(?<=[a-z])(?=[A-Z])'));
+                                final label = words
+                                    .map((w) => w.isEmpty
+                                        ? w
+                                        : w[0].toUpperCase() +
+                                            w.substring(1).toLowerCase())
+                                    .join(' ');
+                                return Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 4.0),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          label,
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white),
+                                        ),
+                                      ),
+                                      Text(
+                                        'Viewable',
+                                        style: GoogleFonts.montserrat(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.open_in_new,
+                                            color: Colors.white),
+                                        onPressed: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                ViewerPage(url: url),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Admin-submitted documentation (e.g., settlement, Natis, license disk)
+                        // Text(
+                        //   'Admin Documents',
+                        //   style: GoogleFonts.montserrat(
+                        //     fontSize: 18,
+                        //     fontWeight: FontWeight.bold,
+                        //     color: Colors.white,
+                        //   ),
+                        // ),
+                        // const SizedBox(height: 10),
+                        // FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        //   future: FirebaseFirestore.instance
+                        //       .collection('offers')
+                        //       .doc(widget.offer.offerId)
+                        //       .get(),
+                        //   builder: (context, snap) {
+                        //     if (snap.connectionState ==
+                        //         ConnectionState.waiting) {
+                        //       return const SizedBox();
+                        //     }
+                        //     final offerData = snap.data?.data()?['adminData']
+                        //             as Map<String, dynamic>? ??
+                        //         {};
+                        //     final adminFields = offerData.entries
+                        //         .where((e) =>
+                        //             e.key.toLowerCase().endsWith('url') &&
+                        //             e.value is String &&
+                        //             (e.value as String).isNotEmpty)
+                        //         .toList();
+                        //     if (adminFields.isEmpty) {
+                        //       return const Text(
+                        //         'No admin documents available.',
+                        //         style: TextStyle(color: Colors.white70),
+                        //       );
+                        //     }
+                        //     return Column(
+                        //       crossAxisAlignment: CrossAxisAlignment.start,
+                        //       children: adminFields.map((entry) {
+                        //         final url = entry.value as String;
+                        //         // Derive a user-friendly label by stripping 'Url', splitting camelCase, and title-casing
+                        //         String key = entry.key;
+                        //         if (key.toLowerCase().endsWith('url')) {
+                        //           key = key.substring(0, key.length - 3);
+                        //         }
+                        //         // Split on transitions between lowercase and uppercase letters
+                        //         final words =
+                        //             key.split(RegExp(r'(?<=[a-z])(?=[A-Z])'));
+                        //         final label = words
+                        //             .map((w) => w.isEmpty
+                        //                 ? w
+                        //                 : w[0].toUpperCase() +
+                        //                     w.substring(1).toLowerCase())
+                        //             .join(' ');
+                        //         return Padding(
+                        //           padding:
+                        //               const EdgeInsets.symmetric(vertical: 4.0),
+                        //           child: Row(
+                        //             children: [
+                        //               Expanded(
+                        //                 child: Text(
+                        //                   label,
+                        //                   style: GoogleFonts.montserrat(
+                        //                       color: Colors.white),
+                        //                 ),
+                        //               ),
+                        //               Text(
+                        //                 'Viewable',
+                        //                 style: GoogleFonts.montserrat(
+                        //                   color: Colors.green,
+                        //                   fontWeight: FontWeight.bold,
+                        //                 ),
+                        //               ),
+                        //               IconButton(
+                        //                 icon: const Icon(Icons.open_in_new,
+                        //                     color: Colors.white),
+                        //                 onPressed: () => Navigator.push(
+                        //                   context,
+                        //                   MaterialPageRoute(
+                        //                     builder: (_) =>
+                        //                         ViewerPage(url: url),
+                        //                   ),
+                        //                 ),
+                        //               ),
+                        //             ],
+                        //           ),
+                        //         );
+                        //       }).toList(),
+                        //     );
+                        //   },
+                        // ),
                         const SizedBox(height: 20),
                       ],
 
@@ -416,6 +712,9 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         return _buildAcceptedSection();
 
       case 'inspection done':
+        return _buildAcceptedSection();
+
+      case 'collection details':
         return _buildAcceptedSection();
 
       case 'rejected':
@@ -674,7 +973,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
               await FirebaseFirestore.instance
                   .collection('offers')
                   .doc(widget.offer.offerId)
-                  .update({'offerStatus': 'Done'});
+                  .update({'offerStatus': 'Sold'});
               // Mark vehicle as sold
               await FirebaseFirestore.instance
                   .collection('vehicles')
@@ -763,6 +1062,10 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         );
         final isCollectionComplete = collectionLocations.isNotEmpty;
 
+        // --- Inspection details check ---
+        final inspectionDetails =
+            offerData['inspectionDetails'] as Map<String, dynamic>?;
+
         return Column(
           children: [
             const SizedBox(height: 20),
@@ -776,11 +1079,25 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                 ),
               ),
             ] else if (userProvider.userRole == 'admin') ...[
-              CustomButton(
-                text: 'Mark Inspection Complete',
-                borderColor: Colors.green,
-                onPressed: _markInspectionComplete,
-              ),
+              if (inspectionDetails != null)
+                CustomButton(
+                  text: 'Mark Inspection Complete',
+                  borderColor: Colors.green,
+                  onPressed: _markInspectionComplete,
+                )
+              else
+                CustomButton(
+                  text: 'Setup Inspection',
+                  borderColor: Colors.blue,
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SetupInspectionPage(
+                        offerId: widget.offer.offerId,
+                      ),
+                    ),
+                  ),
+                ),
             ] else ...[
               CustomButton(
                 text: 'Setup Inspection',
@@ -805,7 +1122,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       onPressed: _markCollectionComplete,
                     )
                   : CustomButton(
-                      text: 'Setup Collection',
+                      text: 'Setup Collection Details',
                       borderColor: Colors.blue,
                       onPressed: () => Navigator.push(
                         context,
@@ -826,7 +1143,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       ),
                     )
                   : CustomButton(
-                      text: 'Setup Collection',
+                      text: 'Setup Collection Details',
                       borderColor: Colors.blue,
                       onPressed: () => Navigator.push(
                         context,

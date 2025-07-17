@@ -8,7 +8,8 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 
-class TradingCategoryPage extends StatelessWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class TradingCategoryPage extends StatelessWidget {
   const TradingCategoryPage({super.key});
 
   Future<void> _updateUserRole(BuildContext context, String role) async {

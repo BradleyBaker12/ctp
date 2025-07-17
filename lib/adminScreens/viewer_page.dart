@@ -11,6 +11,9 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class ViewerPage extends StatefulWidget {
   final String url;
 

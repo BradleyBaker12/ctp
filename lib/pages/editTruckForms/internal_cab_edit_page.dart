@@ -1,5 +1,6 @@
 // lib/pages/truckForms/internal_cab_edit_page.dart
 
+import 'package:auto_route/auto_route.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -33,7 +34,8 @@ class ItemData {
   ItemData({required this.description, required this.imageData});
 }
 
-class InternalCabEditPage extends StatefulWidget {
+
+@RoutePage()class InternalCabEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;

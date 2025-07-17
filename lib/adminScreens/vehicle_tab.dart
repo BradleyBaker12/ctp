@@ -17,6 +17,9 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart'; // Adjust this path if needed
 import 'package:ctp/pages/trailerForms/trailer_upload_screen.dart';
 
+// import 'package:auto_route/auto_route.dart';
+
+// @RoutePage()
 class VehiclesTab extends StatefulWidget {
   const VehiclesTab({super.key});
 
@@ -827,18 +830,53 @@ class _VehiclesTabState extends State<VehiclesTab>
                                       trailerType == 'Other') {
                                     debugPrint(
                                         '$trailerType Info: $trailerExtraInfo');
-                                    final make = trailerExtraInfo['make'] ??
-                                        vehicleData['makeModel'] ??
-                                        '';
-                                    final model =
-                                        trailerExtraInfo['model'] ?? '';
-                                    final year = trailerExtraInfo['year'] ??
-                                        vehicleData['year'] ??
-                                        '';
+                                    String make =
+                                        trailerExtraInfo['make']?.toString() ??
+                                            '';
+                                    String model =
+                                        trailerExtraInfo['model']?.toString() ??
+                                            '';
+                                    String year =
+                                        trailerExtraInfo['year']?.toString() ??
+                                            '';
+                                    // Fallbacks if missing
+                                    if (make.isEmpty) {
+                                      make = vehicleData['makeModel']
+                                              ?.toString() ??
+                                          '';
+                                    }
+                                    if (year.isEmpty) {
+                                      year =
+                                          vehicleData['year']?.toString() ?? '';
+                                    }
+                                    // If all are empty, fallback to VIN, registration, or length
+                                    if ((make + model + year).trim().isEmpty) {
+                                      String vin =
+                                          trailerExtraInfo['vin']?.toString() ??
+                                              '';
+                                      String reg =
+                                          trailerExtraInfo['registration']
+                                                  ?.toString() ??
+                                              '';
+                                      String length =
+                                          trailerExtraInfo['lengthTrailer']
+                                                  ?.toString() ??
+                                              '';
+                                      String fallback = '';
+                                      if (fallback.isEmpty) {
+                                        fallback = 'Trailer Info Unavailable';
+                                      }
+                                      return Text(
+                                        fallback.trim(),
+                                        style: GoogleFonts.montserrat(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      );
+                                    }
                                     return Text(
-                                      '$make $model $year',
+                                      '$trailerType: $make $model $year',
                                       style: GoogleFonts.montserrat(
-                                        fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                       ),
                                     );
@@ -907,16 +945,48 @@ class _VehiclesTabState extends State<VehiclesTab>
           ],
         ),
       ),
-      // --- Floating Action Button for Adding a Vehicle ---
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            _showVehicleTypeSelectionDialog(), // NEW: Call vehicle type selection
-        label: Text(
-          'Add Vehicle',
-          style: GoogleFonts.montserrat(color: Colors.white),
-        ),
-        icon: const Icon(Icons.add, color: Colors.white),
-        backgroundColor: const Color(0xFF0E4CAF),
+      // --- Floating Action Button for Adding a Vehicle and Create Fleet (admin only) ---
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Create Fleet button (only for admins)
+          // Builder(
+          //   builder: (context) {
+          //     final userProvider = Provider.of<UserProvider>(context);
+          //     if (userProvider.userRole != 'admin') {
+          //       return const SizedBox.shrink();
+          //     }
+          //     // return Padding(
+          //     //   padding: const EdgeInsets.only(bottom: 12.0),
+          //     //   child: FloatingActionButton.extended(
+          //     //     onPressed: () {
+          //     //       Navigator.push(
+          //     //         context,
+          //     //         MaterialPageRoute(
+          //     //             builder: (_) => const CreateFleetPage()),
+          //     //       );
+          //     //     },
+          //     //     label: Text(
+          //     //       'Create Fleet',
+          //     //       style: GoogleFonts.montserrat(color: Colors.white),
+          //     //     ),
+          //     //     icon: const Icon(Icons.add, color: Colors.white),
+          //     //     backgroundColor: const Color(0xFF0E4CAF),
+          //     //   ),
+          //     // );
+          //   },
+          // ),
+          // Add Vehicle button
+          FloatingActionButton.extended(
+            onPressed: () => _showVehicleTypeSelectionDialog(),
+            label: Text(
+              'Add Vehicle',
+              style: GoogleFonts.montserrat(color: Colors.white),
+            ),
+            icon: const Icon(Icons.add, color: Colors.white),
+            backgroundColor: const Color(0xFF0E4CAF),
+          ),
+        ],
       ),
     );
   }
@@ -976,81 +1046,80 @@ class _VehiclesTabState extends State<VehiclesTab>
             }
             final docs = snapshot.data!.docs;
             return SizedBox(
-              width: double.maxFinite,
-              height: MediaQuery.of(context).size.height * 0.4,
-              child: DropdownButtonFormField<String>(
-                dropdownColor: Colors.grey[900],
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.grey[800],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                hint: Text('Select a transporter',
-                    style: GoogleFonts.montserrat(color: Colors.white)),
-                items: docs.map((transporter) {
-                  var userData = transporter.data() as Map<String, dynamic>;
-                  String displayName = userData['tradingAs'] ??
-                      userData['name'] ??
-                      userData['email'] ??
-                      'Unknown';
-                  return DropdownMenuItem<String>(
-                    value: transporter.id,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.5),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(displayName,
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1),
-                          Text(userData['email'] ?? '',
-                              style: GoogleFonts.montserrat(
-                                  color: Colors.grey, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1),
-                        ],
-                      ),
+                width: double.maxFinite,
+                height: MediaQuery.of(context).size.height * 0.4,
+                child: DropdownButtonFormField<String>(
+                  dropdownColor: Colors.grey[900],
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey[800],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide.none,
                     ),
-                  );
-                }).toList(),
-                onChanged: (transporterId) {
-                  if (transporterId != null) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      Navigator.pop(context);
-                      if (vehicleType == 'truck') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const VehicleUploadScreen(
-                              isNewUpload: true,
-                              isAdminUpload: true,
+                  ),
+                  hint: Text('Select a transporter',
+                      style: GoogleFonts.montserrat(color: Colors.white)),
+                  items: docs.map((transporter) {
+                    var userData = transporter.data() as Map<String, dynamic>;
+                    String displayName = userData['tradingAs'] ??
+                        userData['name'] ??
+                        userData['email'] ??
+                        'Unknown';
+                    return DropdownMenuItem<String>(
+                      value: transporter.id,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.5),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(displayName,
+                                style:
+                                    GoogleFonts.montserrat(color: Colors.white),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1),
+                            Text(userData['email'] ?? '',
+                                style: GoogleFonts.montserrat(
+                                    color: Colors.grey, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (transporterId) {
+                    if (transporterId != null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        Navigator.pop(context);
+                        if (vehicleType == 'truck') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const VehicleUploadScreen(
+                                isNewUpload: true,
+                                isAdminUpload: true,
+                              ),
                             ),
-                          ),
-                        );
-                      } else if (vehicleType == 'trailer') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TrailerUploadScreen(
-                              isNewUpload: true,
-                              isAdminUpload: true,
-                              transporterId: transporterId,
+                          );
+                        } else if (vehicleType == 'trailer') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TrailerUploadScreen(
+                                isNewUpload: true,
+                                isAdminUpload: true,
+                                transporterId: transporterId,
+                              ),
                             ),
-                          ),
-                        );
-                      }
-                    });
-                  }
-                },
-              ),
-            );
+                          );
+                        }
+                      });
+                    }
+                  },
+                ));
           },
         ),
       ),
@@ -1627,5 +1696,31 @@ class _VehiclesTabState extends State<VehiclesTab>
       return trailerType['name']?.toString() ?? 'N/A';
     }
     return 'N/A';
+  }
+
+  /// Creates a fleet document for each company in the 'companies' collection.
+  Future<void> _createFleetsFromCompanies() async {
+    final firestore = FirebaseFirestore.instance;
+    try {
+      final companiesSnapshot = await firestore.collection('companies').get();
+      for (var companyDoc in companiesSnapshot.docs) {
+        final companyData = companyDoc.data();
+        final displayName = companyData['displayName'] as String? ?? 'Unnamed';
+        final fleetDocId = companyDoc.id; // reuse company ID for fleet
+
+        await firestore.collection('fleets').doc(fleetDocId).set({
+          'companyId': companyDoc.id,
+          'companyName': displayName,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Fleets created successfully.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error creating fleets: $e')),
+      );
+    }
   }
 }

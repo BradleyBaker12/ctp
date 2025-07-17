@@ -15,7 +15,8 @@ import 'package:ctp/services/places_data_model.dart';
 import 'package:ctp/services/places_services.dart';
 import 'package:ctp/services/places_widget.dart';
 
-class SetupCollectionPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class SetupCollectionPage extends StatefulWidget {
   final String offerId; // Change from vehicleId to offerId
 
   const SetupCollectionPage({super.key, required this.offerId});
@@ -77,7 +78,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
   bool _showBackToFormButton = false;
   bool _isLoading = false;
   bool _useInspectionDetails = false;
-  bool _offerDeliveryOption = false;
+  final bool _offerDeliveryOption = false;
 
   @override
   void dispose() {
@@ -409,11 +410,11 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Error'),
+          title: const Text('Opps!'),
           content: Text(message),
           actions: <Widget>[
             TextButton(
-              child: const Text('OK'),
+              child: const Text('Got It!'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -602,19 +603,19 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              CheckboxListTile(
-                                title: const Text(
-                                  "Offer delivery service to dealer's preferred address?",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                value: _offerDeliveryOption,
-                                activeColor: Colors.blue,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    _offerDeliveryOption = value ?? false;
-                                  });
-                                },
-                              ),
+                              // CheckboxListTile(
+                              //   title: const Text(
+                              //     "Offer delivery service to dealer's preferred address?",
+                              //     style: TextStyle(color: Colors.white),
+                              //   ),
+                              //   value: _offerDeliveryOption,
+                              //   activeColor: Colors.blue,
+                              //   onChanged: (bool? value) {
+                              //     setState(() {
+                              //       _offerDeliveryOption = value ?? false;
+                              //     });
+                              //   },
+                              // ),
                               const SizedBox(height: 16),
                               const Text(
                                 'ENTER COLLECTION LOCATION',
@@ -658,6 +659,30 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                       latLngData["postalCode"];
                                 },
                               ),
+                              // Validation prompts for transporter collection setup
+                              if (_addressLine1Controller.text.isEmpty) ...[
+                                Text(
+                                  'Please select a collection location.',
+                                  style: TextStyle(
+                                      color: Colors.yellow, fontSize: 16),
+                                ),
+                                const SizedBox(height: 8),
+                              ] else if (_selectedDay == null) ...[
+                                Text(
+                                  'Please pick a date for collection.',
+                                  style: TextStyle(
+                                      color: Colors.yellow, fontSize: 16),
+                                ),
+                                const SizedBox(height: 8),
+                              ] else if (_selectedTimes
+                                  .any((t) => t == null)) ...[
+                                Text(
+                                  'Please select at least one time slot.',
+                                  style: TextStyle(
+                                      color: Colors.yellow, fontSize: 16),
+                                ),
+                                const SizedBox(height: 8),
+                              ],
                               const SizedBox(height: 32),
                               if (_isAddingLocation) ...[
                                 _buildTextField(

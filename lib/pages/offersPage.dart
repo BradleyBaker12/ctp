@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/utils/navigation.dart';
+import 'package:auto_route/auto_route.dart';
 
 // Simple data class for navigation items.
 class NavigationItem {
@@ -28,7 +29,7 @@ class NavigationItem {
   });
 }
 
-class OffersPage extends StatefulWidget {
+@RoutePage()class OffersPage extends StatefulWidget {
   const OffersPage({super.key});
 
   @override
@@ -166,18 +167,23 @@ class OffersPageState extends State<OffersPage> with RouteAware {
       case 'ALL':
         return offers; // Show everything except sold
       case 'IN PROGRESS':
-        // Exclude "rejected", "successful", "completed"
+        // Exclude offers with status: "rejected", "successful", "completed", "sold", or "done"
         return offers.where((offer) {
           final lowerStatus = offer.offerStatus.toLowerCase();
           return lowerStatus != 'rejected' &&
               lowerStatus != 'successful' &&
-              lowerStatus != 'completed';
+              lowerStatus != 'completed' &&
+              lowerStatus != 'sold' &&
+              lowerStatus != 'done';
         }).toList();
       case 'SUCCESSFUL':
-        // Show "successful" or "completed"
+        // Show "successful", "completed", "sold", or "done"
         return offers.where((offer) {
           final lowerStatus = offer.offerStatus.toLowerCase();
-          return lowerStatus == 'successful' || lowerStatus == 'completed';
+          return lowerStatus == 'successful' ||
+              lowerStatus == 'completed' ||
+              lowerStatus == 'sold' ||
+              lowerStatus == 'done';
         }).toList();
       case 'REJECTED':
         // Show only "rejected"

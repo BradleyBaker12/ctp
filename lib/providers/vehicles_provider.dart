@@ -1,26 +1,26 @@
 // lib/providers/vehicle_provider.dart
 
-import 'package:ctp/models/vehicle.dart';
+import 'package:ctp/models/vehicle.dart' as model;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_provider.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class VehicleProvider with ChangeNotifier {
-  List<Vehicle> _vehicles = [];
+  List<model.Vehicle> _vehicles = [];
   bool _isLoading = true;
   DocumentSnapshot? _lastFetchedDocument;
   String? _vehicleId; // Field to store the vehicleId
 
-  List<Vehicle> get vehicles => _vehicles;
+  List<model.Vehicle> get vehicles => _vehicles;
   bool get isLoading => _isLoading;
   String? get vehicleId => _vehicleId;
 
   // Add a list for bought vehicles
-  List<Vehicle> _boughtVehicles = [];
+  List<model.Vehicle> _boughtVehicles = [];
 
   // Add getter for bought vehicles
-  List<Vehicle> getBoughtVehicles() => _boughtVehicles;
+  List<model.Vehicle> getBoughtVehicles() => _boughtVehicles;
 
   // Setter for vehicleId
   void setVehicleId(String id) {
@@ -28,7 +28,7 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners(); // Notifies listeners when vehicleId changes
   }
 
-  ValueNotifier<List<Vehicle>> vehicleListenable = ValueNotifier([]);
+  ValueNotifier<List<model.Vehicle>> vehicleListenable = ValueNotifier([]);
 
   VehicleProvider();
 
@@ -45,7 +45,7 @@ class VehicleProvider with ChangeNotifier {
   }
 
   // Add a vehicle to the local list
-  void addVehicle(Vehicle vehicle) {
+  void addVehicle(model.Vehicle vehicle) {
     _vehicles.add(vehicle);
     vehicleListenable.value = List.from(_vehicles);
     notifyListeners();
@@ -59,7 +59,7 @@ class VehicleProvider with ChangeNotifier {
   }
 
   // Get vehicles by a specific user ID
-  List<Vehicle> getVehiclesByUserId(String userId) {
+  List<model.Vehicle> getVehiclesByUserId(String userId) {
     return _vehicles.where((vehicle) => vehicle.userId == userId).toList();
   }
 
@@ -73,8 +73,8 @@ class VehicleProvider with ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      print('DEBUG: Fetching vehicles for userId: $userId');
-      print('DEBUG: Current user from UserProvider: ${userProvider.userId}');
+      // print('DEBUG: Fetching vehicles for userId: $userId');
+      // print('DEBUG: Current user from UserProvider: ${userProvider.userId}');
 
       Query query = FirebaseFirestore.instance
           .collection('vehicles')
@@ -111,27 +111,27 @@ class VehicleProvider with ChangeNotifier {
                     Map<String, dynamic>.from(data);
                 processedData['trailerExtraInfo'] =
                     _processTrailerData(data['trailerExtraInfo']);
-                return Vehicle.fromFirestore(doc.id, processedData);
+                return model.Vehicle.fromFirestore(doc.id, processedData);
               }
 
-              return Vehicle.fromFirestore(doc.id, data);
+              return model.Vehicle.fromFirestore(doc.id, data);
             } catch (e) {
               // print('Error processing vehicle ${doc.id}: $e');
               return null;
             }
           })
-          .whereType<Vehicle>()
+          .whereType<model.Vehicle>()
           .toList(); // Filter out null values
 
       // print('DEBUG: Final processed vehicles count: ${_vehicles.length}');
       if (userId != null) {
         // print('DEBUG: Vehicles matching userId $userId:');
         for (var vehicle in _vehicles) {
-          // print('Vehicle ID: ${vehicle.id}, Model: ${vehicle.makeModel}');
+          // print('model.Vehicle ID: ${vehicle.id}, Model: ${vehicle.makeModel}');
         }
       }
 
-      vehicleListenable.value = List<Vehicle>.from(_vehicles);
+      vehicleListenable.value = List<model.Vehicle>.from(_vehicles);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -198,7 +198,7 @@ class VehicleProvider with ChangeNotifier {
       }
 
       final moreVehicles = querySnapshot.docs.map((doc) {
-        return Vehicle.fromFirestore(
+        return model.Vehicle.fromFirestore(
             doc.id, doc.data() as Map<String, dynamic>);
       }).toList();
 
@@ -230,10 +230,10 @@ class VehicleProvider with ChangeNotifier {
       // Debug print all vehicles before processing
       for (var doc in querySnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        // print('DEBUG: Vehicle ID: ${doc.id}');
-        // print('DEBUG: Vehicle userId: ${data['userId']}');
-        // print('DEBUG: Vehicle makeModel: ${data['makeModel']}');
-        // print('DEBUG: Vehicle status: ${data['vehicleStatus']}');
+        // print('DEBUG: model.Vehicle ID: ${doc.id}');
+        // print('DEBUG: model.Vehicle userId: ${data['userId']}');
+        // print('DEBUG: model.Vehicle makeModel: ${data['makeModel']}');
+        // print('DEBUG: model.Vehicle status: ${data['vehicleStatus']}');
         // print('-------------------');
       }
 
@@ -242,9 +242,9 @@ class VehicleProvider with ChangeNotifier {
             if (doc.exists &&
                 doc.data() != null &&
                 doc.data() is Map<String, dynamic>) {
-              // print('Processing Vehicle ID: ${doc.id}');
+              // print('Processing model.Vehicle ID: ${doc.id}');
               try {
-                return Vehicle.fromFirestore(
+                return model.Vehicle.fromFirestore(
                     doc.id, doc.data() as Map<String, dynamic>);
               } catch (e) {
                 // print('Error parsing vehicle data for ID ${doc.id}: $e');
@@ -260,7 +260,7 @@ class VehicleProvider with ChangeNotifier {
             }
           })
           .where((vehicle) => vehicle != null)
-          .cast<Vehicle>()
+          .cast<model.Vehicle>()
           .toList();
 
       if (_vehicles.isEmpty) {
@@ -270,7 +270,7 @@ class VehicleProvider with ChangeNotifier {
       // print('DEBUG: Final processed vehicles count: ${_vehicles.length}');
       // print('DEBUG: Processed vehicles summary:');
       for (var vehicle in _vehicles) {
-        // print('Vehicle ID: ${vehicle.id}');
+        // print('model.Vehicle ID: ${vehicle.id}');
         // print('UserID: ${vehicle.userId}');
         // print('Model: ${vehicle.makeModel}');
         // print('Status: ${vehicle.vehicleStatus}');
@@ -384,7 +384,7 @@ class VehicleProvider with ChangeNotifier {
   }
 
   // Fetch recent vehicles (e.g., latest 5)
-  Future<List<Vehicle>> fetchRecentVehicles() async {
+  Future<List<model.Vehicle>> fetchRecentVehicles() async {
     try {
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
@@ -393,7 +393,7 @@ class VehicleProvider with ChangeNotifier {
           .get();
 
       final recentVehicles = querySnapshot.docs.map((doc) {
-        return Vehicle.fromFirestore(
+        return model.Vehicle.fromFirestore(
             doc.id, doc.data() as Map<String, dynamic>);
       }).toList();
 
@@ -419,7 +419,7 @@ class VehicleProvider with ChangeNotifier {
       vehicleListenable.value = List.from(_vehicles);
       notifyListeners();
 
-      print("Vehicle deleted successfully.");
+      print("model.Vehicle deleted successfully.");
     } catch (e) {
       print("Error deleting vehicle: $e");
       rethrow; // Rethrow the error to handle it in the UI
@@ -427,14 +427,14 @@ class VehicleProvider with ChangeNotifier {
   }
 
   // Update a vehicle
-  Future<void> updateVehicle(Vehicle updatedVehicle) async {
+  Future<void> updateVehicle(model.Vehicle updatedVehicle) async {
     try {
       // Update the vehicle document
       DocumentReference vehicleRef = FirebaseFirestore.instance
           .collection('vehicles')
           .doc(updatedVehicle.id);
       await vehicleRef.update(updatedVehicle.toMap());
-      print("Vehicle updated successfully.");
+      print("model.Vehicle updated successfully.");
 
       // Clean up duplicate drafts
       await cleanupDrafts(updatedVehicle.id);
@@ -478,7 +478,7 @@ class VehicleProvider with ChangeNotifier {
     return _vehicles.length;
   }
 
-  Future<List<Vehicle>> fetchVehiclesForDateRange({
+  Future<List<model.Vehicle>> fetchVehiclesForDateRange({
     required DateTime startDate,
     required DateTime endDate,
     int limit = 10,
@@ -494,7 +494,7 @@ class VehicleProvider with ChangeNotifier {
           .get();
 
       return vehicleSnapshot.docs.map((doc) {
-        return Vehicle.fromFirestore(
+        return model.Vehicle.fromFirestore(
             doc.id, doc.data() as Map<String, dynamic>);
       }).toList();
     } catch (e) {
@@ -503,7 +503,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  Future<List<Vehicle>> fetchVehiclesForToday() async {
+  Future<List<model.Vehicle>> fetchVehiclesForToday() async {
     try {
       print('Fetching today\'s live vehicles...');
 
@@ -515,7 +515,7 @@ class VehicleProvider with ChangeNotifier {
 
       print('Found ${vehicleSnapshot.docs.length} documents, processing...');
 
-      List<Vehicle> vehicles = [];
+      List<model.Vehicle> vehicles = [];
       for (var doc in vehicleSnapshot.docs) {
         try {
           final data = doc.data() as Map<String, dynamic>;
@@ -526,7 +526,7 @@ class VehicleProvider with ChangeNotifier {
             if (createdAt.year == now.year &&
                 createdAt.month == now.month &&
                 createdAt.day == now.day) {
-              vehicles.add(Vehicle.fromFirestore(doc.id, data));
+              vehicles.add(model.Vehicle.fromFirestore(doc.id, data));
             }
           }
         } catch (e) {
@@ -543,7 +543,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  Future<List<Vehicle>> fetchVehiclesForYesterday() async {
+  Future<List<model.Vehicle>> fetchVehiclesForYesterday() async {
     try {
       print('Fetching yesterday\'s live vehicles...');
 
@@ -555,7 +555,7 @@ class VehicleProvider with ChangeNotifier {
 
       print('Found ${vehicleSnapshot.docs.length} documents, processing...');
 
-      List<Vehicle> vehicles = [];
+      List<model.Vehicle> vehicles = [];
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
 
       for (var doc in vehicleSnapshot.docs) {
@@ -567,7 +567,7 @@ class VehicleProvider with ChangeNotifier {
             if (createdAt.year == yesterday.year &&
                 createdAt.month == yesterday.month &&
                 createdAt.day == yesterday.day) {
-              vehicles.add(Vehicle.fromFirestore(doc.id, data));
+              vehicles.add(model.Vehicle.fromFirestore(doc.id, data));
             }
           }
         } catch (e) {
@@ -582,6 +582,17 @@ class VehicleProvider with ChangeNotifier {
       print('Error fetching yesterday\'s vehicles: $e');
       return [];
     }
+  }
+
+   /// Returns a sorted list of unique company names (falling back to 'Anonymous'),
+  /// with 'All' as the first option.
+  List<String> getAllCompanies() {
+    final companies = _vehicles
+        .map((v) => v.companyName ?? 'Anonymous')
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ['All', ...companies];
   }
 
   // Update the method to fetch bought vehicles
@@ -616,7 +627,7 @@ class VehicleProvider with ChangeNotifier {
           .get();
 
       _boughtVehicles = vehiclesSnapshot.docs
-          .map((doc) => Vehicle.fromFirestore(doc.id, doc.data()))
+          .map((doc) => model.Vehicle.fromFirestore(doc.id, doc.data()))
           .toList();
 
       notifyListeners();

@@ -12,6 +12,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class CollectionConfirmationPage extends StatefulWidget {
   final String location;
   final String address;

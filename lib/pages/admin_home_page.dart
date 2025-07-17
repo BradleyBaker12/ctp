@@ -12,14 +12,16 @@ import 'package:ctp/adminScreens/offers_tab.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-// Remove FirebaseAuth import if you don't need logout functionality anymore
-// import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Import the ProfilePage for navigation
 import 'package:ctp/providers/complaints_provider.dart'; // Note the plural form
 import 'package:ctp/providers/vehicles_provider.dart';
 import 'package:ctp/components/admin_web_navigation_bar.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class AdminHomePage extends StatefulWidget {
   final int initialTab;
   const AdminHomePage({super.key, this.initialTab = 0});
@@ -140,8 +142,9 @@ class _AdminHomePageState extends State<AdminHomePage>
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-    // NEW: Check if account exists
-    if (userProvider.getAccountStatus == 'not_found') {
+    // NEW: Check if account exists for non-authenticated users
+    if (FirebaseAuth.instance.currentUser == null &&
+        userProvider.getAccountStatus == 'not_found') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacementNamed(context, '/error');
       });
@@ -224,6 +227,13 @@ class _AdminHomePageState extends State<AdminHomePage>
                     Navigator.pushReplacementNamed(context, '/adminVehicles');
                   },
                 ),
+                // ListTile(
+                //   title: const Text('Fleets'),
+                //   textColor: Colors.white,
+                //   onTap: () {
+                //     Navigator.pushReplacementNamed(context, '/adminFleets');
+                //   },
+                // ),
                 if (userProvider.getUserEmail == 'bradley@admin.co.za')
                   ListTile(
                     title: const Text('Notification Test'),

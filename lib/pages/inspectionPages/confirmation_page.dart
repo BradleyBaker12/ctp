@@ -14,6 +14,9 @@ import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class ConfirmationPage extends StatefulWidget {
   final String offerId;
   final String location;

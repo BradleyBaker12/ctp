@@ -8,6 +8,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
 
+import 'package:auto_route/auto_route.dart';
+
+@RoutePage()
 class AdjustOfferPage extends StatefulWidget {
   final String offerId;
 

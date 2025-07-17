@@ -11,7 +11,8 @@ import 'package:provider/provider.dart';
 import 'package:ctp/components/loading_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class TradingInterestsPage extends StatefulWidget {
+import 'package:auto_route/auto_route.dart';
+@RoutePage()class TradingInterestsPage extends StatefulWidget {
   const TradingInterestsPage({super.key});
 
   @override

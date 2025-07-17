@@ -1,3 +1,4 @@
+import 'package:ctp/adminScreens/admin_fleets_page.dart';
 import 'package:ctp/firebase_options.dart';
 import 'package:ctp/pages/accepted_offers.dart';
 import 'package:ctp/pages/add_profile_photo.dart';
@@ -5,6 +6,7 @@ import 'package:ctp/pages/add_profile_photo_admin_page.dart';
 import 'package:ctp/pages/add_profile_photo_transporter.dart';
 import 'package:ctp/pages/admin_home_page.dart';
 import 'package:ctp/adminScreens/notification_test_page.dart';
+import 'package:ctp/pages/bulk_offer_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
@@ -17,6 +19,7 @@ import 'package:ctp/pages/error_page.dart';
 import 'package:ctp/pages/first_name_page.dart';
 import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/house_rules_page.dart';
+import 'package:ctp/pages/individual_offer_page.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
 import 'package:ctp/pages/login.dart';
 import 'package:ctp/pages/offersPage.dart';
@@ -132,69 +135,78 @@ void main() async {
 // Setup notifications, handles permissions and topic subscriptions
 Future<void> setupNotifications() async {
   if (kIsWeb) {
-    print('DEBUG: Skipping notifications setup on web platform');
+    // Web FCM setup
+    print('DEBUG: Starting web notification setup');
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    // Request permission
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+    print('DEBUG: Web permission status - ${settings.authorizationStatus}');
+
+    // Get Web FCM token using VAPID key
+    const vapidKey = String.fromEnvironment('WEB_VAPID_KEY');
+    String? webToken = await messaging.getToken(vapidKey: vapidKey);
+    print('DEBUG: Web FCM Token: $webToken');
+
+    // Handle foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage msg) {
+      print(
+          'DEBUG: Web onMessage - ${msg.notification?.title}: ${msg.notification?.body}');
+    });
     return;
   }
 
   try {
     print('DEBUG: Starting notification setup');
 
-    // Set background message handler
+    // Initialize background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    print('DEBUG: Background message handler registered');
 
-    // Create the Android notification channel
-    final notificationSettings = InitializationSettings(
+    // Initialize local notifications
+    final initSettings = InitializationSettings(
       android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS: DarwinInitializationSettings(),
     );
-
     await flutterLocalNotificationsPlugin.initialize(
-      notificationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse details) {
+      initSettings,
+      onDidReceiveNotificationResponse: (details) {
         print('Notification clicked: ${details.payload}');
-        // Handle notification click here
       },
     );
-
-    // Create the notification channel on Android
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // Request permission (iOS)
-    final messaging = FirebaseMessaging.instance;
-    final settings = await messaging.requestPermission(
+    // Request permission
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    NotificationSettings settings = await messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
-      provisional: false,
     );
-
     print('DEBUG: Permission request result - ${settings.authorizationStatus}');
 
-    // Get FCM token for debugging
-    final token = await messaging.getToken();
-    print('DEBUG: FCM Token: ${token ?? "null"}');
+    // Get FCM token
+    String? token = await messaging.getToken();
+    print('DEBUG: FCM Token: $token');
 
-    if (token != null) {
-      print('DEBUG: Full FCM Token: $token');
-    }
+    // Subscribe to topic
+    await messaging.subscribeToTopic('admins');
+    print('DEBUG: Subscribed to "admins" topic');
 
-    // Register to handle foreground messages
+    // Foreground message handler
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('DEBUG: Got a foreground message!');
-      print('DEBUG: Message data: ${message.data}');
-
+      print(
+          'DEBUG: Foreground message received: ${message.notification?.title}');
       RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
-
-      if (notification != null) {
-        print('DEBUG: Message notification title: ${notification.title}');
-        print('DEBUG: Message notification body: ${notification.body}');
-
-        // Show a local notification if we're in the foreground
+      AndroidNotification? android = notification?.android;
+      if (notification != null && android != null) {
         flutterLocalNotificationsPlugin.show(
           notification.hashCode,
           notification.title,
@@ -204,33 +216,23 @@ Future<void> setupNotifications() async {
               channel.id,
               channel.name,
               channelDescription: channel.description,
-              icon: android?.smallIcon ?? '@drawable/ic_notification',
-              // Use the icon specified in the Android manifest or a default one
+              icon: android.smallIcon ?? '@drawable/ic_notification',
             ),
             iOS: DarwinNotificationDetails(),
           ),
           payload: message.data.toString(),
         );
-
-        print('DEBUG: Local notification displayed');
       }
     });
 
-    // Listen for when the user clicks on a notification
+    // Notification tap handler
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print(
-          'DEBUG: Notification clicked - opening app. Message: ${message.data}');
-      // Handle notification click here - e.g., navigate to specific screen
+      print('DEBUG: Notification opened: ${message.data}');
     });
 
     // Initialize notification service
     await NotificationService.initialize();
     print('DEBUG: NotificationService initialized');
-
-    // For Android emulators, check internal Firebase logs
-    print(
-        'DEBUG: For Android emulators, check internal Firebase logs with command:');
-    print('DEBUG: adb logcat -s FirebaseMessaging');
   } catch (e, stackTrace) {
     print('ERROR setting up notifications: $e');
     print('Stack trace: $stackTrace');
@@ -269,7 +271,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
         ),
-        // home: const AppInitializer(),
+        home: const AppInitializer(),
         routes: {
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignUpPage(),
@@ -305,10 +307,13 @@ class MyApp extends StatelessWidget {
           '/vehicleUpload': (context) => const VehicleUploadScreen(),
           '/in-progress': (context) => const AcceptedOffersPage(),
           '/transporterList': (context) => const VehiclesListPage(),
+          '/adminFleets': (context) => const AdminFleetsPage(),
           '/wishlist': (context) => const WishlistPage(),
           '/adminHome': (context) => const AdminHomePage(),
           '/error': (context) => ErrorPage(),
           '/waitingApproval': (context) => AccountStatusPage(),
+          '/bulkOffer': (context) => BulkOfferPage(),
+          '/individualOffer': (context) => IndividualOfferPage(),
           '/basic_information': (context) => BasicInformationEdit(),
           '/maintenance_warranty': (context) {
             final vehicleId =
@@ -494,37 +499,60 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser == null || firebaseUser.isAnonymous) {
-      return const LoginPage();
-    }
-    return FutureBuilder<bool>(
-      future: _verifyAccount(context),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, authSnapshot) {
+        if (authSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        if (snapshot.hasError || snapshot.data == false) {
-          return const ErrorPage();
+        final firebaseUser = authSnapshot.data;
+        if (firebaseUser == null || firebaseUser.isAnonymous) {
+          return const LoginPage();
         }
-        final userProvider = Provider.of<UserProvider>(context);
-        if (userProvider.getAccountStatus == 'suspended' ||
-            userProvider.getAccountStatus == 'inactive') {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (ModalRoute.of(context)?.settings.name != '/account-status') {
-              Navigator.of(context).pushReplacementNamed('/account-status');
+        return FutureBuilder<bool>(
+          future: _verifyAccount(context),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
             }
-          });
-          return const AccountStatusPage();
-        }
-        if (userProvider.getUserRole.toLowerCase() == 'admin' ||
-            userProvider.getUserRole.toLowerCase() == 'sales rep') {
-          return const AdminHomePage();
-        } else {
-          return const HomePage();
-        }
+            if (snapshot.hasError) {
+              return const ErrorPage();
+            }
+            if (snapshot.data == false) {
+              // Allow admins and sales representatives to proceed even if status check failed
+              final userProviderSilent =
+                  Provider.of<UserProvider>(context, listen: false);
+              final role = userProviderSilent.getUserRole.toLowerCase();
+              if (role == 'admin' ||
+                  role == 'sales representative' ||
+                  role == 'sales rep') {
+                return const AdminHomePage();
+              }
+              return const ErrorPage();
+            }
+            final userProvider = Provider.of<UserProvider>(context);
+            if (userProvider.getAccountStatus == 'suspended' ||
+                userProvider.getAccountStatus == 'inactive') {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (ModalRoute.of(context)?.settings.name !=
+                    '/account-status') {
+                  Navigator.of(context).pushReplacementNamed('/account-status');
+                }
+              });
+              return const AccountStatusPage();
+            }
+            if (userProvider.getUserRole.toLowerCase() == 'admin' ||
+                userProvider.getUserRole.toLowerCase() == 'sales rep') {
+              return const AdminHomePage();
+            } else {
+              return const HomePage();
+            }
+          },
+        );
       },
     );
   }
