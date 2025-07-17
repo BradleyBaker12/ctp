@@ -7,7 +7,7 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const {onRequest} = require("firebase-functions/v2/https");
+const { onRequest } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 
 // Create and deploy your first functions
@@ -17,8 +17,6 @@ const logger = require("firebase-functions/logger");
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
-
-
 
 // const functions = require("firebase-functions");
 // const admin = require("firebase-admin");
@@ -30,7 +28,6 @@ const logger = require("firebase-functions/logger");
 
 // // Set your SendGrid API key and Twilio credentials using Firebase functions config
 // // Run these commands in your terminal to set the config:
-// // firebase functions:config:set sendgrid.key="YOUR_SENDGRID_API_KEY"
 // // firebase functions:config:set twilio.sid="YOUR_TWILIO_ACCOUNT_SID" twilio.token="YOUR_TWILIO_AUTH_TOKEN"
 // // firebase functions:config:set twilio.from="+YOUR_TWILIO_PHONE_NUMBER"
 // sgMail.setApiKey(functions.config().sendgrid.key);
