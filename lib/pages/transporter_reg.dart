@@ -18,7 +18,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class TransporterRegistrationPage extends StatefulWidget {
+
+@RoutePage()
+class TransporterRegistrationPage extends StatefulWidget {
   const TransporterRegistrationPage({super.key});
 
   @override
@@ -76,9 +78,6 @@ class _TransporterRegistrationPageState
   String? _bankConfirmationFileName;
   String? _proxyFileName;
   String? _brncFileName;
-  String? _taxCertificateFile;
-  Uint8List? _taxCertificateByte;
-  String? _taxCertificateFileName;
 
   @override
   void initState() {
@@ -132,12 +131,6 @@ class _TransporterRegistrationPageState
             if (!kIsWeb && result.files.single.path != null) {
               _brncFile = result.files.single.path;
             }
-          } else if (fieldName == 'taxCertificate') {
-            _taxCertificateByte = bytes;
-            _taxCertificateFileName = result.files.single.name;
-            if (!kIsWeb && result.files.single.path != null) {
-              _taxCertificateFile = result.files.single.path;
-            }
           }
         });
       }
@@ -188,17 +181,50 @@ class _TransporterRegistrationPageState
         return await snapshot.ref.getDownloadURL();
       }
 
-      final bankConfirmationUrl = !kIsWeb
-          ? await uploadFile(_bankConfirmationFile!, 'bank_confirmation.pdf')
-          : await uploadByte(_bankConfirmationByte!, 'bank_confirmation.pdf');
-      final proxyUrl = !kIsWeb
-          ? await uploadFile(_proxyFile!, 'proxy.pdf')
-          : await uploadByte(_proxyByte!, 'proxy.pdf');
-      final brncUrl = !kIsWeb
-          ? await uploadFile(_brncFile!, 'brnc.pdf')
-          : await uploadByte(_brncByte!, 'brnc.pdf');
+      // Check if required files are uploaded
+      if ((!kIsWeb &&
+              (_bankConfirmationFile == null ||
+                  _proxyFile == null ||
+                  _brncFile == null)) ||
+          (kIsWeb &&
+              (_bankConfirmationByte == null ||
+                  _proxyByte == null ||
+                  _brncByte == null))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Please upload all required documents: Bank Confirmation, Proxy, and BRNC Certificate'),
+          ),
+        );
+        return;
+      }
+
+      String? bankConfirmationUrl;
+      String? proxyUrl;
+      String? brncUrl;
+
+      try {
+        if (!kIsWeb) {
+          bankConfirmationUrl =
+              await uploadFile(_bankConfirmationFile!, 'bank_confirmation.pdf');
+          proxyUrl = await uploadFile(_proxyFile!, 'proxy.pdf');
+          brncUrl = await uploadFile(_brncFile!, 'brnc.pdf');
+        } else {
+          bankConfirmationUrl =
+              await uploadByte(_bankConfirmationByte!, 'bank_confirmation.pdf');
+          proxyUrl = await uploadByte(_proxyByte!, 'proxy.pdf');
+          brncUrl = await uploadByte(_brncByte!, 'brnc.pdf');
+        }
+      } catch (e) {
+        print("Error uploading files: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading files: $e')),
+        );
+        return;
+      }
 
       await firestore.collection('users').doc(userId).update({
+        'userRole': 'transporter', // Ensure userRole is set
         'companyName': _companyNameController.text,
         'tradingName': _tradingNameController.text,
         'fleetSize': _fleetSizeController.text,
@@ -511,14 +537,6 @@ class _TransporterRegistrationPageState
                                   const SizedBox(height: 5),
                                   _buildUploadButton('brnc', _brncFile),
                                   const SizedBox(height: 15),
-                                  Text(
-                                    'Tax Certificate *',
-                                    style: GoogleFonts.montserrat(
-                                        color: Colors.white),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  _buildUploadButton(
-                                      'taxCertificate', _taxCertificateFile),
                                   const SizedBox(height: 15),
                                   Center(
                                     child: CustomButton(
@@ -722,24 +740,16 @@ class _TransporterRegistrationPageState
   Widget _buildUploadButton(String fieldName, String? fileName) {
     var screenSize = MediaQuery.of(context).size;
     String? displayFileName;
-    Uint8List? fileBytes;
 
     switch (fieldName) {
       case 'bankConfirmation':
         displayFileName = _bankConfirmationFileName;
-        fileBytes = _bankConfirmationByte;
         break;
       case 'proxy':
         displayFileName = _proxyFileName;
-        fileBytes = _proxyByte;
         break;
       case 'brnc':
         displayFileName = _brncFileName;
-        fileBytes = _brncByte;
-        break;
-      case 'taxCertificate':
-        displayFileName = _taxCertificateFileName;
-        fileBytes = _taxCertificateByte;
         break;
     }
 
@@ -813,10 +823,6 @@ class _TransporterRegistrationPageState
                     case 'brnc':
                       _brncFileName = null;
                       _brncByte = null;
-                      break;
-                    case 'taxCertificate':
-                      _taxCertificateFileName = null;
-                      _taxCertificateByte = null;
                       break;
                   }
                 });

@@ -85,6 +85,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   String _offerStatus = 'in-progress';
   bool _canMakeOffer = true;
   bool _isLoading = false;
+  bool _isProcessingOffer = false;
 
   // To check if the accepted offer belongs to the current dealer
   bool _isAcceptedOfferMine = false;
@@ -442,11 +443,16 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final offerAmount =
         digitsOnly.isEmpty ? 0.0 : double.tryParse(digitsOnly) ?? 0.0;
     final int? lifespanDays = _selectedLifespan == 0 ? null : _selectedLifespan;
+
+    // No validation here - validation is handled in the button onPressed
+    // This method should only be called after validation has already passed
+
     setState(() {
       _offerAmount = offerAmount;
     });
     // Compute total cost including VAT and commission
     final double computedOfferAmount = _calculateTotalCost(_offerAmount);
+
     if (!_canMakeOffer || vehicle.isAccepted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -462,17 +468,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final bool isAdmin = (role == 'admin');
     final bool isSalesRep = (role == 'sales representative');
     final bool isDealer = (role == 'dealer');
-
-    if (_offerAmount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid Offer Amount. Please Enter a Valid Number.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
     if ((isAdmin || isSalesRep) && _selectedDealer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -509,29 +504,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     if (isDealer) {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Check if dealer has already made an offer for this vehicle
-        final offerSnapshot = await FirebaseFirestore.instance
-            .collection('offers')
-            .where('dealerId', isEqualTo: user.uid)
-            .where('vehicleId', isEqualTo: widget.vehicle.id)
-            .orderBy('createdAt', descending: true)
-            .limit(1)
-            .get();
-        if (offerSnapshot.docs.isNotEmpty) {
-          final offerData = offerSnapshot.docs.first.data();
-          final offerStatus =
-              offerData['offerStatus']?.toString().toLowerCase() ?? '';
-          if (offerStatus != 'rejected') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content:
-                    Text('You have already made an offer for this vehicle.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
-        }
         DocumentSnapshot dealerDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -2461,13 +2433,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                     );
                   } catch (e) {
                     debugPrint('Error: $e');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'Invalid Offer Amount. Please Enter a Valid Number.'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    // Don't show error message here - let user finish typing
                   }
                 } else {
                   _offerAmount = 0.0;
@@ -2561,9 +2527,72 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
+                // Skip validation if we're currently processing an offer
+                if (_isProcessingOffer) return;
+
+                // Validate the offer amount before showing confirmation dialog
+                final offerText = _controller.text.trim();
+                final digitsOnly = offerText.replaceAll(RegExp(r'[^0-9]'), '');
+                final offerAmount = digitsOnly.isEmpty
+                    ? 0.0
+                    : double.tryParse(digitsOnly) ?? 0.0;
+
+                // Commission amount validation - only apply to dealers, not admins/sales reps
+                const double minimumOfferAmount = 12500.0;
+                final String currentUserRole =
+                    userProvider.getUserRole.toLowerCase();
+                final bool isDealer = currentUserRole == 'dealer';
+
+                if (isDealer && offerAmount < minimumOfferAmount) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Offer amount must be at least R${minimumOfferAmount.toStringAsFixed(0)} (minimum commission amount).'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                // Check for existing offers for dealers
+                if (isDealer) {
+                  User? user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    final offerSnapshot = await FirebaseFirestore.instance
+                        .collection('offers')
+                        .where('dealerId', isEqualTo: user.uid)
+                        .where('vehicleId', isEqualTo: widget.vehicle.id)
+                        .orderBy('createdAt', descending: true)
+                        .limit(1)
+                        .get();
+                    if (offerSnapshot.docs.isNotEmpty) {
+                      final offerData = offerSnapshot.docs.first.data();
+                      final offerStatus =
+                          offerData['offerStatus']?.toString().toLowerCase() ??
+                              '';
+                      if (offerStatus != 'rejected') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'You have already made an offer for this vehicle.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                    }
+                  }
+                }
+
                 final confirmed = await _showOfferConfirmationDialog();
                 if (confirmed == true) {
-                  _makeOffer();
+                  setState(() {
+                    _isProcessingOffer = true;
+                  });
+                  await _makeOffer();
+                  setState(() {
+                    _isProcessingOffer = false;
+                  });
                 }
               },
               style: ElevatedButton.styleFrom(

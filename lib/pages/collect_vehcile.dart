@@ -13,7 +13,9 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class CollectVehiclePage extends StatefulWidget {
+
+@RoutePage()
+class CollectVehiclePage extends StatefulWidget {
   final String offerId;
 
   const CollectVehiclePage({super.key, required this.offerId});
@@ -73,37 +75,94 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
           orElse: () => throw Exception('Offer not found'),
         );
 
-        // First update the vehicle status
-        await FirebaseFirestore.instance
+        print('DEBUG: Starting collection process for offer ${widget.offerId}');
+        print(
+            'DEBUG: Current offer status before update: ${currentOffer.offerStatus}');
+
+        // Create a batch write to ensure atomicity
+        WriteBatch batch = FirebaseFirestore.instance.batch();
+
+        // Update the vehicle status
+        DocumentReference vehicleRef = FirebaseFirestore.instance
             .collection('vehicles')
-            .doc(currentOffer.vehicleId)
-            .update({
+            .doc(currentOffer.vehicleId);
+
+        batch.update(vehicleRef, {
           'status': 'sold',
           'soldDate': FieldValue.serverTimestamp(),
-          'isSold': true, // Add this flag
+          'isSold': true,
         });
 
-        // Then update the offer status with additional flags
-        await FirebaseFirestore.instance
-            .collection('offers')
-            .doc(widget.offerId)
-            .update({
-          'offerStatus': 'sold',
+        // Update the offer status with a more specific and final status
+        DocumentReference offerRef =
+            FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
+
+        batch.update(offerRef, {
+          'offerStatus':
+              'collected', // Use 'collected' instead of 'sold' to be more specific
+          'collectionDate': FieldValue.serverTimestamp(),
           'soldDate': FieldValue.serverTimestamp(),
           'finalStatus': true,
           'isCompleted': true,
           'isSold': true,
+          'collectionConfirmed': true,
+          'licenseVerified': true,
+          'transactionComplete':
+              true, // Add this flag to prevent any auto-rejection
+          'statusLocked':
+              true, // Add this to indicate status should not be changed
+          'collectorUserId':
+              Provider.of<UserProvider>(context, listen: false).userId,
         });
 
-        print('Updated status to sold permanently for both offer and vehicle');
+        // Commit the batch
+        await batch.commit();
 
-        // Verify the status was updated
+        print('DEBUG: Batch update completed - offer status set to collected');
+
+        // Add a small delay and then verify/re-enforce the status
+        await Future.delayed(const Duration(seconds: 1));
+
+        // Verify and re-enforce the status if it was changed
         final verifyOffer = await FirebaseFirestore.instance
             .collection('offers')
             .doc(widget.offerId)
             .get();
 
-        print('Verified offer status: ${verifyOffer.data()?['offerStatus']}');
+        final currentStatus = verifyOffer.data()?['offerStatus'];
+        print('DEBUG: Verified offer status after update: $currentStatus');
+
+        // If status was somehow changed away from 'collected', force it back
+        if (currentStatus != 'collected') {
+          print(
+              'WARNING: Status was changed to $currentStatus, forcing back to collected');
+          await FirebaseFirestore.instance
+              .collection('offers')
+              .doc(widget.offerId)
+              .update({
+            'offerStatus': 'collected',
+            'statusOverride': true,
+            'statusLocked': true,
+            'forceCollected': FieldValue.serverTimestamp(),
+          });
+
+          // Verify again
+          final reVerifyOffer = await FirebaseFirestore.instance
+              .collection('offers')
+              .doc(widget.offerId)
+              .get();
+          print(
+              'DEBUG: Re-verified offer status: ${reVerifyOffer.data()?['offerStatus']}');
+        }
+
+        // Also verify the vehicle status
+        final verifyVehicle = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(currentOffer.vehicleId)
+            .get();
+
+        print(
+            'DEBUG: Verified vehicle status after update: ${verifyVehicle.data()?['status']}');
 
         // Get the current user's role from UserProvider
         final userProvider = Provider.of<UserProvider>(context, listen: false);

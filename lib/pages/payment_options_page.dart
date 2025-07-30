@@ -28,7 +28,9 @@ import 'package:url_launcher/url_launcher.dart'; // Add this import for launchUr
 import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class PaymentOptionsPage extends StatefulWidget {
+
+@RoutePage()
+class PaymentOptionsPage extends StatefulWidget {
   final String offerId;
 
   const PaymentOptionsPage({super.key, required this.offerId});
@@ -103,8 +105,7 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
     // Notify all admins
     final adminSnapshot = await FirebaseFirestore.instance
         .collection('users')
-        .where('role', isEqualTo: 'admin')
-        .get();
+        .where('userRole', whereIn: ['admin', 'sales representative']).get();
     for (var doc in adminSnapshot.docs) {
       await FirebaseFirestore.instance.collection('notifications').add({
         'userId': doc.id,

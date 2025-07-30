@@ -263,6 +263,7 @@ class OfferProvider with ChangeNotifier {
         'accepted',
         'paid',
         'collection details',
+        'sold', // added to prevent sold offers from being marked rejected
       };
 
       // If it’s not already rejected and not in the “skip” list, expire it:

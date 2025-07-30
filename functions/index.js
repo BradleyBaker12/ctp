@@ -5,6 +5,7 @@ const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const functions = require("firebase-functions");
 const sgMail = require("@sendgrid/mail");
 // Initialize SendGrid API key, preferring env var, then config(), with safety check
@@ -41,59 +42,1095 @@ const db = admin.firestore();
 const express = require("express");
 const app = express();
 
-// Existing function for offer notifications
-// exports.sendOfferNotification = onDocumentCreated(
-//   {
-//     document: "offers/{offerId}",
-//     region: "europe-west3", // Update to match your desired region
-//   },
-//   async (event) => {
-//     const snap = event.data;
-//     const offerData = snap.data();
+// Notify transporter when a dealer makes an offer on their vehicle
+exports.notifyTransporterOnNewOffer = onDocumentCreated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyTransporterOnNewOffer] Triggered for offerId:",
+      event.params.offerId
+    );
 
-//     // Get the transporter ID and other offer details
-//     const transporterId = offerData.transporterId;
-//     const offerAmount = offerData.offerAmount;
-//     const vehicleId = offerData.vehicleId;
+    const snap = event.data;
+    if (!snap) {
+      console.log("[notifyTransporterOnNewOffer] No snapshot data");
+      return;
+    }
 
-//     // Fetch the transporter's FCM token from Firestore
-//     const transporterDoc = await db
-//       .collection("users")
-//       .doc(transporterId)
-//       .get();
+    const offerData = snap.data();
+    const offerId = event.params.offerId;
 
-//     if (!transporterDoc.exists) {
-//       console.log("No such transporter user found");
-//       return;
-//     }
+    console.log("[notifyTransporterOnNewOffer] Offer data:", offerData);
 
-//     const fcmToken = transporterDoc.data().fcmToken;
+    try {
+      // Get vehicle details to find the transporter
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(offerData.vehicleId)
+        .get();
 
-//     // If the transporter has an FCM token, send the notification
-//     if (fcmToken) {
-//       const payload = {
-//         notification: {
-//           title: "New Offer on Your Vehicle",
-//           body: `A dealer has made an offer of R${offerAmount} on your vehicle.`,
-//           clickAction: "FLUTTER_NOTIFICATION_CLICK",
-//         },
-//         data: {
-//           vehicleId: vehicleId,
-//           offerId: event.params.offerId,
-//         },
-//       };
+      if (!vehicleDoc.exists) {
+        console.log(
+          "[notifyTransporterOnNewOffer] Vehicle not found:",
+          offerData.vehicleId
+        );
+        return;
+      }
 
-//       try {
-//         await admin.messaging().sendToDevice(fcmToken, payload);
-//         console.log("Notification sent to transporter:", transporterId);
-//       } catch (error) {
-//         console.error("Error sending notification:", error);
-//       }
-//     } else {
-//       console.log("Transporter does not have an FCM token");
-//     }
-//   }
-// );
+      const vehicleData = vehicleDoc.data();
+      const transporterId = vehicleData.userId; // Vehicle owner (transporter)
+
+      if (!transporterId) {
+        console.log(
+          "[notifyTransporterOnNewOffer] No transporter ID found on vehicle"
+        );
+        return;
+      }
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(transporterId)
+        .get();
+
+      if (!transporterDoc.exists) {
+        console.log(
+          "[notifyTransporterOnNewOffer] Transporter not found:",
+          transporterId
+        );
+        return;
+      }
+
+      const transporterData = transporterDoc.data();
+
+      if (!transporterData.fcmToken) {
+        console.log(
+          "[notifyTransporterOnNewOffer] Transporter has no FCM token:",
+          transporterId
+        );
+        return;
+      }
+
+      // Get dealer details for a more personalized message
+      const dealerDoc = await db
+        .collection("users")
+        .doc(offerData.dealerId)
+        .get();
+
+      let dealerName = "A dealer";
+      if (dealerDoc.exists) {
+        const dealerData = dealerDoc.data();
+        dealerName =
+          `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+          dealerData.companyName ||
+          "A dealer";
+      }
+
+      // Format the offer amount
+      const formattedAmount = new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: "ZAR",
+        minimumFractionDigits: 0,
+      }).format(offerData.offerAmount);
+
+      // Create vehicle description
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Send push notification to transporter
+      const message = {
+        notification: {
+          title: "New Offer on Your Vehicle",
+          body: `${dealerName} has made an offer of ${formattedAmount} on your ${vehicleName}.`,
+        },
+        data: {
+          vehicleId: offerData.vehicleId,
+          offerId: offerId,
+          dealerId: offerData.dealerId,
+          offerAmount: offerData.offerAmount.toString(),
+          notificationType: "new_offer",
+          timestamp: new Date().toISOString(),
+        },
+        token: transporterData.fcmToken,
+      };
+
+      await admin.messaging().send(message);
+      console.log(
+        `[notifyTransporterOnNewOffer] Notification sent to transporter ${transporterId} for offer ${offerId}`
+      );
+    } catch (error) {
+      console.error("[notifyTransporterOnNewOffer] Error:", error);
+    }
+  }
+);
+
+// Notify transporter when their offer status changes (accepted, rejected, etc.)
+exports.notifyTransporterOnOfferStatusChange = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyTransporterOnOfferStatusChange] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log(
+        "[notifyTransporterOnOfferStatusChange] No before/after data"
+      );
+      return;
+    }
+
+    // Check if status changed
+    const beforeStatus = before.offerStatus?.toLowerCase() || "";
+    const afterStatus = after.offerStatus?.toLowerCase() || "";
+
+    // Do not process if the offer is collected or status is locked
+    if (
+      after.statusLocked === true ||
+      afterStatus === "collected" ||
+      after.transactionComplete === true
+    ) {
+      console.log(
+        "[notifyTransporterOnOfferStatusChange] Offer is locked/collected, skipping notification"
+      );
+      return;
+    }
+
+    if (beforeStatus === afterStatus) {
+      console.log(
+        "[notifyTransporterOnOfferStatusChange] No status change detected"
+      );
+      return;
+    }
+
+    console.log(
+      `[notifyTransporterOnOfferStatusChange] Status changed from ${beforeStatus} to ${afterStatus}`
+    );
+
+    try {
+      // Get vehicle details to find the transporter
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+
+      if (!vehicleDoc.exists) {
+        console.log(
+          "[notifyTransporterOnOfferStatusChange] Vehicle not found:",
+          after.vehicleId
+        );
+        return;
+      }
+
+      const vehicleData = vehicleDoc.data();
+      const transporterId = vehicleData.userId; // Vehicle owner (transporter)
+
+      if (!transporterId) {
+        console.log(
+          "[notifyTransporterOnOfferStatusChange] No transporter ID found on vehicle"
+        );
+        return;
+      }
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(transporterId)
+        .get();
+
+      if (!transporterDoc.exists) {
+        console.log(
+          "[notifyTransporterOnOfferStatusChange] Transporter not found:",
+          transporterId
+        );
+        return;
+      }
+
+      const transporterData = transporterDoc.data();
+
+      if (!transporterData.fcmToken) {
+        console.log(
+          "[notifyTransporterOnOfferStatusChange] Transporter has no FCM token:",
+          transporterId
+        );
+        return;
+      }
+
+      // Get dealer details for a more personalized message
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+
+      let dealerName = "A dealer";
+      if (dealerDoc.exists) {
+        const dealerData = dealerDoc.data();
+        dealerName =
+          `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+          dealerData.companyName ||
+          "A dealer";
+      }
+
+      // Format the offer amount
+      const formattedAmount = new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: "ZAR",
+        minimumFractionDigits: 0,
+      }).format(after.offerAmount);
+
+      // Create vehicle description
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Create notification based on status
+      let title = "";
+      let body = "";
+
+      switch (afterStatus) {
+        case "accepted":
+          title = "Offer Accepted! 🎉";
+          body = `Congratulations! You've accepted ${dealerName}'s offer of ${formattedAmount} for your ${vehicleName}.`;
+          break;
+        case "rejected":
+          title = "Offer Declined";
+          body = `You've declined ${dealerName}'s offer of ${formattedAmount} for your ${vehicleName}.`;
+          break;
+        case "pending":
+          title = "Offer Updated";
+          body = `${dealerName}'s offer of ${formattedAmount} for your ${vehicleName} is now pending review.`;
+          break;
+        case "expired":
+          title = "Offer Expired";
+          body = `${dealerName}'s offer of ${formattedAmount} for your ${vehicleName} has expired.`;
+          break;
+        default:
+          title = "Offer Status Updated";
+          body = `Your offer from ${dealerName} for ${vehicleName} has been updated.`;
+      }
+
+      // Send push notification to transporter
+      const message = {
+        notification: {
+          title: title,
+          body: body,
+        },
+        data: {
+          vehicleId: after.vehicleId,
+          offerId: offerId,
+          dealerId: after.dealerId,
+          offerAmount: after.offerAmount.toString(),
+          offerStatus: afterStatus,
+          notificationType: "offer_status_change",
+          timestamp: new Date().toISOString(),
+        },
+        token: transporterData.fcmToken,
+      };
+
+      await admin.messaging().send(message);
+      console.log(
+        `[notifyTransporterOnOfferStatusChange] Notification sent to transporter ${transporterId} for offer status change: ${afterStatus}`
+      );
+    } catch (error) {
+      console.error("[notifyTransporterOnOfferStatusChange] Error:", error);
+    }
+  }
+);
+
+// Notify dealer when transporter responds to their offer (accepts/rejects)
+exports.notifyDealerOnOfferResponse = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyDealerOnOfferResponse] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyDealerOnOfferResponse] No before/after data");
+      return;
+    }
+
+    // Check if status changed to accepted or rejected (transporter responded)
+    const beforeStatus = before.offerStatus?.toLowerCase() || "";
+    const afterStatus = after.offerStatus?.toLowerCase() || "";
+
+    // Do not process if the offer is collected or status is locked
+    if (
+      after.statusLocked === true ||
+      afterStatus === "collected" ||
+      after.transactionComplete === true
+    ) {
+      console.log(
+        "[notifyDealerOnOfferResponse] Offer is locked/collected, skipping notification"
+      );
+      return;
+    }
+
+    if (
+      beforeStatus === afterStatus ||
+      (afterStatus !== "accepted" && afterStatus !== "rejected")
+    ) {
+      console.log(
+        "[notifyDealerOnOfferResponse] No relevant status change for dealer notification"
+      );
+      return;
+    }
+
+    console.log(
+      `[notifyDealerOnOfferResponse] Offer ${afterStatus} by transporter`
+    );
+
+    try {
+      // Get dealer details
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+
+      if (!dealerDoc.exists) {
+        console.log(
+          "[notifyDealerOnOfferResponse] Dealer not found:",
+          after.dealerId
+        );
+        return;
+      }
+
+      const dealerData = dealerDoc.data();
+
+      if (!dealerData.fcmToken) {
+        console.log(
+          "[notifyDealerOnOfferResponse] Dealer has no FCM token:",
+          after.dealerId
+        );
+        return;
+      }
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+
+      if (!vehicleDoc.exists) {
+        console.log(
+          "[notifyDealerOnOfferResponse] Vehicle not found:",
+          after.vehicleId
+        );
+        return;
+      }
+
+      const vehicleData = vehicleDoc.data();
+
+      // Get transporter details for personalized message
+      const transporterDoc = await db
+        .collection("users")
+        .doc(vehicleData.userId)
+        .get();
+
+      let transporterName = "The transporter";
+      if (transporterDoc.exists) {
+        const transporterData = transporterDoc.data();
+        transporterName =
+          `${transporterData.firstName || ""} ${
+            transporterData.lastName || ""
+          }`.trim() ||
+          transporterData.companyName ||
+          "The transporter";
+      }
+
+      // Format the offer amount
+      const formattedAmount = new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: "ZAR",
+        minimumFractionDigits: 0,
+      }).format(after.offerAmount);
+
+      // Create vehicle description
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Create notification based on response
+      let title = "";
+      let body = "";
+
+      if (afterStatus === "accepted") {
+        title = "Offer Accepted! 🎉";
+        body = `Great news! ${transporterName} has accepted your offer of ${formattedAmount} for the ${vehicleName}.`;
+      } else if (afterStatus === "rejected") {
+        title = "Offer Declined";
+        body = `${transporterName} has declined your offer of ${formattedAmount} for the ${vehicleName}.`;
+      }
+
+      // Send push notification to dealer
+      const message = {
+        notification: {
+          title: title,
+          body: body,
+        },
+        data: {
+          vehicleId: after.vehicleId,
+          offerId: offerId,
+          transporterId: vehicleData.userId,
+          offerAmount: after.offerAmount.toString(),
+          offerStatus: afterStatus,
+          notificationType: "offer_response",
+          timestamp: new Date().toISOString(),
+        },
+        token: dealerData.fcmToken,
+      };
+
+      await admin.messaging().send(message);
+      console.log(
+        `[notifyDealerOnOfferResponse] Notification sent to dealer ${after.dealerId} for offer response: ${afterStatus}`
+      );
+
+      // Notify admins when an offer is accepted
+      if (afterStatus === "accepted") {
+        try {
+          // Get all admin users
+          const adminUsersSnapshot = await db
+            .collection("users")
+            .where("userRole", "in", ["admin", "sales representative"])
+            .get();
+
+          if (!adminUsersSnapshot.empty) {
+            for (const adminDoc of adminUsersSnapshot.docs) {
+              const adminData = adminDoc.data();
+
+              if (!adminData.fcmToken) {
+                console.log(
+                  `[notifyDealerOnOfferResponse] Admin ${adminDoc.id} has no FCM token`
+                );
+                continue;
+              }
+
+              // Get dealer name for admin notification
+              let dealerCompanyName = "Unknown Dealer";
+              if (dealerData.companyName) {
+                dealerCompanyName = dealerData.companyName;
+              } else if (dealerData.firstName || dealerData.lastName) {
+                dealerCompanyName = `${dealerData.firstName || ""} ${
+                  dealerData.lastName || ""
+                }`.trim();
+              }
+
+              const adminMessage = {
+                notification: {
+                  title: "Offer Accepted 💰",
+                  body: `${dealerCompanyName} and ${transporterName} agreed on ${formattedAmount} for ${vehicleName}.`,
+                },
+                data: {
+                  vehicleId: after.vehicleId,
+                  offerId: offerId,
+                  transporterId: vehicleData.userId,
+                  dealerId: after.dealerId,
+                  offerAmount: after.offerAmount.toString(),
+                  offerStatus: afterStatus,
+                  notificationType: "offer_accepted_admin",
+                  timestamp: new Date().toISOString(),
+                },
+                token: adminData.fcmToken,
+              };
+
+              await admin.messaging().send(adminMessage);
+              console.log(
+                `[notifyDealerOnOfferResponse] Admin notification sent to ${adminDoc.id} for accepted offer`
+              );
+            }
+          }
+        } catch (adminError) {
+          console.error(
+            "[notifyDealerOnOfferResponse] Error notifying admins:",
+            adminError
+          );
+        }
+      }
+    } catch (error) {
+      console.error("[notifyDealerOnOfferResponse] Error:", error);
+    }
+  }
+);
+
+// Notify both transporter and dealer when a sale is completed
+exports.notifyPartiesOnSaleCompletion = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyPartiesOnSaleCompletion] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyPartiesOnSaleCompletion] No before/after data");
+      return;
+    }
+
+    // Check if status changed to completed/sold/collected
+    const beforeStatus = before.offerStatus?.toLowerCase() || "";
+    const afterStatus = after.offerStatus?.toLowerCase() || "";
+
+    if (
+      beforeStatus === afterStatus ||
+      (afterStatus !== "completed" &&
+        afterStatus !== "sold" &&
+        afterStatus !== "collected")
+    ) {
+      console.log(
+        "[notifyPartiesOnSaleCompletion] No sale completion status change detected"
+      );
+      return;
+    }
+
+    console.log(
+      `[notifyPartiesOnSaleCompletion] Sale completed for offer ${offerId}`
+    );
+
+    try {
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+
+      if (!vehicleDoc.exists) {
+        console.log(
+          "[notifyPartiesOnSaleCompletion] Vehicle not found:",
+          after.vehicleId
+        );
+        return;
+      }
+
+      const vehicleData = vehicleDoc.data();
+
+      // Get dealer details
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+
+      if (!dealerDoc.exists) {
+        console.log(
+          "[notifyPartiesOnSaleCompletion] Dealer not found:",
+          after.dealerId
+        );
+        return;
+      }
+
+      const dealerData = dealerDoc.data();
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(vehicleData.userId)
+        .get();
+
+      if (!transporterDoc.exists) {
+        console.log(
+          "[notifyPartiesOnSaleCompletion] Transporter not found:",
+          vehicleData.userId
+        );
+        return;
+      }
+
+      const transporterData = transporterDoc.data();
+
+      // Format the sale amount
+      const formattedAmount = new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: "ZAR",
+        minimumFractionDigits: 0,
+      }).format(after.offerAmount);
+
+      // Create vehicle description
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Get names for personalization
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "the dealer";
+
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "the transporter";
+
+      // Notify the transporter (seller)
+      if (transporterData.fcmToken) {
+        try {
+          const transporterMessage = {
+            notification: {
+              title: "🎉 Congratulations on Your Sale!",
+              body: `Your ${vehicleName} has been sold to ${dealerName} for ${formattedAmount}. Well done on completing the deal!`,
+            },
+            data: {
+              vehicleId: after.vehicleId,
+              offerId: offerId,
+              dealerId: after.dealerId,
+              offerAmount: after.offerAmount.toString(),
+              offerStatus: afterStatus,
+              notificationType: "sale_completion_transporter",
+              timestamp: new Date().toISOString(),
+            },
+            token: transporterData.fcmToken,
+          };
+
+          await admin.messaging().send(transporterMessage);
+          console.log(
+            `[notifyPartiesOnSaleCompletion] Sale completion notification sent to transporter ${vehicleData.userId}`
+          );
+        } catch (transporterError) {
+          console.error(
+            "[notifyPartiesOnSaleCompletion] Error notifying transporter:",
+            transporterError
+          );
+        }
+      } else {
+        console.log(
+          `[notifyPartiesOnSaleCompletion] Transporter ${vehicleData.userId} has no FCM token`
+        );
+      }
+
+      // Notify the dealer (buyer)
+      if (dealerData.fcmToken) {
+        try {
+          const dealerMessage = {
+            notification: {
+              title: "🎉 Congratulations on Your Purchase!",
+              body: `You have successfully purchased the ${vehicleName} from ${transporterName} for ${formattedAmount}. Enjoy your new vehicle!`,
+            },
+            data: {
+              vehicleId: after.vehicleId,
+              offerId: offerId,
+              transporterId: vehicleData.userId,
+              offerAmount: after.offerAmount.toString(),
+              offerStatus: afterStatus,
+              notificationType: "sale_completion_dealer",
+              timestamp: new Date().toISOString(),
+            },
+            token: dealerData.fcmToken,
+          };
+
+          await admin.messaging().send(dealerMessage);
+          console.log(
+            `[notifyPartiesOnSaleCompletion] Sale completion notification sent to dealer ${after.dealerId}`
+          );
+        } catch (dealerError) {
+          console.error(
+            "[notifyPartiesOnSaleCompletion] Error notifying dealer:",
+            dealerError
+          );
+        }
+      } else {
+        console.log(
+          `[notifyPartiesOnSaleCompletion] Dealer ${after.dealerId} has no FCM token`
+        );
+      }
+
+      // Send email notifications if available
+      const transporterEmail = transporterData.email;
+      const dealerEmail = dealerData.email;
+
+      // Send email to transporter
+      if (transporterEmail && sgMail) {
+        try {
+          await sgMail.send({
+            from: "admin@ctpapp.co.za",
+            to: transporterEmail,
+            subject: "🎉 Congratulations! Your Vehicle Has Been Sold",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2F7FFF;">Congratulations on Your Successful Sale! 🎉</h2>
+                <p>Dear ${transporterName},</p>
+                <p>We're thrilled to inform you that your <strong>${vehicleName}</strong> has been successfully sold!</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #333;">Sale Details:</h3>
+                  <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                  <p><strong>Sale Price:</strong> ${formattedAmount}</p>
+                  <p><strong>Buyer:</strong> ${dealerName}</p>
+                  <p><strong>Sale Date:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+                
+                <p>Thank you for using Commercial Trader Portal for your vehicle sale. We hope you had a great experience with our platform.</p>
+                <p>We look forward to helping you with future vehicle transactions!</p>
+                
+                <p>Best regards,<br>
+                The Commercial Trader Portal Team</p>
+              </div>
+            `,
+          });
+          console.log(
+            `[notifyPartiesOnSaleCompletion] Sale completion email sent to transporter`
+          );
+        } catch (emailError) {
+          console.error(
+            "[notifyPartiesOnSaleCompletion] Error sending email to transporter:",
+            emailError
+          );
+        }
+      }
+
+      // Send email to dealer
+      if (dealerEmail && sgMail) {
+        try {
+          await sgMail.send({
+            from: "admin@ctpapp.co.za",
+            to: dealerEmail,
+            subject: "🎉 Congratulations! Your Vehicle Purchase is Complete",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2F7FFF;">Congratulations on Your Successful Purchase! 🎉</h2>
+                <p>Dear ${dealerName},</p>
+                <p>We're excited to confirm that your purchase of the <strong>${vehicleName}</strong> has been completed!</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #333;">Purchase Details:</h3>
+                  <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                  <p><strong>Purchase Price:</strong> ${formattedAmount}</p>
+                  <p><strong>Seller:</strong> ${transporterName}</p>
+                  <p><strong>Purchase Date:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+                
+                <p>Thank you for choosing Commercial Trader Portal for your vehicle purchase. We hope you enjoy your new vehicle!</p>
+                <p>We look forward to serving you again in the future.</p>
+                
+                <p>Best regards,<br>
+                The Commercial Trader Portal Team</p>
+              </div>
+            `,
+          });
+          console.log(
+            `[notifyPartiesOnSaleCompletion] Sale completion email sent to dealer`
+          );
+        } catch (emailError) {
+          console.error(
+            "[notifyPartiesOnSaleCompletion] Error sending email to dealer:",
+            emailError
+          );
+        }
+      }
+
+      // Update vehicle status to sold if not already done
+      try {
+        await db.collection("vehicles").doc(after.vehicleId).update({
+          vehicleStatus: "sold",
+          soldDate: admin.firestore.FieldValue.serverTimestamp(),
+          soldPrice: after.offerAmount,
+        });
+        console.log(
+          `[notifyPartiesOnSaleCompletion] Vehicle ${after.vehicleId} marked as sold`
+        );
+      } catch (updateError) {
+        console.error(
+          "[notifyPartiesOnSaleCompletion] Error updating vehicle status:",
+          updateError
+        );
+      }
+    } catch (error) {
+      console.error("[notifyPartiesOnSaleCompletion] Error:", error);
+    }
+  }
+);
+
+// Notify admins when live vehicle information is updated
+exports.notifyAdminsOnLiveVehicleUpdate = onDocumentUpdated(
+  {
+    document: "vehicles/{vehicleId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyAdminsOnLiveVehicleUpdate] Triggered for vehicleId:",
+      event.params.vehicleId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const vehicleId = event.params.vehicleId;
+
+    if (!before || !after) {
+      console.log("[notifyAdminsOnLiveVehicleUpdate] No before/after data");
+      return;
+    }
+
+    // Check if vehicle was or is live
+    const beforeStatus = before.vehicleStatus?.toLowerCase() || "";
+    const afterStatus = after.vehicleStatus?.toLowerCase() || "";
+
+    const wasLive = beforeStatus === "live";
+    const isLive = afterStatus === "live";
+
+    if (!wasLive && !isLive) {
+      console.log(
+        "[notifyAdminsOnLiveVehicleUpdate] Vehicle was never live, skipping notification"
+      );
+      return;
+    }
+
+    // Define fields to monitor for changes
+    const monitoredFields = [
+      "sellingPrice",
+      "expectedSellingPrice",
+      "mainImageUrl",
+      "photos",
+      "makeModel",
+      "year",
+      "mileage",
+      "transmissionType",
+      "suspensionType",
+      "config",
+      "application",
+      "brands",
+      "variant",
+      "additionalFeatures",
+      "damagesDescription",
+      "hydraulics",
+      "warranty",
+      "warrantyDetails",
+    ];
+
+    // Check if any monitored fields have changed
+    let changedFields = [];
+    let significantChanges = [];
+
+    for (const field of monitoredFields) {
+      const beforeValue = JSON.stringify(before[field] || "");
+      const afterValue = JSON.stringify(after[field] || "");
+
+      if (beforeValue !== afterValue) {
+        changedFields.push(field);
+
+        // Track significant changes for the notification
+        if (field === "sellingPrice" || field === "expectedSellingPrice") {
+          const beforePrice = before[field] || "";
+          const afterPrice = after[field] || "";
+          significantChanges.push(
+            `Price changed from R${beforePrice} to R${afterPrice}`
+          );
+        } else if (field === "mainImageUrl") {
+          significantChanges.push("Main image updated");
+        } else if (field === "photos") {
+          const beforeCount = (before[field] || []).length;
+          const afterCount = (after[field] || []).length;
+          significantChanges.push(
+            `Photos updated (${beforeCount} → ${afterCount} images)`
+          );
+        } else if (field === "makeModel") {
+          significantChanges.push(
+            `Make/Model changed from "${before[field]}" to "${after[field]}"`
+          );
+        } else if (field === "mileage") {
+          significantChanges.push(
+            `Mileage updated from ${before[field]} to ${after[field]}`
+          );
+        } else {
+          significantChanges.push(`${field} updated`);
+        }
+      }
+    }
+
+    // If no monitored fields changed, don't notify
+    if (changedFields.length === 0) {
+      console.log(
+        "[notifyAdminsOnLiveVehicleUpdate] No significant changes detected"
+      );
+      return;
+    }
+
+    console.log(
+      `[notifyAdminsOnLiveVehicleUpdate] Detected changes in: ${changedFields.join(
+        ", "
+      )}`
+    );
+
+    try {
+      // Get vehicle owner details for context
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.userId)
+        .get();
+
+      let transporterName = "Unknown Transporter";
+      let transporterEmail = null;
+
+      if (transporterDoc.exists) {
+        const transporterData = transporterDoc.data();
+        transporterName =
+          `${transporterData.firstName || ""} ${
+            transporterData.lastName || ""
+          }`.trim() ||
+          transporterData.companyName ||
+          "Unknown Transporter";
+        transporterEmail = transporterData.email;
+      }
+
+      // Create vehicle description
+      const vehicleName = `${
+        after.brands?.join(", ") || after.brand || "Vehicle"
+      } ${after.makeModel || after.model || ""} ${after.year || ""}`.trim();
+
+      // Get all admin users
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      if (adminUsersSnapshot.empty) {
+        console.log("[notifyAdminsOnLiveVehicleUpdate] No admin users found");
+        return;
+      }
+
+      // Prepare notification content
+      const changesText =
+        significantChanges.length > 3
+          ? `${significantChanges.slice(0, 3).join(", ")} and ${
+              significantChanges.length - 3
+            } more changes`
+          : significantChanges.join(", ");
+
+      // Send push notifications to admins
+      for (const adminDoc of adminUsersSnapshot.docs) {
+        const adminData = adminDoc.data();
+
+        if (!adminData.fcmToken) {
+          console.log(
+            `[notifyAdminsOnLiveVehicleUpdate] Admin ${adminDoc.id} has no FCM token`
+          );
+          continue;
+        }
+
+        try {
+          const message = {
+            notification: {
+              title: "📝 Live Vehicle Updated",
+              body: `${transporterName} updated their ${vehicleName}. Changes: ${changesText}`,
+            },
+            data: {
+              vehicleId: vehicleId,
+              transporterId: after.userId,
+              notificationType: "live_vehicle_update",
+              changedFields: JSON.stringify(changedFields),
+              vehicleStatus: afterStatus,
+              timestamp: new Date().toISOString(),
+            },
+            token: adminData.fcmToken,
+          };
+
+          await admin.messaging().send(message);
+          console.log(
+            `[notifyAdminsOnLiveVehicleUpdate] Notification sent to admin ${adminDoc.id}`
+          );
+        } catch (adminError) {
+          console.error(
+            `[notifyAdminsOnLiveVehicleUpdate] Error sending notification to admin ${adminDoc.id}:`,
+            adminError
+          );
+        }
+      }
+
+      // Send email notifications to admins
+      const adminEmails = adminUsersSnapshot.docs
+        .map((doc) => doc.data().email)
+        .filter((email) => !!email);
+
+      if (adminEmails.length > 0 && sgMail) {
+        try {
+          const currentPrice =
+            after.sellingPrice || after.expectedSellingPrice || "N/A";
+          const vehicleLink = `https://ctpapp.co.za/vehicle/${vehicleId}`;
+
+          await sgMail.send({
+            from: "admin@ctpapp.co.za",
+            to: adminEmails,
+            subject: `🔄 Live Vehicle Updated - ${vehicleName}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2F7FFF;">Live Vehicle Listing Updated 📝</h2>
+                <p>A live vehicle listing has been updated and may require your review.</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #333;">Vehicle Details:</h3>
+                  <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                  <p><strong>Current Price:</strong> R${currentPrice}</p>
+                  <p><strong>Reference:</strong> ${
+                    after.referenceNumber || vehicleId
+                  }</p>
+                  <p><strong>Updated by:</strong> ${transporterName}</p>
+                  <p><strong>Status:</strong> ${afterStatus.toUpperCase()}</p>
+                </div>
+                
+                <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                  <h4 style="margin-top: 0; color: #856404;">Changes Made:</h4>
+                  <ul style="margin: 10px 0; padding-left: 20px;">
+                    ${significantChanges
+                      .map((change) => `<li>${change}</li>`)
+                      .join("")}
+                  </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${vehicleLink}" 
+                     style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                    Review Vehicle Listing
+                  </a>
+                </div>
+                
+                <p style="color: #666; font-size: 14px;">
+                  Please review these changes to ensure they comply with platform standards and approve if necessary.
+                </p>
+                
+                <p>Best regards,<br>
+                Commercial Trader Portal System</p>
+              </div>
+            `,
+          });
+
+          console.log(
+            `[notifyAdminsOnLiveVehicleUpdate] Email notification sent to ${adminEmails.length} admins`
+          );
+        } catch (emailError) {
+          console.error(
+            "[notifyAdminsOnLiveVehicleUpdate] Error sending email notifications:",
+            emailError
+          );
+        }
+      }
+    } catch (error) {
+      console.error("[notifyAdminsOnLiveVehicleUpdate] Error:", error);
+    }
+  }
+);
 
 // New function to notify admins when a new user is created
 exports.notifyAdminsOnNewUser = onDocumentCreated(
@@ -145,7 +1182,6 @@ exports.notifyAdminsOnNewUser = onDocumentCreated(
           notification: {
             title: `New ${userData.userRole} Registration`,
             body: `${userFullName} from ${companyName} has registered as a ${userData.userRole}.`,
-            clickAction: "FLUTTER_NOTIFICATION_CLICK",
           },
           data: {
             userId: userId,
@@ -170,6 +1206,103 @@ exports.notifyAdminsOnNewUser = onDocumentCreated(
       console.log("Admin notifications process completed");
     } catch (error) {
       console.error("Error in notifyAdminsOnNewUser function:", error);
+    }
+  }
+);
+
+// Function to notify admins when a user completes registration (updates their profile)
+exports.notifyAdminsOnUserRegistrationComplete = onDocumentUpdated(
+  {
+    document: "users/{userId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const userId = event.params.userId;
+
+    if (!before || !after) {
+      console.log("No before/after data for user registration update");
+      return;
+    }
+
+    // Check if this is a registration completion (key fields were added)
+    const isRegistrationComplete =
+      (after.userRole === "transporter" || after.userRole === "dealer") &&
+      after.companyName &&
+      after.registrationNumber &&
+      after.vatNumber &&
+      (!before.companyName || !before.registrationNumber || !before.vatNumber);
+
+    if (!isRegistrationComplete) {
+      return; // Not a registration completion, skip
+    }
+
+    console.log(
+      `${after.userRole} registration completed: ${after.firstName} ${after.lastName} from ${after.companyName}`
+    );
+
+    try {
+      // Get all admin users
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      if (adminUsersSnapshot.empty) {
+        console.log("No admin users found to notify");
+        return;
+      }
+
+      const companyName = after.companyName || "N/A";
+      const userFullName =
+        `${after.firstName || ""} ${after.lastName || ""}`.trim() || "New user";
+
+      // Send notification to each admin
+      for (const adminDoc of adminUsersSnapshot.docs) {
+        const adminData = adminDoc.data();
+
+        if (!adminData.fcmToken) {
+          console.log(`Admin ${adminDoc.id} has no FCM token`);
+          continue;
+        }
+
+        const message = {
+          notification: {
+            title: `${after.userRole} Registration Completed`,
+            body: `${userFullName} from ${companyName} has completed their ${after.userRole} registration and is awaiting approval.`,
+          },
+          data: {
+            userId: userId,
+            notificationType: "registration_completed",
+            userRole: after.userRole,
+            timestamp: new Date().toISOString(),
+          },
+          token: adminData.fcmToken,
+        };
+
+        try {
+          await admin.messaging().send(message);
+          console.log(
+            `Registration completion notification sent to admin ${adminDoc.id}`
+          );
+        } catch (error) {
+          console.error(
+            `Error sending registration completion notification to admin ${adminDoc.id}:`,
+            error
+          );
+        }
+      }
+
+      // Email notifications disabled - only using push notifications for now
+      console.log("Email notifications skipped - only push notifications sent");
+
+      console.log("Registration completion notifications process completed");
+    } catch (error) {
+      console.error(
+        "Error in notifyAdminsOnUserRegistrationComplete function:",
+        error
+      );
     }
   }
 );
@@ -203,13 +1336,18 @@ exports.notifyDealersAndAdminsOnVehicleChange = onDocumentCreated(
       vehicleData.vehicleStatus.toLowerCase() === "live"
     ) {
       try {
+        // Get the brand and model correctly from the vehicle data
+        const brand =
+          vehicleData.brands?.length > 0 ? vehicleData.brands[0] : "Vehicle";
+        const makeModel = vehicleData.makeModel || "";
+        const year = vehicleData.year || "";
+
+        const vehicleDescription = `${brand} ${makeModel} ${year}`.trim();
+
         const message = {
           notification: {
             title: "New Truck Available",
-            body: `A ${vehicleData.brand} ${vehicleData.model} ${
-              vehicleData.year || ""
-            } is now available.`,
-            clickAction: "FLUTTER_NOTIFICATION_CLICK",
+            body: `A ${vehicleDescription} is now available.`,
           },
           data: {
             vehicleId: vehicleId,
@@ -413,13 +1551,17 @@ exports.notifyDealersAndAdminsOnVehicleChangeUpdate = onDocumentUpdated(
       after.vehicleStatus.toLowerCase() === "live"
     ) {
       try {
+        // Get the brand and model correctly from the vehicle data
+        const brand = after.brands?.length > 0 ? after.brands[0] : "Vehicle";
+        const makeModel = after.makeModel || "";
+        const year = after.year || "";
+
+        const vehicleDescription = `${brand} ${makeModel} ${year}`.trim();
+
         const message = {
           notification: {
             title: "New Truck Available",
-            body: `A ${after.brand} ${after.model} ${
-              after.year || ""
-            } is now available.`,
-            clickAction: "FLUTTER_NOTIFICATION_CLICK",
+            body: `A ${vehicleDescription} is now available.`,
           },
           data: {
             vehicleId: vehicleId,
@@ -618,7 +1760,6 @@ exports.sendDirectNotification = require("firebase-functions/v2/https").onCall(
         notification: {
           title: title,
           body: body,
-          clickAction: "FLUTTER_NOTIFICATION_CLICK",
         },
         data: {
           ...data,
@@ -659,14 +1800,19 @@ exports.sendNewVehicleNotification =
 
         const vehicleData = vehicleDoc.data();
 
+        // Get the brand and model correctly from the vehicle data
+        const brand =
+          vehicleData.brands?.length > 0 ? vehicleData.brands[0] : "Vehicle";
+        const makeModel = vehicleData.makeModel || "";
+        const year = vehicleData.year || "";
+
+        const vehicleDescription = `${brand} ${makeModel} ${year}`.trim();
+
         // Send notification to all dealers through the topic
         const message = {
           notification: {
             title: "New Truck Available",
-            body: `A ${vehicleData.brand} ${vehicleData.model} ${
-              vehicleData.year || ""
-            } is now available.`,
-            clickAction: "FLUTTER_NOTIFICATION_CLICK",
+            body: `A ${vehicleDescription} is now available.`,
           },
           data: {
             vehicleId: vehicleId,
@@ -729,7 +1875,6 @@ exports.sendDirectNotificationNoAppCheck =
           notification: {
             title: title,
             body: body,
-            clickAction: "FLUTTER_NOTIFICATION_CLICK",
           },
           data: {
             ...dataPayload,
@@ -1103,5 +2248,3482 @@ exports.notifyAdminsOnUserPhoneAdded = onDocumentUpdated(
       console.error("Error sending admin registration notification:", err);
     }
     */
+  }
+);
+
+// Scheduled function to remind users about uploading required documents
+exports.sendDocumentUploadReminders = onSchedule(
+  {
+    schedule: "0 9 */2 * *", // Every 2 days at 9 AM
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log("[sendDocumentUploadReminders] Starting document reminder job");
+
+    try {
+      // Get all dealers and transporters
+      const usersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["dealer", "transporter"])
+        .get();
+
+      if (usersSnapshot.empty) {
+        console.log(
+          "[sendDocumentUploadReminders] No dealers or transporters found"
+        );
+        return;
+      }
+
+      let reminderCount = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const userId = userDoc.id;
+        const userRole = userData.userRole;
+
+        // Skip if user doesn't have FCM token
+        if (!userData.fcmToken) {
+          console.log(
+            `[sendDocumentUploadReminders] User ${userId} has no FCM token`
+          );
+          continue;
+        }
+
+        // Check if user has completed basic registration
+        const hasBasicInfo =
+          userData.companyName &&
+          userData.registrationNumber &&
+          userData.vatNumber &&
+          userData.firstName &&
+          userData.lastName;
+
+        if (!hasBasicInfo) {
+          console.log(
+            `[sendDocumentUploadReminders] User ${userId} hasn't completed basic registration`
+          );
+          continue;
+        }
+
+        // Check required documents based on user role
+        let missingDocuments = [];
+
+        if (userRole === "dealer") {
+          // Required documents for dealers
+          if (
+            !userData.cipcCertificateUrl ||
+            userData.cipcCertificateUrl.trim() === ""
+          ) {
+            missingDocuments.push("CIPC Certificate");
+          }
+          if (!userData.brncUrl || userData.brncUrl.trim() === "") {
+            missingDocuments.push("Business Registration Certificate");
+          }
+          if (
+            !userData.bankConfirmationUrl ||
+            userData.bankConfirmationUrl.trim() === ""
+          ) {
+            missingDocuments.push("Bank Confirmation Letter");
+          }
+          if (!userData.proxyUrl || userData.proxyUrl.trim() === "") {
+            missingDocuments.push("Proxy/Authorization Letter");
+          }
+        } else if (userRole === "transporter") {
+          // Required documents for transporters
+          if (
+            !userData.cipcCertificateUrl ||
+            userData.cipcCertificateUrl.trim() === ""
+          ) {
+            missingDocuments.push("CIPC Certificate");
+          }
+          if (!userData.brncUrl || userData.brncUrl.trim() === "") {
+            missingDocuments.push("Business Registration Certificate");
+          }
+          if (
+            !userData.bankConfirmationUrl ||
+            userData.bankConfirmationUrl.trim() === ""
+          ) {
+            missingDocuments.push("Bank Confirmation Letter");
+          }
+          // Tax certificate for transporters
+          if (
+            !userData.taxCertificateUrl ||
+            userData.taxCertificateUrl.trim() === ""
+          ) {
+            missingDocuments.push("Tax Clearance Certificate");
+          }
+        }
+
+        // Skip if user has all required documents
+        if (missingDocuments.length === 0) {
+          continue;
+        }
+
+        // Check if user was already reminded recently (within last 2 days)
+        const lastReminderField = `lastDocumentReminder`;
+        const lastReminder = userData[lastReminderField];
+        const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+
+        if (lastReminder && lastReminder.toDate() > twoDaysAgo) {
+          console.log(
+            `[sendDocumentUploadReminders] User ${userId} was reminded recently, skipping`
+          );
+          continue;
+        }
+
+        try {
+          // Create personalized message
+          const userName =
+            `${userData.firstName || ""} ${userData.lastName || ""}`.trim() ||
+            userData.companyName ||
+            "there";
+          const documentList =
+            missingDocuments.length === 1
+              ? missingDocuments[0]
+              : missingDocuments.slice(0, -1).join(", ") +
+                " and " +
+                missingDocuments[missingDocuments.length - 1];
+
+          const message = {
+            notification: {
+              title: "📄 Document Upload Reminder",
+              body: `Hi ${userName}! You still need to upload: ${documentList}. Complete your profile to start making deals.`,
+            },
+            data: {
+              notificationType: "document_reminder",
+              userRole: userRole,
+              missingDocuments: JSON.stringify(missingDocuments),
+              timestamp: new Date().toISOString(),
+            },
+            token: userData.fcmToken,
+          };
+
+          await admin.messaging().send(message);
+          console.log(
+            `[sendDocumentUploadReminders] Reminder sent to ${userRole} ${userId}`
+          );
+
+          // Update the last reminder timestamp
+          await db
+            .collection("users")
+            .doc(userId)
+            .update({
+              [lastReminderField]: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+          reminderCount++;
+        } catch (messageError) {
+          console.error(
+            `[sendDocumentUploadReminders] Error sending reminder to user ${userId}:`,
+            messageError
+          );
+        }
+      }
+
+      console.log(
+        `[sendDocumentUploadReminders] Job completed. Sent ${reminderCount} reminders.`
+      );
+    } catch (error) {
+      console.error(
+        "[sendDocumentUploadReminders] Error in scheduled job:",
+        error
+      );
+    }
+  }
+);
+
+// Notify transporter, dealer, and admins when an inspection is booked
+exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyPartiesOnInspectionBooked] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyPartiesOnInspectionBooked] No before/after data");
+      return;
+    }
+
+    // Check if inspection details were just added/updated
+    const beforeHasInspection = !!(
+      before.dealerSelectedInspectionDate &&
+      before.dealerSelectedInspectionTime &&
+      before.dealerSelectedInspectionLocation
+    );
+
+    const afterHasInspection = !!(
+      after.dealerSelectedInspectionDate &&
+      after.dealerSelectedInspectionTime &&
+      after.dealerSelectedInspectionLocation
+    );
+
+    // Only notify if inspection was just booked (not already there)
+    if (beforeHasInspection || !afterHasInspection) {
+      console.log(
+        "[notifyPartiesOnInspectionBooked] Inspection not newly booked, skipping"
+      );
+      return;
+    }
+
+    console.log(
+      "[notifyPartiesOnInspectionBooked] New inspection booking detected"
+    );
+
+    try {
+      // Get dealer details
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "Dealer";
+      const dealerEmail = dealerData.email;
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "Transporter";
+      const transporterEmail = transporterData.email;
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Format inspection details
+      const inspectionDate = after.dealerSelectedInspectionDate.toDate
+        ? after.dealerSelectedInspectionDate.toDate().toLocaleDateString()
+        : new Date(after.dealerSelectedInspectionDate).toLocaleDateString();
+      const inspectionTime = after.dealerSelectedInspectionTime;
+      const inspectionLocation = after.dealerSelectedInspectionLocation;
+
+      // Notify transporter (vehicle owner)
+      if (transporterData.fcmToken) {
+        try {
+          const transporterMessage = {
+            notification: {
+              title: "📅 Inspection Booked",
+              body: `${dealerName} has scheduled an inspection for your ${vehicleName} on ${inspectionDate} at ${inspectionTime}`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              dealerId: after.dealerId,
+              notificationType: "inspection_booked",
+              inspectionDate: inspectionDate,
+              inspectionTime: inspectionTime,
+              inspectionLocation: inspectionLocation,
+              timestamp: new Date().toISOString(),
+            },
+            token: transporterData.fcmToken,
+          };
+
+          await admin.messaging().send(transporterMessage);
+          console.log(
+            `[notifyPartiesOnInspectionBooked] Notification sent to transporter ${after.transporterId}`
+          );
+        } catch (transporterError) {
+          console.error(
+            `[notifyPartiesOnInspectionBooked] Error sending notification to transporter:`,
+            transporterError
+          );
+        }
+      }
+
+      // Notify dealer (confirmation)
+      if (dealerData.fcmToken) {
+        try {
+          const dealerMessage = {
+            notification: {
+              title: "✅ Inspection Confirmed",
+              body: `Your inspection for ${vehicleName} has been scheduled for ${inspectionDate} at ${inspectionTime}`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              transporterId: after.transporterId,
+              notificationType: "inspection_booked_confirmation",
+              inspectionDate: inspectionDate,
+              inspectionTime: inspectionTime,
+              inspectionLocation: inspectionLocation,
+              timestamp: new Date().toISOString(),
+            },
+            token: dealerData.fcmToken,
+          };
+
+          await admin.messaging().send(dealerMessage);
+          console.log(
+            `[notifyPartiesOnInspectionBooked] Confirmation sent to dealer ${after.dealerId}`
+          );
+        } catch (dealerError) {
+          console.error(
+            `[notifyPartiesOnInspectionBooked] Error sending confirmation to dealer:`,
+            dealerError
+          );
+        }
+      }
+
+      // Get all admin users for notifications
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      // Notify admins
+      if (!adminUsersSnapshot.empty) {
+        for (const adminDoc of adminUsersSnapshot.docs) {
+          const adminData = adminDoc.data();
+
+          if (!adminData.fcmToken) {
+            console.log(
+              `[notifyPartiesOnInspectionBooked] Admin ${adminDoc.id} has no FCM token`
+            );
+            continue;
+          }
+
+          try {
+            const adminMessage = {
+              notification: {
+                title: "📋 Inspection Scheduled",
+                body: `${dealerName} scheduled inspection for ${transporterName}'s ${vehicleName} on ${inspectionDate}`,
+              },
+              data: {
+                offerId: offerId,
+                vehicleId: after.vehicleId,
+                dealerId: after.dealerId,
+                transporterId: after.transporterId,
+                notificationType: "inspection_booked_admin",
+                inspectionDate: inspectionDate,
+                inspectionTime: inspectionTime,
+                inspectionLocation: inspectionLocation,
+                timestamp: new Date().toISOString(),
+              },
+              token: adminData.fcmToken,
+            };
+
+            await admin.messaging().send(adminMessage);
+            console.log(
+              `[notifyPartiesOnInspectionBooked] Notification sent to admin ${adminDoc.id}`
+            );
+          } catch (adminError) {
+            console.error(
+              `[notifyPartiesOnInspectionBooked] Error sending notification to admin ${adminDoc.id}:`,
+              adminError
+            );
+          }
+        }
+      }
+
+      // Send email notifications if SendGrid is available
+      if (sgMail) {
+        const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+        // Email to transporter
+        if (transporterEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: transporterEmail,
+              subject: `📅 Inspection Scheduled - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2F7FFF;">Inspection Scheduled for Your Vehicle 📅</h2>
+                  <p>Great news! A dealer has scheduled an inspection for your vehicle.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Dealer:</strong> ${dealerName}</p>
+                    <p><strong>Date:</strong> ${inspectionDate}</p>
+                    <p><strong>Time:</strong> ${inspectionTime}</p>
+                    <p><strong>Location:</strong> ${inspectionLocation}</p>
+                  </div>
+                  
+                  <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #17a2b8;">
+                    <h4 style="margin-top: 0; color: #0c5460;">What's Next?</h4>
+                    <p style="margin: 5px 0;">• Ensure your vehicle is ready for inspection</p>
+                    <p style="margin: 5px 0;">• Be available at the scheduled time</p>
+                    <p style="margin: 5px 0;">• Prepare any relevant documentation</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Offer Details
+                    </a>
+                  </div>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal Team</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnInspectionBooked] Email sent to transporter ${transporterEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnInspectionBooked] Error sending email to transporter:",
+              emailError
+            );
+          }
+        }
+
+        // Email to dealer (confirmation)
+        if (dealerEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: dealerEmail,
+              subject: `✅ Inspection Confirmed - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #28a745;">Inspection Booking Confirmed ✅</h2>
+                  <p>Your inspection has been successfully scheduled. Here are the details:</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Transporter:</strong> ${transporterName}</p>
+                    <p><strong>Date:</strong> ${inspectionDate}</p>
+                    <p><strong>Time:</strong> ${inspectionTime}</p>
+                    <p><strong>Location:</strong> ${inspectionLocation}</p>
+                  </div>
+                  
+                  <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                    <h4 style="margin-top: 0; color: #155724;">Preparation Tips:</h4>
+                    <p style="margin: 5px 0;">• Arrive on time for your scheduled inspection</p>
+                    <p style="margin: 5px 0;">• Bring necessary identification and documentation</p>
+                    <p style="margin: 5px 0;">• Prepare a list of questions about the vehicle</p>
+                    <p style="margin: 5px 0;">• Consider bringing a mechanic if needed</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Offer Details
+                    </a>
+                  </div>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal Team</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnInspectionBooked] Confirmation email sent to dealer ${dealerEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnInspectionBooked] Error sending confirmation email to dealer:",
+              emailError
+            );
+          }
+        }
+
+        // Email to admins
+        const adminEmails = adminUsersSnapshot.docs
+          .map((doc) => doc.data().email)
+          .filter((email) => !!email);
+
+        if (adminEmails.length > 0) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject: `📋 New Inspection Scheduled - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2F7FFF;">New Vehicle Inspection Scheduled 📋</h2>
+                  <p>A dealer has scheduled an inspection for a vehicle on the platform.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Dealer:</strong> ${dealerName}</p>
+                    <p><strong>Transporter:</strong> ${transporterName}</p>
+                    <p><strong>Date:</strong> ${inspectionDate}</p>
+                    <p><strong>Time:</strong> ${inspectionTime}</p>
+                    <p><strong>Location:</strong> ${inspectionLocation}</p>
+                    <p><strong>Offer Amount:</strong> R${
+                      after.offerAmount || "TBD"
+                    }</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Offer Details
+                    </a>
+                  </div>
+                  
+                  <p style="color: #666; font-size: 14px;">
+                    This is for your information and tracking purposes. No action is required unless there are issues.
+                  </p>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal System</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnInspectionBooked] Email notification sent to ${adminEmails.length} admins`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnInspectionBooked] Error sending email to admins:",
+              emailError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[notifyPartiesOnInspectionBooked] Error:", error);
+    }
+  }
+);
+
+// Notify transporter, dealer, and admins when inspection results are uploaded
+exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyPartiesOnInspectionResultsUploaded] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log(
+        "[notifyPartiesOnInspectionResultsUploaded] No before/after data"
+      );
+      return;
+    }
+
+    // Check if inspection results were just uploaded
+    // This could be inspection images, inspection notes, or inspection status
+    const beforeHasResults = !!(
+      before.inspectionImages ||
+      before.inspectionNotes ||
+      before.inspectionReport ||
+      before.inspectionStatus === "completed"
+    );
+
+    const afterHasResults = !!(
+      after.inspectionImages ||
+      after.inspectionNotes ||
+      after.inspectionReport ||
+      after.inspectionStatus === "completed"
+    );
+
+    // Check if new inspection content was added
+    const newImagesAdded =
+      (!before.inspectionImages || before.inspectionImages.length === 0) &&
+      after.inspectionImages &&
+      after.inspectionImages.length > 0;
+
+    const newNotesAdded =
+      (!before.inspectionNotes || before.inspectionNotes.trim() === "") &&
+      after.inspectionNotes &&
+      after.inspectionNotes.trim() !== "";
+
+    const newReportAdded = !before.inspectionReport && after.inspectionReport;
+
+    const statusChanged =
+      before.inspectionStatus !== "completed" &&
+      after.inspectionStatus === "completed";
+
+    // Only notify if new inspection results were added
+    if (
+      !newImagesAdded &&
+      !newNotesAdded &&
+      !newReportAdded &&
+      !statusChanged
+    ) {
+      console.log(
+        "[notifyPartiesOnInspectionResultsUploaded] No new inspection results detected, skipping"
+      );
+      return;
+    }
+
+    console.log(
+      "[notifyPartiesOnInspectionResultsUploaded] New inspection results detected"
+    );
+
+    try {
+      // Get dealer details
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "Dealer";
+      const dealerEmail = dealerData.email;
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "Transporter";
+      const transporterEmail = transporterData.email;
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Create result summary
+      let resultSummary = [];
+      if (newImagesAdded) {
+        resultSummary.push(
+          `${after.inspectionImages.length} inspection images`
+        );
+      }
+      if (newNotesAdded) {
+        resultSummary.push("inspection notes");
+      }
+      if (newReportAdded) {
+        resultSummary.push("inspection report");
+      }
+      if (statusChanged) {
+        resultSummary.push("inspection completed");
+      }
+
+      const resultText = resultSummary.join(", ");
+
+      // Notify transporter (vehicle owner)
+      if (transporterData.fcmToken) {
+        try {
+          const transporterMessage = {
+            notification: {
+              title: "📋 Inspection Results Available",
+              body: `Inspection results for your ${vehicleName} have been uploaded by ${dealerName}. ${resultText}`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              dealerId: after.dealerId,
+              notificationType: "inspection_results_uploaded",
+              resultSummary: resultText,
+              hasImages: String(!!after.inspectionImages?.length),
+              hasNotes: String(!!after.inspectionNotes),
+              hasReport: String(!!after.inspectionReport),
+              timestamp: new Date().toISOString(),
+            },
+            token: transporterData.fcmToken,
+          };
+
+          await admin.messaging().send(transporterMessage);
+          console.log(
+            `[notifyPartiesOnInspectionResultsUploaded] Notification sent to transporter ${after.transporterId}`
+          );
+        } catch (transporterError) {
+          console.error(
+            `[notifyPartiesOnInspectionResultsUploaded] Error sending notification to transporter:`,
+            transporterError
+          );
+        }
+      }
+
+      // Notify dealer (confirmation)
+      if (dealerData.fcmToken) {
+        try {
+          const dealerMessage = {
+            notification: {
+              title: "✅ Inspection Results Uploaded",
+              body: `Your inspection results for ${vehicleName} have been successfully uploaded and shared with ${transporterName}`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              transporterId: after.transporterId,
+              notificationType: "inspection_results_uploaded_confirmation",
+              resultSummary: resultText,
+              timestamp: new Date().toISOString(),
+            },
+            token: dealerData.fcmToken,
+          };
+
+          await admin.messaging().send(dealerMessage);
+          console.log(
+            `[notifyPartiesOnInspectionResultsUploaded] Confirmation sent to dealer ${after.dealerId}`
+          );
+        } catch (dealerError) {
+          console.error(
+            `[notifyPartiesOnInspectionResultsUploaded] Error sending confirmation to dealer:`,
+            dealerError
+          );
+        }
+      }
+
+      // Get all admin users for notifications
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      // Notify admins
+      if (!adminUsersSnapshot.empty) {
+        for (const adminDoc of adminUsersSnapshot.docs) {
+          const adminData = adminDoc.data();
+
+          if (!adminData.fcmToken) {
+            console.log(
+              `[notifyPartiesOnInspectionResultsUploaded] Admin ${adminDoc.id} has no FCM token`
+            );
+            continue;
+          }
+
+          try {
+            const adminMessage = {
+              notification: {
+                title: "📊 Inspection Results Uploaded",
+                body: `${dealerName} uploaded inspection results for ${transporterName}'s ${vehicleName}`,
+              },
+              data: {
+                offerId: offerId,
+                vehicleId: after.vehicleId,
+                dealerId: after.dealerId,
+                transporterId: after.transporterId,
+                notificationType: "inspection_results_uploaded_admin",
+                resultSummary: resultText,
+                timestamp: new Date().toISOString(),
+              },
+              token: adminData.fcmToken,
+            };
+
+            await admin.messaging().send(adminMessage);
+            console.log(
+              `[notifyPartiesOnInspectionResultsUploaded] Notification sent to admin ${adminDoc.id}`
+            );
+          } catch (adminError) {
+            console.error(
+              `[notifyPartiesOnInspectionResultsUploaded] Error sending notification to admin ${adminDoc.id}:`,
+              adminError
+            );
+          }
+        }
+      }
+
+      // Send email notifications if SendGrid is available
+      if (sgMail) {
+        const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+        // Email to transporter
+        if (transporterEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: transporterEmail,
+              subject: `📋 Inspection Results Available - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2F7FFF;">Inspection Results Available 📋</h2>
+                  <p>Great news! The inspection results for your vehicle are now available.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Inspected by:</strong> ${dealerName}</p>
+                    <p><strong>Results include:</strong> ${resultText}</p>
+                    ${
+                      after.inspectionImages?.length
+                        ? `<p><strong>Images:</strong> ${after.inspectionImages.length} photos attached</p>`
+                        : ""
+                    }
+                  </div>
+                  
+                  <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #17a2b8;">
+                    <h4 style="margin-top: 0; color: #0c5460;">What's Next?</h4>
+                    <p style="margin: 5px 0;">• Review the inspection results carefully</p>
+                    <p style="margin: 5px 0;">• Check all uploaded images and notes</p>
+                    <p style="margin: 5px 0;">• Contact the dealer if you have questions</p>
+                    <p style="margin: 5px 0;">• Proceed with the transaction if satisfied</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Inspection Results
+                    </a>
+                  </div>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal Team</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnInspectionResultsUploaded] Email sent to transporter ${transporterEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnInspectionResultsUploaded] Error sending email to transporter:",
+              emailError
+            );
+          }
+        }
+
+        // Email to dealer (confirmation)
+        if (dealerEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: dealerEmail,
+              subject: `✅ Inspection Results Shared - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #28a745;">Inspection Results Successfully Shared ✅</h2>
+                  <p>Your inspection results have been successfully uploaded and shared with the transporter.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Upload Summary:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Shared with:</strong> ${transporterName}</p>
+                    <p><strong>Results shared:</strong> ${resultText}</p>
+                    ${
+                      after.inspectionImages?.length
+                        ? `<p><strong>Images uploaded:</strong> ${after.inspectionImages.length} photos</p>`
+                        : ""
+                    }
+                    <p><strong>Upload time:</strong> ${new Date().toLocaleString()}</p>
+                  </div>
+                  
+                  <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                    <h4 style="margin-top: 0; color: #155724;">Next Steps:</h4>
+                    <p style="margin: 5px 0;">• The transporter has been notified of the results</p>
+                    <p style="margin: 5px 0;">• They will review and contact you if needed</p>
+                    <p style="margin: 5px 0;">• You can track the offer status in your dashboard</p>
+                    <p style="margin: 5px 0;">• Be available for any follow-up questions</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Offer Status
+                    </a>
+                  </div>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal Team</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnInspectionResultsUploaded] Confirmation email sent to dealer ${dealerEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnInspectionResultsUploaded] Error sending confirmation email to dealer:",
+              emailError
+            );
+          }
+        }
+
+        // Email to admins
+        const adminEmails = adminUsersSnapshot.docs
+          .map((doc) => doc.data().email)
+          .filter((email) => !!email);
+
+        if (adminEmails.length > 0) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject: `📊 Inspection Results Uploaded - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2F7FFF;">New Inspection Results Uploaded 📊</h2>
+                  <p>A dealer has uploaded inspection results for a vehicle transaction.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Inspection Summary:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Dealer:</strong> ${dealerName}</p>
+                    <p><strong>Transporter:</strong> ${transporterName}</p>
+                    <p><strong>Results uploaded:</strong> ${resultText}</p>
+                    <p><strong>Offer Amount:</strong> R${
+                      after.offerAmount || "TBD"
+                    }</p>
+                    ${
+                      after.inspectionImages?.length
+                        ? `<p><strong>Images:</strong> ${after.inspectionImages.length} photos uploaded</p>`
+                        : ""
+                    }
+                  </div>
+                  
+                  <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="margin-top: 0; color: #856404;">For Your Information:</h4>
+                    <p style="margin: 5px 0;">• Both parties have been notified of the results</p>
+                    <p style="margin: 5px 0;">• Transaction is progressing normally</p>
+                    <p style="margin: 5px 0;">• Monitor for any reported issues</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Offer Details
+                    </a>
+                  </div>
+                  
+                  <p style="color: #666; font-size: 14px;">
+                    This is for your information and tracking purposes. No action is required unless there are issues.
+                  </p>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal System</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnInspectionResultsUploaded] Email notification sent to ${adminEmails.length} admins`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnInspectionResultsUploaded] Error sending email to admins:",
+              emailError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[notifyPartiesOnInspectionResultsUploaded] Error:", error);
+    }
+  }
+);
+
+// Scheduled function to send invoice payment reminders
+exports.sendInvoicePaymentReminders = onSchedule(
+  {
+    schedule: "0 10 * * *", // Daily at 10 AM
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log("[sendInvoicePaymentReminders] Starting invoice reminder job");
+
+    try {
+      // Get all offers with payment pending status or payment options status
+      const offersSnapshot = await db
+        .collection("offers")
+        .where("offerStatus", "in", [
+          "payment pending",
+          "payment options",
+          "paid",
+        ])
+        .get();
+
+      if (offersSnapshot.empty) {
+        console.log(
+          "[sendInvoicePaymentReminders] No payment-related offers found"
+        );
+        return;
+      }
+
+      let reminderCount = 0;
+      const currentTime = new Date();
+
+      for (const offerDoc of offersSnapshot.docs) {
+        const offerData = offerDoc.data();
+        const offerId = offerDoc.id;
+        const offerStatus = offerData.offerStatus?.toLowerCase() || "";
+
+        // Skip if offer is locked, collected, or transaction is complete
+        if (
+          offerData.statusLocked === true ||
+          offerData.transactionComplete === true ||
+          offerStatus === "collected" ||
+          offerStatus === "completed" ||
+          offerStatus === "sold"
+        ) {
+          continue;
+        }
+
+        // Skip if payment is already completed/approved
+        if (
+          offerData.paymentStatus === "approved" ||
+          offerData.paymentStatus === "accepted" ||
+          offerStatus === "paid"
+        ) {
+          continue;
+        }
+
+        // Check if offer was created more than 24 hours ago for first reminder
+        const offerCreatedAt = offerData.createdAt?.toDate();
+        if (!offerCreatedAt) continue;
+
+        const hoursSinceCreation =
+          (currentTime - offerCreatedAt) / (1000 * 60 * 60);
+
+        // Only send reminders for offers older than 24 hours
+        if (hoursSinceCreation < 24) continue;
+
+        // Check when the last reminder was sent
+        const lastReminderField = "lastInvoiceReminder";
+        const lastReminder = offerData[lastReminderField];
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        // Skip if reminder was sent within the last 24 hours
+        if (lastReminder && lastReminder.toDate() > oneDayAgo) {
+          continue;
+        }
+
+        // Calculate days overdue
+        const daysOverdue = Math.floor(hoursSinceCreation / 24);
+
+        try {
+          // Get dealer details (the one who needs to pay)
+          const dealerDoc = await db
+            .collection("users")
+            .doc(offerData.dealerId)
+            .get();
+          const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+          const dealerName =
+            `${dealerData.firstName || ""} ${
+              dealerData.lastName || ""
+            }`.trim() ||
+            dealerData.companyName ||
+            "Dealer";
+          const dealerEmail = dealerData.email;
+
+          // Get transporter details
+          const transporterDoc = await db
+            .collection("users")
+            .doc(offerData.transporterId)
+            .get();
+          const transporterData = transporterDoc.exists
+            ? transporterDoc.data()
+            : {};
+          const transporterName =
+            `${transporterData.firstName || ""} ${
+              transporterData.lastName || ""
+            }`.trim() ||
+            transporterData.companyName ||
+            "Transporter";
+          const transporterEmail = transporterData.email;
+
+          // Get vehicle details
+          const vehicleDoc = await db
+            .collection("vehicles")
+            .doc(offerData.vehicleId)
+            .get();
+          const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+          const vehicleName = `${
+            vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+          } ${vehicleData.makeModel || vehicleData.model || ""} ${
+            vehicleData.year || ""
+          }`.trim();
+
+          const offerAmount = offerData.offerAmount || 0;
+
+          // Determine reminder urgency based on days overdue
+          let urgencyLevel = "normal";
+          let reminderTitle = "💰 Payment Reminder";
+          if (daysOverdue >= 3) {
+            urgencyLevel = "urgent";
+            reminderTitle = "⚠️ Urgent Payment Required";
+          } else if (daysOverdue >= 2) {
+            urgencyLevel = "high";
+            reminderTitle = "🔔 Payment Overdue";
+          }
+
+          // Notify dealer (primary payer)
+          if (dealerData.fcmToken) {
+            try {
+              const dealerMessage = {
+                notification: {
+                  title: reminderTitle,
+                  body: `Payment for ${vehicleName} (R${offerAmount}) is ${daysOverdue} day(s) overdue. Please complete payment to avoid cancellation.`,
+                },
+                data: {
+                  offerId: offerId,
+                  vehicleId: offerData.vehicleId,
+                  transporterId: offerData.transporterId,
+                  notificationType: "invoice_payment_reminder",
+                  urgencyLevel: urgencyLevel,
+                  daysOverdue: String(daysOverdue),
+                  offerAmount: String(offerAmount),
+                  timestamp: new Date().toISOString(),
+                },
+                token: dealerData.fcmToken,
+              };
+
+              await admin.messaging().send(dealerMessage);
+              console.log(
+                `[sendInvoicePaymentReminders] Reminder sent to dealer ${offerData.dealerId}`
+              );
+            } catch (dealerError) {
+              console.error(
+                `[sendInvoicePaymentReminders] Error sending reminder to dealer:`,
+                dealerError
+              );
+            }
+          }
+
+          // Notify transporter (for awareness)
+          if (transporterData.fcmToken) {
+            try {
+              const transporterMessage = {
+                notification: {
+                  title: "📋 Payment Status Update",
+                  body: `Payment for your ${vehicleName} from ${dealerName} is ${daysOverdue} day(s) overdue. We're following up with the dealer.`,
+                },
+                data: {
+                  offerId: offerId,
+                  vehicleId: offerData.vehicleId,
+                  dealerId: offerData.dealerId,
+                  notificationType: "invoice_payment_reminder_transporter",
+                  daysOverdue: String(daysOverdue),
+                  timestamp: new Date().toISOString(),
+                },
+                token: transporterData.fcmToken,
+              };
+
+              await admin.messaging().send(transporterMessage);
+              console.log(
+                `[sendInvoicePaymentReminders] Status update sent to transporter ${offerData.transporterId}`
+              );
+            } catch (transporterError) {
+              console.error(
+                `[sendInvoicePaymentReminders] Error sending status to transporter:`,
+                transporterError
+              );
+            }
+          }
+
+          // Notify admins for tracking
+          const adminUsersSnapshot = await db
+            .collection("users")
+            .where("userRole", "in", ["admin", "sales representative"])
+            .get();
+
+          for (const adminDoc of adminUsersSnapshot.docs) {
+            const adminData = adminDoc.data();
+            if (!adminData.fcmToken) continue;
+
+            try {
+              const adminMessage = {
+                notification: {
+                  title: "💳 Payment Overdue Alert",
+                  body: `${dealerName}'s payment for ${transporterName}'s ${vehicleName} is ${daysOverdue} day(s) overdue (R${offerAmount})`,
+                },
+                data: {
+                  offerId: offerId,
+                  vehicleId: offerData.vehicleId,
+                  dealerId: offerData.dealerId,
+                  transporterId: offerData.transporterId,
+                  notificationType: "invoice_payment_reminder_admin",
+                  urgencyLevel: urgencyLevel,
+                  daysOverdue: String(daysOverdue),
+                  offerAmount: String(offerAmount),
+                  timestamp: new Date().toISOString(),
+                },
+                token: adminData.fcmToken,
+              };
+
+              await admin.messaging().send(adminMessage);
+            } catch (adminError) {
+              console.error(
+                `[sendInvoicePaymentReminders] Error sending admin notification:`,
+                adminError
+              );
+            }
+          }
+
+          // Send email notifications if SendGrid is available
+          if (sgMail) {
+            const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+            // Email to dealer (primary reminder)
+            if (dealerEmail) {
+              try {
+                const urgencyColor =
+                  urgencyLevel === "urgent"
+                    ? "#dc3545"
+                    : urgencyLevel === "high"
+                    ? "#fd7e14"
+                    : "#ffc107";
+                const urgencyText =
+                  urgencyLevel === "urgent"
+                    ? "URGENT"
+                    : urgencyLevel === "high"
+                    ? "OVERDUE"
+                    : "REMINDER";
+
+                await sgMail.send({
+                  from: "admin@ctpapp.co.za",
+                  to: dealerEmail,
+                  subject: `${reminderTitle} - ${vehicleName} Payment Required`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <div style="background-color: ${urgencyColor}; color: white; padding: 15px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h2 style="margin: 0; font-size: 24px;">${urgencyText}: Payment Required</h2>
+                      </div>
+                      
+                      <div style="padding: 20px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                        <p>Dear ${dealerName},</p>
+                        <p>This is a reminder that your payment for the following vehicle purchase is now <strong>${daysOverdue} day(s) overdue</strong>.</p>
+                        
+                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                          <h3 style="margin-top: 0; color: #333;">Purchase Details:</h3>
+                          <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                          <p><strong>Seller:</strong> ${transporterName}</p>
+                          <p><strong>Amount Due:</strong> R${offerAmount.toLocaleString()}</p>
+                          <p><strong>Days Overdue:</strong> ${daysOverdue} day(s)</p>
+                          <p><strong>Offer ID:</strong> ${offerId}</p>
+                        </div>
+                        
+                        <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                          <h4 style="margin-top: 0; color: #856404;">⚠️ Important Notice:</h4>
+                          <p style="margin: 5px 0;">• Payment must be completed within 3 days of offer acceptance</p>
+                          <p style="margin: 5px 0;">• Failure to pay may result in offer cancellation</p>
+                          <p style="margin: 5px 0;">• Other dealers will be able to make offers if payment is not received</p>
+                          <p style="margin: 5px 0;">• Contact us immediately if you're experiencing payment difficulties</p>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="${offerLink}" 
+                             style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                            Complete Payment Now
+                          </a>
+                        </div>
+                        
+                        <p>If you have already made payment, please upload your proof of payment in the system or contact our support team.</p>
+                        
+                        <p>Best regards,<br>
+                        Commercial Trader Portal Team<br>
+                        <a href="mailto:admin@ctpapp.co.za">admin@ctpapp.co.za</a></p>
+                      </div>
+                    </div>
+                  `,
+                });
+
+                console.log(
+                  `[sendInvoicePaymentReminders] Email reminder sent to dealer ${dealerEmail}`
+                );
+              } catch (emailError) {
+                console.error(
+                  "[sendInvoicePaymentReminders] Error sending email to dealer:",
+                  emailError
+                );
+              }
+            }
+
+            // Email to transporter (status update)
+            if (transporterEmail) {
+              try {
+                await sgMail.send({
+                  from: "admin@ctpapp.co.za",
+                  to: transporterEmail,
+                  subject: `Payment Status Update - ${vehicleName}`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <h2 style="color: #2F7FFF;">Payment Status Update 📋</h2>
+                      <p>Dear ${transporterName},</p>
+                      <p>We wanted to update you on the payment status for your vehicle sale.</p>
+                      
+                      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #333;">Sale Details:</h3>
+                        <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                        <p><strong>Buyer:</strong> ${dealerName}</p>
+                        <p><strong>Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                        <p><strong>Payment Status:</strong> ${daysOverdue} day(s) overdue</p>
+                      </div>
+                      
+                      <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #17a2b8;">
+                        <h4 style="margin-top: 0; color: #0c5460;">What We're Doing:</h4>
+                        <p style="margin: 5px 0;">• We've sent a payment reminder to the dealer</p>
+                        <p style="margin: 5px 0;">• We're actively following up on the payment</p>
+                        <p style="margin: 5px 0;">• You'll be notified once payment is received</p>
+                        <p style="margin: 5px 0;">• If payment isn't received within policy timeframes, the offer will be cancelled</p>
+                      </div>
+                      
+                      <div style="text-align: center; margin: 30px 0;">
+                        <a href="${offerLink}" 
+                           style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                          View Offer Status
+                        </a>
+                      </div>
+                      
+                      <p>Thank you for your patience. We'll keep you updated on any developments.</p>
+                      
+                      <p>Best regards,<br>
+                      Commercial Trader Portal Team</p>
+                    </div>
+                  `,
+                });
+
+                console.log(
+                  `[sendInvoicePaymentReminders] Status email sent to transporter ${transporterEmail}`
+                );
+              } catch (emailError) {
+                console.error(
+                  "[sendInvoicePaymentReminders] Error sending email to transporter:",
+                  emailError
+                );
+              }
+            }
+
+            // Email to admins (summary)
+            const adminEmails = adminUsersSnapshot.docs
+              .map((doc) => doc.data().email)
+              .filter((email) => !!email);
+
+            if (adminEmails.length > 0) {
+              try {
+                await sgMail.send({
+                  from: "admin@ctpapp.co.za",
+                  to: adminEmails,
+                  subject: `💳 Payment Overdue Alert - ${vehicleName}`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <h2 style="color: #dc3545;">Payment Overdue Alert 💳</h2>
+                      <p>A payment is now ${daysOverdue} day(s) overdue and may require intervention.</p>
+                      
+                      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #333;">Transaction Details:</h3>
+                        <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                        <p><strong>Dealer (Buyer):</strong> ${dealerName}</p>
+                        <p><strong>Transporter (Seller):</strong> ${transporterName}</p>
+                        <p><strong>Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                        <p><strong>Days Overdue:</strong> ${daysOverdue}</p>
+                        <p><strong>Urgency Level:</strong> ${urgencyLevel.toUpperCase()}</p>
+                      </div>
+                      
+                      <div style="background-color: #f8d7da; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;">
+                        <h4 style="margin-top: 0; color: #721c24;">Action Required:</h4>
+                        <p style="margin: 5px 0;">• Contact the dealer to follow up on payment</p>
+                        <p style="margin: 5px 0;">• Verify if proof of payment has been uploaded</p>
+                        <p style="margin: 5px 0;">• Consider offer cancellation if payment policy is violated</p>
+                        <p style="margin: 5px 0;">• Update both parties on resolution</p>
+                      </div>
+                      
+                      <div style="text-align: center; margin: 30px 0;">
+                        <a href="${offerLink}" 
+                           style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                          Review Offer Details
+                        </a>
+                      </div>
+                      
+                      <p style="color: #666; font-size: 14px;">
+                        This alert was automatically generated based on payment policy timeframes.
+                      </p>
+                      
+                      <p>Commercial Trader Portal System</p>
+                    </div>
+                  `,
+                });
+
+                console.log(
+                  `[sendInvoicePaymentReminders] Admin alert sent to ${adminEmails.length} admins`
+                );
+              } catch (emailError) {
+                console.error(
+                  "[sendInvoicePaymentReminders] Error sending admin alert:",
+                  emailError
+                );
+              }
+            }
+          }
+
+          // Update the last reminder timestamp
+          await db
+            .collection("offers")
+            .doc(offerId)
+            .update({
+              [lastReminderField]: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+          reminderCount++;
+        } catch (offerError) {
+          console.error(
+            `[sendInvoicePaymentReminders] Error processing offer ${offerId}:`,
+            offerError
+          );
+        }
+      }
+
+      console.log(
+        `[sendInvoicePaymentReminders] Job completed. Sent ${reminderCount} payment reminders.`
+      );
+    } catch (error) {
+      console.error(
+        "[sendInvoicePaymentReminders] Error in scheduled job:",
+        error
+      );
+    }
+  }
+);
+
+// Notify transporter when truck is ready for collection (payment approved + collection details set)
+exports.notifyTransporterOnTruckReadyForCollection = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyTransporterOnTruckReadyForCollection] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log(
+        "[notifyTransporterOnTruckReadyForCollection] No before/after data"
+      );
+      return;
+    }
+
+    // Check if truck is now ready for collection
+    // Requirements: Payment approved + collection details set
+    const paymentApproved =
+      after.paymentStatus === "approved" ||
+      after.paymentStatus === "accepted" ||
+      after.offerStatus === "paid";
+    const hasCollectionDetails = !!(
+      after.dealerSelectedCollectionDate &&
+      after.dealerSelectedCollectionTime &&
+      after.dealerSelectedCollectionLocation
+    );
+
+    // Check if this is a new state (wasn't ready before but is ready now)
+    const wasPaymentApproved =
+      before.paymentStatus === "approved" ||
+      before.paymentStatus === "accepted" ||
+      before.offerStatus === "paid";
+    const hadCollectionDetails = !!(
+      before.dealerSelectedCollectionDate &&
+      before.dealerSelectedCollectionTime &&
+      before.dealerSelectedCollectionLocation
+    );
+
+    const wasReady = wasPaymentApproved && hadCollectionDetails;
+    const isNowReady = paymentApproved && hasCollectionDetails;
+
+    // Only notify if truck just became ready for collection
+    if (wasReady || !isNowReady) {
+      console.log(
+        "[notifyTransporterOnTruckReadyForCollection] Truck not newly ready for collection, skipping",
+        { wasReady, isNowReady, paymentApproved, hasCollectionDetails }
+      );
+      return;
+    }
+
+    console.log(
+      "[notifyTransporterOnTruckReadyForCollection] Truck is now ready for collection!"
+    );
+
+    try {
+      // Get transporter details (the one who needs to collect)
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "Transporter";
+      const transporterEmail = transporterData.email;
+
+      // Get dealer details
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "Dealer";
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Format collection details
+      const collectionDate = after.dealerSelectedCollectionDate.toDate
+        ? after.dealerSelectedCollectionDate.toDate().toLocaleDateString()
+        : new Date(after.dealerSelectedCollectionDate).toLocaleDateString();
+      const collectionTime = after.dealerSelectedCollectionTime;
+      const collectionLocation = after.dealerSelectedCollectionLocation;
+      const offerAmount = after.offerAmount || 0;
+
+      // Notify transporter (primary notification)
+      if (transporterData.fcmToken) {
+        try {
+          const transporterMessage = {
+            notification: {
+              title: "🚛 Truck Ready for Collection!",
+              body: `Great news! Your ${vehicleName} is ready for collection. Payment confirmed. Collection on ${collectionDate} at ${collectionTime}`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              dealerId: after.dealerId,
+              notificationType: "truck_ready_for_collection",
+              collectionDate: collectionDate,
+              collectionTime: collectionTime,
+              collectionLocation: collectionLocation,
+              offerAmount: String(offerAmount),
+              timestamp: new Date().toISOString(),
+            },
+            token: transporterData.fcmToken,
+          };
+
+          await admin.messaging().send(transporterMessage);
+          console.log(
+            `[notifyTransporterOnTruckReadyForCollection] Notification sent to transporter ${after.transporterId}`
+          );
+        } catch (transporterError) {
+          console.error(
+            `[notifyTransporterOnTruckReadyForCollection] Error sending notification to transporter:`,
+            transporterError
+          );
+        }
+      }
+
+      // Also notify admins for tracking
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      for (const adminDoc of adminUsersSnapshot.docs) {
+        const adminData = adminDoc.data();
+        if (!adminData.fcmToken) continue;
+
+        try {
+          const adminMessage = {
+            notification: {
+              title: "🚚 Collection Ready",
+              body: `${transporterName}'s ${vehicleName} is ready for collection by ${dealerName}. Payment confirmed, collection scheduled.`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              dealerId: after.dealerId,
+              transporterId: after.transporterId,
+              notificationType: "truck_ready_for_collection_admin",
+              collectionDate: collectionDate,
+              collectionTime: collectionTime,
+              timestamp: new Date().toISOString(),
+            },
+            token: adminData.fcmToken,
+          };
+
+          await admin.messaging().send(adminMessage);
+        } catch (adminError) {
+          console.error(
+            `[notifyTransporterOnTruckReadyForCollection] Error sending admin notification:`,
+            adminError
+          );
+        }
+      }
+
+      // Send email notification if SendGrid is available
+      if (sgMail && transporterEmail) {
+        try {
+          const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+          await sgMail.send({
+            from: "admin@ctpapp.co.za",
+            to: transporterEmail,
+            subject: `🚛 Your Vehicle is Ready for Collection - ${vehicleName}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #28a745; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                  <h2 style="margin: 0; font-size: 28px;">🚛 Ready for Collection!</h2>
+                </div>
+                
+                <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                  <p style="font-size: 18px; color: #28a745; font-weight: bold;">Excellent news, ${transporterName}!</p>
+                  <p style="font-size: 16px;">Your vehicle sale has been completed and your truck is now ready for collection.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                    <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #28a745; padding-bottom: 10px;">Collection Details:</h3>
+                    <div style="display: grid; gap: 10px;">
+                      <p style="margin: 8px 0;"><strong>🚛 Vehicle:</strong> ${vehicleName}</p>
+                      <p style="margin: 8px 0;"><strong>💰 Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                      <p style="margin: 8px 0;"><strong>👤 Buyer:</strong> ${dealerName}</p>
+                      <p style="margin: 8px 0;"><strong>📅 Collection Date:</strong> ${collectionDate}</p>
+                      <p style="margin: 8px 0;"><strong>🕐 Collection Time:</strong> ${collectionTime}</p>
+                      <p style="margin: 8px 0;"><strong>📍 Collection Location:</strong> ${collectionLocation}</p>
+                    </div>
+                  </div>
+                  
+                  <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #28a745;">
+                    <h4 style="margin-top: 0; color: #155724;">✅ Payment Confirmed</h4>
+                    <p style="margin: 5px 0; color: #155724;">The buyer's payment has been approved and processed. You can now proceed with confidence to collect your vehicle.</p>
+                  </div>
+                  
+                  <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="margin-top: 0; color: #856404;">📋 Collection Checklist:</h4>
+                    <ul style="margin: 10px 0; padding-left: 20px; color: #856404;">
+                      <li>Arrive at the specified time and location</li>
+                      <li>Bring valid identification and vehicle documentation</li>
+                      <li>Ensure the vehicle is in the agreed condition</li>
+                      <li>Complete any final paperwork with the buyer</li>
+                      <li>Hand over keys and vehicle to the new owner</li>
+                    </ul>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 35px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                      View Collection Details
+                    </a>
+                  </div>
+                  
+                  <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <p style="margin: 0; color: #666; font-size: 14px;">
+                      <strong>Need help?</strong> Contact our support team at 
+                      <a href="mailto:admin@ctpapp.co.za" style="color: #28a745;">admin@ctpapp.co.za</a>
+                    </p>
+                  </div>
+                  
+                  <p style="margin-top: 30px;">Congratulations on your successful sale!</p>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal Team</p>
+                </div>
+              </div>
+            `,
+          });
+
+          console.log(
+            `[notifyTransporterOnTruckReadyForCollection] Email sent to transporter ${transporterEmail}`
+          );
+        } catch (emailError) {
+          console.error(
+            "[notifyTransporterOnTruckReadyForCollection] Error sending email:",
+            emailError
+          );
+        }
+      }
+
+      // Send email to admins for tracking
+      if (sgMail) {
+        const adminEmails = adminUsersSnapshot.docs
+          .map((doc) => doc.data().email)
+          .filter((email) => !!email);
+
+        if (adminEmails.length > 0) {
+          try {
+            const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject: `🚚 Vehicle Ready for Collection - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #28a745;">Vehicle Ready for Collection 🚚</h2>
+                  <p>A vehicle transaction has been completed and is ready for collection.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Transaction Summary:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Seller (Transporter):</strong> ${transporterName}</p>
+                    <p><strong>Buyer (Dealer):</strong> ${dealerName}</p>
+                    <p><strong>Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                    <p><strong>Collection Date:</strong> ${collectionDate}</p>
+                    <p><strong>Collection Time:</strong> ${collectionTime}</p>
+                    <p><strong>Collection Location:</strong> ${collectionLocation}</p>
+                  </div>
+                  
+                  <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                    <h4 style="margin-top: 0; color: #155724;">Status: Ready for Collection</h4>
+                    <p style="margin: 5px 0;">✅ Payment has been approved and processed</p>
+                    <p style="margin: 5px 0;">✅ Collection details have been confirmed</p>
+                    <p style="margin: 5px 0;">✅ Transporter has been notified</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Transaction Details
+                    </a>
+                  </div>
+                  
+                  <p style="color: #666; font-size: 14px;">
+                    This notification is for your tracking and oversight. The transaction is proceeding normally.
+                  </p>
+                  
+                  <p>Commercial Trader Portal System</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyTransporterOnTruckReadyForCollection] Admin email sent to ${adminEmails.length} admins`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyTransporterOnTruckReadyForCollection] Error sending admin email:",
+              emailError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[notifyTransporterOnTruckReadyForCollection] Error:",
+        error
+      );
+    }
+  }
+);
+
+// Notify transporter, dealer, and admins when collection is booked
+exports.notifyPartiesOnCollectionBooked = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyPartiesOnCollectionBooked] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyPartiesOnCollectionBooked] No before/after data");
+      return;
+    }
+
+    // Check if collection details were just added/updated
+    const beforeHasCollection = !!(
+      before.dealerSelectedCollectionDate &&
+      before.dealerSelectedCollectionTime &&
+      before.dealerSelectedCollectionLocation
+    );
+
+    const afterHasCollection = !!(
+      after.dealerSelectedCollectionDate &&
+      after.dealerSelectedCollectionTime &&
+      after.dealerSelectedCollectionLocation
+    );
+
+    // Only notify if collection was just booked (not already there)
+    if (beforeHasCollection || !afterHasCollection) {
+      console.log(
+        "[notifyPartiesOnCollectionBooked] Collection not newly booked, skipping"
+      );
+      return;
+    }
+
+    console.log(
+      "[notifyPartiesOnCollectionBooked] New collection booking detected"
+    );
+
+    try {
+      // Get dealer details
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "Dealer";
+      const dealerEmail = dealerData.email;
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "Transporter";
+      const transporterEmail = transporterData.email;
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Format collection details
+      const collectionDate = after.dealerSelectedCollectionDate.toDate
+        ? after.dealerSelectedCollectionDate.toDate().toLocaleDateString()
+        : new Date(after.dealerSelectedCollectionDate).toLocaleDateString();
+      const collectionTime = after.dealerSelectedCollectionTime;
+      const collectionLocation = after.dealerSelectedCollectionLocation;
+      const offerAmount = after.offerAmount || 0;
+
+      // Notify transporter (vehicle owner)
+      if (transporterData.fcmToken) {
+        try {
+          const transporterMessage = {
+            notification: {
+              title: "📅 Collection Scheduled",
+              body: `${dealerName} has scheduled collection for your ${vehicleName} on ${collectionDate} at ${collectionTime}`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              dealerId: after.dealerId,
+              notificationType: "collection_booked",
+              collectionDate: collectionDate,
+              collectionTime: collectionTime,
+              collectionLocation: collectionLocation,
+              timestamp: new Date().toISOString(),
+            },
+            token: transporterData.fcmToken,
+          };
+
+          await admin.messaging().send(transporterMessage);
+          console.log(
+            `[notifyPartiesOnCollectionBooked] Notification sent to transporter ${after.transporterId}`
+          );
+        } catch (transporterError) {
+          console.error(
+            `[notifyPartiesOnCollectionBooked] Error sending notification to transporter:`,
+            transporterError
+          );
+        }
+      }
+
+      // Notify dealer (confirmation)
+      if (dealerData.fcmToken) {
+        try {
+          const dealerMessage = {
+            notification: {
+              title: "✅ Collection Confirmed",
+              body: `Your collection appointment for ${vehicleName} has been scheduled for ${collectionDate} at ${collectionTime}`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              transporterId: after.transporterId,
+              notificationType: "collection_booked_confirmation",
+              collectionDate: collectionDate,
+              collectionTime: collectionTime,
+              collectionLocation: collectionLocation,
+              timestamp: new Date().toISOString(),
+            },
+            token: dealerData.fcmToken,
+          };
+
+          await admin.messaging().send(dealerMessage);
+          console.log(
+            `[notifyPartiesOnCollectionBooked] Confirmation sent to dealer ${after.dealerId}`
+          );
+        } catch (dealerError) {
+          console.error(
+            `[notifyPartiesOnCollectionBooked] Error sending confirmation to dealer:`,
+            dealerError
+          );
+        }
+      }
+
+      // Get all admin users for notifications
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      // Notify admins
+      if (!adminUsersSnapshot.empty) {
+        for (const adminDoc of adminUsersSnapshot.docs) {
+          const adminData = adminDoc.data();
+
+          if (!adminData.fcmToken) {
+            console.log(
+              `[notifyPartiesOnCollectionBooked] Admin ${adminDoc.id} has no FCM token`
+            );
+            continue;
+          }
+
+          try {
+            const adminMessage = {
+              notification: {
+                title: "📋 Collection Scheduled",
+                body: `${dealerName} scheduled collection for ${transporterName}'s ${vehicleName} on ${collectionDate}`,
+              },
+              data: {
+                offerId: offerId,
+                vehicleId: after.vehicleId,
+                dealerId: after.dealerId,
+                transporterId: after.transporterId,
+                notificationType: "collection_booked_admin",
+                collectionDate: collectionDate,
+                collectionTime: collectionTime,
+                collectionLocation: collectionLocation,
+                timestamp: new Date().toISOString(),
+              },
+              token: adminData.fcmToken,
+            };
+
+            await admin.messaging().send(adminMessage);
+            console.log(
+              `[notifyPartiesOnCollectionBooked] Notification sent to admin ${adminDoc.id}`
+            );
+          } catch (adminError) {
+            console.error(
+              `[notifyPartiesOnCollectionBooked] Error sending notification to admin ${adminDoc.id}:`,
+              adminError
+            );
+          }
+        }
+      }
+
+      // Send email notifications if SendGrid is available
+      if (sgMail) {
+        const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+        // Email to transporter
+        if (transporterEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: transporterEmail,
+              subject: `📅 Collection Scheduled - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2F7FFF;">Collection Appointment Scheduled 📅</h2>
+                  <p>Great news! A collection appointment has been scheduled for your vehicle.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Collection Details:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Buyer:</strong> ${dealerName}</p>
+                    <p><strong>Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                    <p><strong>Collection Date:</strong> ${collectionDate}</p>
+                    <p><strong>Collection Time:</strong> ${collectionTime}</p>
+                    <p><strong>Collection Location:</strong> ${collectionLocation}</p>
+                  </div>
+                  
+                  <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #17a2b8;">
+                    <h4 style="margin-top: 0; color: #0c5460;">What's Next?</h4>
+                    <p style="margin: 5px 0;">• Ensure your vehicle is ready for collection</p>
+                    <p style="margin: 5px 0;">• Prepare all necessary documentation</p>
+                    <p style="margin: 5px 0;">• Be available at the scheduled time and location</p>
+                    <p style="margin: 5px 0;">• Complete the handover process with the buyer</p>
+                  </div>
+                  
+                  <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="margin-top: 0; color: #856404;">💰 Payment Status</h4>
+                    <p style="margin: 5px 0;">Collection can only proceed once payment has been confirmed and approved. You'll be notified when payment is complete and your vehicle is ready for collection.</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Collection Details
+                    </a>
+                  </div>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal Team</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnCollectionBooked] Email sent to transporter ${transporterEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnCollectionBooked] Error sending email to transporter:",
+              emailError
+            );
+          }
+        }
+
+        // Email to dealer (confirmation)
+        if (dealerEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: dealerEmail,
+              subject: `✅ Collection Appointment Confirmed - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #28a745;">Collection Appointment Confirmed ✅</h2>
+                  <p>Your collection appointment has been successfully scheduled. Here are the details:</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Appointment Details:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Seller:</strong> ${transporterName}</p>
+                    <p><strong>Purchase Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                    <p><strong>Collection Date:</strong> ${collectionDate}</p>
+                    <p><strong>Collection Time:</strong> ${collectionTime}</p>
+                    <p><strong>Collection Location:</strong> ${collectionLocation}</p>
+                  </div>
+                  
+                  <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                    <h4 style="margin-top: 0; color: #155724;">Preparation Checklist:</h4>
+                    <p style="margin: 5px 0;">• Complete payment before collection date</p>
+                    <p style="margin: 5px 0;">• Bring valid identification and documentation</p>
+                    <p style="margin: 5px 0;">• Arrive on time for your scheduled appointment</p>
+                    <p style="margin: 5px 0;">• Inspect the vehicle thoroughly before taking possession</p>
+                    <p style="margin: 5px 0;">• Complete all necessary paperwork with the seller</p>
+                  </div>
+                  
+                  <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="margin-top: 0; color: #856404;">⚠️ Important Reminder</h4>
+                    <p style="margin: 5px 0;">Payment must be completed and approved before collection can proceed. Ensure all payment processes are finalized before your appointment.</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Appointment Details
+                    </a>
+                  </div>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal Team</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnCollectionBooked] Confirmation email sent to dealer ${dealerEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnCollectionBooked] Error sending confirmation email to dealer:",
+              emailError
+            );
+          }
+        }
+
+        // Email to admins
+        const adminEmails = adminUsersSnapshot.docs
+          .map((doc) => doc.data().email)
+          .filter((email) => !!email);
+
+        if (adminEmails.length > 0) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject: `📋 Collection Appointment Scheduled - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2F7FFF;">Collection Appointment Scheduled 📋</h2>
+                  <p>A collection appointment has been scheduled for a vehicle transaction.</p>
+                  
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Appointment Summary:</h3>
+                    <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                    <p><strong>Seller (Transporter):</strong> ${transporterName}</p>
+                    <p><strong>Buyer (Dealer):</strong> ${dealerName}</p>
+                    <p><strong>Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                    <p><strong>Collection Date:</strong> ${collectionDate}</p>
+                    <p><strong>Collection Time:</strong> ${collectionTime}</p>
+                    <p><strong>Collection Location:</strong> ${collectionLocation}</p>
+                  </div>
+                  
+                  <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #17a2b8;">
+                    <h4 style="margin-top: 0; color: #0c5460;">Transaction Status:</h4>
+                    <p style="margin: 5px 0;">✅ Collection appointment scheduled</p>
+                    <p style="margin: 5px 0;">📋 Both parties have been notified</p>
+                    <p style="margin: 5px 0;">💰 Payment completion required before collection</p>
+                    <p style="margin: 5px 0;">📞 Monitor for any reported issues</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${offerLink}" 
+                       style="background-color: #2F7FFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      View Transaction Details
+                    </a>
+                  </div>
+                  
+                  <p style="color: #666; font-size: 14px;">
+                    This is for your information and tracking purposes. Monitor the transaction for successful completion.
+                  </p>
+                  
+                  <p>Best regards,<br>
+                  Commercial Trader Portal System</p>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnCollectionBooked] Email notification sent to ${adminEmails.length} admins`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnCollectionBooked] Error sending email to admins:",
+              emailError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[notifyPartiesOnCollectionBooked] Error:", error);
+    }
+  }
+);
+
+// Send daily inspection reminders to dealers and transporters for today's inspections
+exports.sendTodayInspectionReminders = onSchedule(
+  {
+    schedule: "0 8 * * *", // Daily at 8 AM
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[sendTodayInspectionReminders] Starting inspection reminder job"
+    );
+
+    try {
+      // Get today's date at start and end of day in South Africa timezone
+      const today = new Date();
+      const startOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+      const endOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        23,
+        59,
+        59
+      );
+
+      console.log(
+        `[sendTodayInspectionReminders] Checking for inspections on ${startOfDay.toDateString()}`
+      );
+
+      // Get all offers that have inspection appointments scheduled for today
+      const offersSnapshot = await db
+        .collection("offers")
+        .where("dealerSelectedInspectionDate", ">=", startOfDay)
+        .where("dealerSelectedInspectionDate", "<=", endOfDay)
+        .get();
+
+      if (offersSnapshot.empty) {
+        console.log(
+          "[sendTodayInspectionReminders] No inspections scheduled for today"
+        );
+        return;
+      }
+
+      console.log(
+        `[sendTodayInspectionReminders] Found ${offersSnapshot.docs.length} inspections scheduled for today`
+      );
+
+      let reminderCount = 0;
+
+      for (const offerDoc of offersSnapshot.docs) {
+        const offerData = offerDoc.data();
+        const offerId = offerDoc.id;
+
+        // Skip if inspection is already completed
+        if (
+          offerData.inspectionStatus === "completed" ||
+          offerData.dealerInspectionComplete === true ||
+          offerData.transporterInspectionComplete === true
+        ) {
+          console.log(
+            `[sendTodayInspectionReminders] Inspection ${offerId} already completed, skipping`
+          );
+          continue;
+        }
+
+        try {
+          // Get dealer details
+          const dealerDoc = await db
+            .collection("users")
+            .doc(offerData.dealerId)
+            .get();
+          const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+          const dealerName =
+            `${dealerData.firstName || ""} ${
+              dealerData.lastName || ""
+            }`.trim() ||
+            dealerData.companyName ||
+            "Dealer";
+          const dealerEmail = dealerData.email;
+
+          // Get transporter details
+          const transporterDoc = await db
+            .collection("users")
+            .doc(offerData.transporterId)
+            .get();
+          const transporterData = transporterDoc.exists
+            ? transporterDoc.data()
+            : {};
+          const transporterName =
+            `${transporterData.firstName || ""} ${
+              transporterData.lastName || ""
+            }`.trim() ||
+            transporterData.companyName ||
+            "Transporter";
+          const transporterEmail = transporterData.email;
+
+          // Get vehicle details
+          const vehicleDoc = await db
+            .collection("vehicles")
+            .doc(offerData.vehicleId)
+            .get();
+          const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+          const vehicleName = `${
+            vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+          } ${vehicleData.makeModel || vehicleData.model || ""} ${
+            vehicleData.year || ""
+          }`.trim();
+
+          // Format inspection details
+          const inspectionDate = offerData.dealerSelectedInspectionDate.toDate
+            ? offerData.dealerSelectedInspectionDate
+                .toDate()
+                .toLocaleDateString()
+            : new Date(
+                offerData.dealerSelectedInspectionDate
+              ).toLocaleDateString();
+          const inspectionTime =
+            offerData.dealerSelectedInspectionTime || "Time TBD";
+          const inspectionLocation =
+            offerData.dealerSelectedInspectionLocation || "Location TBD";
+          const offerAmount = offerData.offerAmount || 0;
+
+          // Send push notification to dealer
+          if (dealerData.fcmToken) {
+            try {
+              const dealerMessage = {
+                notification: {
+                  title: "🔍 Inspection Today",
+                  body: `Reminder: You have an inspection scheduled today for ${vehicleName} at ${inspectionTime}`,
+                },
+                data: {
+                  offerId: offerId,
+                  vehicleId: offerData.vehicleId,
+                  transporterId: offerData.transporterId,
+                  notificationType: "inspection_today_dealer",
+                  inspectionDate: inspectionDate,
+                  inspectionTime: inspectionTime,
+                  inspectionLocation: inspectionLocation,
+                  timestamp: new Date().toISOString(),
+                },
+                token: dealerData.fcmToken,
+              };
+
+              await admin.messaging().send(dealerMessage);
+              console.log(
+                `[sendTodayInspectionReminders] Push notification sent to dealer ${offerData.dealerId}`
+              );
+            } catch (dealerPushError) {
+              console.error(
+                `[sendTodayInspectionReminders] Error sending push to dealer:`,
+                dealerPushError
+              );
+            }
+          }
+
+          // Send push notification to transporter
+          if (transporterData.fcmToken) {
+            try {
+              const transporterMessage = {
+                notification: {
+                  title: "🔍 Inspection Today",
+                  body: `Reminder: ${dealerName} has an inspection scheduled today for your ${vehicleName} at ${inspectionTime}`,
+                },
+                data: {
+                  offerId: offerId,
+                  vehicleId: offerData.vehicleId,
+                  dealerId: offerData.dealerId,
+                  notificationType: "inspection_today_transporter",
+                  inspectionDate: inspectionDate,
+                  inspectionTime: inspectionTime,
+                  inspectionLocation: inspectionLocation,
+                  timestamp: new Date().toISOString(),
+                },
+                token: transporterData.fcmToken,
+              };
+
+              await admin.messaging().send(transporterMessage);
+              console.log(
+                `[sendTodayInspectionReminders] Push notification sent to transporter ${offerData.transporterId}`
+              );
+            } catch (transporterPushError) {
+              console.error(
+                `[sendTodayInspectionReminders] Error sending push to transporter:`,
+                transporterPushError
+              );
+            }
+          }
+
+          // Send email notifications if SendGrid is available
+          if (sgMail) {
+            const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+            // Email to dealer
+            if (dealerEmail) {
+              try {
+                await sgMail.send({
+                  from: "admin@ctpapp.co.za",
+                  to: dealerEmail,
+                  subject: `🔍 Inspection Reminder - Today's Appointment for ${vehicleName}`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <div style="background-color: #2F7FFF; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h2 style="margin: 0; font-size: 28px;">🔍 Inspection Reminder</h2>
+                      </div>
+                      
+                      <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                        <p style="font-size: 18px; color: #2F7FFF; font-weight: bold;">Good morning, ${dealerName}!</p>
+                        <p style="font-size: 16px;">This is a friendly reminder that you have a vehicle inspection scheduled for <strong>today</strong>.</p>
+                        
+                        <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                          <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #2F7FFF; padding-bottom: 10px;">Today's Inspection Details:</h3>
+                          <div style="display: grid; gap: 10px;">
+                            <p style="margin: 8px 0;"><strong>🚛 Vehicle:</strong> ${vehicleName}</p>
+                            <p style="margin: 8px 0;"><strong>👤 Seller:</strong> ${transporterName}</p>
+                            <p style="margin: 8px 0;"><strong>💰 Offer Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                            <p style="margin: 8px 0;"><strong>📅 Date:</strong> ${inspectionDate} (Today)</p>
+                            <p style="margin: 8px 0;"><strong>🕐 Time:</strong> ${inspectionTime}</p>
+                            <p style="margin: 8px 0;"><strong>📍 Location:</strong> ${inspectionLocation}</p>
+                          </div>
+                        </div>
+                        
+                        <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #ffc107;">
+                          <h4 style="margin-top: 0; color: #856404;">📋 Pre-Inspection Checklist:</h4>
+                          <ul style="margin: 10px 0; padding-left: 20px; color: #856404;">
+                            <li>Arrive on time at the scheduled location</li>
+                            <li>Bring necessary inspection equipment and tools</li>
+                            <li>Review the vehicle's documented condition reports</li>
+                            <li>Take detailed photos of any findings</li>
+                            <li>Complete inspection notes and upload results promptly</li>
+                          </ul>
+                        </div>
+                        
+                        <div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #17a2b8;">
+                          <h4 style="margin-top: 0; color: #0c5460;">ℹ️ Important Notes:</h4>
+                          <p style="margin: 5px 0; color: #0c5460;">• Contact the seller if you need to reschedule or have questions</p>
+                          <p style="margin: 5px 0; color: #0c5460;">• Upload inspection results within 24 hours of completion</p>
+                          <p style="margin: 5px 0; color: #0c5460;">• Both parties will be notified once inspection is complete</p>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 35px 0;">
+                          <a href="${offerLink}" 
+                             style="background-color: #2F7FFF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                            View Inspection Details
+                          </a>
+                        </div>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                          <p style="margin: 0; color: #666; font-size: 14px;">
+                            <strong>Need help?</strong> Contact our support team at 
+                            <a href="mailto:admin@ctpapp.co.za" style="color: #2F7FFF;">admin@ctpapp.co.za</a>
+                          </p>
+                        </div>
+                        
+                        <p style="margin-top: 30px;">Have a successful inspection!</p>
+                        
+                        <p>Best regards,<br>
+                        Commercial Trader Portal Team</p>
+                      </div>
+                    </div>
+                  `,
+                });
+
+                console.log(
+                  `[sendTodayInspectionReminders] Email sent to dealer ${dealerEmail}`
+                );
+                reminderCount++;
+              } catch (dealerEmailError) {
+                console.error(
+                  "[sendTodayInspectionReminders] Error sending email to dealer:",
+                  dealerEmailError
+                );
+              }
+            }
+
+            // Email to transporter
+            if (transporterEmail) {
+              try {
+                await sgMail.send({
+                  from: "admin@ctpapp.co.za",
+                  to: transporterEmail,
+                  subject: `🔍 Inspection Reminder - Today's Appointment for Your ${vehicleName}`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <div style="background-color: #2F7FFF; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h2 style="margin: 0; font-size: 28px;">🔍 Inspection Reminder</h2>
+                      </div>
+                      
+                      <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                        <p style="font-size: 18px; color: #2F7FFF; font-weight: bold;">Good morning, ${transporterName}!</p>
+                        <p style="font-size: 16px;">This is a friendly reminder that your vehicle has an inspection scheduled for <strong>today</strong>.</p>
+                        
+                        <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                          <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #2F7FFF; padding-bottom: 10px;">Today's Inspection Details:</h3>
+                          <div style="display: grid; gap: 10px;">
+                            <p style="margin: 8px 0;"><strong>🚛 Your Vehicle:</strong> ${vehicleName}</p>
+                            <p style="margin: 8px 0;"><strong>👤 Buyer/Inspector:</strong> ${dealerName}</p>
+                            <p style="margin: 8px 0;"><strong>💰 Offer Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                            <p style="margin: 8px 0;"><strong>📅 Date:</strong> ${inspectionDate} (Today)</p>
+                            <p style="margin: 8px 0;"><strong>🕐 Time:</strong> ${inspectionTime}</p>
+                            <p style="margin: 8px 0;"><strong>📍 Location:</strong> ${inspectionLocation}</p>
+                          </div>
+                        </div>
+                        
+                        <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #28a745;">
+                          <h4 style="margin-top: 0; color: #155724;">📋 Preparation Checklist:</h4>
+                          <ul style="margin: 10px 0; padding-left: 20px; color: #155724;">
+                            <li>Ensure your vehicle is accessible at the inspection location</li>
+                            <li>Have all vehicle documentation ready (registration, service history, etc.)</li>
+                            <li>Be available to answer questions about the vehicle's history</li>
+                            <li>Allow the inspector full access to examine the vehicle</li>
+                            <li>Be present during the inspection process</li>
+                          </ul>
+                        </div>
+                        
+                        <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #ffc107;">
+                          <h4 style="margin-top: 0; color: #856404;">⚠️ Important Information:</h4>
+                          <p style="margin: 5px 0; color: #856404;">• The inspection is crucial for finalizing the sale</p>
+                          <p style="margin: 5px 0; color: #856404;">• Be honest about any known issues with the vehicle</p>
+                          <p style="margin: 5px 0; color: #856404;">• You'll be notified once the inspection is complete</p>
+                          <p style="margin: 5px 0; color: #856404;">• Contact the buyer if you need to reschedule</p>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 35px 0;">
+                          <a href="${offerLink}" 
+                             style="background-color: #2F7FFF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                            View Inspection Details
+                          </a>
+                        </div>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                          <p style="margin: 0; color: #666; font-size: 14px;">
+                            <strong>Need help?</strong> Contact our support team at 
+                            <a href="mailto:admin@ctpapp.co.za" style="color: #2F7FFF;">admin@ctpapp.co.za</a>
+                          </p>
+                        </div>
+                        
+                        <p style="margin-top: 30px;">Best of luck with your vehicle sale!</p>
+                        
+                        <p>Best regards,<br>
+                        Commercial Trader Portal Team</p>
+                      </div>
+                    </div>
+                  `,
+                });
+
+                console.log(
+                  `[sendTodayInspectionReminders] Email sent to transporter ${transporterEmail}`
+                );
+                reminderCount++;
+              } catch (transporterEmailError) {
+                console.error(
+                  "[sendTodayInspectionReminders] Error sending email to transporter:",
+                  transporterEmailError
+                );
+              }
+            }
+          }
+        } catch (offerError) {
+          console.error(
+            `[sendTodayInspectionReminders] Error processing offer ${offerId}:`,
+            offerError
+          );
+        }
+      }
+
+      console.log(
+        `[sendTodayInspectionReminders] Job completed. Sent ${reminderCount} inspection reminders.`
+      );
+    } catch (error) {
+      console.error(
+        "[sendTodayInspectionReminders] Error in scheduled job:",
+        error
+      );
+    }
+  }
+);
+
+// Notify admins when a dealer requests an invoice
+exports.notifyAdminsOnInvoiceRequest = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyAdminsOnInvoiceRequest] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyAdminsOnInvoiceRequest] No before/after data");
+      return;
+    }
+
+    // Check if needsInvoice was just set to true (wasn't true before but is now)
+    const wasInvoiceNeeded = before.needsInvoice === true;
+    const isInvoiceNeeded = after.needsInvoice === true;
+
+    // Only notify if invoice was just requested (not already requested)
+    if (wasInvoiceNeeded || !isInvoiceNeeded) {
+      console.log(
+        "[notifyAdminsOnInvoiceRequest] Invoice not newly requested, skipping"
+      );
+      return;
+    }
+
+    console.log("[notifyAdminsOnInvoiceRequest] New invoice request detected");
+
+    try {
+      // Get dealer details (who requested the invoice)
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "Dealer";
+      const dealerEmail = dealerData.email;
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "Transporter";
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      const offerAmount = after.offerAmount || 0;
+
+      // Get all admin users for notifications
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      if (adminUsersSnapshot.empty) {
+        console.log("[notifyAdminsOnInvoiceRequest] No admin users found");
+        return;
+      }
+
+      console.log(
+        `[notifyAdminsOnInvoiceRequest] Found ${adminUsersSnapshot.docs.length} admin users to notify`
+      );
+
+      // Notify each admin
+      for (const adminDoc of adminUsersSnapshot.docs) {
+        const adminData = adminDoc.data();
+        const adminName =
+          `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() ||
+          adminData.companyName ||
+          "Admin";
+
+        // Send push notification if admin has FCM token
+        if (adminData.fcmToken) {
+          try {
+            const adminMessage = {
+              notification: {
+                title: "📄 Invoice Request",
+                body: `${dealerName} has requested an invoice for ${vehicleName} (Offer: R${offerAmount.toLocaleString()})`,
+              },
+              data: {
+                offerId: offerId,
+                vehicleId: after.vehicleId,
+                dealerId: after.dealerId,
+                transporterId: after.transporterId,
+                notificationType: "invoice_request",
+                offerAmount: offerAmount.toString(),
+                vehicleName: vehicleName,
+                dealerName: dealerName,
+                timestamp: new Date().toISOString(),
+              },
+              token: adminData.fcmToken,
+            };
+
+            await admin.messaging().send(adminMessage);
+            console.log(
+              `[notifyAdminsOnInvoiceRequest] Push notification sent to admin ${adminDoc.id}`
+            );
+          } catch (adminPushError) {
+            console.error(
+              `[notifyAdminsOnInvoiceRequest] Error sending push to admin ${adminDoc.id}:`,
+              adminPushError
+            );
+          }
+        }
+      }
+
+      // Send email notifications if SendGrid is available
+      if (sgMail) {
+        const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+        const adminEmails = adminUsersSnapshot.docs
+          .map((doc) => doc.data().email)
+          .filter((email) => !!email);
+
+        if (adminEmails.length > 0) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject: `📄 Invoice Request - ${dealerName} for ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background-color: #2F7FFF; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h2 style="margin: 0; font-size: 28px;">📄 Invoice Request</h2>
+                  </div>
+                  
+                  <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 18px; color: #2F7FFF; font-weight: bold;">New Invoice Request</p>
+                    <p style="font-size: 16px;">A dealer has requested an invoice to be generated for a vehicle purchase.</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                      <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #2F7FFF; padding-bottom: 10px;">Request Details:</h3>
+                      <div style="display: grid; gap: 10px;">
+                        <p style="margin: 8px 0;"><strong>🚛 Vehicle:</strong> ${vehicleName}</p>
+                        <p style="margin: 8px 0;"><strong>👤 Requesting Dealer:</strong> ${dealerName}</p>
+                        <p style="margin: 8px 0;"><strong>📧 Dealer Email:</strong> ${
+                          dealerEmail || "Not provided"
+                        }</p>
+                        <p style="margin: 8px 0;"><strong>🏢 Vehicle Owner:</strong> ${transporterName}</p>
+                        <p style="margin: 8px 0;"><strong>💰 Offer Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>📋 Offer ID:</strong> ${offerId}</p>
+                        <p style="margin: 8px 0;"><strong>📅 Request Date:</strong> ${new Date().toLocaleString()}</p>
+                      </div>
+                    </div>
+                    
+                    <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #ffc107;">
+                      <h4 style="margin-top: 0; color: #856404;">⚡ Action Required:</h4>
+                      <p style="margin: 5px 0; color: #856404;">• Review the offer details and ensure payment has been processed</p>
+                      <p style="margin: 5px 0; color: #856404;">• Generate and upload the invoice for this transaction</p>
+                      <p style="margin: 5px 0; color: #856404;">• The dealer is waiting for the invoice to complete their purchase</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                      <a href="${offerLink}" 
+                         style="background-color: #2F7FFF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                        Process Invoice Request
+                      </a>
+                    </div>
+                    
+                    <div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #17a2b8;">
+                      <h4 style="margin-top: 0; color: #0c5460;">💡 Quick Actions:</h4>
+                      <p style="margin: 5px 0; color: #0c5460;">• Click the button above to access the offer management page</p>
+                      <p style="margin: 5px 0; color: #0c5460;">• Generate the invoice using the integrated Sage system</p>
+                      <p style="margin: 5px 0; color: #0c5460;">• Upload the invoice PDF to complete the transaction</p>
+                    </div>
+                    
+                    <p style="margin-top: 30px;">Please process this request promptly to ensure a smooth transaction experience.</p>
+                    
+                    <p>Best regards,<br>
+                    Commercial Trader Portal System</p>
+                  </div>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyAdminsOnInvoiceRequest] Email sent to ${adminEmails.length} admin(s)`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyAdminsOnInvoiceRequest] Error sending email to admins:",
+              emailError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[notifyAdminsOnInvoiceRequest] Error:", error);
+    }
+  }
+);
+
+// Notify admins when a dealer uploads proof of payment
+exports.notifyAdminsOnProofOfPaymentUpload = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyAdminsOnProofOfPaymentUpload] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyAdminsOnProofOfPaymentUpload] No before/after data");
+      return;
+    }
+
+    // Check if proof of payment was just uploaded (wasn't there before but is now)
+    const hadProofOfPayment = !!(
+      before.proofOfPaymentUrl && before.proofOfPaymentUrl.trim() !== ""
+    );
+    const hasProofOfPayment = !!(
+      after.proofOfPaymentUrl && after.proofOfPaymentUrl.trim() !== ""
+    );
+
+    // Only notify if proof of payment was just uploaded (not already there)
+    if (hadProofOfPayment || !hasProofOfPayment) {
+      console.log(
+        "[notifyAdminsOnProofOfPaymentUpload] Proof of payment not newly uploaded, skipping"
+      );
+      return;
+    }
+
+    console.log(
+      "[notifyAdminsOnProofOfPaymentUpload] New proof of payment detected"
+    );
+
+    try {
+      // Get dealer details (who uploaded the proof of payment)
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "Dealer";
+      const dealerEmail = dealerData.email;
+
+      // Get transporter details
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "Transporter";
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      const offerAmount = after.offerAmount || 0;
+      const proofOfPaymentFileName = after.proofOfPaymentFileName || "Document";
+      const uploadTimestamp = after.uploadTimestamp
+        ? after.uploadTimestamp.toDate
+          ? after.uploadTimestamp.toDate()
+          : new Date(after.uploadTimestamp)
+        : new Date();
+
+      // Get all admin users for notifications
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      if (adminUsersSnapshot.empty) {
+        console.log(
+          "[notifyAdminsOnProofOfPaymentUpload] No admin users found"
+        );
+        return;
+      }
+
+      console.log(
+        `[notifyAdminsOnProofOfPaymentUpload] Found ${adminUsersSnapshot.docs.length} admin users to notify`
+      );
+
+      // Notify each admin
+      for (const adminDoc of adminUsersSnapshot.docs) {
+        const adminData = adminDoc.data();
+        const adminName =
+          `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() ||
+          adminData.companyName ||
+          "Admin";
+
+        // Send push notification if admin has FCM token
+        if (adminData.fcmToken) {
+          try {
+            const adminMessage = {
+              notification: {
+                title: "💳 Proof of Payment Uploaded",
+                body: `${dealerName} has uploaded proof of payment for ${vehicleName} (R${offerAmount.toLocaleString()}) - Review and approve`,
+              },
+              data: {
+                offerId: offerId,
+                vehicleId: after.vehicleId,
+                dealerId: after.dealerId,
+                transporterId: after.transporterId,
+                notificationType: "proof_of_payment_uploaded",
+                offerAmount: offerAmount.toString(),
+                vehicleName: vehicleName,
+                dealerName: dealerName,
+                proofOfPaymentFileName: proofOfPaymentFileName,
+                timestamp: new Date().toISOString(),
+              },
+              token: adminData.fcmToken,
+            };
+
+            await admin.messaging().send(adminMessage);
+            console.log(
+              `[notifyAdminsOnProofOfPaymentUpload] Push notification sent to admin ${adminDoc.id}`
+            );
+          } catch (adminPushError) {
+            console.error(
+              `[notifyAdminsOnProofOfPaymentUpload] Error sending push to admin ${adminDoc.id}:`,
+              adminPushError
+            );
+          }
+        }
+      }
+
+      // Send email notifications if SendGrid is available
+      if (sgMail) {
+        const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+        const adminEmails = adminUsersSnapshot.docs
+          .map((doc) => doc.data().email)
+          .filter((email) => !!email);
+
+        if (adminEmails.length > 0) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject: `💳 Payment Verification Required - ${dealerName} for ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background-color: #28a745; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h2 style="margin: 0; font-size: 28px;">💳 Proof of Payment Uploaded</h2>
+                  </div>
+                  
+                  <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 18px; color: #28a745; font-weight: bold;">Payment Verification Needed</p>
+                    <p style="font-size: 16px;">A dealer has uploaded proof of payment for a vehicle purchase and is awaiting payment approval.</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                      <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #28a745; padding-bottom: 10px;">Payment Details:</h3>
+                      <div style="display: grid; gap: 10px;">
+                        <p style="margin: 8px 0;"><strong>🚛 Vehicle:</strong> ${vehicleName}</p>
+                        <p style="margin: 8px 0;"><strong>👤 Paying Dealer:</strong> ${dealerName}</p>
+                        <p style="margin: 8px 0;"><strong>📧 Dealer Email:</strong> ${
+                          dealerEmail || "Not provided"
+                        }</p>
+                        <p style="margin: 8px 0;"><strong>🏢 Vehicle Owner:</strong> ${transporterName}</p>
+                        <p style="margin: 8px 0;"><strong>💰 Payment Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>📄 Document Name:</strong> ${proofOfPaymentFileName}</p>
+                        <p style="margin: 8px 0;"><strong>📋 Offer ID:</strong> ${offerId}</p>
+                        <p style="margin: 8px 0;"><strong>📅 Upload Time:</strong> ${uploadTimestamp.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    
+                    <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #ffc107;">
+                      <h4 style="margin-top: 0; color: #856404;">⚡ Action Required:</h4>
+                      <p style="margin: 5px 0; color: #856404;">• Review the uploaded proof of payment document</p>
+                      <p style="margin: 5px 0; color: #856404;">• Verify the payment amount and transaction details</p>
+                      <p style="margin: 5px 0; color: #856404;">• Approve or reject the payment to proceed with the transaction</p>
+                      <p style="margin: 5px 0; color: #856404;">• The dealer is waiting for payment confirmation</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                      <a href="${offerLink}" 
+                         style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                        Review Payment Proof
+                      </a>
+                    </div>
+                    
+                    <div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #17a2b8;">
+                      <h4 style="margin-top: 0; color: #0c5460;">💡 Next Steps:</h4>
+                      <p style="margin: 5px 0; color: #0c5460;">• Click the button above to access the offer management page</p>
+                      <p style="margin: 5px 0; color: #0c5460;">• Download and review the proof of payment document</p>
+                      <p style="margin: 5px 0; color: #0c5460;">• Update the payment status (approved/rejected) with comments if needed</p>
+                      <p style="margin: 5px 0; color: #0c5460;">• The dealer will be automatically notified of your decision</p>
+                    </div>
+                    
+                    <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #28a745;">
+                      <h4 style="margin-top: 0; color: #155724;">✅ Verification Checklist:</h4>
+                      <ul style="margin: 10px 0; padding-left: 20px; color: #155724;">
+                        <li>Confirm payment amount matches the offer amount</li>
+                        <li>Verify payment method and transaction reference</li>
+                        <li>Check payment date and ensure it's recent</li>
+                        <li>Validate banking details match expected account</li>
+                        <li>Ensure document is clear and legible</li>
+                      </ul>
+                    </div>
+                    
+                    <p style="margin-top: 30px;">Please review and process this payment verification promptly to maintain a smooth transaction flow.</p>
+                    
+                    <p>Best regards,<br>
+                    Commercial Trader Portal System</p>
+                  </div>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyAdminsOnProofOfPaymentUpload] Email sent to ${adminEmails.length} admin(s)`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyAdminsOnProofOfPaymentUpload] Error sending email to admins:",
+              emailError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[notifyAdminsOnProofOfPaymentUpload] Error:", error);
+    }
+  }
+);
+
+// Notify parties when vehicle collection is confirmed
+exports.notifyPartiesOnVehicleCollected = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyPartiesOnVehicleCollected] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyPartiesOnVehicleCollected] No before/after data");
+      return;
+    }
+
+    // Check if offer status was just changed to 'collected' (wasn't collected before but is now)
+    const wasCollected = before.offerStatus?.toLowerCase() === "collected";
+    const isCollected = after.offerStatus?.toLowerCase() === "collected";
+
+    // Only notify if collection was just confirmed (not already collected)
+    if (wasCollected || !isCollected) {
+      console.log(
+        "[notifyPartiesOnVehicleCollected] Vehicle not newly collected, skipping"
+      );
+      return;
+    }
+
+    console.log(
+      "[notifyPartiesOnVehicleCollected] Vehicle collection confirmed"
+    );
+
+    try {
+      // Get dealer details (who collected the vehicle)
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      const dealerName =
+        `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
+        dealerData.companyName ||
+        "Dealer";
+      const dealerEmail = dealerData.email;
+
+      // Get transporter details (original owner)
+      const transporterDoc = await db
+        .collection("users")
+        .doc(after.transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+      const transporterName =
+        `${transporterData.firstName || ""} ${
+          transporterData.lastName || ""
+        }`.trim() ||
+        transporterData.companyName ||
+        "Transporter";
+      const transporterEmail = transporterData.email;
+
+      // Get vehicle details
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      const offerAmount = after.offerAmount || 0;
+      const collectionDate = after.collectionDate
+        ? after.collectionDate.toDate
+          ? after.collectionDate.toDate()
+          : new Date(after.collectionDate)
+        : new Date();
+
+      // Notify transporter (confirmation that their vehicle was collected)
+      if (transporterData.fcmToken) {
+        try {
+          const transporterMessage = {
+            notification: {
+              title: "✅ Vehicle Collected Successfully",
+              body: `${dealerName} has successfully collected your ${vehicleName}. Transaction completed!`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              dealerId: after.dealerId,
+              notificationType: "vehicle_collected",
+              offerAmount: offerAmount.toString(),
+              vehicleName: vehicleName,
+              dealerName: dealerName,
+              timestamp: new Date().toISOString(),
+            },
+            token: transporterData.fcmToken,
+          };
+
+          await admin.messaging().send(transporterMessage);
+          console.log(
+            `[notifyPartiesOnVehicleCollected] Collection confirmation sent to transporter ${after.transporterId}`
+          );
+        } catch (transporterPushError) {
+          console.error(
+            `[notifyPartiesOnVehicleCollected] Error sending confirmation to transporter:`,
+            transporterPushError
+          );
+        }
+      }
+
+      // Notify dealer (confirmation of successful collection)
+      if (dealerData.fcmToken) {
+        try {
+          const dealerMessage = {
+            notification: {
+              title: "✅ Collection Confirmed",
+              body: `Vehicle collection confirmed for ${vehicleName}. Please rate your experience with ${transporterName}.`,
+            },
+            data: {
+              offerId: offerId,
+              vehicleId: after.vehicleId,
+              transporterId: after.transporterId,
+              notificationType: "collection_confirmed",
+              offerAmount: offerAmount.toString(),
+              vehicleName: vehicleName,
+              transporterName: transporterName,
+              timestamp: new Date().toISOString(),
+            },
+            token: dealerData.fcmToken,
+          };
+
+          await admin.messaging().send(dealerMessage);
+          console.log(
+            `[notifyPartiesOnVehicleCollected] Collection confirmation sent to dealer ${after.dealerId}`
+          );
+        } catch (dealerPushError) {
+          console.error(
+            `[notifyPartiesOnVehicleCollected] Error sending confirmation to dealer:`,
+            dealerPushError
+          );
+        }
+      }
+
+      // Get all admin users for notifications
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      // Notify admins
+      if (!adminUsersSnapshot.empty) {
+        for (const adminDoc of adminUsersSnapshot.docs) {
+          const adminData = adminDoc.data();
+
+          if (!adminData.fcmToken) continue;
+
+          try {
+            const adminMessage = {
+              notification: {
+                title: "✅ Transaction Completed",
+                body: `${dealerName} collected ${vehicleName} from ${transporterName}. Sale finalized (R${offerAmount.toLocaleString()}).`,
+              },
+              data: {
+                offerId: offerId,
+                vehicleId: after.vehicleId,
+                dealerId: after.dealerId,
+                transporterId: after.transporterId,
+                notificationType: "transaction_completed",
+                offerAmount: offerAmount.toString(),
+                vehicleName: vehicleName,
+                dealerName: dealerName,
+                transporterName: transporterName,
+                timestamp: new Date().toISOString(),
+              },
+              token: adminData.fcmToken,
+            };
+
+            await admin.messaging().send(adminMessage);
+            console.log(
+              `[notifyPartiesOnVehicleCollected] Transaction complete notification sent to admin ${adminDoc.id}`
+            );
+          } catch (adminPushError) {
+            console.error(
+              `[notifyPartiesOnVehicleCollected] Error sending notification to admin ${adminDoc.id}:`,
+              adminPushError
+            );
+          }
+        }
+      }
+
+      // Send email notifications if SendGrid is available
+      if (sgMail) {
+        const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+        // Email to transporter (sale completion confirmation)
+        if (transporterEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: transporterEmail,
+              subject: `✅ Vehicle Sale Completed - ${vehicleName} Successfully Collected`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background-color: #28a745; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h2 style="margin: 0; font-size: 28px;">✅ Vehicle Sale Completed!</h2>
+                  </div>
+                  
+                  <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 18px; color: #28a745; font-weight: bold;">Congratulations!</p>
+                    <p style="font-size: 16px;">Your vehicle has been successfully collected and the sale is now complete.</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                      <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #28a745; padding-bottom: 10px;">Transaction Summary:</h3>
+                      <div style="display: grid; gap: 10px;">
+                        <p style="margin: 8px 0;"><strong>🚛 Vehicle Sold:</strong> ${vehicleName}</p>
+                        <p style="margin: 8px 0;"><strong>👤 Purchased By:</strong> ${dealerName}</p>
+                        <p style="margin: 8px 0;"><strong>💰 Final Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>📋 Transaction ID:</strong> ${offerId}</p>
+                        <p style="margin: 8px 0;"><strong>📅 Collection Date:</strong> ${collectionDate.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>✅ Status:</strong> Transaction Completed</p>
+                      </div>
+                    </div>
+                    
+                    <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #28a745;">
+                      <h4 style="margin-top: 0; color: #155724;">🎉 What Happens Next:</h4>
+                      <ul style="margin: 10px 0; padding-left: 20px; color: #155724;">
+                        <li>Your payment will be processed according to the agreed terms</li>
+                        <li>You'll receive a transaction completion certificate</li>
+                        <li>Please rate your experience with the buyer</li>
+                        <li>Thank you for using Commercial Trader Portal!</li>
+                      </ul>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                      <a href="${offerLink}" 
+                         style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                        View Transaction Details
+                      </a>
+                    </div>
+                    
+                    <p style="margin-top: 30px;">Thank you for choosing Commercial Trader Portal for your vehicle sale. We hope to serve you again in the future!</p>
+                    
+                    <p>Best regards,<br>
+                    Commercial Trader Portal Team</p>
+                  </div>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnVehicleCollected] Sale completion email sent to transporter ${transporterEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnVehicleCollected] Error sending email to transporter:",
+              emailError
+            );
+          }
+        }
+
+        // Email to dealer (collection confirmation)
+        if (dealerEmail) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: dealerEmail,
+              subject: `✅ Collection Confirmed - ${vehicleName} Purchase Complete`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h2 style="margin: 0; font-size: 28px;">✅ Collection Confirmed!</h2>
+                  </div>
+                  
+                  <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 18px; color: #007bff; font-weight: bold;">Vehicle Successfully Collected</p>
+                    <p style="font-size: 16px;">Your vehicle purchase has been completed successfully. Welcome to your new ${vehicleName}!</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                      <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;">Purchase Summary:</h3>
+                      <div style="display: grid; gap: 10px;">
+                        <p style="margin: 8px 0;"><strong>🚛 Vehicle Purchased:</strong> ${vehicleName}</p>
+                        <p style="margin: 8px 0;"><strong>🏢 Purchased From:</strong> ${transporterName}</p>
+                        <p style="margin: 8px 0;"><strong>💰 Purchase Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>📋 Transaction ID:</strong> ${offerId}</p>
+                        <p style="margin: 8px 0;"><strong>📅 Collection Date:</strong> ${collectionDate.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>✅ Status:</strong> Purchase Completed</p>
+                      </div>
+                    </div>
+                    
+                    <div style="background-color: #cce5ff; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #007bff;">
+                      <h4 style="margin-top: 0; color: #004085;">📋 Important Reminders:</h4>
+                      <ul style="margin: 10px 0; padding-left: 20px; color: #004085;">
+                        <li>Ensure all vehicle documentation is transferred properly</li>
+                        <li>Update your insurance and registration details</li>
+                        <li>Please rate your experience with the seller</li>
+                        <li>Keep your transaction receipt for your records</li>
+                      </ul>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                      <a href="${offerLink}" 
+                         style="background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                        View Purchase Details
+                      </a>
+                    </div>
+                    
+                    <p style="margin-top: 30px;">Enjoy your new vehicle and thank you for choosing Commercial Trader Portal!</p>
+                    
+                    <p>Best regards,<br>
+                    Commercial Trader Portal Team</p>
+                  </div>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnVehicleCollected] Collection confirmation email sent to dealer ${dealerEmail}`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnVehicleCollected] Error sending email to dealer:",
+              emailError
+            );
+          }
+        }
+
+        // Email to admins
+        const adminEmails = adminUsersSnapshot.docs
+          .map((doc) => doc.data().email)
+          .filter((email) => !!email);
+
+        if (adminEmails.length > 0) {
+          try {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject: `✅ Transaction Completed - ${vehicleName} Sale Finalized`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background-color: #6c757d; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h2 style="margin: 0; font-size: 28px;">✅ Transaction Completed</h2>
+                  </div>
+                  
+                  <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 18px; color: #6c757d; font-weight: bold;">Vehicle Sale Successfully Completed</p>
+                    <p style="font-size: 16px;">A vehicle transaction has been completed successfully on the platform.</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
+                      <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #6c757d; padding-bottom: 10px;">Transaction Details:</h3>
+                      <div style="display: grid; gap: 10px;">
+                        <p style="margin: 8px 0;"><strong>🚛 Vehicle:</strong> ${vehicleName}</p>
+                        <p style="margin: 8px 0;"><strong>🏢 Seller:</strong> ${transporterName}</p>
+                        <p style="margin: 8px 0;"><strong>👤 Buyer:</strong> ${dealerName}</p>
+                        <p style="margin: 8px 0;"><strong>💰 Final Amount:</strong> R${offerAmount.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>📋 Transaction ID:</strong> ${offerId}</p>
+                        <p style="margin: 8px 0;"><strong>📅 Collection Date:</strong> ${collectionDate.toLocaleString()}</p>
+                        <p style="margin: 8px 0;"><strong>✅ Status:</strong> Completed Successfully</p>
+                      </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                      <a href="${offerLink}" 
+                         style="background-color: #6c757d; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">
+                        View Transaction Details
+                      </a>
+                    </div>
+                    
+                    <p style="margin-top: 30px;">This transaction is now complete and closed.</p>
+                    
+                    <p>Best regards,<br>
+                    Commercial Trader Portal System</p>
+                  </div>
+                </div>
+              `,
+            });
+
+            console.log(
+              `[notifyPartiesOnVehicleCollected] Transaction completion notification sent to ${adminEmails.length} admin(s)`
+            );
+          } catch (emailError) {
+            console.error(
+              "[notifyPartiesOnVehicleCollected] Error sending admin notification:",
+              emailError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[notifyPartiesOnVehicleCollected] Error:", error);
+    }
+  }
+);
+
+// Debug function to track offer status changes and log them
+exports.trackOfferStatusChanges = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) return;
+
+    const beforeStatus = before.offerStatus;
+    const afterStatus = after.offerStatus;
+
+    // Only log when status actually changes
+    if (beforeStatus !== afterStatus) {
+      console.log(
+        `[OFFER_STATUS_TRACKER] Offer ${offerId}: ${beforeStatus} -> ${afterStatus}`
+      );
+      console.log(`[OFFER_STATUS_TRACKER] Changed fields:`, {
+        statusLocked: after.statusLocked,
+        transactionComplete: after.transactionComplete,
+        collectionConfirmed: after.collectionConfirmed,
+        licenseVerified: after.licenseVerified,
+        finalStatus: after.finalStatus,
+        isCompleted: after.isCompleted,
+        isSold: after.isSold,
+      });
+
+      // If a collected offer is being changed to rejected, log warning
+      if (beforeStatus === "collected" && afterStatus === "rejected") {
+        console.error(
+          `[OFFER_STATUS_TRACKER] WARNING: Collected offer ${offerId} was changed to rejected!`
+        );
+        console.error(`[OFFER_STATUS_TRACKER] Full before data:`, before);
+        console.error(`[OFFER_STATUS_TRACKER] Full after data:`, after);
+      }
+    }
   }
 );
